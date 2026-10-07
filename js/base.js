@@ -208,6 +208,7 @@ Object.assign(Stage.prototype, {
   eagleArmorHit() {
     if (this.eagleInv > 0) return true;
     if (this.eagleArmor <= 0) return false;
+    AutoSkill.event('eagleHit');
     this.eagleArmor--;
     this.eagleInv = 40;
     this.eagleFlash = 30;

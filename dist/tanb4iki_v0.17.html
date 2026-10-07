@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.16</title>
+  <title>tanb4iki_v0.17</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.16';
+const APP_VERSION = '0.17';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2393,6 +2393,49 @@ const SKILLS = [
     newMult: 1.5, newShift: 0, maxOn: 2, plates: 0, eagle: 0, respawn: 0.3 },
 ];
 
+// AUTO skill: a rating from 0 (I'M TOO YOUNG TO DIE) to 4 (NIGHTMARE!) that follows how you play, and enemy
+// strength blended between the two nearest skills. Kills and cleared stages push it up; lost tanks, hits on the eagle
+// and game overs push it down. It is remembered between games.
+const AUTO_SKILL = 5, AUTO_KEY = 'tank1990_autoskill';
+const AUTO_STEP = { kill: 0.015, clear: 0.15, cleanClear: 0.25, death: -0.3, eagleHit: -0.15, gameOver: -0.5 };
+const AutoSkill = {
+  rating: 2,
+  stageDeaths: 0,
+  cache: null,
+  load() {
+    let v = NaN;
+    try { v = parseFloat(localStorage.getItem(AUTO_KEY)); } catch (e) { /* storage unavailable */ }
+    this.rating = v >= 0 && v <= 4 ? v : 2;   // first time: HURT ME PLENTY
+    this.cache = null;
+  },
+  save() { try { localStorage.setItem(AUTO_KEY, String(Math.round(this.rating * 100) / 100)); } catch (e) { /* storage unavailable */ } },
+  active() { return Config.get('skill') === AUTO_SKILL && !(typeof Game !== 'undefined' && modeInfo(Game.mode).vs); },
+  // a new game starts from the remembered rating, never at the very ends
+  start() { this.load(); this.rating = Math.max(0.5, Math.min(3.5, this.rating)); this.stageDeaths = 0; this.cache = null; },
+  stageStart() { this.stageDeaths = 0; },
+  // something happened in the game
+  event(kind, players = 1) {
+    if (!this.active()) return;
+    let d = AUTO_STEP[kind] || 0;
+    if (kind === 'death') { d /= Math.sqrt(players); this.stageDeaths++; }
+    if (kind === 'clear' && this.stageDeaths === 0) d += AUTO_STEP.cleanClear;
+    this.rating = Math.max(0, Math.min(4, this.rating + d));
+    this.cache = null;
+    if (kind === 'clear' || kind === 'gameOver') this.save();
+  },
+  nearest() { return SKILLS[Math.max(0, Math.min(4, Math.round(this.rating)))]; },
+  // the skill table blended at the current rating
+  params() {
+    if (this.cache) return this.cache;
+    const r = this.rating, lo = SKILLS[Math.floor(r)], hi = SKILLS[Math.min(4, Math.floor(r) + 1)], f = r - Math.floor(r);
+    const p = { name: 'AUTO: ' + this.nearest().name };
+    for (const k in lo) if (typeof lo[k] === 'number') p[k] = lo[k] + (hi[k] - lo[k]) * f;
+    for (const k of ['lives', 'plates', 'eagle', 'maxOn']) p[k] = Math.round(p[k]);
+    this.cache = p;
+    return p;
+  },
+};
+
 const pct = (...v) => v;
 const PCTS = pct(25, 50, 75, 100, 125, 150, 175, 200, 250, 300);
 const SECS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 45, 60];
@@ -2556,7 +2599,7 @@ const SETTINGS_DEF = [
   { section: 'GAME' },
   { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'survival', 'timeattack', 'bigmaps', 'eagles', 'dm', 'ctf'], def: 'classic',
     fmt: v => modeInfo(v).name },
-  { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!'][v] },
+  { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4, 5], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!', 'AUTO'][v] },
   { key: 'terrainExtras', label: 'MUD, BELTS, PADS', values: ONOFF, def: 'ON' },
   // classic games: every 4th stage (not a boss stage) a big scrolling map
   { key: 'bigStages', label: 'BIG MAP STAGES', values: ['OFF', 'SOME'], def: 'OFF' },
@@ -2632,7 +2675,7 @@ const Config = {
   // ---- helpers used by the game rules
   playerPal(i) { return 'c_' + this.values['p' + (i + 1) + 'Color']; },
   startLives() { const v = this.values.lives; return v === 'INF' ? 2 : Math.min(99, v - 1 + this.skill().lives); },
-  skill() { return SKILLS[this.values.skill] || SKILLS[2]; },
+  skill() { return this.values.skill === AUTO_SKILL ? AutoSkill.params() : SKILLS[this.values.skill] || SKILLS[2]; },
   infiniteLives() { return this.values.lives === 'INF'; },
   frames(k) { return Math.round(this.values[k] * 60); },
   xpOn() { return this.values.xp === 'ON'; },
@@ -3696,6 +3739,7 @@ class Stage {
     this.result = null;
     this.frame = 0;
     this.dirty = true;
+    AutoSkill.stageStart();
     // game modes (modes.js)
     this.noBase = false;
     if (opts.vs) this.setupVersus(opts.vs);
@@ -3949,7 +3993,11 @@ class Stage {
     } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer) && !this.bossAlive()) {
       if (this.survival) { this.nextWave(); return; }
       this.clearTimer++;
-      if (this.clearTimer === 1) { for (const p of this.players) if (!p.out) this.addXp(p, 25); if (this.big) this.bigMapBonus(); }
+      if (this.clearTimer === 1) {
+        for (const p of this.players) if (!p.out) this.addXp(p, 25);
+        if (this.big) this.bigMapBonus();
+        AutoSkill.event('clear');
+      }
       if (this.clearTimer >= 190) this.result = 'clear';
     }
   }
@@ -4420,6 +4468,7 @@ class Stage {
       }
       const p = by.player, pts = ENEMY[t.type].pts;
       p.kills[t.type]++;
+      AutoSkill.event('kill');
       this.addXp(p, ENEMY[t.type].xp * (t.vet ? ENEMY_RANKS[t.vet].xp : 1) + (t.bonus ? 5 : 0));
       this.addScore(p, pts);
       this.popups.push({ x: t.x + 8, y: t.y + 8, text: String(pts), t: 0, delay: 25 });
@@ -4466,6 +4515,7 @@ class Stage {
     }
     p.tank = null;
     if (this.vs) { this.vsDeath(t, by); return; }
+    AutoSkill.event('death', this.players.length);
     if (Config.infiniteLives()) {
       this.spawnPlayer(p, 30);
     } else if (p.lives > 0) {
@@ -5658,6 +5708,7 @@ Object.assign(Stage.prototype, {
   eagleArmorHit() {
     if (this.eagleInv > 0) return true;
     if (this.eagleArmor <= 0) return false;
+    AutoSkill.event('eagleHit');
     this.eagleArmor--;
     this.eagleInv = 40;
     this.eagleFlash = 30;
@@ -6732,6 +6783,7 @@ Object.assign(Stage.prototype, {
 
   outpostDown(o) {
     o.alive = false;
+    AutoSkill.event('eagleHit');
     this.navBaseF = {};
     this.addFx(o.x + 8, o.y + 8, BIG_EXPLOSION(), 6);
     this.popups.push({ x: o.x + 8, y: o.y - 8, text: 'OUTPOST LOST', label: true, color: COL.red, t: 0, delay: 0, life: 90 });
@@ -7915,6 +7967,7 @@ const Net = {
   buildView(full) {
     const G = Game, v = { t: 'v', s: G.state, gt: G.t, c: COLS, r: ROWS, vc: VIEW_W / 16, vr: VIEW_H / 16, stn: G.stageNum, hi: G.hi, eng: Sound.engineState };
     if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover', 'vsResult', 'modeResult'].includes(G.state)) v.s = 'wait';
+    v.as = AutoSkill.rating;
     v.mode = G.mode; v.ta = G.taFrames; v.tac = G.taCleared; v.vw = G.vsWins;
     if (v.s === 'vsResult') v.vsr = G.vsRes;
     if (v.s === 'modeResult') v.mr = G.modeRes;
@@ -8071,6 +8124,7 @@ const Net = {
     if (v.c !== COLS || v.r !== ROWS || v.vc * 16 !== VIEW_W || v.vr * 16 !== VIEW_H) setFieldSize(v.c, v.r, v.vc || v.c, v.vr || v.r);
     G.players = v.pl.map((o, k) => Object.assign(G.players[k] && G.players[k].i === o.i ? G.players[k] : newPlayer(o.i), o, { tank: null }));
     if (v.base) G.base = v.base;
+    if (v.as !== undefined && AutoSkill.rating !== v.as) { AutoSkill.rating = v.as; AutoSkill.cache = null; }
     G.mode = v.mode; G.taFrames = v.ta; G.taCleared = v.tac; G.vsWins = v.vw || [];
     if (v.vsr) G.vsRes = v.vsr;
     if (v.mr) G.modeRes = v.mr;
@@ -8574,7 +8628,7 @@ const Game = {
     // game mode: left/right (or A) changes it
     m.push({ label: 'MODE: ' + modeInfo(Config.get('gameMode')).name, mode: true, act: () => Config.step('gameMode', 1), adjust: d => Config.step('gameMode', d) });
     m.push({ label: 'DAILY CHALLENGE', daily: true, act: () => this.startDaily() });
-    m.push({ label: Config.skill().name, skill: true, act: () => Config.step('skill', 1), adjust: d => Config.step('skill', d) });
+    m.push({ label: Config.get('skill') === AUTO_SKILL ? 'AUTO SKILL' : Config.skill().name, skill: true, act: () => Config.step('skill', 1), adjust: d => Config.step('skill', d) });
     m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
     m.push({ label: 'SETTINGS', act: () => this.toSettings() });
     return m;
@@ -8619,7 +8673,7 @@ const Game = {
     Font.big(ctx, GAME_NAME, (SW - Font.bigWidth(GAME_NAME, 4)) >> 1, 58, 4, pat);
     const menu = this.titleMenu(), top = this.titleMenuY(), step = this.titleStep();
     menu.forEach((it, i) => {
-      Font.draw(ctx, it.label, 88, top + i * step, it.skill ? ['#58D854', '#B8F818', COL.white, COL.orange, COL.red][Config.get('skill')] : COL.white);
+      Font.draw(ctx, it.label, 88, top + i * step, it.skill ? ['#58D854', '#B8F818', COL.white, COL.orange, COL.red, '#3CBCFC'][Config.get('skill')] : COL.white);
       if (it.adjust && !it.skill && i === this.menuIdx) Font.draw(ctx, '<>', 88 + it.label.length * 8 + 6, top + i * step, COL.lgrey);
     });
     if (this.titleY === 0) {
@@ -8637,6 +8691,10 @@ const Game = {
       const d = dailyToday(), best = STORE.get(DAILY_KEY, {});
       Font.drawCenter(ctx, DAILY_MODS[d.mods[0]].name + ' + ' + DAILY_MODS[d.mods[1]].name, SW / 2, 203, COL.gold);
       Font.drawCenter(ctx, 'STAGE ' + d.stage + '  BEST ' + (best.date === d.date ? best.score : 0), SW / 2, 213, COL.lgrey);
+    } else if (cur && cur.skill && this.titleY === 0 && Config.get('skill') === AUTO_SKILL) {
+      AutoSkill.load();
+      Font.drawCenter(ctx, 'ADAPTS TO HOW YOU PLAY', SW / 2, 203, '#3CBCFC');
+      Font.drawCenter(ctx, 'NOW: ' + AutoSkill.nearest().name, SW / 2, 213, COL.lgrey);
     } else Font.drawCenter(ctx, cur && cur.skill && this.titleY === 0 ? '< > CHANGE SKILL' : 'ENTER START  M MUTE', SW / 2, 206, COL.lgrey);
     ctx.restore();
   },
@@ -8703,6 +8761,7 @@ const Game = {
   // ---------------------------------------------------------------- new game / curtain
   // n = number of players (1-4); online: started from the online lobby
   newGame(n, custom, online) {
+    AutoSkill.start();   // before the players: AUTO's starting tanks follow the remembered rating
     if (!online) { if (Net.role === 'host') Net.hangUp(); Input.remote = {}; }
     this.applyLayout();
     n = Math.max(1, Math.min(4, +n || 1));
@@ -8830,6 +8889,7 @@ const Game = {
     const r = this.stage.result;
     if (r === 'vsRound') { this.vsRoundEnd(); return; }
     if (r && this.mode === 'timeattack' && r === 'clear') { this.saveHi(); this.taNext(); return; }
+    if (r === 'gameover') AutoSkill.event('gameOver');
     if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack')) { this.saveHi(); this.toModeResult(false); return; }
     if (this.stage.result) {
       // beating a boss earns 25% off in the next shop

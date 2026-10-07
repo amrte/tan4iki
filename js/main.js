@@ -235,7 +235,7 @@ const Game = {
     // game mode: left/right (or A) changes it
     m.push({ label: 'MODE: ' + modeInfo(Config.get('gameMode')).name, mode: true, act: () => Config.step('gameMode', 1), adjust: d => Config.step('gameMode', d) });
     m.push({ label: 'DAILY CHALLENGE', daily: true, act: () => this.startDaily() });
-    m.push({ label: Config.skill().name, skill: true, act: () => Config.step('skill', 1), adjust: d => Config.step('skill', d) });
+    m.push({ label: Config.get('skill') === AUTO_SKILL ? 'AUTO SKILL' : Config.skill().name, skill: true, act: () => Config.step('skill', 1), adjust: d => Config.step('skill', d) });
     m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
     m.push({ label: 'SETTINGS', act: () => this.toSettings() });
     return m;
@@ -280,7 +280,7 @@ const Game = {
     Font.big(ctx, GAME_NAME, (SW - Font.bigWidth(GAME_NAME, 4)) >> 1, 58, 4, pat);
     const menu = this.titleMenu(), top = this.titleMenuY(), step = this.titleStep();
     menu.forEach((it, i) => {
-      Font.draw(ctx, it.label, 88, top + i * step, it.skill ? ['#58D854', '#B8F818', COL.white, COL.orange, COL.red][Config.get('skill')] : COL.white);
+      Font.draw(ctx, it.label, 88, top + i * step, it.skill ? ['#58D854', '#B8F818', COL.white, COL.orange, COL.red, '#3CBCFC'][Config.get('skill')] : COL.white);
       if (it.adjust && !it.skill && i === this.menuIdx) Font.draw(ctx, '<>', 88 + it.label.length * 8 + 6, top + i * step, COL.lgrey);
     });
     if (this.titleY === 0) {
@@ -298,6 +298,10 @@ const Game = {
       const d = dailyToday(), best = STORE.get(DAILY_KEY, {});
       Font.drawCenter(ctx, DAILY_MODS[d.mods[0]].name + ' + ' + DAILY_MODS[d.mods[1]].name, SW / 2, 203, COL.gold);
       Font.drawCenter(ctx, 'STAGE ' + d.stage + '  BEST ' + (best.date === d.date ? best.score : 0), SW / 2, 213, COL.lgrey);
+    } else if (cur && cur.skill && this.titleY === 0 && Config.get('skill') === AUTO_SKILL) {
+      AutoSkill.load();
+      Font.drawCenter(ctx, 'ADAPTS TO HOW YOU PLAY', SW / 2, 203, '#3CBCFC');
+      Font.drawCenter(ctx, 'NOW: ' + AutoSkill.nearest().name, SW / 2, 213, COL.lgrey);
     } else Font.drawCenter(ctx, cur && cur.skill && this.titleY === 0 ? '< > CHANGE SKILL' : 'ENTER START  M MUTE', SW / 2, 206, COL.lgrey);
     ctx.restore();
   },
@@ -364,6 +368,7 @@ const Game = {
   // ---------------------------------------------------------------- new game / curtain
   // n = number of players (1-4); online: started from the online lobby
   newGame(n, custom, online) {
+    AutoSkill.start();   // before the players: AUTO's starting tanks follow the remembered rating
     if (!online) { if (Net.role === 'host') Net.hangUp(); Input.remote = {}; }
     this.applyLayout();
     n = Math.max(1, Math.min(4, +n || 1));
@@ -491,6 +496,7 @@ const Game = {
     const r = this.stage.result;
     if (r === 'vsRound') { this.vsRoundEnd(); return; }
     if (r && this.mode === 'timeattack' && r === 'clear') { this.saveHi(); this.taNext(); return; }
+    if (r === 'gameover') AutoSkill.event('gameOver');
     if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack')) { this.saveHi(); this.toModeResult(false); return; }
     if (this.stage.result) {
       // beating a boss earns 25% off in the next shop

@@ -123,6 +123,7 @@ Object.assign(Stage.prototype, {
 
   outpostDown(o) {
     o.alive = false;
+    AutoSkill.event('eagleHit');
     this.navBaseF = {};
     this.addFx(o.x + 8, o.y + 8, BIG_EXPLOSION(), 6);
     this.popups.push({ x: o.x + 8, y: o.y - 8, text: 'OUTPOST LOST', label: true, color: COL.red, t: 0, delay: 0, life: 90 });

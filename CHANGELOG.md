@@ -3,6 +3,12 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.17
+
+- **AUTO skill:** a sixth skill that adjusts enemy strength to how you play. A rating from 0 to 4 rises with kills and
+  cleared stages (more for clean ones) and falls with lost tanks, eagle hits and game overs; the enemies' numbers blend
+  between the two nearest skills. Remembered between games; shown on the title screen and stage curtain.
+
 ## 0.16
 
 - **Big scrolling maps:** several classic maps stitched into one world (3 x 2 or more) that scrolls with your tanks, with

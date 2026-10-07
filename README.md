@@ -154,6 +154,15 @@ Pick the skill on the title screen (the coloured row; left/right changes it). Th
 | ULTRA-VIOLENCE | one more enemy on screen; enemies fire 30% more, move and shoot faster, arrive sooner, rush and hunt more; more new types; veterans 5 stages earlier; bosses 125% HP |
 | NIGHTMARE! | two more on screen and all of that and more (fire +60%, bosses 150% HP, veterans 10 stages earlier), and as in DOOM, enemies you destroy may come back (about 1 in 3) |
 
+**AUTO** (the sixth choice, in blue) adjusts the enemies to how you play. It keeps a rating from 0
+(I'M TOO YOUNG TO DIE) to 4 (NIGHTMARE!) and blends every number in the table between the two nearest skills, including
+the easy skills' free plates and eagle armour. Each destroyed enemy nudges it up, a cleared stage moves it up more
+(even more without losing a tank); losing a tank, a hit on the eagle or a lost outpost pull it down, and a game over
+pulls it down further. Enemy fire adapts at once; speed, shells and the rest follow with the next tanks and stages.
+The rating is remembered between games (a new game starts no lower than 0.5 and no higher than 3.5); the title screen
+shows where it stands now and the stage curtain shows the current level, e.g. AUTO: ULTRA-VIOLENCE. Versus games don't
+count.
+
 The skill is saved with your settings (also Settings → GAME → SKILL), shown on the stage curtain when it isn't
 HURT ME PLENTY, and the host's skill applies to online games. It works on top of all the other settings.
 

@@ -281,6 +281,7 @@ class Stage {
     this.result = null;
     this.frame = 0;
     this.dirty = true;
+    AutoSkill.stageStart();
     // game modes (modes.js)
     this.noBase = false;
     if (opts.vs) this.setupVersus(opts.vs);
@@ -534,7 +535,11 @@ class Stage {
     } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer) && !this.bossAlive()) {
       if (this.survival) { this.nextWave(); return; }
       this.clearTimer++;
-      if (this.clearTimer === 1) { for (const p of this.players) if (!p.out) this.addXp(p, 25); if (this.big) this.bigMapBonus(); }
+      if (this.clearTimer === 1) {
+        for (const p of this.players) if (!p.out) this.addXp(p, 25);
+        if (this.big) this.bigMapBonus();
+        AutoSkill.event('clear');
+      }
       if (this.clearTimer >= 190) this.result = 'clear';
     }
   }
@@ -1005,6 +1010,7 @@ class Stage {
       }
       const p = by.player, pts = ENEMY[t.type].pts;
       p.kills[t.type]++;
+      AutoSkill.event('kill');
       this.addXp(p, ENEMY[t.type].xp * (t.vet ? ENEMY_RANKS[t.vet].xp : 1) + (t.bonus ? 5 : 0));
       this.addScore(p, pts);
       this.popups.push({ x: t.x + 8, y: t.y + 8, text: String(pts), t: 0, delay: 25 });
@@ -1051,6 +1057,7 @@ class Stage {
     }
     p.tank = null;
     if (this.vs) { this.vsDeath(t, by); return; }
+    AutoSkill.event('death', this.players.length);
     if (Config.infiniteLives()) {
       this.spawnPlayer(p, 30);
     } else if (p.lives > 0) {

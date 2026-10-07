@@ -79,6 +79,49 @@ const SKILLS = [
     newMult: 1.5, newShift: 0, maxOn: 2, plates: 0, eagle: 0, respawn: 0.3 },
 ];
 
+// AUTO skill: a rating from 0 (I'M TOO YOUNG TO DIE) to 4 (NIGHTMARE!) that follows how you play, and enemy
+// strength blended between the two nearest skills. Kills and cleared stages push it up; lost tanks, hits on the eagle
+// and game overs push it down. It is remembered between games.
+const AUTO_SKILL = 5, AUTO_KEY = 'tank1990_autoskill';
+const AUTO_STEP = { kill: 0.015, clear: 0.15, cleanClear: 0.25, death: -0.3, eagleHit: -0.15, gameOver: -0.5 };
+const AutoSkill = {
+  rating: 2,
+  stageDeaths: 0,
+  cache: null,
+  load() {
+    let v = NaN;
+    try { v = parseFloat(localStorage.getItem(AUTO_KEY)); } catch (e) { /* storage unavailable */ }
+    this.rating = v >= 0 && v <= 4 ? v : 2;   // first time: HURT ME PLENTY
+    this.cache = null;
+  },
+  save() { try { localStorage.setItem(AUTO_KEY, String(Math.round(this.rating * 100) / 100)); } catch (e) { /* storage unavailable */ } },
+  active() { return Config.get('skill') === AUTO_SKILL && !(typeof Game !== 'undefined' && modeInfo(Game.mode).vs); },
+  // a new game starts from the remembered rating, never at the very ends
+  start() { this.load(); this.rating = Math.max(0.5, Math.min(3.5, this.rating)); this.stageDeaths = 0; this.cache = null; },
+  stageStart() { this.stageDeaths = 0; },
+  // something happened in the game
+  event(kind, players = 1) {
+    if (!this.active()) return;
+    let d = AUTO_STEP[kind] || 0;
+    if (kind === 'death') { d /= Math.sqrt(players); this.stageDeaths++; }
+    if (kind === 'clear' && this.stageDeaths === 0) d += AUTO_STEP.cleanClear;
+    this.rating = Math.max(0, Math.min(4, this.rating + d));
+    this.cache = null;
+    if (kind === 'clear' || kind === 'gameOver') this.save();
+  },
+  nearest() { return SKILLS[Math.max(0, Math.min(4, Math.round(this.rating)))]; },
+  // the skill table blended at the current rating
+  params() {
+    if (this.cache) return this.cache;
+    const r = this.rating, lo = SKILLS[Math.floor(r)], hi = SKILLS[Math.min(4, Math.floor(r) + 1)], f = r - Math.floor(r);
+    const p = { name: 'AUTO: ' + this.nearest().name };
+    for (const k in lo) if (typeof lo[k] === 'number') p[k] = lo[k] + (hi[k] - lo[k]) * f;
+    for (const k of ['lives', 'plates', 'eagle', 'maxOn']) p[k] = Math.round(p[k]);
+    this.cache = p;
+    return p;
+  },
+};
+
 const pct = (...v) => v;
 const PCTS = pct(25, 50, 75, 100, 125, 150, 175, 200, 250, 300);
 const SECS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 45, 60];
@@ -242,7 +285,7 @@ const SETTINGS_DEF = [
   { section: 'GAME' },
   { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'survival', 'timeattack', 'bigmaps', 'eagles', 'dm', 'ctf'], def: 'classic',
     fmt: v => modeInfo(v).name },
-  { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!'][v] },
+  { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4, 5], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!', 'AUTO'][v] },
   { key: 'terrainExtras', label: 'MUD, BELTS, PADS', values: ONOFF, def: 'ON' },
   // classic games: every 4th stage (not a boss stage) a big scrolling map
   { key: 'bigStages', label: 'BIG MAP STAGES', values: ['OFF', 'SOME'], def: 'OFF' },
@@ -318,7 +361,7 @@ const Config = {
   // ---- helpers used by the game rules
   playerPal(i) { return 'c_' + this.values['p' + (i + 1) + 'Color']; },
   startLives() { const v = this.values.lives; return v === 'INF' ? 2 : Math.min(99, v - 1 + this.skill().lives); },
-  skill() { return SKILLS[this.values.skill] || SKILLS[2]; },
+  skill() { return this.values.skill === AUTO_SKILL ? AutoSkill.params() : SKILLS[this.values.skill] || SKILLS[2]; },
   infiniteLives() { return this.values.lives === 'INF'; },
   frames(k) { return Math.round(this.values[k] * 60); },
   xpOn() { return this.values.xp === 'ON'; },
