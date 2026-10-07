@@ -259,7 +259,7 @@ const BossGfx = {
 Object.assign(Stage.prototype, {
   initBoss(info) {
     const def = BOSSES[info.idx];
-    const mult = Config.scale('bossHp') * (this.twoP ? 1.5 : 1) * (1 + 0.5 * info.loop);
+    const mult = Config.scale('bossHp') * (1 + 0.5 * this.extraPlayers) * (1 + 0.5 * info.loop);
     const hp = n => Math.max(1, Math.round(n * mult));
     this.bossIdx = info.idx;
     this.bossLoop = info.loop;
@@ -287,7 +287,7 @@ Object.assign(Stage.prototype, {
     this.queue = [];
     for (let i = 0; i < n; i++) this.queue.push({ type: def.escorts[i % def.escorts.length], bonus: false });
     this.total = n;
-    this.maxEnemies = Math.min(this.maxEnemies, 3 + (this.twoP ? 1 : 0));
+    this.maxEnemies = Math.min(this.maxEnemies, 3 + Math.min(2, this.extraPlayers));
   },
 
   mainBoss() { return this.bosses.find(b => b.main); },

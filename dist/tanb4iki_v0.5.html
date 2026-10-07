@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.4</title>
+  <title>tanb4iki_v0.5</title>
   <style>
 :root {
   --bg: #000;
@@ -166,7 +166,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.4';
+const APP_VERSION = '0.5';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -1856,6 +1856,13 @@ const Sprites = {
     }
     return c;
   },
+  // small tank icon in a player's colour (side panel with 3-4 players)
+  playerIcon(pal) {
+    const k = 'picon' + pal;
+    let c = this.cache.get(k);
+    if (!c) { c = gridCanvas(parseGrid(LIFE_ICON_GRID), [null, PALS[pal][2]]); this.cache.set(k, c); }
+    return c;
+  },
   bricks(ctx) {
     if (!this.brickPattern) this.brickPattern = ctx.createPattern(this.tex.brick, 'repeat');
     return this.brickPattern;
@@ -1922,6 +1929,8 @@ const SETTINGS_DEF = [
   { key: 'lives', label: 'LIVES', values: range(1, 9).concat(['INF']), def: 3 },
   { key: 'p1Color', label: 'I-PLAYER COLOR', values: Object.keys(TANK_COLORS), def: 'YELLOW', color: true },
   { key: 'p2Color', label: 'II-PLAYER COLOR', values: Object.keys(TANK_COLORS), def: 'GREEN', color: true },
+  { key: 'p3Color', label: 'III-PLAYER COLOR', values: Object.keys(TANK_COLORS), def: 'BLUE', color: true },
+  { key: 'p4Color', label: 'IV-PLAYER COLOR', values: Object.keys(TANK_COLORS), def: 'PINK', color: true },
   { key: 'pSpeed', label: 'TANK SPEED', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'pShell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'startStars', label: 'START STARS', values: [0, 1, 2, 3], def: 0 },
@@ -1985,6 +1994,8 @@ const SETTINGS_DEF = [
   { key: 'fieldH', label: 'FIELD HEIGHT', values: range(13, 40).concat(['FIT']), def: 13 },
   { key: 'scaling', label: 'SCALING', values: ['SHARP', 'FILL'], def: 'SHARP' },
   { key: 'controls', label: 'CONTROLS', values: ['AUTO', 'PC', 'MAC'], def: 'AUTO' },
+  { action: 'keys', label: 'SET UP KEYS AND PADS' },
+  { key: 'rumble', label: 'GAMEPAD RUMBLE', values: ONOFF, def: 'ON' },
   { action: 'fitScreen', label: 'FIT TO MY SCREEN' },
   { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
@@ -2057,7 +2068,7 @@ const Config = {
   },
 
   // ---- helpers used by the game rules
-  playerPal(i) { return 'c_' + this.values[i === 0 ? 'p1Color' : 'p2Color']; },
+  playerPal(i) { return 'c_' + this.values['p' + (i + 1) + 'Color']; },
   startLives() { const v = this.values.lives; return v === 'INF' ? 2 : v - 1; },
   infiniteLives() { return this.values.lives === 'INF'; },
   frames(k) { return Math.round(this.values[k] * 60); },
@@ -2420,17 +2431,128 @@ const KEYS_MAC = Object.assign({}, KEYS, {
   },
 });
 
+// 3-4 players on one keyboard (same on PC and Mac); gamepads are the comfy option
+const KEYS_MULTI = [
+  { 0: ['KeyW', 'TUp'], 1: ['KeyD', 'TRight'], 2: ['KeyS', 'TDown'], 3: ['KeyA', 'TLeft'], fire: ['Space', 'KeyV', 'TFire'], alt: ['KeyC', 'KeyB', 'TFire2'] },
+  { 0: ['ArrowUp'], 1: ['ArrowRight'], 2: ['ArrowDown'], 3: ['ArrowLeft'], fire: ['ShiftRight', 'ControlRight', 'AltRight', 'Slash', 'Period'], alt: ['Quote', 'Semicolon'] },
+  { 0: ['KeyI'], 1: ['KeyL'], 2: ['KeyK'], 3: ['KeyJ'], fire: ['KeyU'], alt: ['KeyO'] },
+  { 0: ['KeyT', 'Numpad8'], 1: ['KeyH', 'Numpad6'], 2: ['KeyG', 'Numpad5'], 3: ['KeyF', 'Numpad4'], fire: ['KeyR', 'Numpad0'], alt: ['KeyY', 'NumpadDecimal'] },
+];
+
 const IS_MAC = /Mac|iPhone|iPad|iPod/.test([navigator.userAgentData && navigator.userAgentData.platform, navigator.platform, navigator.userAgent].join(' '));
 
 // help line under the game, per control scheme
 const HELP = {
   PC: '<b>1P</b> Arrows/WASD move · Space/Z/J fire · B/C/Left Shift mines &nbsp;|&nbsp; '
     + '<b>2P</b> P1 WASD + Space/F, mines C/B · P2 Arrows + Right Ctrl/Numpad0/L, mines Numpad1/K/; &nbsp;|&nbsp; '
+    + '<b>3-4P</b> P3 IJKL fire U mines O · P4 TFGH/numpad fire R mines Y &nbsp;|&nbsp; '
     + '<b>Enter</b> pause · <b>M</b> mute · <b>double-click</b> fullscreen · gamepads supported',
   MAC: '<b>1P</b> ←↑↓→ or WASD move · Space/Z/J fire · B/C/⇧ mines &nbsp;|&nbsp; '
     + '<b>2P</b> P1 WASD + Space/F, mines C/B · P2 ←↑↓→ + right ⌥ option / right ⇧ / slash fire, mines ; or \' &nbsp;|&nbsp; '
+    + '<b>3-4P</b> P3 IJKL fire U mines O · P4 TFGH fire R mines Y &nbsp;|&nbsp; '
     + '<b>return</b> pause · <b>M</b> mute · <b>double-click</b> or ⌃⌘F fullscreen · <b>fn+delete</b> clears a map in Construction',
 };
+
+// ---------------------------------------------------------- user bindings
+// Keyboard: two keys per action for each player (null = the scheme's defaults).
+// Gamepad: one set of buttons shared by all pads (standard mapping indices).
+const ACTIONS = ['up', 'down', 'left', 'right', 'fire', 'alt'];
+const PAD_ACTIONS = ['fire', 'alt', 'start', 'back'];
+const PAD_DEFAULT = { fire: [0, 2, 5, 7], alt: [1, 3, 4, 6], start: [9], back: [8] };
+const TOUCH_CODES = new Set(['TUp', 'TRight', 'TDown', 'TLeft', 'TFire', 'TFire2', 'TStart']);
+
+const Keymap = {
+  players: [null, null, null, null],
+  pad: null,
+  load() {
+    try {
+      const d = JSON.parse(localStorage.getItem('tank1990_keys') || 'null');
+      if (d && Array.isArray(d.players)) { this.players = d.players.slice(0, 4); this.pad = d.pad || null; }
+    } catch (e) { /* storage unavailable */ }
+    while (this.players.length < 4) this.players.push(null);
+  },
+  save() {
+    try { localStorage.setItem('tank1990_keys', JSON.stringify({ players: this.players, pad: this.pad })); } catch (e) { /* storage unavailable */ }
+  },
+  // the scheme's keys for player i, as the editor shows them (first two per action)
+  defaults(i) {
+    const K = Input.keys(), src = i === 0 ? K.p1 : i === 1 ? K.p2 : KEYS_MULTI[i];
+    const pick = list => list.filter(c => !TOUCH_CODES.has(c)).slice(0, 2);
+    return { up: pick(src[0]), down: pick(src[2]), left: pick(src[3]), right: pick(src[1]), fire: pick(src.fire), alt: pick(src.alt) };
+  },
+  get(i) { return this.players[i] || this.defaults(i); },
+  custom(i) { return !!this.players[i]; },
+  padMap() { return this.pad || PAD_DEFAULT; },
+  // map in the format Input.player uses, or null when the player still has the defaults
+  inputMap(i) {
+    const b = this.players[i];
+    if (!b) return null;
+    const t = i === 0 ? c => [c] : () => [];
+    return { 0: b.up.concat(t('TUp')), 1: b.right.concat(t('TRight')), 2: b.down.concat(t('TDown')), 3: b.left.concat(t('TLeft')),
+      fire: b.fire.concat(t('TFire')), alt: b.alt.concat(t('TFire2')) };
+  },
+  // a key does one thing only: take it away from every other action and player first
+  setKey(i, action, slot, code) {
+    for (let p = 0; p < 4; p++) {
+      const cur = this.get(p);
+      if (!ACTIONS.some(a => cur[a].includes(code))) continue;
+      const copy = JSON.parse(JSON.stringify(cur));
+      for (const a of ACTIONS) copy[a] = copy[a].filter(c => c !== code);
+      this.players[p] = copy;
+    }
+    if (!this.players[i]) this.players[i] = JSON.parse(JSON.stringify(this.defaults(i)));
+    const arr = this.players[i][action].slice(0, 2);
+    arr[Math.min(slot, arr.length)] = code;
+    this.players[i][action] = arr.filter(Boolean);
+    this.save();
+  },
+  clearKey(i, action, slot) {
+    if (!this.players[i]) this.players[i] = JSON.parse(JSON.stringify(this.defaults(i)));
+    this.players[i][action] = this.players[i][action].filter((_, k) => k !== slot);
+    this.save();
+  },
+  setPad(action, slot, button) {
+    const pm = JSON.parse(JSON.stringify(this.padMap()));
+    for (const a of PAD_ACTIONS) pm[a] = pm[a].filter(n => n !== button);
+    const arr = pm[action].slice(0, 2);
+    arr[Math.min(slot, arr.length)] = button;
+    pm[action] = arr.filter(n => n !== undefined);
+    this.pad = pm;
+    this.save();
+  },
+  clearPad(action, slot) {
+    const pm = JSON.parse(JSON.stringify(this.padMap()));
+    pm[action] = pm[action].filter((_, k) => k !== slot);
+    this.pad = pm;
+    this.save();
+  },
+  resetPlayer(i) { this.players[i] = null; this.save(); },
+  resetAll() { this.players = [null, null, null, null]; this.pad = null; this.save(); },
+};
+
+// short names for the key setup screen (the NES font has capitals, digits and a few symbols)
+function keyLabel(code) {
+  if (!code) return '-';
+  const mac = Input.scheme() === 'MAC';
+  const named = {
+    ArrowUp: 'UP', ArrowDown: 'DOWN', ArrowLeft: 'LEFT', ArrowRight: 'RIGHT', Space: 'SPACE', Enter: 'ENTER',
+    ShiftLeft: 'LSHIFT', ShiftRight: 'RSHIFT', ControlLeft: 'LCTRL', ControlRight: 'RCTRL',
+    AltLeft: mac ? 'LOPT' : 'LALT', AltRight: mac ? 'ROPT' : 'RALT', MetaLeft: mac ? 'LCMD' : 'LWIN', MetaRight: mac ? 'RCMD' : 'RWIN',
+    Slash: '/', Period: '.', Comma: ',', Semicolon: ';', Quote: "'", Minus: '-', Equal: '=', Backquote: "'",
+    BracketLeft: '<', BracketRight: '>', Backslash: '/', Tab: 'TAB', CapsLock: 'CAPS', Backspace: 'BKSP', Delete: 'DEL',
+    NumpadEnter: 'NENTER', NumpadDecimal: 'NUM.', NumpadAdd: 'NUM+', NumpadSubtract: 'NUM-',
+  };
+  if (named[code]) return named[code];
+  if (/^Key[A-Z]$/.test(code)) return code[3];
+  if (/^Digit\d$/.test(code)) return code[5];
+  if (/^Numpad\d$/.test(code)) return 'NUM' + code[6];
+  return code.toUpperCase().slice(0, 7);
+}
+
+function padLabel(n) {
+  if (n === undefined || n === null) return '-';
+  return ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'SELECT', 'START', 'LSTICK', 'RSTICK', 'DUP', 'DDOWN', 'DLEFT', 'DRIGHT', 'HOME'][n] || 'BTN' + n;
+}
 
 const PREVENT = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Enter', 'Tab', 'Slash', 'Backspace', 'AltRight', 'AltLeft', 'Quote']);
 
@@ -2439,7 +2561,7 @@ const Input = {
   just: new Set(),
   stamp: {},
   seq: 0,
-  twoP: false,
+  numPlayers: 1,
   pads: [],
   padPrev: [],
 
@@ -2447,6 +2569,12 @@ const Input = {
     window.addEventListener('keydown', e => {
       if (PREVENT.has(e.code)) e.preventDefault();
       Sound.unlock();
+      // waiting for a new key on the key setup screen
+      if (this.capture) {
+        e.preventDefault();
+        if (!e.repeat) { const cb = this.capture; this.capture = null; cb({ kind: 'key', code: e.code }); }
+        return;
+      }
       if (e.repeat) return;
       this.press(e.code);
       if (e.code === 'KeyM') Sound.toggleMute();
@@ -2467,6 +2595,17 @@ const Input = {
 
   endFrame() { this.just.clear(); },
 
+  // short controller vibration for player i (if the pad supports it and it's switched on)
+  rumble(i, strength = 0.6, ms = 200) {
+    if (typeof Config === 'undefined' || !Config.on('rumble')) return;
+    for (const p of this.padsFor(i)) {
+      const act = p.gp && p.gp.vibrationActuator;
+      if (act && act.playEffect) {
+        try { const r = act.playEffect('dual-rumble', { duration: ms, strongMagnitude: strength, weakMagnitude: strength * 0.6 }); if (r && r.catch) r.catch(() => {}); } catch (e) { /* not supported */ }
+      }
+    }
+  },
+
   // active control scheme: PC or MAC (AUTO picks MAC on Apple devices)
   scheme() {
     const v = typeof Config !== 'undefined' ? Config.get('controls') : 'AUTO';
@@ -2486,24 +2625,45 @@ const Input = {
     const list = navigator.getGamepads ? navigator.getGamepads() : [];
     const pads = [];
     for (const gp of list) if (gp && gp.connected) pads.push(gp);
+    const pm = Keymap.padMap();
     this.pads = pads.map((gp, i) => {
       const b = n => !!(gp.buttons[n] && gp.buttons[n].pressed);
+      const any = list => list.some(b);
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+      // D-pad: standard buttons 12-15, the left stick, and the layouts non-standard pads use
+      let hu = false, hd = false, hl = false, hr = false;
+      if (gp.mapping !== 'standard') {
+        const a6 = gp.axes[6] || 0, a7 = gp.axes[7] || 0;
+        hl = a6 < -0.5; hr = a6 > 0.5; hu = a7 < -0.5; hd = a7 > 0.5;
+        const h = gp.axes[9];
+        if (h !== undefined && h >= -1.05 && h <= 1.05) {
+          const k = Math.round((h + 1) / 2 * 7) & 7; // 0 up, 2 right, 4 down, 6 left
+          hu = hu || [7, 0, 1].includes(k); hr = hr || [1, 2, 3].includes(k);
+          hd = hd || [3, 4, 5].includes(k); hl = hl || [5, 6, 7].includes(k);
+        }
+      }
       const st = {
-        0: b(12) || ay < -0.5,
-        2: b(13) || ay > 0.5,
-        3: b(14) || ax < -0.5,
-        1: b(15) || ax > 0.5,
-        fire: b(0) || b(2) || b(5) || b(7),
-        alt: b(1) || b(3) || b(4) || b(6),
-        start: b(9),
-        back: b(8),
+        gp,
+        0: b(12) || ay < -0.5 || hu,
+        2: b(13) || ay > 0.5 || hd,
+        3: b(14) || ax < -0.5 || hl,
+        1: b(15) || ax > 0.5 || hr,
+        fire: any(pm.fire),
+        alt: any(pm.alt),
+        start: any(pm.start),
+        back: any(pm.back),
+        raw: gp.buttons.map(x => !!(x && x.pressed)),
       };
       const prev = this.padPrev[i] || {};
-      st.justFire = st.fire && !prev.fire;
-      st.justAlt = st.alt && !prev.alt;
-      st.justStart = st.start && !prev.start;
-      st.justBack = st.back && !prev.back;
+      // waiting for a new button on the key setup screen
+      if (this.capture && prev.raw) {
+        const n = st.raw.findIndex((on, k) => on && !prev.raw[k]);
+        if (n >= 0) { const cb = this.capture; this.capture = null; cb({ kind: 'pad', button: n }); st.swallow = true; }
+      }
+      st.justFire = st.fire && !prev.fire && !st.swallow;
+      st.justAlt = st.alt && !prev.alt && !st.swallow;
+      st.justStart = st.start && !prev.start && !st.swallow;
+      st.justBack = st.back && !prev.back && !st.swallow;
       for (const d of [0, 1, 2, 3]) {
         st['just' + d] = st[d] && !prev[d];
         if (st['just' + d]) st['stamp' + d] = ++this.seq; else st['stamp' + d] = prev['stamp' + d] || 0;
@@ -2515,14 +2675,15 @@ const Input = {
   },
 
   padsFor(i) {
-    if (!this.twoP) return this.pads;
+    if (this.numPlayers <= 1) return this.pads;
     return this.pads[i] ? [this.pads[i]] : [];
   },
 
   // ---------------------------------------------------------- per-player state
   player(i) {
     const K = this.keys();
-    const map = this.twoP ? (i === 0 ? K.p1 : K.p2) : K.solo;
+    const n = this.numPlayers;
+    const map = Keymap.inputMap(i) || (n >= 3 ? KEYS_MULTI[i] : n === 2 ? (i === 0 ? K.p1 : K.p2) : K.solo);
     let best = -1, bestStamp = -1;
     for (const d of [0, 1, 2, 3]) {
       for (const code of map[d]) {
@@ -2656,7 +2817,7 @@ const TURBO_MULT = 1.75;
 const ROCKET_RADIUS = 14, MINE_RADIUS = 18, MINE_ARM_TIME = 40, MAX_MINES = 16;
 let BASE_X = 96, BASE_Y = 192;
 let ENEMY_SPAWN_X = [96, 192, 0];
-let PLAYER_SPAWN = [[64, 192], [128, 192]];
+let PLAYER_SPAWN = [[64, 192], [128, 192], [0, 192], [192, 192]];
 let BASE_WALL = [[11, 23], [12, 23], [13, 23], [14, 23], [11, 24], [14, 24], [11, 25], [14, 25]];
 
 function setFieldSize(cols, rows) {
@@ -2668,7 +2829,8 @@ function setFieldSize(cols, rows) {
   BASE_X = cols * 8 - 8; BASE_Y = FH - 16;
   const bx = BASE_X / 8, by = BASE_Y / 8;
   BASE_WALL = [[bx - 1, by - 1], [bx, by - 1], [bx + 1, by - 1], [bx + 2, by - 1], [bx - 1, by], [bx + 2, by], [bx - 1, by + 1], [bx + 2, by + 1]];
-  PLAYER_SPAWN = [[BASE_X - 32, BASE_Y], [BASE_X + 32, BASE_Y]];
+  // players I and II beside the eagle, III and IV in the bottom corners
+  PLAYER_SPAWN = [[BASE_X - 32, BASE_Y], [BASE_X + 32, BASE_Y], [0, FH - 16], [FW - 16, FH - 16]];
   // enemy entry points along the top: centre, right, left, then more for wide fields
   const n = 2 * Math.max(1, Math.round((cols - 1) / 12)) + 1, mid = (n - 1) / 2;
   const at = i => Math.round(i * (cols - 1) / (n - 1)) * 16;
@@ -2776,6 +2938,7 @@ class Stage {
     this.num = num;
     this.players = players;
     this.twoP = players.length > 1;
+    this.extraPlayers = Math.max(0, players.length - 1);
     this.terrain = new Uint8Array(GW * GH);
     const classic = COLS === 13 && ROWS === 13;
     this.load(expandBlocks(mapToBlocks(map)), !opts.custom || !classic);
@@ -2794,7 +2957,7 @@ class Stage {
     this.spawnTimer = 0;
     this.spawnPos = 0;
     this.spawnInterval = Math.round(Math.max(70, 190 - ((num - 1) % 35) * 4 - (this.twoP ? 20 : 0)) / Config.scale('spawnRate'));
-    this.maxEnemies = Config.get('maxOnScreen') + (this.twoP ? 2 : 0);
+    this.maxEnemies = Config.get('maxOnScreen') + [0, 2, 3, 4][this.extraPlayers];
     this.freezeE = 0;
     this.freezeP = 0;
     this.shovel = 0;
@@ -3393,11 +3556,13 @@ class Stage {
       p.ship = false;
       t.shield = 60;
       Sound.play('armor');
+      Input.rumble(p.i, 0.4, 120);
       return;
     }
     t.alive = false;
     this.addFx(t.x + 8, t.y + 8, BIG_EXPLOSION(), 5);
     Sound.play('playerDie');
+    Input.rumble(p.i, 1, 400);
     if (!Config.on('keepStars')) {
       p.level = Config.get('startStars');
       p.cutter = false;
@@ -3645,9 +3810,21 @@ class Stage {
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);
     // more than 20 waiting: show how many in total
     if (n && this.queue.length > 20) Font.drawCenter(ctx, String(this.queue.length), H + 8, 106, COL.black);
+    const lives = p => (Config.infiniteLives() ? '~' : String(Math.min(99, p.lives)));
+    if (this.players.length > 2) {
+      // 3-4 players: one compact row each, the tank icon in the player's colour
+      this.players.forEach((p, i) => {
+        const y = 128 + i * 14;
+        ctx.drawImage(Sprites.playerIcon(Config.playerPal(i)), H, y);
+        Font.draw(ctx, lives(p), H + 8, y, COL.black);
+        if (p.mines) { ctx.fillStyle = '#505050'; for (let k = 0; k < Math.min(3, p.mines); k++) ctx.fillRect(H + 1 + k * 3, y + 9, 2, 2); }
+      });
+      ctx.drawImage(Sprites.flag, H, 184);
+      Font.drawRight(ctx, String(this.num), H + 16, 200, COL.black);
+      return;
+    }
     Font.draw(ctx, 'IP', H, 136, COL.black);
     ctx.drawImage(Sprites.lifeIcon, H, 144);
-    const lives = p => (Config.infiniteLives() ? '~' : String(Math.min(99, p.lives)));
     Font.draw(ctx, lives(this.players[0]), H + 8, 144, COL.black);
     if (this.players[1]) {
       Font.draw(ctx, 'IIP', H, 160, COL.black);
@@ -3929,7 +4106,7 @@ const BossGfx = {
 Object.assign(Stage.prototype, {
   initBoss(info) {
     const def = BOSSES[info.idx];
-    const mult = Config.scale('bossHp') * (this.twoP ? 1.5 : 1) * (1 + 0.5 * info.loop);
+    const mult = Config.scale('bossHp') * (1 + 0.5 * this.extraPlayers) * (1 + 0.5 * info.loop);
     const hp = n => Math.max(1, Math.round(n * mult));
     this.bossIdx = info.idx;
     this.bossLoop = info.loop;
@@ -3957,7 +4134,7 @@ Object.assign(Stage.prototype, {
     this.queue = [];
     for (let i = 0; i < n; i++) this.queue.push({ type: def.escorts[i % def.escorts.length], bonus: false });
     this.total = n;
-    this.maxEnemies = Math.min(this.maxEnemies, 3 + (this.twoP ? 1 : 0));
+    this.maxEnemies = Math.min(this.maxEnemies, 3 + Math.min(2, this.extraPlayers));
   },
 
   mainBoss() { return this.bosses.find(b => b.main); },
@@ -4610,6 +4787,7 @@ function defaultCustomMap() {
 }
 
 const TITLE_MENU_Y = 126;
+const ROMAN = ['I', 'II', 'III', 'IV'];
 const PAUSE_MENU = ['CONTINUE', 'SAVE GAME', 'QUIT'];
 const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
 
@@ -4669,6 +4847,7 @@ const Game = {
   hi: 20000,
   players: [],
   twoP: false,
+  multiN: 2,     // players chosen on the MULTIPLAYER row (2-4)
   stageNum: 1,
   stage: null,
   paused: false,
@@ -4726,8 +4905,9 @@ const Game = {
   titleMenu() {
     const m = [];
     if (this.hasSave()) m.push({ label: 'CONTINUE', act: () => this.loadGame() });
-    m.push({ label: '1 PLAYER', act: () => this.newGame(false, false) });
-    m.push({ label: '2 PLAYERS', act: () => this.newGame(true, false) });
+    m.push({ label: '1 PLAYER', act: () => this.newGame(1, false) });
+    // left/right picks 2, 3 or 4 players
+    m.push({ label: this.multiN + ' PLAYERS', act: () => this.newGame(this.multiN, false), adjust: d => { this.multiN = (this.multiN - 2 + d + 3) % 3 + 2; } });
     m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
     m.push({ label: 'SETTINGS', act: () => this.toSettings() });
     return m;
@@ -4743,6 +4923,8 @@ const Game = {
     const n = this.titleMenu().length;
     if (m.up) { this.menuIdx = (this.menuIdx + n - 1) % n; Sound.play('select'); }
     if (m.down || m.select) { this.menuIdx = (this.menuIdx + 1) % n; Sound.play('select'); }
+    const item = this.titleMenu()[this.menuIdx];
+    if (item && item.adjust && (m.left || m.right)) { item.adjust(m.right ? 1 : -1); Sound.play('select'); }
     if (m.ok) this.chooseMenu(this.menuIdx);
   },
 
@@ -4767,7 +4949,10 @@ const Game = {
     const pat = Sprites.bricks(ctx);
     Font.big(ctx, GAME_NAME, (SW - Font.bigWidth(GAME_NAME, 4)) >> 1, 58, 4, pat);
     const menu = this.titleMenu(), top = this.titleMenuY();
-    menu.forEach((it, i) => Font.draw(ctx, it.label, 88, top + i * 14, COL.white));
+    menu.forEach((it, i) => {
+      Font.draw(ctx, it.label, 88, top + i * 14, COL.white);
+      if (it.adjust && i === this.menuIdx) Font.draw(ctx, '<>', 88 + it.label.length * 8 + 6, top + i * 14, COL.lgrey);
+    });
     if (this.titleY === 0) {
       const anim = (this.t >> 2) & 1;
       ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, top - 4 + this.menuIdx * 14);
@@ -4784,7 +4969,7 @@ const Game = {
   saveGame() {
     if (!this.stage || this.stage.over) return false;
     const data = {
-      app: APP_VERSION, time: Date.now(), twoP: this.twoP, stageNum: this.stageNum, lastScores: this.lastScores,
+      app: APP_VERSION, time: Date.now(), numPlayers: this.players.length, stageNum: this.stageNum, lastScores: this.lastScores,
       players: this.players.map(p => { const o = Object.assign({}, p); delete o.tank; return o; }),
       stage: this.stage.snapshot(),
     };
@@ -4794,8 +4979,9 @@ const Game = {
   loadGame() {
     const s = STORE.get(SAVE_KEY, null);
     if (!s || !s.stage) return;
-    this.twoP = s.twoP;
-    Input.twoP = s.twoP;
+    const n = s.numPlayers || (s.twoP ? 2 : 1);
+    this.twoP = n > 1;
+    Input.numPlayers = n;
     this.players = s.players.map(p => Object.assign(newPlayer(p.i), p, { tank: null }));
     this.stageNum = s.stageNum;
     this.lastScores = s.lastScores || [0, 0];
@@ -4812,12 +4998,14 @@ const Game = {
   },
 
   // ---------------------------------------------------------------- new game / curtain
-  newGame(twoP, custom) {
+  // n = number of players (1-4)
+  newGame(n, custom) {
     this.applyLayout();
-    this.twoP = twoP;
-    Input.twoP = twoP;
-    this.players = [newPlayer(0)];
-    if (twoP) this.players.push(newPlayer(1));
+    n = Math.max(1, Math.min(4, +n || 1));
+    this.twoP = n > 1;
+    Input.numPlayers = n;
+    this.players = [];
+    for (let i = 0; i < n; i++) this.players.push(newPlayer(i));
     this.stageNum = 1;
     this.customPending = custom;
     this.toCurtain(!custom);
@@ -4968,10 +5156,12 @@ const Game = {
         if (sc.row >= 4) { sc.phase = 'total'; sc.wait = 30; }
       }
     } else if (sc.phase === 'total') {
-      if (this.twoP && !sc.gameOver) {
+      if (this.players.length > 1 && !sc.gameOver) {
+        // the player with the most kills (no tie) earns 1000
         const k = this.players.map(p => p.kills.reduce((a, b) => a + b, 0));
-        if (k[0] !== k[1]) {
-          sc.bonus = k[0] > k[1] ? 0 : 1;
+        const best = Math.max(...k);
+        if (k.filter(v => v === best).length === 1) {
+          sc.bonus = k.indexOf(best);
           const p = this.players[sc.bonus];
           p.score += 1000;
           checkExtraLife(p);
@@ -4992,6 +5182,32 @@ const Game = {
     }
   },
 
+  // 3-4 players: one column per player
+  renderScoreMulti(ctx) {
+    const sc = this.sc, P = this.players, n = P.length;
+    const colX = i => 72 + i * ((SW - 80) / n);
+    const shown = (p, row) => row < sc.row || sc.phase !== 'rows' ? p.kills[row] : (row === sc.row ? Math.min(sc.n, p.kills[row]) : -1);
+    P.forEach((p, i) => {
+      const x = colX(i);
+      ctx.drawImage(Sprites.playerIcon(Config.playerPal(i)), x + 10, 54);
+      Font.drawRight(ctx, ROMAN[i], x + 8, 54, COL.red);
+      Font.drawRight(ctx, p.score, x + 40, 68, COL.gold);
+    });
+    for (let row = 0; row < 4; row++) {
+      const y = 92 + row * 20;
+      ctx.drawImage(Sprites.tank('e' + row, 0, 0, 'silver'), 12, y - 4);
+      Font.draw(ctx, String(ENEMY[row].pts), 32, y, COL.lgrey);
+      P.forEach((p, i) => { const k = shown(p, row); if (k >= 0) Font.drawRight(ctx, k, colX(i) + 24, y, COL.white); });
+    }
+    ctx.fillStyle = COL.white;
+    ctx.fillRect(64, 172, SW - 72, 2);
+    if (sc.phase !== 'rows') {
+      Font.draw(ctx, 'TOTAL', 12, 180, COL.white);
+      P.forEach((p, i) => Font.drawRight(ctx, p.kills.reduce((a, b) => a + b, 0), colX(i) + 24, 180, COL.white));
+      if (sc.bonus >= 0) Font.drawCenter(ctx, 'BONUS! ' + ROMAN[sc.bonus] + '-PLAYER 1000 PTS', SW / 2, 202, COL.red);
+    }
+  },
+
   renderScore(ctx) {
     const sc = this.sc;
     ctx.fillStyle = COL.black;
@@ -5001,6 +5217,7 @@ const Game = {
     Font.draw(ctx, 'STAGE', 96, 36, COL.white);
     Font.drawRight(ctx, this.stageNum, 160, 36, COL.white);
     const P = this.players;
+    if (P.length > 2) { this.renderScoreMulti(ctx); return; }
     Font.draw(ctx, 'I-PLAYER', 16, 56, COL.red);
     Font.drawRight(ctx, P[0].score, 96, 72, COL.gold);
     if (this.twoP) {
@@ -5118,7 +5335,7 @@ const Game = {
       ed.last = here;
       this.editTile(ed.tx, ed.ty, ed.pat);
     }
-    if (m.start) this.newGame(false, true);
+    if (m.start) this.newGame(1, true);
     else if (m.back) this.toTitle();
     else if (Input.just.has('Delete')) { this.custom = defaultCustomMap(); STORE.set('tank1990_custom', this.custom); this.toConstruct(); }
   },
@@ -5218,7 +5435,7 @@ const Game = {
     ctx.fillRect(0, 0, SW, SH);
     Font.drawCenter(ctx, this.shopDiscount ? 'SHOP  BOSS BONUS -25%' : 'SHOP', SW / 2, 6, COL.red);
     ctx.drawImage(Sprites.tank('p' + p.level, (this.t >> 3) & 1, 1, Config.playerPal(p.i)), 6, 15);
-    Font.draw(ctx, p.i === 0 ? 'I-PLAYER' : 'II-PLAYER', 26, 20, COL.red);
+    Font.draw(ctx, ROMAN[p.i] + '-PLAYER', 26, 20, COL.red);
     Font.drawRight(ctx, p.score, 214, 20, COL.gold);
     Font.draw(ctx, 'PTS', 220, 20, COL.white);
     for (let r = 0; r < SHOP_ROWS; r++) {
@@ -5247,6 +5464,120 @@ const Game = {
     }
     Font.drawCenter(ctx, 'A BUY   ESC DONE', SW / 2, 208, COL.lgrey);
   },
+
+  // ---------------------------------------------------------------- key setup
+  // rows: player picker, 6 keyboard actions (2 keys each), 4 gamepad actions (2 buttons each), buttons
+  keyRows() {
+    const rows = [{ type: 'player' }];
+    for (const a of ACTIONS) rows.push({ type: 'key', a });
+    for (const a of PAD_ACTIONS) rows.push({ type: 'pad', a });
+    rows.push({ type: 'btn', act: 'resetP', label: 'RESET THIS PLAYER' });
+    rows.push({ type: 'btn', act: 'resetAll', label: 'RESET ALL KEYS AND PADS' });
+    rows.push({ type: 'btn', act: 'back', label: 'BACK' });
+    return rows;
+  },
+
+  toKeys() {
+    this.ks = { player: 0, idx: 1, col: 0, capture: null, msg: '', msgT: 0 };
+    this.setState('keys');
+  },
+
+  keysActivate() {
+    const ks = this.ks, row = this.keyRows()[ks.idx];
+    if (row.type === 'player') { ks.player = (ks.player + 1) % 4; Sound.play('select'); return; }
+    if (row.type === 'btn') {
+      if (row.act === 'resetP') { Keymap.resetPlayer(ks.player); ks.msg = 'PLAYER ' + ROMAN[ks.player] + ' KEYS RESET'; }
+      else if (row.act === 'resetAll') { Keymap.resetAll(); ks.msg = 'ALL KEYS AND PADS RESET'; }
+      else { this.setState('settings'); return; }
+      ks.msgT = 90; Sound.play('pickup');
+      return;
+    }
+    // wait for the next key / pad button
+    ks.capture = { row: ks.idx, col: ks.col, kind: row.type };
+    Input.capture = ev => {
+      ks.capture = null;
+      if (ev.kind === 'key' && ev.code === 'Escape') { Sound.play('select'); return; }
+      if (row.type === 'key' && ev.kind === 'key') Keymap.setKey(ks.player, row.a, ks.col, ev.code);
+      else if (row.type === 'pad' && ev.kind === 'pad') Keymap.setPad(row.a, ks.col, ev.button);
+      else { ks.msg = row.type === 'pad' ? 'PRESS A GAMEPAD BUTTON' : 'PRESS A KEYBOARD KEY'; ks.msgT = 90; Sound.play('steel'); return; }
+      Sound.play('pickup');
+    };
+  },
+
+  updateKeys() {
+    const ks = this.ks, rows = this.keyRows();
+    if (ks.msgT > 0) ks.msgT--;
+    if (ks.capture) return; // keys go to the capture handler
+    const m = Input.menu(), row = rows[ks.idx];
+    if (m.up) { ks.idx = (ks.idx + rows.length - 1) % rows.length; Sound.play('select'); }
+    if (m.down) { ks.idx = (ks.idx + 1) % rows.length; Sound.play('select'); }
+    const cur = rows[ks.idx];
+    if (m.left || m.right) {
+      if (cur.type === 'player') ks.player = (ks.player + (m.right ? 1 : 3)) % 4;
+      else ks.col = ks.col ? 0 : 1;
+      Sound.play('select');
+    }
+    if (Input.anyJust(['Delete', 'Backspace']) && (row.type === 'key' || row.type === 'pad')) {
+      if (row.type === 'key') Keymap.clearKey(ks.player, row.a, ks.col); else Keymap.clearPad(row.a, ks.col);
+      Sound.play('build');
+      return;
+    }
+    if (m.ok) this.keysActivate();
+    else if (Input.anyJust(['Escape']) || Input.pads.some(p => p.justBack)) this.setState('settings');
+  },
+
+  renderKeys(ctx) {
+    const ks = this.ks, rows = this.keyRows();
+    const LABEL = { up: 'UP', down: 'DOWN', left: 'LEFT', right: 'RIGHT', fire: 'FIRE', alt: 'B / MINES', start: 'PAUSE', back: 'BACK' };
+    ctx.fillStyle = COL.black;
+    ctx.fillRect(0, 0, SW, SH);
+    Font.drawCenter(ctx, 'KEYS AND PADS', SW / 2, 6, COL.red);
+    let y = 22;
+    rows.forEach((row, i) => {
+      if (row.type === 'pad' && rows[i - 1].type !== 'pad') {
+        Font.draw(ctx, 'GAMEPAD - ALL PADS', 8, y + 2, COL.orange);
+        y += 13;
+      }
+      if (row.type === 'btn' && rows[i - 1].type !== 'btn') y += 4;
+      const sel = i === ks.idx;
+      if (sel) { ctx.fillStyle = '#20206C'; ctx.fillRect(4, y - 2, SW - 8, 11); }
+      if (row.type === 'player') {
+        const name = 'PLAYER ' + ROMAN[ks.player];
+        ctx.drawImage(Sprites.playerIcon(Config.playerPal(ks.player)), 16, y);
+        Font.drawCenter(ctx, (sel ? '< ' : '') + name + (sel ? ' >' : ''), SW / 2, y, COL.white);
+        Font.drawRight(ctx, Keymap.custom(ks.player) ? 'CUSTOM' : 'DEFAULT', 250, y, Keymap.custom(ks.player) ? COL.gold : COL.lgrey);
+        y += 13;
+        Font.draw(ctx, 'KEYBOARD', 8, y + 2, COL.orange);
+        Font.draw(ctx, 'KEY 1', 120, y + 2, COL.lgrey);
+        Font.draw(ctx, 'KEY 2', 184, y + 2, COL.lgrey);
+        y += 13;
+        return;
+      }
+      if (row.type === 'btn') {
+        Font.draw(ctx, row.label, 16, y, row.act === 'back' ? COL.white : COL.gold);
+        y += 11;
+        return;
+      }
+      Font.draw(ctx, LABEL[row.a], 16, y, COL.white);
+      const list = row.type === 'key' ? Keymap.get(ks.player)[row.a] : Keymap.padMap()[row.a];
+      for (let c = 0; c < 2; c++) {
+        const x = c ? 184 : 120;
+        const waiting = ks.capture && ks.capture.row === i && ks.capture.col === c;
+        const text = waiting ? ((this.t >> 3) & 1 ? '?' : '') : (row.type === 'key' ? keyLabel(list[c]) : padLabel(list[c]));
+        if (sel && ks.col === c) { ctx.fillStyle = COL.gold; ctx.fillRect(x - 3, y - 2, 60, 1); ctx.fillRect(x - 3, y + 8, 60, 1); }
+        Font.draw(ctx, text, x, y, list[c] === undefined && !waiting ? '#505050' : COL.white);
+      }
+      y += 11;
+    });
+    let foot = 'A CHANGE  DEL CLEAR  ESC BACK';
+    if (ks.capture) foot = ks.capture.kind === 'pad' ? 'PRESS A PAD BUTTON  ESC CANCEL' : 'PRESS A KEY  ESC CANCEL';
+    else if (ks.msgT > 0) foot = ks.msg;
+    else if (rows[ks.idx].type === 'player') foot = '<> CHOOSE PLAYER';
+    Font.drawCenter(ctx, foot, SW / 2, 214, ks.msgT > 0 && !ks.capture ? COL.gold : COL.lgrey);
+  },
+
+  // short message over any screen (gamepad connected, ...)
+  toast(text) { this.toastText = text; this.toastT = 150; },
 
   // ---------------------------------------------------------------- settings
   toSettings() {
@@ -5289,6 +5620,8 @@ const Game = {
       this.applyLayout();
       Config.apply();
       Sound.play('pickup');
+    } else if (row.action === 'keys') {
+      this.toKeys();
     } else if (row.action === 'fullscreen') {
       toggleFullscreen();
     } else if (row.action === 'back') {
@@ -5425,6 +5758,7 @@ const Game = {
       case 'construct': this.updateConstruct(); break;
       case 'settings': this.updateSettings(); break;
       case 'shop': this.updateShop(); break;
+      case 'keys': this.updateKeys(); break;
     }
   },
 
@@ -5447,6 +5781,13 @@ const Game = {
     }
     this.renderState(ctx);
     if (!full) ctx.restore();
+    if (this.toastT > 0) {
+      this.toastT--;
+      const w = this.toastText.length * 8 + 12, x = (SCREEN_W - w) >> 1;
+      ctx.fillStyle = COL.black;
+      ctx.fillRect(x, 2, w, 12);
+      Font.draw(ctx, this.toastText, x + 6, 4, COL.gold);
+    }
   },
 
   renderState(ctx) {
@@ -5459,6 +5800,7 @@ const Game = {
       case 'construct': this.renderConstruct(ctx); break;
       case 'settings': this.renderSettings(ctx); break;
       case 'shop': this.renderShop(ctx); break;
+      case 'keys': this.renderKeys(ctx); break;
     }
   },
 };
@@ -5487,7 +5829,10 @@ function toggleFullscreen() {
   document.title = APP_TITLE;
   Sprites.init();
   Config.init();
+  Keymap.load();
   Input.init();
+  window.addEventListener('gamepadconnected', e => Game.toast('GAMEPAD ' + (e.gamepad.index + 1) + ' CONNECTED'));
+  window.addEventListener('gamepaddisconnected', e => Game.toast('GAMEPAD ' + (e.gamepad.index + 1) + ' DISCONNECTED'));
   Input.updateHelp();
   Game.init();
 

@@ -56,6 +56,8 @@ const SETTINGS_DEF = [
   { key: 'lives', label: 'LIVES', values: range(1, 9).concat(['INF']), def: 3 },
   { key: 'p1Color', label: 'I-PLAYER COLOR', values: Object.keys(TANK_COLORS), def: 'YELLOW', color: true },
   { key: 'p2Color', label: 'II-PLAYER COLOR', values: Object.keys(TANK_COLORS), def: 'GREEN', color: true },
+  { key: 'p3Color', label: 'III-PLAYER COLOR', values: Object.keys(TANK_COLORS), def: 'BLUE', color: true },
+  { key: 'p4Color', label: 'IV-PLAYER COLOR', values: Object.keys(TANK_COLORS), def: 'PINK', color: true },
   { key: 'pSpeed', label: 'TANK SPEED', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'pShell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'startStars', label: 'START STARS', values: [0, 1, 2, 3], def: 0 },
@@ -119,6 +121,8 @@ const SETTINGS_DEF = [
   { key: 'fieldH', label: 'FIELD HEIGHT', values: range(13, 40).concat(['FIT']), def: 13 },
   { key: 'scaling', label: 'SCALING', values: ['SHARP', 'FILL'], def: 'SHARP' },
   { key: 'controls', label: 'CONTROLS', values: ['AUTO', 'PC', 'MAC'], def: 'AUTO' },
+  { action: 'keys', label: 'SET UP KEYS AND PADS' },
+  { key: 'rumble', label: 'GAMEPAD RUMBLE', values: ONOFF, def: 'ON' },
   { action: 'fitScreen', label: 'FIT TO MY SCREEN' },
   { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
@@ -191,7 +195,7 @@ const Config = {
   },
 
   // ---- helpers used by the game rules
-  playerPal(i) { return 'c_' + this.values[i === 0 ? 'p1Color' : 'p2Color']; },
+  playerPal(i) { return 'c_' + this.values['p' + (i + 1) + 'Color']; },
   startLives() { const v = this.values.lives; return v === 'INF' ? 2 : v - 1; },
   infiniteLives() { return this.values.lives === 'INF'; },
   frames(k) { return Math.round(this.values[k] * 60); },

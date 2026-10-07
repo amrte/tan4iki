@@ -32,7 +32,7 @@ const TURBO_MULT = 1.75;
 const ROCKET_RADIUS = 14, MINE_RADIUS = 18, MINE_ARM_TIME = 40, MAX_MINES = 16;
 let BASE_X = 96, BASE_Y = 192;
 let ENEMY_SPAWN_X = [96, 192, 0];
-let PLAYER_SPAWN = [[64, 192], [128, 192]];
+let PLAYER_SPAWN = [[64, 192], [128, 192], [0, 192], [192, 192]];
 let BASE_WALL = [[11, 23], [12, 23], [13, 23], [14, 23], [11, 24], [14, 24], [11, 25], [14, 25]];
 
 function setFieldSize(cols, rows) {
@@ -44,7 +44,8 @@ function setFieldSize(cols, rows) {
   BASE_X = cols * 8 - 8; BASE_Y = FH - 16;
   const bx = BASE_X / 8, by = BASE_Y / 8;
   BASE_WALL = [[bx - 1, by - 1], [bx, by - 1], [bx + 1, by - 1], [bx + 2, by - 1], [bx - 1, by], [bx + 2, by], [bx - 1, by + 1], [bx + 2, by + 1]];
-  PLAYER_SPAWN = [[BASE_X - 32, BASE_Y], [BASE_X + 32, BASE_Y]];
+  // players I and II beside the eagle, III and IV in the bottom corners
+  PLAYER_SPAWN = [[BASE_X - 32, BASE_Y], [BASE_X + 32, BASE_Y], [0, FH - 16], [FW - 16, FH - 16]];
   // enemy entry points along the top: centre, right, left, then more for wide fields
   const n = 2 * Math.max(1, Math.round((cols - 1) / 12)) + 1, mid = (n - 1) / 2;
   const at = i => Math.round(i * (cols - 1) / (n - 1)) * 16;
@@ -152,6 +153,7 @@ class Stage {
     this.num = num;
     this.players = players;
     this.twoP = players.length > 1;
+    this.extraPlayers = Math.max(0, players.length - 1);
     this.terrain = new Uint8Array(GW * GH);
     const classic = COLS === 13 && ROWS === 13;
     this.load(expandBlocks(mapToBlocks(map)), !opts.custom || !classic);
@@ -170,7 +172,7 @@ class Stage {
     this.spawnTimer = 0;
     this.spawnPos = 0;
     this.spawnInterval = Math.round(Math.max(70, 190 - ((num - 1) % 35) * 4 - (this.twoP ? 20 : 0)) / Config.scale('spawnRate'));
-    this.maxEnemies = Config.get('maxOnScreen') + (this.twoP ? 2 : 0);
+    this.maxEnemies = Config.get('maxOnScreen') + [0, 2, 3, 4][this.extraPlayers];
     this.freezeE = 0;
     this.freezeP = 0;
     this.shovel = 0;
@@ -769,11 +771,13 @@ class Stage {
       p.ship = false;
       t.shield = 60;
       Sound.play('armor');
+      Input.rumble(p.i, 0.4, 120);
       return;
     }
     t.alive = false;
     this.addFx(t.x + 8, t.y + 8, BIG_EXPLOSION(), 5);
     Sound.play('playerDie');
+    Input.rumble(p.i, 1, 400);
     if (!Config.on('keepStars')) {
       p.level = Config.get('startStars');
       p.cutter = false;
@@ -1021,9 +1025,21 @@ class Stage {
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);
     // more than 20 waiting: show how many in total
     if (n && this.queue.length > 20) Font.drawCenter(ctx, String(this.queue.length), H + 8, 106, COL.black);
+    const lives = p => (Config.infiniteLives() ? '~' : String(Math.min(99, p.lives)));
+    if (this.players.length > 2) {
+      // 3-4 players: one compact row each, the tank icon in the player's colour
+      this.players.forEach((p, i) => {
+        const y = 128 + i * 14;
+        ctx.drawImage(Sprites.playerIcon(Config.playerPal(i)), H, y);
+        Font.draw(ctx, lives(p), H + 8, y, COL.black);
+        if (p.mines) { ctx.fillStyle = '#505050'; for (let k = 0; k < Math.min(3, p.mines); k++) ctx.fillRect(H + 1 + k * 3, y + 9, 2, 2); }
+      });
+      ctx.drawImage(Sprites.flag, H, 184);
+      Font.drawRight(ctx, String(this.num), H + 16, 200, COL.black);
+      return;
+    }
     Font.draw(ctx, 'IP', H, 136, COL.black);
     ctx.drawImage(Sprites.lifeIcon, H, 144);
-    const lives = p => (Config.infiniteLives() ? '~' : String(Math.min(99, p.lives)));
     Font.draw(ctx, lives(this.players[0]), H + 8, 144, COL.black);
     if (this.players[1]) {
       Font.draw(ctx, 'IIP', H, 160, COL.black);

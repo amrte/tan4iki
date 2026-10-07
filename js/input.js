@@ -37,17 +37,128 @@ const KEYS_MAC = Object.assign({}, KEYS, {
   },
 });
 
+// 3-4 players on one keyboard (same on PC and Mac); gamepads are the comfy option
+const KEYS_MULTI = [
+  { 0: ['KeyW', 'TUp'], 1: ['KeyD', 'TRight'], 2: ['KeyS', 'TDown'], 3: ['KeyA', 'TLeft'], fire: ['Space', 'KeyV', 'TFire'], alt: ['KeyC', 'KeyB', 'TFire2'] },
+  { 0: ['ArrowUp'], 1: ['ArrowRight'], 2: ['ArrowDown'], 3: ['ArrowLeft'], fire: ['ShiftRight', 'ControlRight', 'AltRight', 'Slash', 'Period'], alt: ['Quote', 'Semicolon'] },
+  { 0: ['KeyI'], 1: ['KeyL'], 2: ['KeyK'], 3: ['KeyJ'], fire: ['KeyU'], alt: ['KeyO'] },
+  { 0: ['KeyT', 'Numpad8'], 1: ['KeyH', 'Numpad6'], 2: ['KeyG', 'Numpad5'], 3: ['KeyF', 'Numpad4'], fire: ['KeyR', 'Numpad0'], alt: ['KeyY', 'NumpadDecimal'] },
+];
+
 const IS_MAC = /Mac|iPhone|iPad|iPod/.test([navigator.userAgentData && navigator.userAgentData.platform, navigator.platform, navigator.userAgent].join(' '));
 
 // help line under the game, per control scheme
 const HELP = {
   PC: '<b>1P</b> Arrows/WASD move · Space/Z/J fire · B/C/Left Shift mines &nbsp;|&nbsp; '
     + '<b>2P</b> P1 WASD + Space/F, mines C/B · P2 Arrows + Right Ctrl/Numpad0/L, mines Numpad1/K/; &nbsp;|&nbsp; '
+    + '<b>3-4P</b> P3 IJKL fire U mines O · P4 TFGH/numpad fire R mines Y &nbsp;|&nbsp; '
     + '<b>Enter</b> pause · <b>M</b> mute · <b>double-click</b> fullscreen · gamepads supported',
   MAC: '<b>1P</b> ←↑↓→ or WASD move · Space/Z/J fire · B/C/⇧ mines &nbsp;|&nbsp; '
     + '<b>2P</b> P1 WASD + Space/F, mines C/B · P2 ←↑↓→ + right ⌥ option / right ⇧ / slash fire, mines ; or \' &nbsp;|&nbsp; '
+    + '<b>3-4P</b> P3 IJKL fire U mines O · P4 TFGH fire R mines Y &nbsp;|&nbsp; '
     + '<b>return</b> pause · <b>M</b> mute · <b>double-click</b> or ⌃⌘F fullscreen · <b>fn+delete</b> clears a map in Construction',
 };
+
+// ---------------------------------------------------------- user bindings
+// Keyboard: two keys per action for each player (null = the scheme's defaults).
+// Gamepad: one set of buttons shared by all pads (standard mapping indices).
+const ACTIONS = ['up', 'down', 'left', 'right', 'fire', 'alt'];
+const PAD_ACTIONS = ['fire', 'alt', 'start', 'back'];
+const PAD_DEFAULT = { fire: [0, 2, 5, 7], alt: [1, 3, 4, 6], start: [9], back: [8] };
+const TOUCH_CODES = new Set(['TUp', 'TRight', 'TDown', 'TLeft', 'TFire', 'TFire2', 'TStart']);
+
+const Keymap = {
+  players: [null, null, null, null],
+  pad: null,
+  load() {
+    try {
+      const d = JSON.parse(localStorage.getItem('tank1990_keys') || 'null');
+      if (d && Array.isArray(d.players)) { this.players = d.players.slice(0, 4); this.pad = d.pad || null; }
+    } catch (e) { /* storage unavailable */ }
+    while (this.players.length < 4) this.players.push(null);
+  },
+  save() {
+    try { localStorage.setItem('tank1990_keys', JSON.stringify({ players: this.players, pad: this.pad })); } catch (e) { /* storage unavailable */ }
+  },
+  // the scheme's keys for player i, as the editor shows them (first two per action)
+  defaults(i) {
+    const K = Input.keys(), src = i === 0 ? K.p1 : i === 1 ? K.p2 : KEYS_MULTI[i];
+    const pick = list => list.filter(c => !TOUCH_CODES.has(c)).slice(0, 2);
+    return { up: pick(src[0]), down: pick(src[2]), left: pick(src[3]), right: pick(src[1]), fire: pick(src.fire), alt: pick(src.alt) };
+  },
+  get(i) { return this.players[i] || this.defaults(i); },
+  custom(i) { return !!this.players[i]; },
+  padMap() { return this.pad || PAD_DEFAULT; },
+  // map in the format Input.player uses, or null when the player still has the defaults
+  inputMap(i) {
+    const b = this.players[i];
+    if (!b) return null;
+    const t = i === 0 ? c => [c] : () => [];
+    return { 0: b.up.concat(t('TUp')), 1: b.right.concat(t('TRight')), 2: b.down.concat(t('TDown')), 3: b.left.concat(t('TLeft')),
+      fire: b.fire.concat(t('TFire')), alt: b.alt.concat(t('TFire2')) };
+  },
+  // a key does one thing only: take it away from every other action and player first
+  setKey(i, action, slot, code) {
+    for (let p = 0; p < 4; p++) {
+      const cur = this.get(p);
+      if (!ACTIONS.some(a => cur[a].includes(code))) continue;
+      const copy = JSON.parse(JSON.stringify(cur));
+      for (const a of ACTIONS) copy[a] = copy[a].filter(c => c !== code);
+      this.players[p] = copy;
+    }
+    if (!this.players[i]) this.players[i] = JSON.parse(JSON.stringify(this.defaults(i)));
+    const arr = this.players[i][action].slice(0, 2);
+    arr[Math.min(slot, arr.length)] = code;
+    this.players[i][action] = arr.filter(Boolean);
+    this.save();
+  },
+  clearKey(i, action, slot) {
+    if (!this.players[i]) this.players[i] = JSON.parse(JSON.stringify(this.defaults(i)));
+    this.players[i][action] = this.players[i][action].filter((_, k) => k !== slot);
+    this.save();
+  },
+  setPad(action, slot, button) {
+    const pm = JSON.parse(JSON.stringify(this.padMap()));
+    for (const a of PAD_ACTIONS) pm[a] = pm[a].filter(n => n !== button);
+    const arr = pm[action].slice(0, 2);
+    arr[Math.min(slot, arr.length)] = button;
+    pm[action] = arr.filter(n => n !== undefined);
+    this.pad = pm;
+    this.save();
+  },
+  clearPad(action, slot) {
+    const pm = JSON.parse(JSON.stringify(this.padMap()));
+    pm[action] = pm[action].filter((_, k) => k !== slot);
+    this.pad = pm;
+    this.save();
+  },
+  resetPlayer(i) { this.players[i] = null; this.save(); },
+  resetAll() { this.players = [null, null, null, null]; this.pad = null; this.save(); },
+};
+
+// short names for the key setup screen (the NES font has capitals, digits and a few symbols)
+function keyLabel(code) {
+  if (!code) return '-';
+  const mac = Input.scheme() === 'MAC';
+  const named = {
+    ArrowUp: 'UP', ArrowDown: 'DOWN', ArrowLeft: 'LEFT', ArrowRight: 'RIGHT', Space: 'SPACE', Enter: 'ENTER',
+    ShiftLeft: 'LSHIFT', ShiftRight: 'RSHIFT', ControlLeft: 'LCTRL', ControlRight: 'RCTRL',
+    AltLeft: mac ? 'LOPT' : 'LALT', AltRight: mac ? 'ROPT' : 'RALT', MetaLeft: mac ? 'LCMD' : 'LWIN', MetaRight: mac ? 'RCMD' : 'RWIN',
+    Slash: '/', Period: '.', Comma: ',', Semicolon: ';', Quote: "'", Minus: '-', Equal: '=', Backquote: "'",
+    BracketLeft: '<', BracketRight: '>', Backslash: '/', Tab: 'TAB', CapsLock: 'CAPS', Backspace: 'BKSP', Delete: 'DEL',
+    NumpadEnter: 'NENTER', NumpadDecimal: 'NUM.', NumpadAdd: 'NUM+', NumpadSubtract: 'NUM-',
+  };
+  if (named[code]) return named[code];
+  if (/^Key[A-Z]$/.test(code)) return code[3];
+  if (/^Digit\d$/.test(code)) return code[5];
+  if (/^Numpad\d$/.test(code)) return 'NUM' + code[6];
+  return code.toUpperCase().slice(0, 7);
+}
+
+function padLabel(n) {
+  if (n === undefined || n === null) return '-';
+  return ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'SELECT', 'START', 'LSTICK', 'RSTICK', 'DUP', 'DDOWN', 'DLEFT', 'DRIGHT', 'HOME'][n] || 'BTN' + n;
+}
 
 const PREVENT = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Enter', 'Tab', 'Slash', 'Backspace', 'AltRight', 'AltLeft', 'Quote']);
 
@@ -56,7 +167,7 @@ const Input = {
   just: new Set(),
   stamp: {},
   seq: 0,
-  twoP: false,
+  numPlayers: 1,
   pads: [],
   padPrev: [],
 
@@ -64,6 +175,12 @@ const Input = {
     window.addEventListener('keydown', e => {
       if (PREVENT.has(e.code)) e.preventDefault();
       Sound.unlock();
+      // waiting for a new key on the key setup screen
+      if (this.capture) {
+        e.preventDefault();
+        if (!e.repeat) { const cb = this.capture; this.capture = null; cb({ kind: 'key', code: e.code }); }
+        return;
+      }
       if (e.repeat) return;
       this.press(e.code);
       if (e.code === 'KeyM') Sound.toggleMute();
@@ -84,6 +201,17 @@ const Input = {
 
   endFrame() { this.just.clear(); },
 
+  // short controller vibration for player i (if the pad supports it and it's switched on)
+  rumble(i, strength = 0.6, ms = 200) {
+    if (typeof Config === 'undefined' || !Config.on('rumble')) return;
+    for (const p of this.padsFor(i)) {
+      const act = p.gp && p.gp.vibrationActuator;
+      if (act && act.playEffect) {
+        try { const r = act.playEffect('dual-rumble', { duration: ms, strongMagnitude: strength, weakMagnitude: strength * 0.6 }); if (r && r.catch) r.catch(() => {}); } catch (e) { /* not supported */ }
+      }
+    }
+  },
+
   // active control scheme: PC or MAC (AUTO picks MAC on Apple devices)
   scheme() {
     const v = typeof Config !== 'undefined' ? Config.get('controls') : 'AUTO';
@@ -103,24 +231,45 @@ const Input = {
     const list = navigator.getGamepads ? navigator.getGamepads() : [];
     const pads = [];
     for (const gp of list) if (gp && gp.connected) pads.push(gp);
+    const pm = Keymap.padMap();
     this.pads = pads.map((gp, i) => {
       const b = n => !!(gp.buttons[n] && gp.buttons[n].pressed);
+      const any = list => list.some(b);
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+      // D-pad: standard buttons 12-15, the left stick, and the layouts non-standard pads use
+      let hu = false, hd = false, hl = false, hr = false;
+      if (gp.mapping !== 'standard') {
+        const a6 = gp.axes[6] || 0, a7 = gp.axes[7] || 0;
+        hl = a6 < -0.5; hr = a6 > 0.5; hu = a7 < -0.5; hd = a7 > 0.5;
+        const h = gp.axes[9];
+        if (h !== undefined && h >= -1.05 && h <= 1.05) {
+          const k = Math.round((h + 1) / 2 * 7) & 7; // 0 up, 2 right, 4 down, 6 left
+          hu = hu || [7, 0, 1].includes(k); hr = hr || [1, 2, 3].includes(k);
+          hd = hd || [3, 4, 5].includes(k); hl = hl || [5, 6, 7].includes(k);
+        }
+      }
       const st = {
-        0: b(12) || ay < -0.5,
-        2: b(13) || ay > 0.5,
-        3: b(14) || ax < -0.5,
-        1: b(15) || ax > 0.5,
-        fire: b(0) || b(2) || b(5) || b(7),
-        alt: b(1) || b(3) || b(4) || b(6),
-        start: b(9),
-        back: b(8),
+        gp,
+        0: b(12) || ay < -0.5 || hu,
+        2: b(13) || ay > 0.5 || hd,
+        3: b(14) || ax < -0.5 || hl,
+        1: b(15) || ax > 0.5 || hr,
+        fire: any(pm.fire),
+        alt: any(pm.alt),
+        start: any(pm.start),
+        back: any(pm.back),
+        raw: gp.buttons.map(x => !!(x && x.pressed)),
       };
       const prev = this.padPrev[i] || {};
-      st.justFire = st.fire && !prev.fire;
-      st.justAlt = st.alt && !prev.alt;
-      st.justStart = st.start && !prev.start;
-      st.justBack = st.back && !prev.back;
+      // waiting for a new button on the key setup screen
+      if (this.capture && prev.raw) {
+        const n = st.raw.findIndex((on, k) => on && !prev.raw[k]);
+        if (n >= 0) { const cb = this.capture; this.capture = null; cb({ kind: 'pad', button: n }); st.swallow = true; }
+      }
+      st.justFire = st.fire && !prev.fire && !st.swallow;
+      st.justAlt = st.alt && !prev.alt && !st.swallow;
+      st.justStart = st.start && !prev.start && !st.swallow;
+      st.justBack = st.back && !prev.back && !st.swallow;
       for (const d of [0, 1, 2, 3]) {
         st['just' + d] = st[d] && !prev[d];
         if (st['just' + d]) st['stamp' + d] = ++this.seq; else st['stamp' + d] = prev['stamp' + d] || 0;
@@ -132,14 +281,15 @@ const Input = {
   },
 
   padsFor(i) {
-    if (!this.twoP) return this.pads;
+    if (this.numPlayers <= 1) return this.pads;
     return this.pads[i] ? [this.pads[i]] : [];
   },
 
   // ---------------------------------------------------------- per-player state
   player(i) {
     const K = this.keys();
-    const map = this.twoP ? (i === 0 ? K.p1 : K.p2) : K.solo;
+    const n = this.numPlayers;
+    const map = Keymap.inputMap(i) || (n >= 3 ? KEYS_MULTI[i] : n === 2 ? (i === 0 ? K.p1 : K.p2) : K.solo);
     let best = -1, bestStamp = -1;
     for (const d of [0, 1, 2, 3]) {
       for (const code of map[d]) {

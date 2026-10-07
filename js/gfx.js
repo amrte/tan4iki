@@ -229,6 +229,13 @@ const Sprites = {
     }
     return c;
   },
+  // small tank icon in a player's colour (side panel with 3-4 players)
+  playerIcon(pal) {
+    const k = 'picon' + pal;
+    let c = this.cache.get(k);
+    if (!c) { c = gridCanvas(parseGrid(LIFE_ICON_GRID), [null, PALS[pal][2]]); this.cache.set(k, c); }
+    return c;
+  },
   bricks(ctx) {
     if (!this.brickPattern) this.brickPattern = ctx.createPattern(this.tex.brick, 'repeat');
     return this.brickPattern;

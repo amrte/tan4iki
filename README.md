@@ -1,6 +1,6 @@
 # TANЬ4IKI (tanb4iki) — Tank 1990 browser replica
 
-**Current version: 0.4** (see [CHANGELOG.md](CHANGELOG.md)). The title screen shows the name **TANЬ4IKI** and the version as `tanb4iki_v0.4`.
+**Current version: 0.5** (see [CHANGELOG.md](CHANGELOG.md)). The title screen shows the name **TANЬ4IKI** and the version as `tanb4iki_v0.5`.
 
 A from-scratch browser remake of **Tank 1990**, the NES/Famicom variant of Battle City.
 It's plain HTML5 Canvas and JavaScript with no dependencies and no build step. Sprites are
@@ -12,7 +12,7 @@ stored as 16×16 palette bitmaps in code, matching the NES originals. Sound come
 Open `index.html` in any modern browser. Double-clicking the file works too, because no server is needed.
 You can also serve the folder (`python3 -m http.server`) or publish it with GitHub Pages.
 
-**Single-file download:** [`dist/tanb4iki_v0.4.html`](dist/tanb4iki_v0.4.html) is the whole game in one HTML file,
+**Single-file download:** [`dist/tanb4iki_v0.5.html`](dist/tanb4iki_v0.5.html) is the whole game in one HTML file,
 which you can save anywhere and open offline. To regenerate it after changing the code, run `node tools/build.js`;
 the file is named after the version in `js/version.js`.
 
@@ -25,6 +25,18 @@ the file is named after the version in `js/version.js`.
 | Start / pause | Enter / P / Esc opens the pause menu (CONTINUE / SAVE GAME / QUIT); P or Esc resumes | |
 | Fullscreen | double-click the game, or Settings → SCREEN | |
 | Mute | M | |
+
+| 3-4 players | P1 WASD, fire Space/V, mines C/B · P2 arrows, fire right Shift/Ctrl/Option or `/` `.`, mines `'` `;` · P3 IJKL, fire U, mines O · P4 TFGH or numpad 8/4/5/6, fire R or numpad 0, mines Y | |
+
+Pick 2, 3 or 4 players on the title screen with left/right on the player row. Players III and IV start in the bottom corners.
+
+**Gamepads** (USB or Bluetooth) work in every mode: pad 1 controls player I, pad 2 player II, and so on
+(in a 1-player game every pad controls player I). Press any button on a pad once so the browser reports it.
+A notice appears when a pad connects or disconnects, and pads that support it rumble when you're hit.
+
+**Change any key or button:** Settings → SCREEN → **SET UP KEYS AND PADS**. Choose a player, select a slot, press A,
+then press the new key (or a gamepad button for the pad rows). Each action has two key slots; Delete clears a slot; Esc cancels.
+A key can only do one thing, so assigning it takes it away from wherever it was. Custom keys for a player apply in every mode.
 
 **On a Mac** (Settings → SCREEN → CONTROLS, picked automatically on Apple devices) player 2 fires with **right ⌥ Option**,
 right ⇧ Shift, `/`, `.` or `,` and drops mines with `;`, `'` or `L`, because MacBooks have no right Ctrl or numpad.
@@ -142,6 +154,7 @@ in the browser, and **RESET TO DEFAULTS** restores the classic game.
 | Power-ups | helmet time (10 s), clock time (10 s), shovel time (20 s), new power-up time (15 s), mines per pickup (3) |
 | Who can collect | for each of the 16 power-ups: **ANYONE** (you and enemies, default), **PLAYER** (only you) or **OFF** (never appears). Presets: *classic power-ups only* and *all power-ups on*. The selected power-up's icon and effect are shown at the bottom of the screen. |
 | Shop | shop after stages (on), shop prices (100%) |
+| Players | III / IV-PLAYER COLOR (blue / pink), gamepad rumble (on), key and pad setup |
 | Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
 | Screen | field width (13), field height (13), FIT, scaling (sharp / fill), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
 | Game | game speed (100%), volume (100%), engine sound (on) |

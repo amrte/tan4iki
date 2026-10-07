@@ -37,6 +37,7 @@ function defaultCustomMap() {
 }
 
 const TITLE_MENU_Y = 126;
+const ROMAN = ['I', 'II', 'III', 'IV'];
 const PAUSE_MENU = ['CONTINUE', 'SAVE GAME', 'QUIT'];
 const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
 
@@ -96,6 +97,7 @@ const Game = {
   hi: 20000,
   players: [],
   twoP: false,
+  multiN: 2,     // players chosen on the MULTIPLAYER row (2-4)
   stageNum: 1,
   stage: null,
   paused: false,
@@ -153,8 +155,9 @@ const Game = {
   titleMenu() {
     const m = [];
     if (this.hasSave()) m.push({ label: 'CONTINUE', act: () => this.loadGame() });
-    m.push({ label: '1 PLAYER', act: () => this.newGame(false, false) });
-    m.push({ label: '2 PLAYERS', act: () => this.newGame(true, false) });
+    m.push({ label: '1 PLAYER', act: () => this.newGame(1, false) });
+    // left/right picks 2, 3 or 4 players
+    m.push({ label: this.multiN + ' PLAYERS', act: () => this.newGame(this.multiN, false), adjust: d => { this.multiN = (this.multiN - 2 + d + 3) % 3 + 2; } });
     m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
     m.push({ label: 'SETTINGS', act: () => this.toSettings() });
     return m;
@@ -170,6 +173,8 @@ const Game = {
     const n = this.titleMenu().length;
     if (m.up) { this.menuIdx = (this.menuIdx + n - 1) % n; Sound.play('select'); }
     if (m.down || m.select) { this.menuIdx = (this.menuIdx + 1) % n; Sound.play('select'); }
+    const item = this.titleMenu()[this.menuIdx];
+    if (item && item.adjust && (m.left || m.right)) { item.adjust(m.right ? 1 : -1); Sound.play('select'); }
     if (m.ok) this.chooseMenu(this.menuIdx);
   },
 
@@ -194,7 +199,10 @@ const Game = {
     const pat = Sprites.bricks(ctx);
     Font.big(ctx, GAME_NAME, (SW - Font.bigWidth(GAME_NAME, 4)) >> 1, 58, 4, pat);
     const menu = this.titleMenu(), top = this.titleMenuY();
-    menu.forEach((it, i) => Font.draw(ctx, it.label, 88, top + i * 14, COL.white));
+    menu.forEach((it, i) => {
+      Font.draw(ctx, it.label, 88, top + i * 14, COL.white);
+      if (it.adjust && i === this.menuIdx) Font.draw(ctx, '<>', 88 + it.label.length * 8 + 6, top + i * 14, COL.lgrey);
+    });
     if (this.titleY === 0) {
       const anim = (this.t >> 2) & 1;
       ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, top - 4 + this.menuIdx * 14);
@@ -211,7 +219,7 @@ const Game = {
   saveGame() {
     if (!this.stage || this.stage.over) return false;
     const data = {
-      app: APP_VERSION, time: Date.now(), twoP: this.twoP, stageNum: this.stageNum, lastScores: this.lastScores,
+      app: APP_VERSION, time: Date.now(), numPlayers: this.players.length, stageNum: this.stageNum, lastScores: this.lastScores,
       players: this.players.map(p => { const o = Object.assign({}, p); delete o.tank; return o; }),
       stage: this.stage.snapshot(),
     };
@@ -221,8 +229,9 @@ const Game = {
   loadGame() {
     const s = STORE.get(SAVE_KEY, null);
     if (!s || !s.stage) return;
-    this.twoP = s.twoP;
-    Input.twoP = s.twoP;
+    const n = s.numPlayers || (s.twoP ? 2 : 1);
+    this.twoP = n > 1;
+    Input.numPlayers = n;
     this.players = s.players.map(p => Object.assign(newPlayer(p.i), p, { tank: null }));
     this.stageNum = s.stageNum;
     this.lastScores = s.lastScores || [0, 0];
@@ -239,12 +248,14 @@ const Game = {
   },
 
   // ---------------------------------------------------------------- new game / curtain
-  newGame(twoP, custom) {
+  // n = number of players (1-4)
+  newGame(n, custom) {
     this.applyLayout();
-    this.twoP = twoP;
-    Input.twoP = twoP;
-    this.players = [newPlayer(0)];
-    if (twoP) this.players.push(newPlayer(1));
+    n = Math.max(1, Math.min(4, +n || 1));
+    this.twoP = n > 1;
+    Input.numPlayers = n;
+    this.players = [];
+    for (let i = 0; i < n; i++) this.players.push(newPlayer(i));
     this.stageNum = 1;
     this.customPending = custom;
     this.toCurtain(!custom);
@@ -395,10 +406,12 @@ const Game = {
         if (sc.row >= 4) { sc.phase = 'total'; sc.wait = 30; }
       }
     } else if (sc.phase === 'total') {
-      if (this.twoP && !sc.gameOver) {
+      if (this.players.length > 1 && !sc.gameOver) {
+        // the player with the most kills (no tie) earns 1000
         const k = this.players.map(p => p.kills.reduce((a, b) => a + b, 0));
-        if (k[0] !== k[1]) {
-          sc.bonus = k[0] > k[1] ? 0 : 1;
+        const best = Math.max(...k);
+        if (k.filter(v => v === best).length === 1) {
+          sc.bonus = k.indexOf(best);
           const p = this.players[sc.bonus];
           p.score += 1000;
           checkExtraLife(p);
@@ -419,6 +432,32 @@ const Game = {
     }
   },
 
+  // 3-4 players: one column per player
+  renderScoreMulti(ctx) {
+    const sc = this.sc, P = this.players, n = P.length;
+    const colX = i => 72 + i * ((SW - 80) / n);
+    const shown = (p, row) => row < sc.row || sc.phase !== 'rows' ? p.kills[row] : (row === sc.row ? Math.min(sc.n, p.kills[row]) : -1);
+    P.forEach((p, i) => {
+      const x = colX(i);
+      ctx.drawImage(Sprites.playerIcon(Config.playerPal(i)), x + 10, 54);
+      Font.drawRight(ctx, ROMAN[i], x + 8, 54, COL.red);
+      Font.drawRight(ctx, p.score, x + 40, 68, COL.gold);
+    });
+    for (let row = 0; row < 4; row++) {
+      const y = 92 + row * 20;
+      ctx.drawImage(Sprites.tank('e' + row, 0, 0, 'silver'), 12, y - 4);
+      Font.draw(ctx, String(ENEMY[row].pts), 32, y, COL.lgrey);
+      P.forEach((p, i) => { const k = shown(p, row); if (k >= 0) Font.drawRight(ctx, k, colX(i) + 24, y, COL.white); });
+    }
+    ctx.fillStyle = COL.white;
+    ctx.fillRect(64, 172, SW - 72, 2);
+    if (sc.phase !== 'rows') {
+      Font.draw(ctx, 'TOTAL', 12, 180, COL.white);
+      P.forEach((p, i) => Font.drawRight(ctx, p.kills.reduce((a, b) => a + b, 0), colX(i) + 24, 180, COL.white));
+      if (sc.bonus >= 0) Font.drawCenter(ctx, 'BONUS! ' + ROMAN[sc.bonus] + '-PLAYER 1000 PTS', SW / 2, 202, COL.red);
+    }
+  },
+
   renderScore(ctx) {
     const sc = this.sc;
     ctx.fillStyle = COL.black;
@@ -428,6 +467,7 @@ const Game = {
     Font.draw(ctx, 'STAGE', 96, 36, COL.white);
     Font.drawRight(ctx, this.stageNum, 160, 36, COL.white);
     const P = this.players;
+    if (P.length > 2) { this.renderScoreMulti(ctx); return; }
     Font.draw(ctx, 'I-PLAYER', 16, 56, COL.red);
     Font.drawRight(ctx, P[0].score, 96, 72, COL.gold);
     if (this.twoP) {
@@ -545,7 +585,7 @@ const Game = {
       ed.last = here;
       this.editTile(ed.tx, ed.ty, ed.pat);
     }
-    if (m.start) this.newGame(false, true);
+    if (m.start) this.newGame(1, true);
     else if (m.back) this.toTitle();
     else if (Input.just.has('Delete')) { this.custom = defaultCustomMap(); STORE.set('tank1990_custom', this.custom); this.toConstruct(); }
   },
@@ -645,7 +685,7 @@ const Game = {
     ctx.fillRect(0, 0, SW, SH);
     Font.drawCenter(ctx, this.shopDiscount ? 'SHOP  BOSS BONUS -25%' : 'SHOP', SW / 2, 6, COL.red);
     ctx.drawImage(Sprites.tank('p' + p.level, (this.t >> 3) & 1, 1, Config.playerPal(p.i)), 6, 15);
-    Font.draw(ctx, p.i === 0 ? 'I-PLAYER' : 'II-PLAYER', 26, 20, COL.red);
+    Font.draw(ctx, ROMAN[p.i] + '-PLAYER', 26, 20, COL.red);
     Font.drawRight(ctx, p.score, 214, 20, COL.gold);
     Font.draw(ctx, 'PTS', 220, 20, COL.white);
     for (let r = 0; r < SHOP_ROWS; r++) {
@@ -674,6 +714,120 @@ const Game = {
     }
     Font.drawCenter(ctx, 'A BUY   ESC DONE', SW / 2, 208, COL.lgrey);
   },
+
+  // ---------------------------------------------------------------- key setup
+  // rows: player picker, 6 keyboard actions (2 keys each), 4 gamepad actions (2 buttons each), buttons
+  keyRows() {
+    const rows = [{ type: 'player' }];
+    for (const a of ACTIONS) rows.push({ type: 'key', a });
+    for (const a of PAD_ACTIONS) rows.push({ type: 'pad', a });
+    rows.push({ type: 'btn', act: 'resetP', label: 'RESET THIS PLAYER' });
+    rows.push({ type: 'btn', act: 'resetAll', label: 'RESET ALL KEYS AND PADS' });
+    rows.push({ type: 'btn', act: 'back', label: 'BACK' });
+    return rows;
+  },
+
+  toKeys() {
+    this.ks = { player: 0, idx: 1, col: 0, capture: null, msg: '', msgT: 0 };
+    this.setState('keys');
+  },
+
+  keysActivate() {
+    const ks = this.ks, row = this.keyRows()[ks.idx];
+    if (row.type === 'player') { ks.player = (ks.player + 1) % 4; Sound.play('select'); return; }
+    if (row.type === 'btn') {
+      if (row.act === 'resetP') { Keymap.resetPlayer(ks.player); ks.msg = 'PLAYER ' + ROMAN[ks.player] + ' KEYS RESET'; }
+      else if (row.act === 'resetAll') { Keymap.resetAll(); ks.msg = 'ALL KEYS AND PADS RESET'; }
+      else { this.setState('settings'); return; }
+      ks.msgT = 90; Sound.play('pickup');
+      return;
+    }
+    // wait for the next key / pad button
+    ks.capture = { row: ks.idx, col: ks.col, kind: row.type };
+    Input.capture = ev => {
+      ks.capture = null;
+      if (ev.kind === 'key' && ev.code === 'Escape') { Sound.play('select'); return; }
+      if (row.type === 'key' && ev.kind === 'key') Keymap.setKey(ks.player, row.a, ks.col, ev.code);
+      else if (row.type === 'pad' && ev.kind === 'pad') Keymap.setPad(row.a, ks.col, ev.button);
+      else { ks.msg = row.type === 'pad' ? 'PRESS A GAMEPAD BUTTON' : 'PRESS A KEYBOARD KEY'; ks.msgT = 90; Sound.play('steel'); return; }
+      Sound.play('pickup');
+    };
+  },
+
+  updateKeys() {
+    const ks = this.ks, rows = this.keyRows();
+    if (ks.msgT > 0) ks.msgT--;
+    if (ks.capture) return; // keys go to the capture handler
+    const m = Input.menu(), row = rows[ks.idx];
+    if (m.up) { ks.idx = (ks.idx + rows.length - 1) % rows.length; Sound.play('select'); }
+    if (m.down) { ks.idx = (ks.idx + 1) % rows.length; Sound.play('select'); }
+    const cur = rows[ks.idx];
+    if (m.left || m.right) {
+      if (cur.type === 'player') ks.player = (ks.player + (m.right ? 1 : 3)) % 4;
+      else ks.col = ks.col ? 0 : 1;
+      Sound.play('select');
+    }
+    if (Input.anyJust(['Delete', 'Backspace']) && (row.type === 'key' || row.type === 'pad')) {
+      if (row.type === 'key') Keymap.clearKey(ks.player, row.a, ks.col); else Keymap.clearPad(row.a, ks.col);
+      Sound.play('build');
+      return;
+    }
+    if (m.ok) this.keysActivate();
+    else if (Input.anyJust(['Escape']) || Input.pads.some(p => p.justBack)) this.setState('settings');
+  },
+
+  renderKeys(ctx) {
+    const ks = this.ks, rows = this.keyRows();
+    const LABEL = { up: 'UP', down: 'DOWN', left: 'LEFT', right: 'RIGHT', fire: 'FIRE', alt: 'B / MINES', start: 'PAUSE', back: 'BACK' };
+    ctx.fillStyle = COL.black;
+    ctx.fillRect(0, 0, SW, SH);
+    Font.drawCenter(ctx, 'KEYS AND PADS', SW / 2, 6, COL.red);
+    let y = 22;
+    rows.forEach((row, i) => {
+      if (row.type === 'pad' && rows[i - 1].type !== 'pad') {
+        Font.draw(ctx, 'GAMEPAD - ALL PADS', 8, y + 2, COL.orange);
+        y += 13;
+      }
+      if (row.type === 'btn' && rows[i - 1].type !== 'btn') y += 4;
+      const sel = i === ks.idx;
+      if (sel) { ctx.fillStyle = '#20206C'; ctx.fillRect(4, y - 2, SW - 8, 11); }
+      if (row.type === 'player') {
+        const name = 'PLAYER ' + ROMAN[ks.player];
+        ctx.drawImage(Sprites.playerIcon(Config.playerPal(ks.player)), 16, y);
+        Font.drawCenter(ctx, (sel ? '< ' : '') + name + (sel ? ' >' : ''), SW / 2, y, COL.white);
+        Font.drawRight(ctx, Keymap.custom(ks.player) ? 'CUSTOM' : 'DEFAULT', 250, y, Keymap.custom(ks.player) ? COL.gold : COL.lgrey);
+        y += 13;
+        Font.draw(ctx, 'KEYBOARD', 8, y + 2, COL.orange);
+        Font.draw(ctx, 'KEY 1', 120, y + 2, COL.lgrey);
+        Font.draw(ctx, 'KEY 2', 184, y + 2, COL.lgrey);
+        y += 13;
+        return;
+      }
+      if (row.type === 'btn') {
+        Font.draw(ctx, row.label, 16, y, row.act === 'back' ? COL.white : COL.gold);
+        y += 11;
+        return;
+      }
+      Font.draw(ctx, LABEL[row.a], 16, y, COL.white);
+      const list = row.type === 'key' ? Keymap.get(ks.player)[row.a] : Keymap.padMap()[row.a];
+      for (let c = 0; c < 2; c++) {
+        const x = c ? 184 : 120;
+        const waiting = ks.capture && ks.capture.row === i && ks.capture.col === c;
+        const text = waiting ? ((this.t >> 3) & 1 ? '?' : '') : (row.type === 'key' ? keyLabel(list[c]) : padLabel(list[c]));
+        if (sel && ks.col === c) { ctx.fillStyle = COL.gold; ctx.fillRect(x - 3, y - 2, 60, 1); ctx.fillRect(x - 3, y + 8, 60, 1); }
+        Font.draw(ctx, text, x, y, list[c] === undefined && !waiting ? '#505050' : COL.white);
+      }
+      y += 11;
+    });
+    let foot = 'A CHANGE  DEL CLEAR  ESC BACK';
+    if (ks.capture) foot = ks.capture.kind === 'pad' ? 'PRESS A PAD BUTTON  ESC CANCEL' : 'PRESS A KEY  ESC CANCEL';
+    else if (ks.msgT > 0) foot = ks.msg;
+    else if (rows[ks.idx].type === 'player') foot = '<> CHOOSE PLAYER';
+    Font.drawCenter(ctx, foot, SW / 2, 214, ks.msgT > 0 && !ks.capture ? COL.gold : COL.lgrey);
+  },
+
+  // short message over any screen (gamepad connected, ...)
+  toast(text) { this.toastText = text; this.toastT = 150; },
 
   // ---------------------------------------------------------------- settings
   toSettings() {
@@ -716,6 +870,8 @@ const Game = {
       this.applyLayout();
       Config.apply();
       Sound.play('pickup');
+    } else if (row.action === 'keys') {
+      this.toKeys();
     } else if (row.action === 'fullscreen') {
       toggleFullscreen();
     } else if (row.action === 'back') {
@@ -852,6 +1008,7 @@ const Game = {
       case 'construct': this.updateConstruct(); break;
       case 'settings': this.updateSettings(); break;
       case 'shop': this.updateShop(); break;
+      case 'keys': this.updateKeys(); break;
     }
   },
 
@@ -874,6 +1031,13 @@ const Game = {
     }
     this.renderState(ctx);
     if (!full) ctx.restore();
+    if (this.toastT > 0) {
+      this.toastT--;
+      const w = this.toastText.length * 8 + 12, x = (SCREEN_W - w) >> 1;
+      ctx.fillStyle = COL.black;
+      ctx.fillRect(x, 2, w, 12);
+      Font.draw(ctx, this.toastText, x + 6, 4, COL.gold);
+    }
   },
 
   renderState(ctx) {
@@ -886,6 +1050,7 @@ const Game = {
       case 'construct': this.renderConstruct(ctx); break;
       case 'settings': this.renderSettings(ctx); break;
       case 'shop': this.renderShop(ctx); break;
+      case 'keys': this.renderKeys(ctx); break;
     }
   },
 };
@@ -914,7 +1079,10 @@ function toggleFullscreen() {
   document.title = APP_TITLE;
   Sprites.init();
   Config.init();
+  Keymap.load();
   Input.init();
+  window.addEventListener('gamepadconnected', e => Game.toast('GAMEPAD ' + (e.gamepad.index + 1) + ' CONNECTED'));
+  window.addEventListener('gamepaddisconnected', e => Game.toast('GAMEPAD ' + (e.gamepad.index + 1) + ' DISCONNECTED'));
   Input.updateHelp();
   Game.init();
 
