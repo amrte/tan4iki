@@ -108,10 +108,11 @@ Object.assign(Stage.prototype, {
   navBase(mode = '') {
     const all = this.navBaseF || (this.navBaseF = {}), f = all[mode];
     if (f && (f.ver === this.terrainVer || this.frame - f.at < 30)) return f.dist;
-    const NX = COLS * 2 - 1, NY = ROWS * 2 - 1, seeds = [], goal = this.baseTarget();   // a decoy eagle fools them
+    // every eagle they may go for (a decoy eagle fools them; big maps add outposts)
+    const NX = COLS * 2 - 1, NY = ROWS * 2 - 1, seeds = [], goals = this.baseGoals();
     for (let by = 0; by < NY; by++) for (let bx = 0; bx < NX; bx++) {
       const x = bx * 8, y = by * 8;
-      if (overlap(x, y, 16, 16, goal.x - 8, goal.y - 8, 32, 32) && !overlap(x, y, 16, 16, goal.x, goal.y, 16, 16)) seeds.push(by * NX + bx);
+      if (goals.some(g => overlap(x, y, 16, 16, g.x - 8, g.y - 8, 32, 32) && !overlap(x, y, 16, 16, g.x, g.y, 16, 16))) seeds.push(by * NX + bx);
     }
     all[mode] = { dist: this.navField(seeds, mode), at: this.frame, ver: this.terrainVer };
     return all[mode].dist;
@@ -179,14 +180,14 @@ Object.assign(Stage.prototype, {
     if (marked) { this.followField(t, this.navPlayer(marked, mode), blocked); return; }
     switch (t.ai) {
       case AI.RUSH:
-        if (!blocked && this.navBase(mode)[(t.y >> 3) * (COLS * 2 - 1) + (t.x >> 3)] === 0) { const b = this.baseTarget(); this.faceTarget(t, b.x + 8, b.y + 8); return; }
+        if (!blocked && this.navBase(mode)[(t.y >> 3) * (COLS * 2 - 1) + (t.x >> 3)] === 0) { const b = this.baseTarget(t); this.faceTarget(t, b.x + 8, b.y + 8); return; }
         this.followField(t, this.navBase(mode), blocked);
         return;
       case AI.HUNT:
         this.followField(t, pt ? this.navPlayer(pt, mode) : this.navBase(mode), blocked);
         return;
       case AI.SNIPE: {
-        const target = t.aiBase || !pt ? this.baseTarget() : pt;
+        const target = t.aiBase || !pt ? this.baseTarget(t) : pt;
         const tx = target.x + 8, ty = target.y + 8, cx = t.x + 8, cy = t.y + 8;
         const dx = tx - cx, dy = ty - cy, d = Math.abs(dx) + Math.abs(dy);
         const lined = (Math.abs(dx) < 6 || Math.abs(dy) < 6) && d >= SNIPE_MIN && d <= SNIPE_MAX && this.clearLine(cx, cy, tx, ty);

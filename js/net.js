@@ -185,7 +185,7 @@ const Net = {
   },
 
   buildView(full) {
-    const G = Game, v = { t: 'v', s: G.state, gt: G.t, c: COLS, r: ROWS, stn: G.stageNum, hi: G.hi, eng: Sound.engineState };
+    const G = Game, v = { t: 'v', s: G.state, gt: G.t, c: COLS, r: ROWS, vc: VIEW_W / 16, vr: VIEW_H / 16, stn: G.stageNum, hi: G.hi, eng: Sound.engineState };
     if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover', 'vsResult', 'modeResult'].includes(G.state)) v.s = 'wait';
     v.mode = G.mode; v.ta = G.taFrames; v.tac = G.taCleared; v.vw = G.vsWins;
     if (v.s === 'vsResult') v.vsr = G.vsRes;
@@ -243,6 +243,7 @@ const Net = {
       pd: st.pads, wx: st.weather,
       md: [st.vs || null, st.noBase ? 1 : 0, st.vsTime || 0, st.vsEnd || 0, st.vsWinner, st.survival ? 1 : 0, st.wave || 0, st.waveBreak || 0],
       ve: st.vsEagles || null,
+      bg: st.big ? [st.big, st.outposts, st.factories.map(f => [f.x, f.y, f.hp, f.flash])] : null,
       fg: st.flags ? st.flags.map(f => [f.i, f.hx, f.hy, f.x, f.y, f.carrier ? 1 : 0]) : null,
     };
     st.netDiff = [];
@@ -339,7 +340,7 @@ const Net = {
 
   applyView(v) {
     const G = Game;
-    if (v.c !== COLS || v.r !== ROWS) setFieldSize(v.c, v.r);
+    if (v.c !== COLS || v.r !== ROWS || v.vc * 16 !== VIEW_W || v.vr * 16 !== VIEW_H) setFieldSize(v.c, v.r, v.vc || v.c, v.vr || v.r);
     G.players = v.pl.map((o, k) => Object.assign(G.players[k] && G.players[k].i === o.i ? G.players[k] : newPlayer(o.i), o, { tank: null }));
     if (v.base) G.base = v.base;
     G.mode = v.mode; G.taFrames = v.ta; G.taCleared = v.tac; G.vsWins = v.vw || [];
@@ -394,6 +395,8 @@ const Net = {
     st.pads = sv.pd || [];
     if (sv.md) [st.vs, st.noBase, st.vsTime, st.vsEnd, st.vsWinner, st.survival, st.wave, st.waveBreak] = [sv.md[0], !!sv.md[1], sv.md[2], sv.md[3], sv.md[4], !!sv.md[5], sv.md[6], sv.md[7]];
     st.vsEagles = sv.ve || null;
+    if (sv.bg) { st.big = sv.bg[0]; st.outposts = sv.bg[1]; st.factories = sv.bg[2].map(a => ({ x: a[0], y: a[1], hp: a[2], flash: a[3] })); }
+    else { st.big = null; st.outposts = []; st.factories = []; }
     st.flags = sv.fg ? sv.fg.map(a => ({ i: a[0], hx: a[1], hy: a[2], x: a[3], y: a[4], carrier: a[5] ? {} : null })) : null;
     st.weather = sv.wx || null;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));

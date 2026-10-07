@@ -4,6 +4,7 @@
 //    CLASSIC      the game as always
 //    SURVIVAL     endless waves on one map, each bigger and stronger; a breather between waves
 //    TIME ATTACK  clear stages 1-5 as fast as you can (the clock runs from the first stage)
+//    BIG MAPS     every stage is a big scrolling map with outposts to hold or factories to destroy (bigmap.js)
 //    VS EAGLES    2-4 players, each with an eagle: defend yours, destroy theirs; best of 3 rounds
 //    DEATHMATCH   2-4 players, no eagles: first to 10 kills, or the most kills after 3 minutes
 //    FLAGS        capture the flag: bring another player's flag home to your own; first to 3
@@ -13,6 +14,7 @@ const MODES = [
   { key: 'classic', name: 'CLASSIC', desc: 'THE GAME AS ALWAYS' },
   { key: 'survival', name: 'SURVIVAL', desc: 'ENDLESS WAVES, HOW LONG?' },
   { key: 'timeattack', name: 'TIME ATTACK', desc: 'CLEAR 5 STAGES FAST' },
+  { key: 'bigmaps', name: 'BIG MAPS', desc: 'HUGE SCROLLING BATTLEFIELDS' },
   { key: 'eagles', name: 'VS EAGLES', vs: true, desc: 'GUARD YOURS, HIT THEIRS' },
   { key: 'dm', name: 'DEATHMATCH', vs: true, desc: 'FIRST TO 10 KILLS' },
   { key: 'ctf', name: 'FLAGS', vs: true, desc: 'BRING THEIR FLAG HOME' },
@@ -234,11 +236,11 @@ Object.assign(Stage.prototype, {
 
   renderModeBanner(ctx) {
     if (this.survival && this.waveBreak > 0 && (this.waveBreak >> 4) & 1) {
-      Font.drawCenter(ctx, 'WAVE ' + (this.wave + 1), FW / 2, FH / 2 - 4, COL.gold);
+      Font.drawCenter(ctx, 'WAVE ' + (this.wave + 1), VIEW_W / 2, VIEW_H / 2 - 4, COL.gold);
     }
     if (this.vs && this.vsEnd > 0) {
       const w = this.vsWinner;
-      Font.drawCenter(ctx, w >= 0 ? ROMAN[w] + '-PLAYER WINS!' : 'DRAW!', FW / 2, FH / 2 - 4, COL.gold);
+      Font.drawCenter(ctx, w >= 0 ? ROMAN[w] + '-PLAYER WINS!' : 'DRAW!', VIEW_W / 2, VIEW_H / 2 - 4, COL.gold);
     }
   },
 });

@@ -240,7 +240,7 @@ Object.assign(Stage.prototype, {
     }
     if (!lines.length || !((this.frame >> 4) & 1)) return;
     if (this.reviveWait > 0) lines.unshift('LAST CHANCE ' + Math.ceil(this.reviveWait / 60));
-    lines.forEach((l, i) => Font.drawCenter(ctx, l, FW / 2, FH - 28 - (lines.length - 1 - i) * 10, COL.gold));
+    lines.forEach((l, i) => Font.drawCenter(ctx, l, VIEW_W / 2, VIEW_H - 28 - (lines.length - 1 - i) * 10, COL.gold));
   },
 });
 
@@ -344,7 +344,13 @@ Object.assign(Stage.prototype, {
   },
 
   // where the enemies think the eagle is
-  baseTarget() { return this.decoy ? { x: this.decoy.x, y: this.decoy.y } : { x: BASE_X, y: BASE_Y }; },
+  // (big maps: the nearest eagle still standing to tank t)
+  baseTarget(t) {
+    const goals = this.baseGoals();
+    if (!goals.length) return { x: BASE_X, y: BASE_Y };
+    if (!t || goals.length === 1) return goals[0];
+    return goals.reduce((a, g) => (Math.abs(g.x - t.x) + Math.abs(g.y - t.y) < Math.abs(a.x - t.x) + Math.abs(a.y - t.y) ? g : a));
+  },
 
   hitDecoy() {
     const d = this.decoy;

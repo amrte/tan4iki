@@ -275,6 +275,28 @@ function claudeGrid(n, frame) {
   return g;
 }
 
+// enemy factory for big maps: 32px block with a chimney, windows and a door at the bottom
+function factoryGrid() {
+  const g = [];
+  for (let y = 0; y < 32; y++) {
+    const row = [];
+    for (let x = 0; x < 32; x++) {
+      let v = 0;
+      if (y >= 6) {
+        const edge = x === 0 || x === 31 || y === 6 || y === 31;
+        v = edge ? 3 : 2;
+        if (!edge && y < 10) v = (x + y) % 4 < 2 ? 1 : 2;                       // roof stripes
+        if (y >= 12 && y <= 15 && x % 7 >= 2 && x % 7 <= 4) v = 3;              // windows
+        if (y >= 22 && x >= 8 && x <= 23) v = (y - 22) % 3 === 2 ? 3 : 1;       // roller door
+      }
+      if (x >= 23 && x <= 27 && y < 7) v = x === 23 || x === 27 ? 3 : 2;        // chimney
+      row.push(v);
+    }
+    g.push(row);
+  }
+  return g;
+}
+
 function genBullet(dir, color = '#C6C6C6') {
   return rotatedCanvas(['..1.', '.111', '.111', '.111'], dir, [null, color]);
 }
@@ -312,6 +334,7 @@ const Sprites = {
     this.bridgeTex = paintRows(['33333333', '11111111', '22222222', '22222222', '33333333', '11111111', '22222222', '22222222'],
       { 1: '#E8A048', 2: '#B76506', 3: '#5C2C00' });
     this.claude = [0, 1].map(f => gridCanvas(claudeGrid(16, f), CLAUDE_INK));
+    this.factory = [gridCanvas(factoryGrid(), [null, '#BCBCBC', '#7C7C7C', '#3C3C3C']), gridCanvas(factoryGrid(), [null, '#F8F8F8', '#F8B800', '#F83800'])];
     this.snakeSeg = [12, 8].map(d => gridCanvas(snakeSegment(d), PALS.snake));
     this.snakeSegHit = [12, 8].map(d => gridCanvas(snakeSegment(d), PALS.silver));
     this.turretBase = g(TURRET_BASE_GRID, [null, '#BCBCBC', '#7C7C7C', '#3C3C3C']);

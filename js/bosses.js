@@ -600,11 +600,11 @@ Object.assign(Stage.prototype, {
 
   renderBossBanner(ctx) {
     if (!this.bossBanner || this.bossIdx === undefined) return;
-    const y = (FH >> 1) - 20;
+    const y = (VIEW_H >> 1) - 20;
     ctx.fillStyle = COL.black;
-    ctx.fillRect(0, y - 4, FW, 32);
-    if ((this.bossBanner >> 3) & 1) Font.drawCenter(ctx, 'WARNING', FW / 2, y, COL.red);
-    Font.drawCenter(ctx, 'BOSS: ' + BOSSES[this.bossIdx].name, FW / 2, y + 13, COL.white);
+    ctx.fillRect(0, y - 4, VIEW_W, 32);
+    if ((this.bossBanner >> 3) & 1) Font.drawCenter(ctx, 'WARNING', VIEW_W / 2, y, COL.red);
+    Font.drawCenter(ctx, 'BOSS: ' + BOSSES[this.bossIdx].name, VIEW_W / 2, y + 13, COL.white);
   },
 
   renderBossHud(ctx, H) {

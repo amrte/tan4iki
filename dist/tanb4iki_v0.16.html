@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.15</title>
+  <title>tanb4iki_v0.16</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.15';
+const APP_VERSION = '0.16';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2153,6 +2153,28 @@ function claudeGrid(n, frame) {
   return g;
 }
 
+// enemy factory for big maps: 32px block with a chimney, windows and a door at the bottom
+function factoryGrid() {
+  const g = [];
+  for (let y = 0; y < 32; y++) {
+    const row = [];
+    for (let x = 0; x < 32; x++) {
+      let v = 0;
+      if (y >= 6) {
+        const edge = x === 0 || x === 31 || y === 6 || y === 31;
+        v = edge ? 3 : 2;
+        if (!edge && y < 10) v = (x + y) % 4 < 2 ? 1 : 2;                       // roof stripes
+        if (y >= 12 && y <= 15 && x % 7 >= 2 && x % 7 <= 4) v = 3;              // windows
+        if (y >= 22 && x >= 8 && x <= 23) v = (y - 22) % 3 === 2 ? 3 : 1;       // roller door
+      }
+      if (x >= 23 && x <= 27 && y < 7) v = x === 23 || x === 27 ? 3 : 2;        // chimney
+      row.push(v);
+    }
+    g.push(row);
+  }
+  return g;
+}
+
 function genBullet(dir, color = '#C6C6C6') {
   return rotatedCanvas(['..1.', '.111', '.111', '.111'], dir, [null, color]);
 }
@@ -2190,6 +2212,7 @@ const Sprites = {
     this.bridgeTex = paintRows(['33333333', '11111111', '22222222', '22222222', '33333333', '11111111', '22222222', '22222222'],
       { 1: '#E8A048', 2: '#B76506', 3: '#5C2C00' });
     this.claude = [0, 1].map(f => gridCanvas(claudeGrid(16, f), CLAUDE_INK));
+    this.factory = [gridCanvas(factoryGrid(), [null, '#BCBCBC', '#7C7C7C', '#3C3C3C']), gridCanvas(factoryGrid(), [null, '#F8F8F8', '#F8B800', '#F83800'])];
     this.snakeSeg = [12, 8].map(d => gridCanvas(snakeSegment(d), PALS.snake));
     this.snakeSegHit = [12, 8].map(d => gridCanvas(snakeSegment(d), PALS.silver));
     this.turretBase = g(TURRET_BASE_GRID, [null, '#BCBCBC', '#7C7C7C', '#3C3C3C']);
@@ -2531,10 +2554,12 @@ const SETTINGS_DEF = [
   { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
   { section: 'GAME' },
-  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'survival', 'timeattack', 'eagles', 'dm', 'ctf'], def: 'classic',
+  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'survival', 'timeattack', 'bigmaps', 'eagles', 'dm', 'ctf'], def: 'classic',
     fmt: v => modeInfo(v).name },
   { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!'][v] },
   { key: 'terrainExtras', label: 'MUD, BELTS, PADS', values: ONOFF, def: 'ON' },
+  // classic games: every 4th stage (not a boss stage) a big scrolling map
+  { key: 'bigStages', label: 'BIG MAP STAGES', values: ['OFF', 'SOME'], def: 'OFF' },
   { key: 'darkStages', label: 'NIGHT AND FOG', values: ['SOME', 'OFF', 'ALWAYS NIGHT', 'ALWAYS FOG'], def: 'SOME',
     fmt: v => (v === 'ALWAYS NIGHT' ? 'ALL NIGHT' : v === 'ALWAYS FOG' ? 'ALL FOG' : v) },
   { key: 'gameSpeed', label: 'GAME SPEED', values: [50, 75, 100, 125, 150, 200], def: 100, fmt: fmtPct },
@@ -3399,6 +3424,7 @@ let COLS = 13, ROWS = 13;
 let FW = 208, FH = 208;                            // field size in pixels
 let GW = 52, GH = 52;                              // terrain grid (4px cells)
 let SCREEN_W = 256, SCREEN_H = 224, HUD_X = 232;   // whole play screen and the side panel
+let VIEW_W = 208, VIEW_H = 208;                    // the part of the field on screen (smaller on big scrolling maps)
 const T_EMPTY = 0, T_BRICK = 1, T_STEEL = 2, T_WATER = 3, T_FOREST = 4, T_ICE = 5, T_BRIDGE = 6, T_MUD = 7;
 const T_BELT = 8;   // 8-11: conveyor belts pushing up / right / down / left (terrain.js)
 const BLOCK_TYPE = { '.': T_EMPTY, '#': T_BRICK, '@': T_STEEL, '~': T_WATER, '%': T_FOREST, '_': T_ICE,
@@ -3461,11 +3487,13 @@ let ENEMY_SPAWN_X = [96, 192, 0];
 let PLAYER_SPAWN = [[64, 192], [128, 192], [0, 192], [192, 192]];
 let BASE_WALL = [[11, 23], [12, 23], [13, 23], [14, 23], [11, 24], [14, 24], [11, 25], [14, 25]];
 
-function setFieldSize(cols, rows) {
+// vcols / vrows: the window onto a bigger field that scrolls (big maps); the whole field otherwise
+function setFieldSize(cols, rows, vcols = cols, vrows = rows) {
   COLS = cols; ROWS = rows;
   FW = cols * 16; FH = rows * 16;
   GW = cols * 4; GH = rows * 4;
-  SCREEN_W = FX + FW + 32; SCREEN_H = FY * 2 + FH; HUD_X = FX + FW + 8;
+  VIEW_W = Math.min(FW, vcols * 16); VIEW_H = Math.min(FH, vrows * 16);
+  SCREEN_W = FX + VIEW_W + 32; SCREEN_H = FY * 2 + VIEW_H; HUD_X = FX + VIEW_W + 8;
   // eagle at the bottom centre, with its brick fortress
   BASE_X = cols * 8 - 8; BASE_Y = FH - 16;
   const bx = BASE_X / 8, by = BASE_Y / 8;
@@ -3630,10 +3658,12 @@ class Stage {
     this.extraPlayers = Math.max(0, players.length - 1);
     this.terrain = new Uint8Array(GW * GH);
     const classic = COLS === 13 && ROWS === 13;
-    this.load(expandBlocks(mapToBlocks(map)), !opts.custom || !classic);
+    this.load(opts.blocks || expandBlocks(mapToBlocks(map)), !opts.custom || !classic);   // blocks: a stitched big map
     // mud, teleporters and belts in the normal stages; night and fog on some (terrain.js)
     if (!opts.boss && !opts.custom && !opts.snapshot && Config.on('terrainExtras')) this.addTerrainExtras(num);
     this.weather = stageWeather(opts.custom ? 1 : num, !!opts.boss);
+    this.outposts = []; this.factories = [];
+    if (opts.big) this.setupBigMap(opts.big);   // bigmap.js
     this.tanks = [];
     this.bullets = [];
     this.fx = [];
@@ -3649,13 +3679,13 @@ class Stage {
     this.applyBase(opts.base);                 // base upgrades from the shop (base.js)
     this.origTerrain = this.terrain.slice();   // what a mason rebuilds
     this.lastBrickSound = -1;
-    this.queue = buildQueue(num);
+    this.queue = buildQueue(num, opts.big ? Math.min(60, Config.get('enemyCount') * 2) : 0);   // big maps: twice the tanks
     this.total = this.queue.length;
     this.killed = 0;
     this.spawnTimer = 0;
     this.spawnPos = 0;
     this.spawnInterval = Math.round(Math.max(70, 190 - ((num - 1) % 35) * 4 - (this.twoP ? 20 : 0)) / Config.scale('spawnRate') / Config.skill().spawn);
-    this.maxEnemies = Math.max(1, Config.get('maxOnScreen') + [0, 2, 3, 4][this.extraPlayers] + Config.skill().maxOn);
+    this.maxEnemies = Math.max(1, Config.get('maxOnScreen') + [0, 2, 3, 4][this.extraPlayers] + Config.skill().maxOn + (opts.big ? 2 : 0));
     this.freezeE = 0;
     this.freezeP = 0;
     this.shovel = 0;
@@ -3712,6 +3742,7 @@ class Stage {
       eagleArmor: this.eagleArmor,
       decoy: this.decoy,
       pads: this.pads, weather: this.weather,
+      vcols: VIEW_W / 16, vrows: VIEW_H / 16, big: this.big || null, outposts: this.outposts, factories: this.factories,
       turrets: this.turrets.map(tu => Object.assign({}, tu, { owner: tu.owner ? tu.owner.i : -1 })),
       claudes: this.claudes.map(c => Object.assign({}, c, { p: c.p ? c.p.i : -1 })),
       boss: this.bossIdx === undefined ? null : {
@@ -3728,6 +3759,7 @@ class Stage {
     if (sn.eagleArmor !== undefined) this.eagleArmor = sn.eagleArmor;
     this.decoy = sn.decoy || null;
     if (sn.pads) this.pads = sn.pads;
+    if (sn.big) { this.big = sn.big; this.outposts = sn.outposts || []; this.factories = sn.factories || []; }
     if (sn.weather !== undefined) this.weather = sn.weather;
     this.turrets = (sn.turrets || []).map(tu => Object.assign({}, tu, { owner: this.players[tu.owner] || null }));
     this.claudes = (sn.claudes || []).map(c => Object.assign({}, c, { p: this.players[c.p] || null }));
@@ -3912,10 +3944,12 @@ class Stage {
       if (this.overTimer >= 320) this.result = 'gameover';
     } else if (this.vs) {
       this.updateVersus();
+    } else if (this.big && this.factoriesAlive()) {
+      this.updateBigMap();
     } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer) && !this.bossAlive()) {
       if (this.survival) { this.nextWave(); return; }
       this.clearTimer++;
-      if (this.clearTimer === 1) for (const p of this.players) if (!p.out) this.addXp(p, 25);
+      if (this.clearTimer === 1) { for (const p of this.players) if (!p.out) this.addXp(p, 25); if (this.big) this.bigMapBonus(); }
       if (this.clearTimer >= 190) this.result = 'clear';
     }
   }
@@ -4020,7 +4054,7 @@ class Stage {
   }
 
   targetInSight(t) {
-    const targets = [this.baseTarget()].concat(this.tanks.filter(o => o.isPlayer && !o.boost.smoke));
+    const targets = this.baseGoals().concat(this.tanks.filter(o => o.isPlayer && !o.boost.smoke));
     for (const o of targets) {
       const dx = o.x - t.x, dy = o.y - t.y;
       if (Math.abs(dx) < 8 && ((t.dir === 0 && dy < 0) || (t.dir === 2 && dy > 0))) return true;
@@ -4033,7 +4067,7 @@ class Stage {
     const r = Math.random();
     const pBase = Math.min(0.8, Math.min(0.5, 0.25 + this.num * 0.008) * Config.scale('enemyAim'));
     let target = null;
-    if (r < pBase) target = this.baseTarget();
+    if (r < pBase) target = this.baseTarget(t);
     else if (r < pBase + 0.2) {
       const ps = this.tanks.filter(o => o.isPlayer && !o.boost.smoke);
       if (ps.length) target = ps[rnd(ps.length)];
@@ -4111,6 +4145,10 @@ class Stage {
     }
     if (!this.noBase && overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
     if (this.vsEagles && this.vsEagles.some(e => overlap(nx, ny, 16, 16, e.x, e.y, 16, 16))) return false;
+    if (this.big) {
+      if (this.outposts.some(o => o.alive && overlap(nx, ny, 16, 16, o.x, o.y, 16, 16))) return false;
+      if (this.factories.some(f => f.hp > 0 && overlap(nx, ny, 16, 16, f.x, f.y, 32, 32) && !overlap(t.x, t.y, 16, 16, f.x, f.y, 32, 32))) return false;
+    }
     if (this.decoy && overlap(nx, ny, 16, 16, this.decoy.x, this.decoy.y, 16, 16)) return false;
     if (this.bosses.length && this.bossBlocksTank(t, nx, ny)) return false;
     if (this.turrets.length) {
@@ -4198,6 +4236,7 @@ class Stage {
       return;
     }
     if (this.vsEagles && this.vsBulletEagle(b)) return;
+    if (this.big && this.bulletBigMap(b)) return;
     if (!this.noBase && overlap(b.x, b.y, 4, 4, BASE_X, BASE_Y, 16, 16)) {
       this.killBullet(b, true);
       if (this.baseAlive) this.destroyBase();
@@ -4322,6 +4361,8 @@ class Stage {
     for (const e of this.vsEagles || []) {
       if (e.alive && reaches(e.x, e.y, 16, 16) && (!owner || !owner.player || owner.player.i !== e.i)) this.vsEagleDown(e);
     }
+    for (const o of this.outposts) if (!byPlayer && o.alive && reaches(o.x, o.y, 16, 16)) this.outpostDown(o);
+    for (const f of this.factories) if (byPlayer && f.hp > 0 && reaches(f.x, f.y, 32, 32)) this.hitFactory(f, 2, owner);
     if (!byPlayer && this.decoy && reaches(this.decoy.x, this.decoy.y, 16, 16)) this.hitDecoy();
     if (byPlayer) {
       for (const bo of this.bosses.slice()) {
@@ -4693,14 +4734,18 @@ class Stage {
     ctx.fillStyle = COL.bg;
     ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
     ctx.fillStyle = COL.black;
-    ctx.fillRect(FX, FY, FW, FH);
+    ctx.fillRect(FX, FY, VIEW_W, VIEW_H);
     if (this.dirty) this.buildLayers();
 
     ctx.save();
     ctx.translate(FX, FY);
     ctx.beginPath();
-    ctx.rect(0, 0, FW, FH);
+    ctx.rect(0, 0, VIEW_W, VIEW_H);
     ctx.clip();
+    // big maps scroll: everything in the field is drawn shifted by the camera
+    const [camX, camY] = this.camera();
+    ctx.save();
+    ctx.translate(-camX, -camY);
 
     ctx.drawImage(this.bgLayer, 0, 0);
     const wt = Sprites.tex[(this.frame >> 5) & 1 ? 'water1' : 'water0'];
@@ -4762,10 +4807,13 @@ class Stage {
       const c = Sprites.mini(p.text);
       ctx.drawImage(c, Math.round(p.x - c.width / 2), Math.round(p.y - 3));
     }
+    this.renderBigMap(ctx);
+    ctx.restore();   // back to screen positions inside the field window
+    this.renderObjectiveArrows(ctx, camX, camY);
     if (this.over) {
-      const y = Math.max(FH / 2 - 8, FH - this.overTimer * 1.3);
-      Font.draw(ctx, 'GAME', FW / 2 - 15, y, COL.red);
-      Font.draw(ctx, 'OVER', FW / 2 - 15, y + 9, COL.red);
+      const y = Math.max(VIEW_H / 2 - 8, VIEW_H - this.overTimer * 1.3);
+      Font.draw(ctx, 'GAME', VIEW_W / 2 - 15, y, COL.red);
+      Font.draw(ctx, 'OVER', VIEW_W / 2 - 15, y + 9, COL.red);
     }
     this.renderBossBanner(ctx);
     this.renderRankMsg(ctx);
@@ -4782,11 +4830,11 @@ class Stage {
     const rk = RANKS[m.r - 1], who = this.players.length > 1 ? ROMAN[m.p.i] + '-PLAYER ' : '';
     const perk = Config.get('perks') === 'ON' ? rk.perk : '';
     const lines = [[who + 'LEVEL ' + m.r, COL.gold], [rk.name, COL.white]].concat(perk ? [[perk, COL.lgrey]] : []);
-    const w = Math.min(FW, Math.max(...lines.map(l => l[0].length)) * 8 + 12), h = lines.length * 10 + 6;
-    const x = (FW - w) >> 1, y = 16 + (m.t > 225 ? (m.t - 225) * -2 : 0);
+    const w = Math.min(VIEW_W, Math.max(...lines.map(l => l[0].length)) * 8 + 12), h = lines.length * 10 + 6;
+    const x = (VIEW_W - w) >> 1, y = 16 + (m.t > 225 ? (m.t - 225) * -2 : 0);
     ctx.fillStyle = 'rgba(0,0,0,0.75)';
     ctx.fillRect(x, y, w, h);
-    lines.forEach(([text, c], i) => Font.drawCenter(ctx, text, FW / 2, y + 4 + i * 10, c));
+    lines.forEach(([text, c], i) => Font.drawCenter(ctx, text, VIEW_W / 2, y + 4 + i * 10, c));
   }
 
   // XP bar for player p: a vertical strip (x, y, height) filling upwards, in the player's colour
@@ -4813,6 +4861,7 @@ class Stage {
 
   renderHud(ctx) {
     if (this.vs) { this.renderVsHud(ctx, HUD_X); return; }
+    this.renderObjectiveLine(ctx);
     const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
     if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);
@@ -4972,10 +5021,11 @@ Object.assign(Stage.prototype, {
   navBase(mode = '') {
     const all = this.navBaseF || (this.navBaseF = {}), f = all[mode];
     if (f && (f.ver === this.terrainVer || this.frame - f.at < 30)) return f.dist;
-    const NX = COLS * 2 - 1, NY = ROWS * 2 - 1, seeds = [], goal = this.baseTarget();   // a decoy eagle fools them
+    // every eagle they may go for (a decoy eagle fools them; big maps add outposts)
+    const NX = COLS * 2 - 1, NY = ROWS * 2 - 1, seeds = [], goals = this.baseGoals();
     for (let by = 0; by < NY; by++) for (let bx = 0; bx < NX; bx++) {
       const x = bx * 8, y = by * 8;
-      if (overlap(x, y, 16, 16, goal.x - 8, goal.y - 8, 32, 32) && !overlap(x, y, 16, 16, goal.x, goal.y, 16, 16)) seeds.push(by * NX + bx);
+      if (goals.some(g => overlap(x, y, 16, 16, g.x - 8, g.y - 8, 32, 32) && !overlap(x, y, 16, 16, g.x, g.y, 16, 16))) seeds.push(by * NX + bx);
     }
     all[mode] = { dist: this.navField(seeds, mode), at: this.frame, ver: this.terrainVer };
     return all[mode].dist;
@@ -5043,14 +5093,14 @@ Object.assign(Stage.prototype, {
     if (marked) { this.followField(t, this.navPlayer(marked, mode), blocked); return; }
     switch (t.ai) {
       case AI.RUSH:
-        if (!blocked && this.navBase(mode)[(t.y >> 3) * (COLS * 2 - 1) + (t.x >> 3)] === 0) { const b = this.baseTarget(); this.faceTarget(t, b.x + 8, b.y + 8); return; }
+        if (!blocked && this.navBase(mode)[(t.y >> 3) * (COLS * 2 - 1) + (t.x >> 3)] === 0) { const b = this.baseTarget(t); this.faceTarget(t, b.x + 8, b.y + 8); return; }
         this.followField(t, this.navBase(mode), blocked);
         return;
       case AI.HUNT:
         this.followField(t, pt ? this.navPlayer(pt, mode) : this.navBase(mode), blocked);
         return;
       case AI.SNIPE: {
-        const target = t.aiBase || !pt ? this.baseTarget() : pt;
+        const target = t.aiBase || !pt ? this.baseTarget(t) : pt;
         const tx = target.x + 8, ty = target.y + 8, cx = t.x + 8, cy = t.y + 8;
         const dx = tx - cx, dy = ty - cy, d = Math.abs(dx) + Math.abs(dy);
         const lined = (Math.abs(dx) < 6 || Math.abs(dy) < 6) && d >= SNIPE_MIN && d <= SNIPE_MAX && this.clearLine(cx, cy, tx, ty);
@@ -5911,7 +5961,7 @@ Object.assign(Stage.prototype, {
     }
     if (!lines.length || !((this.frame >> 4) & 1)) return;
     if (this.reviveWait > 0) lines.unshift('LAST CHANCE ' + Math.ceil(this.reviveWait / 60));
-    lines.forEach((l, i) => Font.drawCenter(ctx, l, FW / 2, FH - 28 - (lines.length - 1 - i) * 10, COL.gold));
+    lines.forEach((l, i) => Font.drawCenter(ctx, l, VIEW_W / 2, VIEW_H - 28 - (lines.length - 1 - i) * 10, COL.gold));
   },
 });
 
@@ -6015,7 +6065,13 @@ Object.assign(Stage.prototype, {
   },
 
   // where the enemies think the eagle is
-  baseTarget() { return this.decoy ? { x: this.decoy.x, y: this.decoy.y } : { x: BASE_X, y: BASE_Y }; },
+  // (big maps: the nearest eagle still standing to tank t)
+  baseTarget(t) {
+    const goals = this.baseGoals();
+    if (!goals.length) return { x: BASE_X, y: BASE_Y };
+    if (!t || goals.length === 1) return goals[0];
+    return goals.reduce((a, g) => (Math.abs(g.x - t.x) + Math.abs(g.y - t.y) < Math.abs(a.x - t.x) + Math.abs(a.y - t.y) ? g : a));
+  },
 
   hitDecoy() {
     const d = this.decoy;
@@ -6308,6 +6364,7 @@ Object.assign(Stage.prototype, {
 //    CLASSIC      the game as always
 //    SURVIVAL     endless waves on one map, each bigger and stronger; a breather between waves
 //    TIME ATTACK  clear stages 1-5 as fast as you can (the clock runs from the first stage)
+//    BIG MAPS     every stage is a big scrolling map with outposts to hold or factories to destroy (bigmap.js)
 //    VS EAGLES    2-4 players, each with an eagle: defend yours, destroy theirs; best of 3 rounds
 //    DEATHMATCH   2-4 players, no eagles: first to 10 kills, or the most kills after 3 minutes
 //    FLAGS        capture the flag: bring another player's flag home to your own; first to 3
@@ -6317,6 +6374,7 @@ const MODES = [
   { key: 'classic', name: 'CLASSIC', desc: 'THE GAME AS ALWAYS' },
   { key: 'survival', name: 'SURVIVAL', desc: 'ENDLESS WAVES, HOW LONG?' },
   { key: 'timeattack', name: 'TIME ATTACK', desc: 'CLEAR 5 STAGES FAST' },
+  { key: 'bigmaps', name: 'BIG MAPS', desc: 'HUGE SCROLLING BATTLEFIELDS' },
   { key: 'eagles', name: 'VS EAGLES', vs: true, desc: 'GUARD YOURS, HIT THEIRS' },
   { key: 'dm', name: 'DEATHMATCH', vs: true, desc: 'FIRST TO 10 KILLS' },
   { key: 'ctf', name: 'FLAGS', vs: true, desc: 'BRING THEIR FLAG HOME' },
@@ -6538,12 +6596,226 @@ Object.assign(Stage.prototype, {
 
   renderModeBanner(ctx) {
     if (this.survival && this.waveBreak > 0 && (this.waveBreak >> 4) & 1) {
-      Font.drawCenter(ctx, 'WAVE ' + (this.wave + 1), FW / 2, FH / 2 - 4, COL.gold);
+      Font.drawCenter(ctx, 'WAVE ' + (this.wave + 1), VIEW_W / 2, VIEW_H / 2 - 4, COL.gold);
     }
     if (this.vs && this.vsEnd > 0) {
       const w = this.vsWinner;
-      Font.drawCenter(ctx, w >= 0 ? ROMAN[w] + '-PLAYER WINS!' : 'DRAW!', FW / 2, FH / 2 - 4, COL.gold);
+      Font.drawCenter(ctx, w >= 0 ? ROMAN[w] + '-PLAYER WINS!' : 'DRAW!', VIEW_W / 2, VIEW_H / 2 - 4, COL.gold);
     }
+  },
+});
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  Big scrolling maps (BIG MAPS mode, or every 4th stage with BIG MAP STAGES on)
+//  The world is several classic maps stitched together (3 x 2 or more); the screen shows the usual field size and
+//  follows your tanks. Each big stage has an objective:
+//    OUTPOSTS   two more eagles with their own fortresses beside your HQ. Enemies go for the nearest one. Only losing
+//               the HQ ends the game; every outpost still standing at the end is worth 2000 to each player.
+//    FACTORIES  three enemy factories in the far half keep turning out tanks until destroyed (8 hits each, 1000
+//               points). The stage is clear when every factory is down and the last tank is gone.
+// =====================================================================
+
+const SECTOR = 13, OUTPOST_BONUS = 2000, FACTORY_HP = 8, FACTORY_EVERY = 720;
+
+// the stitched world: SX x SY classic maps, as one big block map
+function bigWorldBlocks(num, SX, SY) {
+  const rows = [];
+  for (let sy = 0; sy < SY; sy++) {
+    const sectorRows = [];
+    for (let sx = 0; sx < SX; sx++) sectorRows.push(mapToBlocks(LEVELS[(num * 5 + sx * 3 + sy * 7) % LEVELS.length]));
+    for (let r = 0; r < 26; r++) rows.push(sectorRows.map(b => b[r]).join(''));
+  }
+  return rows;
+}
+
+// world size for a screen of vc x vr tiles
+function bigWorldSize(vc, vr) {
+  const SX = Math.max(3, Math.ceil(vc * 2 / SECTOR)), SY = Math.max(2, Math.ceil(vr * 1.5 / SECTOR));
+  return [SX, SY];
+}
+
+Object.assign(Stage.prototype, {
+  setupBigMap(kind) {
+    this.big = kind;
+    this.outposts = [];
+    this.factories = [];
+    const SX = COLS / SECTOR, hq = Math.floor(SX / 2);
+    if (kind === 'outposts') {
+      for (const sx of [hq - 1, hq + 1]) {
+        if (sx < 0 || sx >= SX) continue;
+        const x = sx * SECTOR * 16 + 96, y = FH - 16;
+        this.clearArea(x - 16, y - 16, 48, 32);
+        this.fortressAround(x, y);
+        this.outposts.push({ x, y, alive: true });
+      }
+    } else {
+      // three factories spread across the far half
+      const n = 3;
+      for (let k = 0; k < n; k++) {
+        const sx = Math.min(SX - 1, Math.floor((k + 0.5) * SX / n));
+        const spot = this.freeSpot32(sx * SECTOR * 16 + 88, 72 + (k & 1) * 48);
+        if (!spot) continue;
+        this.clearArea(spot[0], spot[1], 32, 40);
+        this.factories.push({ x: spot[0], y: spot[1], hp: FACTORY_HP, cd: 240 + k * 120, flash: 0 });
+      }
+    }
+  },
+
+  clearArea(x, y, w, h) {
+    for (let cy = Math.max(0, y >> 2); cy < Math.min(GH, (y + h) >> 2); cy++) {
+      for (let cx = Math.max(0, x >> 2); cx < Math.min(GW, (x + w) >> 2); cx++) if (this.get(cx, cy) !== T_EMPTY) this.set(cx, cy, T_EMPTY);
+    }
+  },
+
+  // a 32px spot near (x, y) clear of steel and water, the entry row and the player area
+  freeSpot32(x0, y0) {
+    for (let r = 0; r < 10; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const x = Math.round((x0 + dx * 16) / 16) * 16, y = Math.round((y0 + dy * 16) / 16) * 16;
+      if (x < 0 || y < 32 || x > FW - 32 || y > FH / 2) continue;
+      let bad = false;
+      for (let cy = y >> 2; cy < (y + 40) >> 2 && !bad; cy++) for (let cx = x >> 2; cx < (x + 32) >> 2; cx++) {
+        const t = this.get(cx, cy);
+        if (t === T_STEEL || t === T_WATER) { bad = true; break; }
+      }
+      if (!bad && !this.factories.some(f => overlap(x, y, 32, 40, f.x - 16, f.y - 16, 64, 72))) return [x, y];
+    }
+    return null;
+  },
+
+  // every eagle the enemy may go for: the HQ and any outposts still standing
+  baseGoals() {
+    if (this.decoy) return [{ x: this.decoy.x, y: this.decoy.y }];
+    const g = this.noBase ? [] : [{ x: BASE_X, y: BASE_Y }];
+    for (const o of this.outposts || []) if (o.alive) g.push({ x: o.x, y: o.y });
+    return g;
+  },
+
+  factoriesAlive() { return (this.factories || []).some(f => f.hp > 0); },
+
+  updateBigMap() {
+    for (const f of this.factories) {
+      if (f.hp <= 0) continue;
+      if (f.flash > 0) f.flash--;
+      if (this.freezeE > 0 || this.over || --f.cd > 0) continue;
+      f.cd = Math.round(FACTORY_EVERY / Config.scale('spawnRate') / Config.skill().spawn);
+      const onField = this.tanks.filter(t => !t.isPlayer).length + this.spawns.filter(s => s.enemy).length;
+      if (onField >= this.maxEnemies + 2) continue;
+      // the new tank rolls out of the door, just below the factory
+      const x = f.x + 8, y = f.y + 32;
+      if (this.tanks.some(t => overlap(t.x, t.y, 16, 16, x, y, 16, 16))) continue;
+      const type = buildQueue(this.num, 1)[0].type;
+      this.spawns.push({ x, y, t: SPARKLE_TIME, enemy: { type } });
+      this.total++;
+    }
+  },
+
+  // shells and blasts against outposts and factories (true if the shell stopped)
+  bulletBigMap(b) {
+    for (const o of this.outposts) {
+      if (!o.alive || !overlap(b.x, b.y, 4, 4, o.x, o.y, 16, 16)) continue;
+      this.killBullet(b, true);
+      if (!b.isPlayer) this.outpostDown(o);   // your own shells can't hurt your outposts
+      return true;
+    }
+    for (const f of this.factories) {
+      if (f.hp <= 0 || !overlap(b.x, b.y, 4, 4, f.x, f.y, 32, 32)) continue;
+      this.killBullet(b, true);
+      if (b.isPlayer) this.hitFactory(f, b.power ? 2 : 1, b.owner);
+      return true;
+    }
+    return false;
+  },
+
+  outpostDown(o) {
+    o.alive = false;
+    this.navBaseF = {};
+    this.addFx(o.x + 8, o.y + 8, BIG_EXPLOSION(), 6);
+    this.popups.push({ x: o.x + 8, y: o.y - 8, text: 'OUTPOST LOST', label: true, color: COL.red, t: 0, delay: 0, life: 90 });
+    Sound.play('baseDie');
+  },
+
+  hitFactory(f, dmg, by) {
+    f.hp -= dmg;
+    f.flash = 8;
+    if (f.hp > 0) { Sound.play('armor'); return; }
+    for (let i = 0; i < 6; i++) this.fx.push({ x: f.x + 4 + Math.random() * 24, y: f.y + 4 + Math.random() * 24, frames: BIG_EXPLOSION(), per: 5, tick: -i * 6 });
+    Sound.play('bossDie');
+    const p = by && by.player;
+    if (p) { this.addScore(p, 1000); this.addXp(p, 50); }
+    this.popups.push({ x: f.x + 16, y: f.y, text: 'FACTORY DOWN', label: true, color: COL.gold, t: 0, delay: 20, life: 90 });
+  },
+
+  // stage clear: standing outposts pay out
+  bigMapBonus() {
+    const n = this.outposts.filter(o => o.alive).length;
+    if (!n) return;
+    for (const p of this.players) if (!p.out) this.addScore(p, n * OUTPOST_BONUS);
+    this.popups.push({ x: BASE_X + 8, y: BASE_Y - 24, text: 'OUTPOSTS +' + n * OUTPOST_BONUS, label: true, color: COL.gold, t: 0, delay: 0, life: 120 });
+  },
+
+  // ------------------------------------------------------------ camera and drawing
+  // where the screen's window onto the field starts (it follows your tanks; an online guest's follows its own)
+  camera() {
+    if (VIEW_W >= FW && VIEW_H >= FH) return [0, 0];
+    const mine = Net.role === 'client' ? this.tanks.filter(t => t.isPlayer && !t.ally && t.player && t.player.i === Net.slot) : [];
+    const ps = mine.length ? mine : this.tanks.filter(t => t.isPlayer && !t.ally && t.alive);
+    let fx = BASE_X + 8, fy = BASE_Y + 8;
+    if (ps.length) { fx = ps.reduce((a, t) => a + t.x + 8, 0) / ps.length; fy = ps.reduce((a, t) => a + t.y + 8, 0) / ps.length; }
+    const tx = Math.max(0, Math.min(FW - VIEW_W, fx - VIEW_W / 2)), ty = Math.max(0, Math.min(FH - VIEW_H, fy - VIEW_H / 2));
+    if (this.camX === undefined) { this.camX = tx; this.camY = ty; }
+    this.camX += (tx - this.camX) * 0.2;
+    this.camY += (ty - this.camY) * 0.2;
+    return [Math.round(this.camX), Math.round(this.camY)];
+  },
+
+  renderBigMap(ctx) {
+    for (const o of this.outposts || []) {
+      if (!o.alive) { ctx.drawImage(Sprites.eagleDead, o.x, o.y); continue; }
+      ctx.drawImage(Sprites.outline(Sprites.eagle, '#58F8F8'), o.x - 1, o.y - 1);
+      ctx.drawImage(Sprites.eagle, o.x, o.y);
+    }
+    for (const f of this.factories || []) {
+      if (f.hp <= 0) { ctx.fillStyle = '#3C3C3C'; ctx.fillRect(f.x + 2, f.y + 18, 28, 14); continue; }
+      ctx.drawImage(f.flash > 0 && (f.flash >> 1) & 1 ? Sprites.factory[1] : Sprites.factory[0], f.x, f.y);
+      // smoke from the chimney and a working light
+      ctx.fillStyle = (this.frame >> 4) & 1 ? '#F83800' : '#7C0800';
+      ctx.fillRect(f.x + 14, f.y + 20, 4, 2);
+      ctx.fillStyle = 'rgba(160,160,160,0.6)';
+      const s = (this.frame >> 2) % 8;
+      ctx.fillRect(f.x + 24 + (s >> 2), f.y - 2 - s, 4, 3);
+    }
+  },
+
+  // arrows at the edge of the screen pointing to objectives you can't see
+  renderObjectiveArrows(ctx, camX, camY) {
+    if (VIEW_W >= FW && VIEW_H >= FH) return;
+    const marks = [];
+    if (!this.noBase && this.baseAlive) marks.push([BASE_X + 8, BASE_Y + 8, COL.gold]);
+    for (const o of this.outposts || []) if (o.alive) marks.push([o.x + 8, o.y + 8, '#58F8F8']);
+    for (const f of this.factories || []) if (f.hp > 0) marks.push([f.x + 16, f.y + 16, '#F83800']);
+    for (const [wx, wy, color] of marks) {
+      const sx = wx - camX, sy = wy - camY;
+      if (sx >= 0 && sy >= 0 && sx < VIEW_W && sy < VIEW_H) continue;
+      const x = Math.max(4, Math.min(VIEW_W - 5, sx)), y = Math.max(4, Math.min(VIEW_H - 5, sy));
+      if ((this.frame >> 3) & 1) continue;
+      ctx.fillStyle = color;
+      ctx.fillRect(x - 2, y - 2, 5, 5);
+      ctx.fillStyle = COL.black;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  },
+
+  // objective line in the border above the field
+  renderObjectiveLine(ctx) {
+    if (!this.big) return;
+    const text = this.big === 'outposts'
+      ? 'OUTPOSTS ' + this.outposts.filter(o => o.alive).length + '/' + this.outposts.length
+      : 'FACTORIES LEFT ' + this.factories.filter(f => f.hp > 0).length;
+    Font.drawCenter(ctx, text, FX + VIEW_W / 2, 0, COL.black);
   },
 });
 
@@ -7151,11 +7423,11 @@ Object.assign(Stage.prototype, {
 
   renderBossBanner(ctx) {
     if (!this.bossBanner || this.bossIdx === undefined) return;
-    const y = (FH >> 1) - 20;
+    const y = (VIEW_H >> 1) - 20;
     ctx.fillStyle = COL.black;
-    ctx.fillRect(0, y - 4, FW, 32);
-    if ((this.bossBanner >> 3) & 1) Font.drawCenter(ctx, 'WARNING', FW / 2, y, COL.red);
-    Font.drawCenter(ctx, 'BOSS: ' + BOSSES[this.bossIdx].name, FW / 2, y + 13, COL.white);
+    ctx.fillRect(0, y - 4, VIEW_W, 32);
+    if ((this.bossBanner >> 3) & 1) Font.drawCenter(ctx, 'WARNING', VIEW_W / 2, y, COL.red);
+    Font.drawCenter(ctx, 'BOSS: ' + BOSSES[this.bossIdx].name, VIEW_W / 2, y + 13, COL.white);
   },
 
   renderBossHud(ctx, H) {
@@ -7641,7 +7913,7 @@ const Net = {
   },
 
   buildView(full) {
-    const G = Game, v = { t: 'v', s: G.state, gt: G.t, c: COLS, r: ROWS, stn: G.stageNum, hi: G.hi, eng: Sound.engineState };
+    const G = Game, v = { t: 'v', s: G.state, gt: G.t, c: COLS, r: ROWS, vc: VIEW_W / 16, vr: VIEW_H / 16, stn: G.stageNum, hi: G.hi, eng: Sound.engineState };
     if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover', 'vsResult', 'modeResult'].includes(G.state)) v.s = 'wait';
     v.mode = G.mode; v.ta = G.taFrames; v.tac = G.taCleared; v.vw = G.vsWins;
     if (v.s === 'vsResult') v.vsr = G.vsRes;
@@ -7699,6 +7971,7 @@ const Net = {
       pd: st.pads, wx: st.weather,
       md: [st.vs || null, st.noBase ? 1 : 0, st.vsTime || 0, st.vsEnd || 0, st.vsWinner, st.survival ? 1 : 0, st.wave || 0, st.waveBreak || 0],
       ve: st.vsEagles || null,
+      bg: st.big ? [st.big, st.outposts, st.factories.map(f => [f.x, f.y, f.hp, f.flash])] : null,
       fg: st.flags ? st.flags.map(f => [f.i, f.hx, f.hy, f.x, f.y, f.carrier ? 1 : 0]) : null,
     };
     st.netDiff = [];
@@ -7795,7 +8068,7 @@ const Net = {
 
   applyView(v) {
     const G = Game;
-    if (v.c !== COLS || v.r !== ROWS) setFieldSize(v.c, v.r);
+    if (v.c !== COLS || v.r !== ROWS || v.vc * 16 !== VIEW_W || v.vr * 16 !== VIEW_H) setFieldSize(v.c, v.r, v.vc || v.c, v.vr || v.r);
     G.players = v.pl.map((o, k) => Object.assign(G.players[k] && G.players[k].i === o.i ? G.players[k] : newPlayer(o.i), o, { tank: null }));
     if (v.base) G.base = v.base;
     G.mode = v.mode; G.taFrames = v.ta; G.taCleared = v.tac; G.vsWins = v.vw || [];
@@ -7850,6 +8123,8 @@ const Net = {
     st.pads = sv.pd || [];
     if (sv.md) [st.vs, st.noBase, st.vsTime, st.vsEnd, st.vsWinner, st.survival, st.wave, st.waveBreak] = [sv.md[0], !!sv.md[1], sv.md[2], sv.md[3], sv.md[4], !!sv.md[5], sv.md[6], sv.md[7]];
     st.vsEagles = sv.ve || null;
+    if (sv.bg) { st.big = sv.bg[0]; st.outposts = sv.bg[1]; st.factories = sv.bg[2].map(a => ({ x: a[0], y: a[1], hp: a[2], flash: a[3] })); }
+    else { st.big = null; st.outposts = []; st.factories = []; }
     st.flags = sv.fg ? sv.fg.map(a => ({ i: a[0], hx: a[1], hy: a[2], x: a[3], y: a[4], carrier: a[5] ? {} : null })) : null;
     st.weather = sv.wx || null;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
@@ -8269,9 +8544,10 @@ const Game = {
     return [w, h];
   },
 
-  applyLayout(cols, rows) {
+  // vc / vr: the screen's window when the field is a big scrolling map
+  applyLayout(cols, rows, vc, vr) {
     if (cols === undefined) [cols, rows] = this.desiredField();
-    setFieldSize(cols, rows);
+    setFieldSize(cols, rows, vc, vr);
   },
 
   // ---------------------------------------------------------------- title
@@ -8388,9 +8664,10 @@ const Game = {
   // ---------------------------------------------------------------- save / load
   // One save slot: written by SAVE GAME in the pause menu and automatically at every stage start.
   saveGame() {
-    if (!this.stage || this.stage.over || this.daily || (this.mode && this.mode !== 'classic')) return false;
+    if (!this.stage || this.stage.over || this.daily || (this.mode && this.mode !== 'classic' && this.mode !== 'bigmaps')) return false;
     const data = {
       app: APP_VERSION, time: Date.now(), numPlayers: this.players.length, stageNum: this.stageNum, lastScores: this.lastScores,
+      mode: this.mode || 'classic',
       players: this.players.map(p => { const o = Object.assign({}, p); delete o.tank; return o; }),
       base: this.base,
       stage: this.stage.snapshot(),
@@ -8411,7 +8688,8 @@ const Game = {
     this.lastScores = s.lastScores || [0, 0];
     this.customPending = false;
     // the saved terrain only fits the field size it was saved with
-    this.applyLayout(s.stage.cols, s.stage.rows);
+    this.mode = s.mode || 'classic';
+    this.applyLayout(s.stage.cols, s.stage.rows, s.stage.vcols, s.stage.vrows);
     this.base = Object.assign(newBase(), s.base || {});
     this.stage = new Stage(this.stageNum, LEVELS[(this.stageNum - 1) % LEVELS.length], this.players, { snapshot: s.stage, base: this.base });
     this.paused = true;
@@ -8440,7 +8718,7 @@ const Game = {
     this.mode = custom || this.daily ? 'classic' : Config.get('gameMode');
     if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
-    this.toCurtain(!custom && this.mode === 'classic');
+    this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
     if (this.mode === 'timeattack') this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
   },
@@ -8500,14 +8778,25 @@ const Game = {
     const boss = custom || this.mode !== 'classic' ? null : bossForStage(this.stageNum);
     if (boss) map = BOSS_ARENAS[boss.idx];
     const vs = modeInfo(this.mode).vs ? this.mode : null;
+    // big scrolling maps: every stage in BIG MAPS, every 4th classic stage with BIG MAP STAGES on
+    const big = !custom && !boss && (this.mode === 'bigmaps'
+      || (this.mode === 'classic' && !this.daily && Config.get('bigStages') === 'SOME' && this.stageNum % 4 === 0));
+    let blocks = null, objective = null;
+    if (big) {
+      const [vc, vr] = this.desiredField(), [SX, SY] = bigWorldSize(vc, vr);
+      setFieldSize(SX * SECTOR, SY * SECTOR, vc, vr);
+      blocks = bigWorldBlocks(this.stageNum, SX, SY);
+      objective = Math.floor(this.stageNum / (this.mode === 'bigmaps' ? 1 : 4)) % 2 ? 'outposts' : 'factories';
+    } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
       custom, boss, base: vs ? newBase() : this.base, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
+      blocks, big: objective,
     });
     this.paused = false;
     this.openH = SCREEN_H / 2;
     this.setState('play');
     Sound.play('start');
-    if (this.mode === 'classic') this.saveGame(); // autosave at every stage start
+    if (this.mode === 'classic' || this.mode === 'bigmaps') this.saveGame(); // autosave at every stage start
     if (!custom && Net.role !== 'client' && !this.daily && this.mode === 'classic') {
       STORE.set('tank1990_lastStage', this.stageNum);
       if (this.stageNum > STORE.get('tank1990_bestStage', 1)) STORE.set('tank1990_bestStage', this.stageNum);

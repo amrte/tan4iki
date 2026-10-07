@@ -115,6 +115,7 @@ saving outside Classic.
 |---|---|---|
 | **Classic** | 1-4 | the game as always |
 | **Survival** | 1-4 | endless waves on one map; wave *n* brings 6 + 2*n* tanks and later waves bring the newer, tougher enemies. After each wave a 4-second breather, the fortress walls are patched, and every 5 waves everyone gets a tank. The side panel's flag shows the wave. Ends when the eagle falls or everyone is out; best wave and score are kept |
+| **Big maps** | 1-4 | every stage is a big scrolling map (see below); shop and saves work as in Classic |
 | **Time attack** | 1-4 | clear stages 1-5 as fast as you can; enemies arrive twice as fast, no tally between stages, the clock runs in the border above the field; best time is kept |
 | **VS eagles** | 2-4 | everyone has an eagle and a fortress (I bottom, II top, III left, IV right). Your shells, rockets and mines now destroy other players; you respawn while your eagle stands, and your own shells can't hurt it. Lose your eagle and you're out; the last eagle standing wins the round. Best of 3 |
 | **Deathmatch** | 2-4 | no eagles; players start in the corners and respawn; first to 10 kills, or the most kills after 3 minutes (the clock is in the side panel) |
@@ -122,6 +123,24 @@ saving outside Classic.
 
 In versus, power-ups drop every 15 seconds (only ones that make sense between players), there are no enemy tanks, and
 the side panel shows each player's wins, kills or captures. Round and match results show who won.
+
+## Big scrolling maps
+
+A big stage stitches several classic maps together (3 across and 2 down, more on wide screens). Your screen keeps its
+usual field size and follows your tanks (online, each guest's view follows their own tank). Blinking squares at the
+edge point to objectives off screen (gold: your HQ, cyan: outposts, red: factories), and the border above the field
+shows how the objective stands. Big stages bring twice the tanks and two more on screen at once. Each has an objective,
+taking turns:
+
+- **Outposts**: two more eagles with fortresses stand beside your HQ. Enemies go for whichever eagle is nearest.
+  Only losing the HQ ends the game; every outpost still standing when the stage is cleared is worth 2000 to each player.
+  Your own shells can't hurt them.
+- **Factories**: three enemy factories in the far half keep turning out tanks until destroyed (8 hits, star-3 shells
+  count double, rockets and mines too; 1000 points each). The stage is clear only when every factory is down and the
+  last tank is gone.
+
+Play them in the **BIG MAPS** mode (every stage), or in Classic with Settings → GAME → **BIG MAP STAGES: SOME**
+(every 4th stage that isn't a boss stage; off by default).
 
 ## Skill levels
 
@@ -378,7 +397,7 @@ in the browser, and **RESET TO DEFAULTS** restores the classic game.
 | Players | III / IV-PLAYER COLOR (blue / pink), gamepad rumble (on), key and pad setup |
 | Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
 | Screen | field width (13), field height (13), FIT, scaling (sharp / fill), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
-| Game | game mode (classic), skill (hurt me plenty), mud, belts, pads (on), night and fog (some), game speed (100%), volume (100%), engine sound (on) |
+| Game | game mode (classic), skill (hurt me plenty), mud, belts, pads (on), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on) |
 
 ## Code layout
 
@@ -398,6 +417,7 @@ js/base.js        base upgrades: fortress walls, eagle armor, repair crew, eagle
 js/extras.js      turrets, Claude, airstrikes, revival, wingman, decoy eagle, smoke, bridges
 js/terrain.js     mud, conveyor belts, teleporter pads, night and fog stages
 js/modes.js       game modes: survival waves, time attack, versus eagles, deathmatch, capture the flag
+js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/bosses.js      boss rounds: the 5 bosses, their arenas, sprites and behaviour
 js/net.js         online play: WebRTC connection, codes, host streaming, guest view, lobby panels
 js/main.js        state machine (title, settings, curtain, play, score, game over, construction) + loop

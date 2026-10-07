@@ -205,9 +205,10 @@ const Game = {
     return [w, h];
   },
 
-  applyLayout(cols, rows) {
+  // vc / vr: the screen's window when the field is a big scrolling map
+  applyLayout(cols, rows, vc, vr) {
     if (cols === undefined) [cols, rows] = this.desiredField();
-    setFieldSize(cols, rows);
+    setFieldSize(cols, rows, vc, vr);
   },
 
   // ---------------------------------------------------------------- title
@@ -324,9 +325,10 @@ const Game = {
   // ---------------------------------------------------------------- save / load
   // One save slot: written by SAVE GAME in the pause menu and automatically at every stage start.
   saveGame() {
-    if (!this.stage || this.stage.over || this.daily || (this.mode && this.mode !== 'classic')) return false;
+    if (!this.stage || this.stage.over || this.daily || (this.mode && this.mode !== 'classic' && this.mode !== 'bigmaps')) return false;
     const data = {
       app: APP_VERSION, time: Date.now(), numPlayers: this.players.length, stageNum: this.stageNum, lastScores: this.lastScores,
+      mode: this.mode || 'classic',
       players: this.players.map(p => { const o = Object.assign({}, p); delete o.tank; return o; }),
       base: this.base,
       stage: this.stage.snapshot(),
@@ -347,7 +349,8 @@ const Game = {
     this.lastScores = s.lastScores || [0, 0];
     this.customPending = false;
     // the saved terrain only fits the field size it was saved with
-    this.applyLayout(s.stage.cols, s.stage.rows);
+    this.mode = s.mode || 'classic';
+    this.applyLayout(s.stage.cols, s.stage.rows, s.stage.vcols, s.stage.vrows);
     this.base = Object.assign(newBase(), s.base || {});
     this.stage = new Stage(this.stageNum, LEVELS[(this.stageNum - 1) % LEVELS.length], this.players, { snapshot: s.stage, base: this.base });
     this.paused = true;
@@ -376,7 +379,7 @@ const Game = {
     this.mode = custom || this.daily ? 'classic' : Config.get('gameMode');
     if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
-    this.toCurtain(!custom && this.mode === 'classic');
+    this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
     if (this.mode === 'timeattack') this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
   },
@@ -436,14 +439,25 @@ const Game = {
     const boss = custom || this.mode !== 'classic' ? null : bossForStage(this.stageNum);
     if (boss) map = BOSS_ARENAS[boss.idx];
     const vs = modeInfo(this.mode).vs ? this.mode : null;
+    // big scrolling maps: every stage in BIG MAPS, every 4th classic stage with BIG MAP STAGES on
+    const big = !custom && !boss && (this.mode === 'bigmaps'
+      || (this.mode === 'classic' && !this.daily && Config.get('bigStages') === 'SOME' && this.stageNum % 4 === 0));
+    let blocks = null, objective = null;
+    if (big) {
+      const [vc, vr] = this.desiredField(), [SX, SY] = bigWorldSize(vc, vr);
+      setFieldSize(SX * SECTOR, SY * SECTOR, vc, vr);
+      blocks = bigWorldBlocks(this.stageNum, SX, SY);
+      objective = Math.floor(this.stageNum / (this.mode === 'bigmaps' ? 1 : 4)) % 2 ? 'outposts' : 'factories';
+    } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
       custom, boss, base: vs ? newBase() : this.base, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
+      blocks, big: objective,
     });
     this.paused = false;
     this.openH = SCREEN_H / 2;
     this.setState('play');
     Sound.play('start');
-    if (this.mode === 'classic') this.saveGame(); // autosave at every stage start
+    if (this.mode === 'classic' || this.mode === 'bigmaps') this.saveGame(); // autosave at every stage start
     if (!custom && Net.role !== 'client' && !this.daily && this.mode === 'classic') {
       STORE.set('tank1990_lastStage', this.stageNum);
       if (this.stageNum > STORE.get('tank1990_bestStage', 1)) STORE.set('tank1990_bestStage', this.stageNum);

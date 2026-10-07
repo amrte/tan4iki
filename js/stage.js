@@ -9,6 +9,7 @@ let COLS = 13, ROWS = 13;
 let FW = 208, FH = 208;                            // field size in pixels
 let GW = 52, GH = 52;                              // terrain grid (4px cells)
 let SCREEN_W = 256, SCREEN_H = 224, HUD_X = 232;   // whole play screen and the side panel
+let VIEW_W = 208, VIEW_H = 208;                    // the part of the field on screen (smaller on big scrolling maps)
 const T_EMPTY = 0, T_BRICK = 1, T_STEEL = 2, T_WATER = 3, T_FOREST = 4, T_ICE = 5, T_BRIDGE = 6, T_MUD = 7;
 const T_BELT = 8;   // 8-11: conveyor belts pushing up / right / down / left (terrain.js)
 const BLOCK_TYPE = { '.': T_EMPTY, '#': T_BRICK, '@': T_STEEL, '~': T_WATER, '%': T_FOREST, '_': T_ICE,
@@ -71,11 +72,13 @@ let ENEMY_SPAWN_X = [96, 192, 0];
 let PLAYER_SPAWN = [[64, 192], [128, 192], [0, 192], [192, 192]];
 let BASE_WALL = [[11, 23], [12, 23], [13, 23], [14, 23], [11, 24], [14, 24], [11, 25], [14, 25]];
 
-function setFieldSize(cols, rows) {
+// vcols / vrows: the window onto a bigger field that scrolls (big maps); the whole field otherwise
+function setFieldSize(cols, rows, vcols = cols, vrows = rows) {
   COLS = cols; ROWS = rows;
   FW = cols * 16; FH = rows * 16;
   GW = cols * 4; GH = rows * 4;
-  SCREEN_W = FX + FW + 32; SCREEN_H = FY * 2 + FH; HUD_X = FX + FW + 8;
+  VIEW_W = Math.min(FW, vcols * 16); VIEW_H = Math.min(FH, vrows * 16);
+  SCREEN_W = FX + VIEW_W + 32; SCREEN_H = FY * 2 + VIEW_H; HUD_X = FX + VIEW_W + 8;
   // eagle at the bottom centre, with its brick fortress
   BASE_X = cols * 8 - 8; BASE_Y = FH - 16;
   const bx = BASE_X / 8, by = BASE_Y / 8;
@@ -240,10 +243,12 @@ class Stage {
     this.extraPlayers = Math.max(0, players.length - 1);
     this.terrain = new Uint8Array(GW * GH);
     const classic = COLS === 13 && ROWS === 13;
-    this.load(expandBlocks(mapToBlocks(map)), !opts.custom || !classic);
+    this.load(opts.blocks || expandBlocks(mapToBlocks(map)), !opts.custom || !classic);   // blocks: a stitched big map
     // mud, teleporters and belts in the normal stages; night and fog on some (terrain.js)
     if (!opts.boss && !opts.custom && !opts.snapshot && Config.on('terrainExtras')) this.addTerrainExtras(num);
     this.weather = stageWeather(opts.custom ? 1 : num, !!opts.boss);
+    this.outposts = []; this.factories = [];
+    if (opts.big) this.setupBigMap(opts.big);   // bigmap.js
     this.tanks = [];
     this.bullets = [];
     this.fx = [];
@@ -259,13 +264,13 @@ class Stage {
     this.applyBase(opts.base);                 // base upgrades from the shop (base.js)
     this.origTerrain = this.terrain.slice();   // what a mason rebuilds
     this.lastBrickSound = -1;
-    this.queue = buildQueue(num);
+    this.queue = buildQueue(num, opts.big ? Math.min(60, Config.get('enemyCount') * 2) : 0);   // big maps: twice the tanks
     this.total = this.queue.length;
     this.killed = 0;
     this.spawnTimer = 0;
     this.spawnPos = 0;
     this.spawnInterval = Math.round(Math.max(70, 190 - ((num - 1) % 35) * 4 - (this.twoP ? 20 : 0)) / Config.scale('spawnRate') / Config.skill().spawn);
-    this.maxEnemies = Math.max(1, Config.get('maxOnScreen') + [0, 2, 3, 4][this.extraPlayers] + Config.skill().maxOn);
+    this.maxEnemies = Math.max(1, Config.get('maxOnScreen') + [0, 2, 3, 4][this.extraPlayers] + Config.skill().maxOn + (opts.big ? 2 : 0));
     this.freezeE = 0;
     this.freezeP = 0;
     this.shovel = 0;
@@ -322,6 +327,7 @@ class Stage {
       eagleArmor: this.eagleArmor,
       decoy: this.decoy,
       pads: this.pads, weather: this.weather,
+      vcols: VIEW_W / 16, vrows: VIEW_H / 16, big: this.big || null, outposts: this.outposts, factories: this.factories,
       turrets: this.turrets.map(tu => Object.assign({}, tu, { owner: tu.owner ? tu.owner.i : -1 })),
       claudes: this.claudes.map(c => Object.assign({}, c, { p: c.p ? c.p.i : -1 })),
       boss: this.bossIdx === undefined ? null : {
@@ -338,6 +344,7 @@ class Stage {
     if (sn.eagleArmor !== undefined) this.eagleArmor = sn.eagleArmor;
     this.decoy = sn.decoy || null;
     if (sn.pads) this.pads = sn.pads;
+    if (sn.big) { this.big = sn.big; this.outposts = sn.outposts || []; this.factories = sn.factories || []; }
     if (sn.weather !== undefined) this.weather = sn.weather;
     this.turrets = (sn.turrets || []).map(tu => Object.assign({}, tu, { owner: this.players[tu.owner] || null }));
     this.claudes = (sn.claudes || []).map(c => Object.assign({}, c, { p: this.players[c.p] || null }));
@@ -522,10 +529,12 @@ class Stage {
       if (this.overTimer >= 320) this.result = 'gameover';
     } else if (this.vs) {
       this.updateVersus();
+    } else if (this.big && this.factoriesAlive()) {
+      this.updateBigMap();
     } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer) && !this.bossAlive()) {
       if (this.survival) { this.nextWave(); return; }
       this.clearTimer++;
-      if (this.clearTimer === 1) for (const p of this.players) if (!p.out) this.addXp(p, 25);
+      if (this.clearTimer === 1) { for (const p of this.players) if (!p.out) this.addXp(p, 25); if (this.big) this.bigMapBonus(); }
       if (this.clearTimer >= 190) this.result = 'clear';
     }
   }
@@ -630,7 +639,7 @@ class Stage {
   }
 
   targetInSight(t) {
-    const targets = [this.baseTarget()].concat(this.tanks.filter(o => o.isPlayer && !o.boost.smoke));
+    const targets = this.baseGoals().concat(this.tanks.filter(o => o.isPlayer && !o.boost.smoke));
     for (const o of targets) {
       const dx = o.x - t.x, dy = o.y - t.y;
       if (Math.abs(dx) < 8 && ((t.dir === 0 && dy < 0) || (t.dir === 2 && dy > 0))) return true;
@@ -643,7 +652,7 @@ class Stage {
     const r = Math.random();
     const pBase = Math.min(0.8, Math.min(0.5, 0.25 + this.num * 0.008) * Config.scale('enemyAim'));
     let target = null;
-    if (r < pBase) target = this.baseTarget();
+    if (r < pBase) target = this.baseTarget(t);
     else if (r < pBase + 0.2) {
       const ps = this.tanks.filter(o => o.isPlayer && !o.boost.smoke);
       if (ps.length) target = ps[rnd(ps.length)];
@@ -721,6 +730,10 @@ class Stage {
     }
     if (!this.noBase && overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
     if (this.vsEagles && this.vsEagles.some(e => overlap(nx, ny, 16, 16, e.x, e.y, 16, 16))) return false;
+    if (this.big) {
+      if (this.outposts.some(o => o.alive && overlap(nx, ny, 16, 16, o.x, o.y, 16, 16))) return false;
+      if (this.factories.some(f => f.hp > 0 && overlap(nx, ny, 16, 16, f.x, f.y, 32, 32) && !overlap(t.x, t.y, 16, 16, f.x, f.y, 32, 32))) return false;
+    }
     if (this.decoy && overlap(nx, ny, 16, 16, this.decoy.x, this.decoy.y, 16, 16)) return false;
     if (this.bosses.length && this.bossBlocksTank(t, nx, ny)) return false;
     if (this.turrets.length) {
@@ -808,6 +821,7 @@ class Stage {
       return;
     }
     if (this.vsEagles && this.vsBulletEagle(b)) return;
+    if (this.big && this.bulletBigMap(b)) return;
     if (!this.noBase && overlap(b.x, b.y, 4, 4, BASE_X, BASE_Y, 16, 16)) {
       this.killBullet(b, true);
       if (this.baseAlive) this.destroyBase();
@@ -932,6 +946,8 @@ class Stage {
     for (const e of this.vsEagles || []) {
       if (e.alive && reaches(e.x, e.y, 16, 16) && (!owner || !owner.player || owner.player.i !== e.i)) this.vsEagleDown(e);
     }
+    for (const o of this.outposts) if (!byPlayer && o.alive && reaches(o.x, o.y, 16, 16)) this.outpostDown(o);
+    for (const f of this.factories) if (byPlayer && f.hp > 0 && reaches(f.x, f.y, 32, 32)) this.hitFactory(f, 2, owner);
     if (!byPlayer && this.decoy && reaches(this.decoy.x, this.decoy.y, 16, 16)) this.hitDecoy();
     if (byPlayer) {
       for (const bo of this.bosses.slice()) {
@@ -1303,14 +1319,18 @@ class Stage {
     ctx.fillStyle = COL.bg;
     ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
     ctx.fillStyle = COL.black;
-    ctx.fillRect(FX, FY, FW, FH);
+    ctx.fillRect(FX, FY, VIEW_W, VIEW_H);
     if (this.dirty) this.buildLayers();
 
     ctx.save();
     ctx.translate(FX, FY);
     ctx.beginPath();
-    ctx.rect(0, 0, FW, FH);
+    ctx.rect(0, 0, VIEW_W, VIEW_H);
     ctx.clip();
+    // big maps scroll: everything in the field is drawn shifted by the camera
+    const [camX, camY] = this.camera();
+    ctx.save();
+    ctx.translate(-camX, -camY);
 
     ctx.drawImage(this.bgLayer, 0, 0);
     const wt = Sprites.tex[(this.frame >> 5) & 1 ? 'water1' : 'water0'];
@@ -1372,10 +1392,13 @@ class Stage {
       const c = Sprites.mini(p.text);
       ctx.drawImage(c, Math.round(p.x - c.width / 2), Math.round(p.y - 3));
     }
+    this.renderBigMap(ctx);
+    ctx.restore();   // back to screen positions inside the field window
+    this.renderObjectiveArrows(ctx, camX, camY);
     if (this.over) {
-      const y = Math.max(FH / 2 - 8, FH - this.overTimer * 1.3);
-      Font.draw(ctx, 'GAME', FW / 2 - 15, y, COL.red);
-      Font.draw(ctx, 'OVER', FW / 2 - 15, y + 9, COL.red);
+      const y = Math.max(VIEW_H / 2 - 8, VIEW_H - this.overTimer * 1.3);
+      Font.draw(ctx, 'GAME', VIEW_W / 2 - 15, y, COL.red);
+      Font.draw(ctx, 'OVER', VIEW_W / 2 - 15, y + 9, COL.red);
     }
     this.renderBossBanner(ctx);
     this.renderRankMsg(ctx);
@@ -1392,11 +1415,11 @@ class Stage {
     const rk = RANKS[m.r - 1], who = this.players.length > 1 ? ROMAN[m.p.i] + '-PLAYER ' : '';
     const perk = Config.get('perks') === 'ON' ? rk.perk : '';
     const lines = [[who + 'LEVEL ' + m.r, COL.gold], [rk.name, COL.white]].concat(perk ? [[perk, COL.lgrey]] : []);
-    const w = Math.min(FW, Math.max(...lines.map(l => l[0].length)) * 8 + 12), h = lines.length * 10 + 6;
-    const x = (FW - w) >> 1, y = 16 + (m.t > 225 ? (m.t - 225) * -2 : 0);
+    const w = Math.min(VIEW_W, Math.max(...lines.map(l => l[0].length)) * 8 + 12), h = lines.length * 10 + 6;
+    const x = (VIEW_W - w) >> 1, y = 16 + (m.t > 225 ? (m.t - 225) * -2 : 0);
     ctx.fillStyle = 'rgba(0,0,0,0.75)';
     ctx.fillRect(x, y, w, h);
-    lines.forEach(([text, c], i) => Font.drawCenter(ctx, text, FW / 2, y + 4 + i * 10, c));
+    lines.forEach(([text, c], i) => Font.drawCenter(ctx, text, VIEW_W / 2, y + 4 + i * 10, c));
   }
 
   // XP bar for player p: a vertical strip (x, y, height) filling upwards, in the player's colour
@@ -1423,6 +1446,7 @@ class Stage {
 
   renderHud(ctx) {
     if (this.vs) { this.renderVsHud(ctx, HUD_X); return; }
+    this.renderObjectiveLine(ctx);
     const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
     if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);

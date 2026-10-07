@@ -240,10 +240,12 @@ const SETTINGS_DEF = [
   { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
   { section: 'GAME' },
-  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'survival', 'timeattack', 'eagles', 'dm', 'ctf'], def: 'classic',
+  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'survival', 'timeattack', 'bigmaps', 'eagles', 'dm', 'ctf'], def: 'classic',
     fmt: v => modeInfo(v).name },
   { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!'][v] },
   { key: 'terrainExtras', label: 'MUD, BELTS, PADS', values: ONOFF, def: 'ON' },
+  // classic games: every 4th stage (not a boss stage) a big scrolling map
+  { key: 'bigStages', label: 'BIG MAP STAGES', values: ['OFF', 'SOME'], def: 'OFF' },
   { key: 'darkStages', label: 'NIGHT AND FOG', values: ['SOME', 'OFF', 'ALWAYS NIGHT', 'ALWAYS FOG'], def: 'SOME',
     fmt: v => (v === 'ALWAYS NIGHT' ? 'ALL NIGHT' : v === 'ALWAYS FOG' ? 'ALL FOG' : v) },
   { key: 'gameSpeed', label: 'GAME SPEED', values: [50, 75, 100, 125, 150, 200], def: 100, fmt: fmtPct },

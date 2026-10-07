@@ -3,6 +3,14 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.16
+
+- **Big scrolling maps:** several classic maps stitched into one world (3 x 2 or more) that scrolls with your tanks, with
+  twice the enemies and an objective: hold two **outposts** beside your HQ (bonus for each one standing), or destroy
+  three enemy **factories** that keep producing tanks. Edge arrows point to off-screen objectives. New mode BIG MAPS
+  (every stage big), and a Classic setting BIG MAP STAGES (every 4th stage; off by default). Saves and online play
+  keep the scrolling view.
+
 ## 0.15
 
 - **Game modes** on the title screen's MODE row: Survival (endless escalating waves, best wave kept), Time attack
