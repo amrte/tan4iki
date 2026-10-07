@@ -35,7 +35,22 @@ const PALS = {
   medic: [null, '#D82800', '#E8E8E0', '#181418'],
   jammer: [null, '#F8F8F8', '#686878', '#101018'],
   spotter: [null, '#F83800', '#C87C28', '#18100C'],
+  snake: [null, '#B8F818', '#38A800', '#004000', '#F83800'],
 };
+
+// round scaly body segment for the snake (d = diameter)
+function snakeSegment(d) {
+  const g = [], c = d / 2;
+  for (let y = 0; y < d; y++) {
+    const row = [];
+    for (let x = 0; x < d; x++) {
+      const r = Math.hypot(x + 0.5 - c, y + 0.5 - c);
+      row.push(r > c ? 0 : r > c - 1.1 ? 3 : (x + y * 2) % 4 === 0 ? 1 : 2);
+    }
+    g.push(row);
+  }
+  return g;
+}
 
 function makeCanvas(w, h) {
   const c = document.createElement('canvas');
@@ -290,6 +305,8 @@ const Sprites = {
       g(framedIcon(EXTRA_POWERUP_MASKS.revive), POWERUP_PAL),
       g(framedIcon(EXTRA_POWERUP_MASKS.airstrike), POWERUP_PAL));
     this.claude = [0, 1].map(f => gridCanvas(claudeGrid(16, f), CLAUDE_INK));
+    this.snakeSeg = [12, 8].map(d => gridCanvas(snakeSegment(d), PALS.snake));
+    this.snakeSegHit = [12, 8].map(d => gridCanvas(snakeSegment(d), PALS.silver));
     this.turretBase = g(TURRET_BASE_GRID, [null, '#BCBCBC', '#7C7C7C', '#3C3C3C']);
     this.plane = [0, 1, 2, 3].map(d => rotatedCanvas(PLANE_GRID, (d + 3) % 4, [null, '#F8F8F8', '#ADADAD', '#505050']));
     this.mine = [g(MINE_GRID, [null, '#ADADAD', '#505050', '#E04030']), g(MINE_GRID, [null, '#ADADAD', '#505050', '#600000'])];

@@ -190,6 +190,8 @@ const Game = {
     m.push({ label: this.multiN + ' PLAYERS', act: () => this.newGame(this.multiN, false), adjust: d => { this.multiN = (this.multiN - 2 + d + 3) % 3 + 2; } });
     // left/right switches between hosting and joining an online game
     m.push({ label: this.onlineJoin ? 'ONLINE: JOIN' : 'ONLINE: HOST', act: () => this.openOnline(), adjust: () => { this.onlineJoin = !this.onlineJoin; } });
+    // skill level, named as in DOOM: left/right (or A) changes it
+    m.push({ label: Config.skill().name, skill: true, act: () => Config.step('skill', 1), adjust: d => Config.step('skill', d) });
     m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
     m.push({ label: 'SETTINGS', act: () => this.toSettings() });
     return m;
@@ -234,14 +236,15 @@ const Game = {
     Font.big(ctx, GAME_NAME, (SW - Font.bigWidth(GAME_NAME, 4)) >> 1, 58, 4, pat);
     const menu = this.titleMenu(), top = this.titleMenuY(), step = this.titleStep();
     menu.forEach((it, i) => {
-      Font.draw(ctx, it.label, 88, top + i * step, COL.white);
-      if (it.adjust && i === this.menuIdx) Font.draw(ctx, '<>', 88 + it.label.length * 8 + 6, top + i * step, COL.lgrey);
+      Font.draw(ctx, it.label, 88, top + i * step, it.skill ? ['#58D854', '#B8F818', COL.white, COL.orange, COL.red][Config.get('skill')] : COL.white);
+      if (it.adjust && !it.skill && i === this.menuIdx) Font.draw(ctx, '<>', 88 + it.label.length * 8 + 6, top + i * step, COL.lgrey);
     });
     if (this.titleY === 0) {
       const anim = (this.t >> 2) & 1;
       ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, top - 4 + this.menuIdx * step);
     }
-    Font.drawCenter(ctx, 'ENTER START  M MUTE', SW / 2, 206, COL.lgrey);
+    const cur = menu[this.menuIdx];
+    Font.drawCenter(ctx, cur && cur.skill && this.titleY === 0 ? '< > CHANGE SKILL' : 'ENTER START  M MUTE', SW / 2, 206, COL.lgrey);
     ctx.restore();
   },
 
@@ -357,6 +360,7 @@ const Game = {
       Font.drawRight(ctx, this.stageNum, cx + 32, cy - 8, COL.black);
       const boss = bossForStage(this.stageNum);
       if (boss) Font.drawCenter(ctx, 'BOSS: ' + BOSSES[boss.idx].name, cx, cy + 10, '#A00000');
+      if (Config.get('skill') !== 2) Font.drawCenter(ctx, Config.skill().name, cx, cy - 24, '#3C3C3C');
       if (c.selectable && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + (boss ? 24 : 12), '#3C3C3C');
     }
   },
@@ -993,7 +997,7 @@ const Game = {
   leaveSettings() {
     this.toTitle();
     this.titleY = 0;
-    this.menuIdx = 3;
+    this.menuIdx = this.titleMenu().findIndex(it => it.label === 'SETTINGS');
   },
 
   updateSettings() {

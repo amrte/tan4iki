@@ -8,7 +8,7 @@
 const NET_ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }];
 const NET_PREFIX = 'TANB4';
 // host settings that change how the guests' screens look
-const NET_CFG_KEYS = ['p1Color', 'p2Color', 'p3Color', 'p4Color', 'lives', 'bossRounds', 'bossEvery', 'shopPrices', 'mineCount', 'xp', 'perks', 'reviveCost'];
+const NET_CFG_KEYS = ['p1Color', 'p2Color', 'p3Color', 'p4Color', 'lives', 'bossRounds', 'bossEvery', 'shopPrices', 'mineCount', 'xp', 'perks', 'reviveCost', 'skill'];
 // sounds are forwarded to guests only from these screens
 const NET_SOUND_STATES = new Set(['play', 'curtain', 'score', 'shop', 'bigover']);
 
@@ -216,7 +216,7 @@ const Net = {
       id: st.netId, num: st.num, fr: st.frame, ov: st.over, ot: st.overTimer, ba: st.baseAlive, q: st.queue.length,
       df: st.netDiff || [],
       tk: st.tanks.filter(t => t.alive).map(t => [t.x, t.y, t.dir, t.isPlayer ? 1 : 0, t.player ? t.player.i : -1, t.type, t.hp,
-        t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow, t.reveal, t.ai, t.vet]),
+        t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow, t.reveal, t.ai, t.vet, t.segs ? t.segs.map(p => p[0] + ',' + p[1]).join(';') : 0]),
       bu: st.bullets.filter(b => b.alive).map(b => [r(b.x), r(b.y), b.dir, b.rocket ? 1 : 0, b.pierce ? 1 : 0]),
       fx: st.fx.map(f => [r(f.x), r(f.y), fxKind(f), f.per, f.tick]),
       pp: st.popups,
@@ -370,6 +370,7 @@ const Net = {
       x: a[0], y: a[1], dir: a[2], isPlayer: !!a[3], player: a[4] >= 0 ? G.players.find(p => p.i === a[4]) : null,
       type: a[5], hp: a[6], bonus: !!a[7], shield: a[8], frozen: a[9], ship: !!a[10], anim: a[11], boost: a[12] ? { ghost: 1 } : {},
       plates: a[13] || 0, glow: a[14] || 0, reveal: a[15] || 0, ai: a[16] || 0, vet: a[17] || 0, stealth: a[5] === 7,
+      segs: a[18] ? a[18].split(';').map(p => p.split(',').map(Number)) : null,
     }));
     if (sv.ea) { st.eagleArmor = sv.ea[0]; st.eagleFlash = sv.ea[1]; st.gunDir = sv.ea[2]; st.base = Object.assign(newBase(), { gun: sv.ea[3] }); }
     st.turrets = (sv.tu || []).map(a => ({ x: a[0], y: a[1], dir: a[2], hp: a[3], owner: G.players.find(p => p.i === a[4]) || null, enemy: !!a[5] }));

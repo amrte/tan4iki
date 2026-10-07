@@ -9,7 +9,11 @@
 //    MEDIC    repairs one hit on a damaged enemy nearby every 4 s; tanks appearing near it get a shield
 //    JAMMER   inside its 3-tile field your shells fly at half speed and timed power-ups stop counting down
 //    SPOTTER  marks a player it can see; while marked, every enemy hunts that player and fires more
+//    SNAKE    fast, never shoots, slithers through brick; 10 hits on the head (its body stops shells);
+//             it eats a player tank it reaches (a shield or armour plate makes it recoil) and grows longer
 // =====================================================================
+
+const SNAKE_GAP = 9, SNAKE_MAX = 12;
 
 const BUILD_EVERY = 180, BUILD_RANGE = 96;
 const HEAL_EVERY = 240, HEAL_RANGE = 96;
@@ -78,14 +82,72 @@ Object.assign(Stage.prototype, {
     if (d < MORTAR_MIN || d > MORTAR_MAX) { t.cd = 30; return; }
     this.faceTarget(t, tx, ty);
     t.hold = 50;
-    t.cd = Math.round((220 + rnd(120)) / Config.scale('enemyFire'));
+    t.cd = Math.round((220 + rnd(120)) / Config.scale('enemyFire') / Config.skill().fire);
     this.shells.push({ x: tx, y: ty, t: MORTAR_FLIGHT, owner: t });
     Sound.play('mortar');
+  },
+
+  // ------------------------------------------------------------ snake
+  // body segment centres along the path the head has taken
+  snakeSegs(t) {
+    t.segs = [];
+    const tr = t.trail || [];
+    for (let k = 1; k <= t.segN; k++) {
+      const p = tr[Math.min(tr.length - 1, k * SNAKE_GAP)];
+      if (!p || k * SNAKE_GAP >= tr.length + SNAKE_GAP) break;
+      t.segs.push(p);
+    }
+  },
+
+  snakeAct(t) {
+    if (t.hold > 0) return;
+    for (const o of this.tanks) {
+      if (!o.isPlayer || !o.alive || !overlap(t.x - 3, t.y - 3, 22, 22, o.x, o.y, 16, 16)) continue;
+      const shielded = o.shield > 0 || o.plates > 0 || o.ship;
+      this.hitPlayer(o);
+      if (!o.alive) {
+        this.popups.push({ x: o.x + 8, y: o.y, text: 'CHOMP!', label: true, color: '#B8F818', t: 0, delay: 0 });
+        Sound.play('chomp');
+        t.segN = Math.min(SNAKE_MAX, t.segN + 1);
+        t.hold = 45;   // digesting
+      } else if (shielded) {
+        // it bit on armour: recoil
+        this.turn(t, (t.dir + 2) % 4);
+        t.hold = 20;
+      }
+      return;
+    }
+  },
+
+  // player shells that hit the body stop there (only the head can be hurt)
+  bulletSnakeBody(b) {
+    for (const s of this.snakeList) {
+      for (const [x, y] of s.segs || []) {
+        if (!overlap(b.x, b.y, 4, 4, x - 5, y - 5, 10, 10) || overlap(b.x, b.y, 4, 4, s.x, s.y, 16, 16)) continue;
+        this.killBullet(b, true);
+        Sound.play('steel');
+        return true;
+      }
+    }
+    return false;
+  },
+
+  drawSnake(ctx, t, pal) {
+    const hit = t.reveal > 80 && (this.frame >> 1) & 1;
+    const segs = t.segs || [];
+    for (let k = segs.length - 1; k >= 0; k--) {
+      const tail = k === segs.length - 1 && segs.length > 1, img = (hit ? Sprites.snakeSegHit : Sprites.snakeSeg)[tail ? 1 : 0];
+      ctx.drawImage(img, Math.round(segs[k][0] - img.width / 2), Math.round(segs[k][1] - img.height / 2));
+    }
+    ctx.drawImage(Sprites.tank('e17', (this.frame >> 3) & 1, t.dir, hit ? 'silver' : pal), t.x, t.y);
+    ctx.globalAlpha = 1;
   },
 
   // ------------------------------------------------------------ every frame
   updateSpecials() {
     this.jamList = this.tanks.filter(t => t.alive && kindOf(t) === 'jammer');
+    this.snakeList = this.tanks.filter(t => t.alive && kindOf(t) === 'snake');
+    for (const s of this.snakeList) this.snakeSegs(s);
     for (const t of this.tanks) {
       if (!t.alive || t.isPlayer || this.freezeE > 0) continue;
       const kind = kindOf(t);

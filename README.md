@@ -105,6 +105,21 @@ score tally shows the level and the XP earned in the stage. Settings → XP AND 
 *looks only*, start level, XP lost on death (0% by default; only progress towards the next level, never a level)
 and *show ranks and perks*, a screen with every rank's tank.
 
+## Skill levels
+
+Pick the skill on the title screen (the coloured row; left/right changes it). The names come from DOOM:
+
+| Skill | What changes |
+|---|---|
+| I'M TOO YOUNG TO DIE | 2 extra tanks; enemies fire half as often, move and shoot slower, arrive more slowly; fewer rush or hunt you; veterans 10 stages later; bosses 60% HP |
+| HEY, NOT TOO ROUGH | 1 extra tank; enemies a little gentler; veterans 5 stages later; bosses 80% HP |
+| HURT ME PLENTY | the game as it was (default) |
+| ULTRA-VIOLENCE | enemies fire 30% more, move and shoot faster, arrive sooner, rush and hunt more; veterans 5 stages earlier; bosses 125% HP |
+| NIGHTMARE! | all of that and more (fire +60%, bosses 150% HP, veterans 10 stages earlier), and as in DOOM, enemies you destroy may come back (about 1 in 3) |
+
+The skill is saved with your settings (also Settings → GAME → SKILL), shown on the stage curtain when it isn't
+HURT ME PLENTY, and the host's skill applies to online games. It works on top of all the other settings.
+
 ## Smarter and tougher enemies
 
 **Personalities.** In the original every enemy drives at random. Here each tank gets a personality when it
@@ -141,6 +156,7 @@ Eight more come from the *Tank 1990 New Enemies* design canvas (the variant used
 | Medic (Field Ambulance) | 17 | white with a red cross | every 4 s repairs one hit on a damaged enemy nearby (a beam shows it); tanks that appear near it get a shield | 2 / 500 / 30 |
 | Mortar (Long Tom) | 19 | bronze howitzer | stops and lobs a shell over walls at you; a crosshair marks the spot 1.5 s before it lands; can't hit closer than 3 tiles | 2 / 400 / 25 |
 | Jammer (Dish) | 21 | grey with a radar dish | inside its 3-tile ring your shells fly at half speed and timed power-ups stop counting down | 1 / 400 / 25 |
+| Snake | 13 | a long green snake with red eyes and a flicking tongue | fast, never shoots, slithers through brick (not steel); only its head can be hurt (10 hits, its body stops shells); it hunts you and eats your tank if it reaches you, growing a segment each time; a shield or armour plate makes it recoil | 10 / 800 / 50 |
 | Spotter (Sky Eye) | 23 | orange with a red-eyed mast | marks a player it can see along a row or column (steel, brick and trees block its view); while marked, every enemy hunts that player and fires more; the mark fades 5 s after it loses sight, or when the spotters die | 1 / 500 / 30 |
 
 They take a bigger share of each stage as the game goes on (about 1 in 4 tanks by stage 20, about half by stage 35); from stage 23 all 12 types are in the mix.
@@ -290,7 +306,7 @@ in the browser, and **RESET TO DEFAULTS** restores the classic game.
 | XP and levels | XP and levels (on), XP rate (100%), level perks (on / looks only), start level (1), XP lost on death (0%), *show ranks and perks* |
 | Enemies | tanks per stage (20, from 1 to 99), max on screen (4, up to 20, +2 in 2P), spawn rate, fire rate, base hunting (all 100%), flashing bonus tanks (on), AI personalities (mixed), show AI type (off), new enemy types (normal), veterans + elites (on) |
 | Rocket / shield / sapper / shade tank | speed (100%), shell speed (100%), hits to destroy (1 / 2 / 1 / 1), appears (on) |
-| Mason, mortar, skimmer, flamer, splitter, medic, jammer, spotter | speed (100%), hits to destroy, appears (on) |
+| Mason, mortar, skimmer, flamer, splitter, medic, jammer, spotter, snake | speed (100%), hits to destroy, appears (on) |
 | Basic / fast / power / armor tank | speed (100%), shell speed (100%), hits to destroy (1 / 1 / 1 / 4) |
 | Power-ups | helmet time (10 s), clock time (10 s), shovel time (20 s), new power-up time (15 s), mines per pickup (3) |
 | Who can collect | for each of the 16 power-ups: **ANYONE** (you and enemies, default), **PLAYER** (only you) or **OFF** (never appears). Presets: *classic power-ups only* and *all power-ups on*. The selected power-up's icon and effect are shown at the bottom of the screen. |
@@ -298,7 +314,7 @@ in the browser, and **RESET TO DEFAULTS** restores the classic game.
 | Players | III / IV-PLAYER COLOR (blue / pink), gamepad rumble (on), key and pad setup |
 | Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
 | Screen | field width (13), field height (13), FIT, scaling (sharp / fill), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
-| Game | game speed (100%), volume (100%), engine sound (on) |
+| Game | skill (hurt me plenty), game speed (100%), volume (100%), engine sound (on) |
 
 ## Code layout
 

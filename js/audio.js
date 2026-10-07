@@ -193,6 +193,11 @@ const Sound = {
         this.seq(tune, 0.05 + Math.random() * 0.03, t, { vol: 0.09, decayTo: 0.5, wave: Math.random() < 0.5 ? 'p25' : 'p12' });
         break;
       }
+      case 'chomp': // the snake swallows a tank
+        this.note(40, t, 0.12, { vol: 0.2, slideTo: 28 });
+        this.noise(2000, t + 0.05, [[0, 0.15], [0.2, 0]]);
+        this.seq([0, 0, 0, 45, 0, 43], 0.06, t, { vol: 0.12, decayTo: 0.3 });
+        break;
       case 'nom': // munch munch
         this.seq([52, 0, 52], 0.05, t, { vol: 0.16, decayTo: 0.3 });
         this.noise(3000, t, [[0, 0.08], [0.05, 0], [0.1, 0.08], [0.15, 0]]);

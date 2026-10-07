@@ -58,6 +58,17 @@ const RANKS = [
   { name: 'MARSHAL', xp: 3800, perk: 'PLATES SELF-REPAIR' },
 ];
 
+// Skill levels, named as in DOOM. HURT ME PLENTY is the game as it is (and the default).
+// fire / speed / shell / spawn / boss scale the enemies; lives = extra tanks; vet shifts when veterans and elites
+// appear (in stages); aggr scales how many enemies rush and hunt; respawn = chance a destroyed enemy comes back.
+const SKILLS = [
+  { name: "I'M TOO YOUNG TO DIE", fire: 0.5, speed: 0.85, shell: 0.8, spawn: 0.7, boss: 0.6, lives: 2, vet: -10, aggr: 0.5, respawn: 0 },
+  { name: 'HEY, NOT TOO ROUGH', fire: 0.75, speed: 0.92, shell: 0.9, spawn: 0.85, boss: 0.8, lives: 1, vet: -5, aggr: 0.75, respawn: 0 },
+  { name: 'HURT ME PLENTY', fire: 1, speed: 1, shell: 1, spawn: 1, boss: 1, lives: 0, vet: 0, aggr: 1, respawn: 0 },
+  { name: 'ULTRA-VIOLENCE', fire: 1.3, speed: 1.1, shell: 1.15, spawn: 1.25, boss: 1.25, lives: 0, vet: 5, aggr: 1.25, respawn: 0 },
+  { name: 'NIGHTMARE!', fire: 1.6, speed: 1.2, shell: 1.3, spawn: 1.5, boss: 1.5, lives: 0, vet: 10, aggr: 1.5, respawn: 0.3 },
+];
+
 const pct = (...v) => v;
 const PCTS = pct(25, 50, 75, 100, 125, 150, 175, 200, 250, 300);
 const SECS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 45, 60];
@@ -177,6 +188,11 @@ const SETTINGS_DEF = [
   { key: 'e15Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 15 },
   { key: 'e15On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 15 },
 
+  { section: 'SNAKE *', enemy: 17 },
+  { key: 'e17Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 17 },
+  { key: 'e17Hits', label: 'HITS TO DESTROY', values: range(1, 20), def: 10, enemy: 17 },
+  { key: 'e17On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 17 },
+
   { section: 'POWER-UPS' },
   { key: 'helmetTime', label: 'HELMET TIME', values: SECS.slice(1), def: 10, fmt: fmtSec },
   { key: 'clockTime', label: 'CLOCK TIME', values: SECS.slice(1), def: 10, fmt: fmtSec },
@@ -214,6 +230,7 @@ const SETTINGS_DEF = [
   { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
   { section: 'GAME' },
+  { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!'][v] },
   { key: 'gameSpeed', label: 'GAME SPEED', values: [50, 75, 100, 125, 150, 200], def: 100, fmt: fmtPct },
   { key: 'volume', label: 'VOLUME', values: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 100, fmt: fmtPct },
   { key: 'engineSound', label: 'ENGINE SOUND', values: ONOFF, def: 'ON' },
@@ -283,7 +300,8 @@ const Config = {
 
   // ---- helpers used by the game rules
   playerPal(i) { return 'c_' + this.values['p' + (i + 1) + 'Color']; },
-  startLives() { const v = this.values.lives; return v === 'INF' ? 2 : v - 1; },
+  startLives() { const v = this.values.lives; return v === 'INF' ? 2 : Math.min(99, v - 1 + this.skill().lives); },
+  skill() { return SKILLS[this.values.skill] || SKILLS[2]; },
   infiniteLives() { return this.values.lives === 'INF'; },
   frames(k) { return Math.round(this.values[k] * 60); },
   xpOn() { return this.values.xp === 'ON'; },

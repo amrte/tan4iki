@@ -3,6 +3,14 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.12
+
+- **Skill levels named as in DOOM**, picked on the title screen: I'M TOO YOUNG TO DIE, HEY, NOT TOO ROUGH, HURT ME
+  PLENTY (default, the game as before), ULTRA-VIOLENCE and NIGHTMARE! (where destroyed enemies may come back). They
+  scale enemy fire, speed, shells, arrival rate, aggression, boss HP, when veterans appear, and your starting tanks.
+- **Snake** (from stage 13): a long green snake that moves fast, never shoots, slithers through brick, takes 10 hits
+  on the head (its body stops shells) and eats your tank if it reaches you, growing longer.
+
 ## 0.11
 
 - **Revival:** a fallen player presses FIRE to come back for 7500 points (theirs, or a teammate's); when the last tank

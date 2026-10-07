@@ -19,7 +19,7 @@ function pickPersonality(type, stageNum) {
   const w = ENEMY[type].ai.slice();
   // later stages bring fewer aimless tanks; the first few stages go easy on rushing and hunting
   w[0] *= Math.max(0.35, 1 - (stageNum - 1) * 0.03);
-  const ramp = Math.min(1, 0.4 + stageNum * 0.12);
+  const ramp = Math.min(1, 0.4 + stageNum * 0.12) * Config.skill().aggr;
   w[1] *= ramp; w[2] *= ramp;
   let r = Math.random() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < 4; i++) { if (r < w[i]) return i; r -= w[i]; }
@@ -73,7 +73,7 @@ Object.assign(Stage.prototype, {
       for (let cy = by * 2; cy < by * 2 + 4 && cost > 0; cy++) for (let cx = bx * 2; cx < bx * 2 + 4; cx++) {
         const t = this.get(cx, cy);
         if (t === T_STEEL || (t === T_WATER && mode !== 'hover')) { cost = -1; break; }
-        if (t === T_BRICK) cost += 0.6;
+        if (t === T_BRICK && mode !== 'slither') cost += 0.6;
       }
       if (overlap(bx * 8, by * 8, 16, 16, BASE_X, BASE_Y, 16, 16)) cost = -1;
       c[by * NX + bx] = cost;
@@ -172,7 +172,7 @@ Object.assign(Stage.prototype, {
   aiChoose(t, blocked) {
     // now and then do something unexpected, so tanks don't drive in single file
     if (!blocked && Math.random() < 0.06) { this.chooseDir(t, false); return; }
-    const pt = this.nearestPlayer(t), mode = t.hover ? 'hover' : '';
+    const pt = this.nearestPlayer(t), mode = t.hover ? 'hover' : t.slither ? 'slither' : '';
     // a spotter's mark sends everyone (but spotters) after the marked player
     const marked = this.markedTank(t);
     if (marked) { this.followField(t, this.navPlayer(marked, mode), blocked); return; }

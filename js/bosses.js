@@ -259,7 +259,7 @@ const BossGfx = {
 Object.assign(Stage.prototype, {
   initBoss(info) {
     const def = BOSSES[info.idx];
-    const mult = Config.scale('bossHp') * (1 + 0.5 * this.extraPlayers) * (1 + 0.5 * info.loop);
+    const mult = Config.scale('bossHp') * Config.skill().boss * (1 + 0.5 * this.extraPlayers) * (1 + 0.5 * info.loop);
     const hp = n => Math.max(1, Math.round(n * mult));
     this.bossIdx = info.idx;
     this.bossLoop = info.loop;

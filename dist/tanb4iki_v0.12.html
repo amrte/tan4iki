@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.11</title>
+  <title>tanb4iki_v0.12</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.11';
+const APP_VERSION = '0.12';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -1849,6 +1849,17 @@ const EXTRA_POWERUP_MASKS = {
     '.....XX.....', '.....XX.....', '...XXXXXX...', '...XXXXXX...', '............'],
 };
 
+// SNAKE head (facing up; 4 = red eyes and forked tongue, which flickers between frames)
+TANK_GRIDS.e17 = [[
+  '.......44.......', '......4..4......', '.....333333.....', '....32222223....', '...3222222223...', '..322222222223..',
+  '..324422224423..', '..322222222223..', '..321222222123..', '..322222222223..', '..322122221223..', '...3222222223...',
+  '....32211223....', '.....322223.....', '......3223......', '......3223......',
+], [
+  '................', '................', '.....333333.....', '....32222223....', '...3222222223...', '..322222222223..',
+  '..324422224423..', '..322222222223..', '..321222222123..', '..322222222223..', '..322122221223..', '...3222222223...',
+  '....32211223....', '.....322223.....', '......3223......', '......3223......',
+]];
+
 </script>
   <script>
 'use strict';
@@ -1888,7 +1899,22 @@ const PALS = {
   medic: [null, '#D82800', '#E8E8E0', '#181418'],
   jammer: [null, '#F8F8F8', '#686878', '#101018'],
   spotter: [null, '#F83800', '#C87C28', '#18100C'],
+  snake: [null, '#B8F818', '#38A800', '#004000', '#F83800'],
 };
+
+// round scaly body segment for the snake (d = diameter)
+function snakeSegment(d) {
+  const g = [], c = d / 2;
+  for (let y = 0; y < d; y++) {
+    const row = [];
+    for (let x = 0; x < d; x++) {
+      const r = Math.hypot(x + 0.5 - c, y + 0.5 - c);
+      row.push(r > c ? 0 : r > c - 1.1 ? 3 : (x + y * 2) % 4 === 0 ? 1 : 2);
+    }
+    g.push(row);
+  }
+  return g;
+}
 
 function makeCanvas(w, h) {
   const c = document.createElement('canvas');
@@ -2143,6 +2169,8 @@ const Sprites = {
       g(framedIcon(EXTRA_POWERUP_MASKS.revive), POWERUP_PAL),
       g(framedIcon(EXTRA_POWERUP_MASKS.airstrike), POWERUP_PAL));
     this.claude = [0, 1].map(f => gridCanvas(claudeGrid(16, f), CLAUDE_INK));
+    this.snakeSeg = [12, 8].map(d => gridCanvas(snakeSegment(d), PALS.snake));
+    this.snakeSegHit = [12, 8].map(d => gridCanvas(snakeSegment(d), PALS.silver));
     this.turretBase = g(TURRET_BASE_GRID, [null, '#BCBCBC', '#7C7C7C', '#3C3C3C']);
     this.plane = [0, 1, 2, 3].map(d => rotatedCanvas(PLANE_GRID, (d + 3) % 4, [null, '#F8F8F8', '#ADADAD', '#505050']));
     this.mine = [g(MINE_GRID, [null, '#ADADAD', '#505050', '#E04030']), g(MINE_GRID, [null, '#ADADAD', '#505050', '#600000'])];
@@ -2293,6 +2321,17 @@ const RANKS = [
   { name: 'MARSHAL', xp: 3800, perk: 'PLATES SELF-REPAIR' },
 ];
 
+// Skill levels, named as in DOOM. HURT ME PLENTY is the game as it is (and the default).
+// fire / speed / shell / spawn / boss scale the enemies; lives = extra tanks; vet shifts when veterans and elites
+// appear (in stages); aggr scales how many enemies rush and hunt; respawn = chance a destroyed enemy comes back.
+const SKILLS = [
+  { name: "I'M TOO YOUNG TO DIE", fire: 0.5, speed: 0.85, shell: 0.8, spawn: 0.7, boss: 0.6, lives: 2, vet: -10, aggr: 0.5, respawn: 0 },
+  { name: 'HEY, NOT TOO ROUGH', fire: 0.75, speed: 0.92, shell: 0.9, spawn: 0.85, boss: 0.8, lives: 1, vet: -5, aggr: 0.75, respawn: 0 },
+  { name: 'HURT ME PLENTY', fire: 1, speed: 1, shell: 1, spawn: 1, boss: 1, lives: 0, vet: 0, aggr: 1, respawn: 0 },
+  { name: 'ULTRA-VIOLENCE', fire: 1.3, speed: 1.1, shell: 1.15, spawn: 1.25, boss: 1.25, lives: 0, vet: 5, aggr: 1.25, respawn: 0 },
+  { name: 'NIGHTMARE!', fire: 1.6, speed: 1.2, shell: 1.3, spawn: 1.5, boss: 1.5, lives: 0, vet: 10, aggr: 1.5, respawn: 0.3 },
+];
+
 const pct = (...v) => v;
 const PCTS = pct(25, 50, 75, 100, 125, 150, 175, 200, 250, 300);
 const SECS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 45, 60];
@@ -2412,6 +2451,11 @@ const SETTINGS_DEF = [
   { key: 'e15Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 15 },
   { key: 'e15On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 15 },
 
+  { section: 'SNAKE *', enemy: 17 },
+  { key: 'e17Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 17 },
+  { key: 'e17Hits', label: 'HITS TO DESTROY', values: range(1, 20), def: 10, enemy: 17 },
+  { key: 'e17On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 17 },
+
   { section: 'POWER-UPS' },
   { key: 'helmetTime', label: 'HELMET TIME', values: SECS.slice(1), def: 10, fmt: fmtSec },
   { key: 'clockTime', label: 'CLOCK TIME', values: SECS.slice(1), def: 10, fmt: fmtSec },
@@ -2449,6 +2493,7 @@ const SETTINGS_DEF = [
   { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
   { section: 'GAME' },
+  { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!'][v] },
   { key: 'gameSpeed', label: 'GAME SPEED', values: [50, 75, 100, 125, 150, 200], def: 100, fmt: fmtPct },
   { key: 'volume', label: 'VOLUME', values: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 100, fmt: fmtPct },
   { key: 'engineSound', label: 'ENGINE SOUND', values: ONOFF, def: 'ON' },
@@ -2518,7 +2563,8 @@ const Config = {
 
   // ---- helpers used by the game rules
   playerPal(i) { return 'c_' + this.values['p' + (i + 1) + 'Color']; },
-  startLives() { const v = this.values.lives; return v === 'INF' ? 2 : v - 1; },
+  startLives() { const v = this.values.lives; return v === 'INF' ? 2 : Math.min(99, v - 1 + this.skill().lives); },
+  skill() { return SKILLS[this.values.skill] || SKILLS[2]; },
   infiniteLives() { return this.values.lives === 'INF'; },
   frames(k) { return Math.round(this.values[k] * 60); },
   xpOn() { return this.values.xp === 'ON'; },
@@ -2732,6 +2778,11 @@ const Sound = {
         this.seq(tune, 0.05 + Math.random() * 0.03, t, { vol: 0.09, decayTo: 0.5, wave: Math.random() < 0.5 ? 'p25' : 'p12' });
         break;
       }
+      case 'chomp': // the snake swallows a tank
+        this.note(40, t, 0.12, { vol: 0.2, slideTo: 28 });
+        this.noise(2000, t + 0.05, [[0, 0.15], [0.2, 0]]);
+        this.seq([0, 0, 0, 45, 0, 43], 0.06, t, { vol: 0.12, decayTo: 0.3 });
+        break;
       case 'nom': // munch munch
         this.seq([52, 0, 52], 0.05, t, { vol: 0.16, decayTo: 0.3 });
         this.noise(3000, t, [[0, 0.08], [0.05, 0], [0.1, 0.08], [0.15, 0]]);
@@ -3331,6 +3382,8 @@ const ENEMY = [
   { name: 'SPOTTER', kind: 'spotter', speed: 1.1, bullet: 2.5, hp: 1, pts: 500, xp: 30, ai: [1, 0, 1, 8], pal: 'spotter', from: 23, fire: 0.4, desc: 'MARKS YOU FOR ALL ENEMIES' },
   // half of a destroyed splitter (never in a line-up)
   { name: 'MINI', kind: 'mini', speed: 1.4, bullet: 2.5, hp: 1, pts: 100, xp: 5, ai: [0, 1, 0, 0], pal: 'splitter', mini: true },
+  // a long snake: fast, never shoots, 10 hits (head only), eats your tank and grows
+  { name: 'SNAKE', kind: 'snake', speed: 1.4, bullet: 2.5, hp: 10, pts: 800, xp: 50, ai: [0, 0, 1, 0], pal: 'snake', from: 13, desc: 'FAST, 10 HITS, EATS TANKS' },
 ];
 // types that can join a line-up, and every non-classic type (the tally's NEW row)
 const NEW_TYPES = ENEMY.map((e, i) => i).filter(i => i >= 4 && !ENEMY[i].mini);
@@ -3441,7 +3494,8 @@ function buildQueue(stageNum) {
     }
   }
   if (Config.on('enemyGrowth')) {
-    const vet = Math.min(0.45, Math.max(0, (s - 9) * 0.02)), elite = Math.min(0.35, Math.max(0, (s - 19) * 0.015));
+    const vs = s + Config.skill().vet;   // harder skills bring veterans and elites sooner
+    const vet = Math.min(0.45, Math.max(0, (vs - 9) * 0.02)), elite = Math.min(0.35, Math.max(0, (vs - 19) * 0.015));
     for (const e of out) {
       const x = r();
       e.rank = x < elite ? 2 : x < elite + vet ? 1 : 0;
@@ -3536,6 +3590,7 @@ class Stage {
     this.bosses = []; this.beams = []; this.tracks = []; this.dust = [];
     this.flames = []; this.shells = []; this.heals = []; this.mark = null; this.jamList = [];   // see enemies.js
     this.turrets = []; this.claudes = []; this.strikes = []; this.reviveWait = 0;              // see extras.js
+    this.snakeList = [];
     this.applyBase(opts.base);                 // base upgrades from the shop (base.js)
     this.origTerrain = this.terrain.slice();   // what a mason rebuilds
     this.lastBrickSound = -1;
@@ -3544,7 +3599,7 @@ class Stage {
     this.killed = 0;
     this.spawnTimer = 0;
     this.spawnPos = 0;
-    this.spawnInterval = Math.round(Math.max(70, 190 - ((num - 1) % 35) * 4 - (this.twoP ? 20 : 0)) / Config.scale('spawnRate'));
+    this.spawnInterval = Math.round(Math.max(70, 190 - ((num - 1) % 35) * 4 - (this.twoP ? 20 : 0)) / Config.scale('spawnRate') / Config.skill().spawn);
     this.maxEnemies = Config.get('maxOnScreen') + [0, 2, 3, 4][this.extraPlayers];
     this.freezeE = 0;
     this.freezeP = 0;
@@ -3577,7 +3632,7 @@ class Stage {
   snapshot() {
     const tankKeys = ['x', 'y', 'dir', 'isPlayer', 'type', 'hp', 'bonus', 'shield', 'frozen', 'ship', 'cutter', 'power',
       'speed', 'bulletSpeed', 'maxBullets', 'boost', 'mines', 'plates', 'repair',
-      'ai', 'aiBase', 'hold', 'rocketGun', 'frontShield', 'crusher', 'stealth', 'vet', 'hover', 'cd', 'maxHp'];
+      'ai', 'aiBase', 'hold', 'rocketGun', 'frontShield', 'crusher', 'stealth', 'vet', 'hover', 'cd', 'maxHp', 'slither', 'segN', 'trail'];
     return {
       cols: COLS, rows: ROWS,
       terrain: Array.from(this.terrain).join(''),
@@ -3713,11 +3768,12 @@ class Stage {
         const type = s.enemy.type, vet = s.enemy.rank || 0, vr = ENEMY_RANKS[vet] || { hp: 0, shell: 1, speed: 1 };
         this.tanks.push(new Tank({
           x: s.x, y: s.y, dir: 2, type, hp: st.hp + vr.hp, bonus: s.enemy.bonus, vet,
-          speed: st.speed * vr.speed, bulletSpeed: st.bullet * vr.shell, maxBullets: 1,
+          speed: st.speed * vr.speed * Config.skill().speed, bulletSpeed: st.bullet * vr.shell * Config.skill().shell, maxBullets: 1,
           ai: s.enemy.ai !== undefined ? s.enemy.ai : pickPersonality(type, this.num),
           aiBase: type !== 4 && Math.random() < 0.3,  // some snipers shell the eagle instead of you (not rocket tanks)
           rocketGun: type === 4, frontShield: type === 5, crusher: type === 6, stealth: type === 7,
           mines: type === 6 ? 3 : 0, hover: type === 10,
+          slither: ENEMY[type].kind === 'snake', segN: 4, trail: ENEMY[type].kind === 'snake' ? [] : null,
         }));
         this.enemySpawned(this.tanks[this.tanks.length - 1]);
       } else {
@@ -3873,7 +3929,7 @@ class Stage {
     }
     if (t.mines > 0 && ok && !t.hold && Math.random() < (t.crusher ? 1 / 150 : 1 / 180)) { this.dropMine(t); t.mines--; }
     const kind = kindOf(t);
-    if (kind === 'flamer' || kind === 'mortar') { this[kind + 'Act'](t); return; }
+    if (kind === 'flamer' || kind === 'mortar' || kind === 'snake') { this[kind + 'Act'](t); return; }
     const maxB = t.boost.rapid ? 3 : 1;
     if (t.bullets < maxB && t.cool === 0) {
       let chance = ok ? 0.022 : 0.07;
@@ -3882,6 +3938,7 @@ class Stage {
       else if (smart && !ok && this.brickAhead(t)) chance = 0.2;
       chance *= Config.scale('enemyFire') * (t.boost.rapid ? 3 : 1) * (t.vet ? ENEMY_RANKS[t.vet].fire : 1) * (ENEMY[t.type].fire || 1);
       if (this.mark) chance *= 1.5;   // a spotter's mark: everyone shoots more
+      chance *= Config.skill().fire;
       if (Math.random() < chance) { this.fire(t); t.cool = t.rocketGun ? 50 : 16; }
     }
   }
@@ -3938,6 +3995,7 @@ class Stage {
         t.y += DXY[d][1];
         t.animTick++;
         if (t.crusher) this.crush(t);
+        if (t.trail) { t.trail.unshift([t.x + 8, t.y + 8]); t.trail.length = Math.min(t.trail.length, (t.segN + 1) * SNAKE_GAP); }
       } else {
         ok = false;
         t.acc = 0;
@@ -3971,7 +4029,7 @@ class Stage {
     for (let cy = y0 >> 2; cy <= y1 >> 2; cy++) {
       for (let cx = x0 >> 2; cx <= x1 >> 2; cx++) {
         const tt = this.get(cx, cy);
-        if (tt === T_STEEL || (tt === T_BRICK && !t.boost.ghost && !t.crusher)) return false;
+        if (tt === T_STEEL || (tt === T_BRICK && !t.boost.ghost && !t.crusher && !t.slither)) return false;
         if (tt === T_WATER && !t.ship && !t.boost.ghost && !t.hover) return false;
       }
     }
@@ -4053,6 +4111,7 @@ class Stage {
     }
     if (this.bulletTerrain(b)) return;
     if (this.turrets.length && this.bulletTurret(b)) return;
+    if (b.isPlayer && this.snakeList.length && this.bulletSnakeBody(b)) return;
     if (this.bosses.length && this.bossShell(b) === 'stop') return;
     if (overlap(b.x, b.y, 4, 4, BASE_X, BASE_Y, 16, 16)) {
       this.killBullet(b, true);
@@ -4220,6 +4279,11 @@ class Stage {
     this.addFx(t.x + 8, t.y + 8, BIG_EXPLOSION(), 5);
     if (!silent) Sound.play('explode');
     if (award && by && by.isPlayer) {
+      // NIGHTMARE!: destroyed enemies may come back, as in DOOM
+      if (Config.skill().respawn && !ENEMY[t.type].mini && Math.random() < Config.skill().respawn) {
+        this.queue.push({ type: t.type, rank: t.vet });
+        this.total++;
+      }
       const p = by.player, pts = ENEMY[t.type].pts;
       p.kills[t.type]++;
       this.addXp(p, ENEMY[t.type].xp * (t.vet ? ENEMY_RANKS[t.vet].xp : 1) + (t.bonus ? 5 : 0));
@@ -4501,6 +4565,7 @@ class Stage {
       }
       ctx.drawImage(img, t.x, t.y);
     } else {
+      if (kindOf(t) === 'snake') { this.drawSnake(ctx, t, pal); return; }
       // a shade is a faint shimmer unless it just fired, got hit or is close to a player
       if (t.stealth) ctx.globalAlpha = Math.min(ctx.globalAlpha, this.shadeAlpha(t));
       // veterans and elites wear rank stripes (and an elite a turret star)
@@ -4693,7 +4758,7 @@ function pickPersonality(type, stageNum) {
   const w = ENEMY[type].ai.slice();
   // later stages bring fewer aimless tanks; the first few stages go easy on rushing and hunting
   w[0] *= Math.max(0.35, 1 - (stageNum - 1) * 0.03);
-  const ramp = Math.min(1, 0.4 + stageNum * 0.12);
+  const ramp = Math.min(1, 0.4 + stageNum * 0.12) * Config.skill().aggr;
   w[1] *= ramp; w[2] *= ramp;
   let r = Math.random() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < 4; i++) { if (r < w[i]) return i; r -= w[i]; }
@@ -4747,7 +4812,7 @@ Object.assign(Stage.prototype, {
       for (let cy = by * 2; cy < by * 2 + 4 && cost > 0; cy++) for (let cx = bx * 2; cx < bx * 2 + 4; cx++) {
         const t = this.get(cx, cy);
         if (t === T_STEEL || (t === T_WATER && mode !== 'hover')) { cost = -1; break; }
-        if (t === T_BRICK) cost += 0.6;
+        if (t === T_BRICK && mode !== 'slither') cost += 0.6;
       }
       if (overlap(bx * 8, by * 8, 16, 16, BASE_X, BASE_Y, 16, 16)) cost = -1;
       c[by * NX + bx] = cost;
@@ -4846,7 +4911,7 @@ Object.assign(Stage.prototype, {
   aiChoose(t, blocked) {
     // now and then do something unexpected, so tanks don't drive in single file
     if (!blocked && Math.random() < 0.06) { this.chooseDir(t, false); return; }
-    const pt = this.nearestPlayer(t), mode = t.hover ? 'hover' : '';
+    const pt = this.nearestPlayer(t), mode = t.hover ? 'hover' : t.slither ? 'slither' : '';
     // a spotter's mark sends everyone (but spotters) after the marked player
     const marked = this.markedTank(t);
     if (marked) { this.followField(t, this.navPlayer(marked, mode), blocked); return; }
@@ -4904,7 +4969,11 @@ Object.assign(Stage.prototype, {
 //    MEDIC    repairs one hit on a damaged enemy nearby every 4 s; tanks appearing near it get a shield
 //    JAMMER   inside its 3-tile field your shells fly at half speed and timed power-ups stop counting down
 //    SPOTTER  marks a player it can see; while marked, every enemy hunts that player and fires more
+//    SNAKE    fast, never shoots, slithers through brick; 10 hits on the head (its body stops shells);
+//             it eats a player tank it reaches (a shield or armour plate makes it recoil) and grows longer
 // =====================================================================
+
+const SNAKE_GAP = 9, SNAKE_MAX = 12;
 
 const BUILD_EVERY = 180, BUILD_RANGE = 96;
 const HEAL_EVERY = 240, HEAL_RANGE = 96;
@@ -4973,14 +5042,72 @@ Object.assign(Stage.prototype, {
     if (d < MORTAR_MIN || d > MORTAR_MAX) { t.cd = 30; return; }
     this.faceTarget(t, tx, ty);
     t.hold = 50;
-    t.cd = Math.round((220 + rnd(120)) / Config.scale('enemyFire'));
+    t.cd = Math.round((220 + rnd(120)) / Config.scale('enemyFire') / Config.skill().fire);
     this.shells.push({ x: tx, y: ty, t: MORTAR_FLIGHT, owner: t });
     Sound.play('mortar');
+  },
+
+  // ------------------------------------------------------------ snake
+  // body segment centres along the path the head has taken
+  snakeSegs(t) {
+    t.segs = [];
+    const tr = t.trail || [];
+    for (let k = 1; k <= t.segN; k++) {
+      const p = tr[Math.min(tr.length - 1, k * SNAKE_GAP)];
+      if (!p || k * SNAKE_GAP >= tr.length + SNAKE_GAP) break;
+      t.segs.push(p);
+    }
+  },
+
+  snakeAct(t) {
+    if (t.hold > 0) return;
+    for (const o of this.tanks) {
+      if (!o.isPlayer || !o.alive || !overlap(t.x - 3, t.y - 3, 22, 22, o.x, o.y, 16, 16)) continue;
+      const shielded = o.shield > 0 || o.plates > 0 || o.ship;
+      this.hitPlayer(o);
+      if (!o.alive) {
+        this.popups.push({ x: o.x + 8, y: o.y, text: 'CHOMP!', label: true, color: '#B8F818', t: 0, delay: 0 });
+        Sound.play('chomp');
+        t.segN = Math.min(SNAKE_MAX, t.segN + 1);
+        t.hold = 45;   // digesting
+      } else if (shielded) {
+        // it bit on armour: recoil
+        this.turn(t, (t.dir + 2) % 4);
+        t.hold = 20;
+      }
+      return;
+    }
+  },
+
+  // player shells that hit the body stop there (only the head can be hurt)
+  bulletSnakeBody(b) {
+    for (const s of this.snakeList) {
+      for (const [x, y] of s.segs || []) {
+        if (!overlap(b.x, b.y, 4, 4, x - 5, y - 5, 10, 10) || overlap(b.x, b.y, 4, 4, s.x, s.y, 16, 16)) continue;
+        this.killBullet(b, true);
+        Sound.play('steel');
+        return true;
+      }
+    }
+    return false;
+  },
+
+  drawSnake(ctx, t, pal) {
+    const hit = t.reveal > 80 && (this.frame >> 1) & 1;
+    const segs = t.segs || [];
+    for (let k = segs.length - 1; k >= 0; k--) {
+      const tail = k === segs.length - 1 && segs.length > 1, img = (hit ? Sprites.snakeSegHit : Sprites.snakeSeg)[tail ? 1 : 0];
+      ctx.drawImage(img, Math.round(segs[k][0] - img.width / 2), Math.round(segs[k][1] - img.height / 2));
+    }
+    ctx.drawImage(Sprites.tank('e17', (this.frame >> 3) & 1, t.dir, hit ? 'silver' : pal), t.x, t.y);
+    ctx.globalAlpha = 1;
   },
 
   // ------------------------------------------------------------ every frame
   updateSpecials() {
     this.jamList = this.tanks.filter(t => t.alive && kindOf(t) === 'jammer');
+    this.snakeList = this.tanks.filter(t => t.alive && kindOf(t) === 'snake');
+    for (const s of this.snakeList) this.snakeSegs(s);
     for (const t of this.tanks) {
       if (!t.alive || t.isPlayer || this.freezeE > 0) continue;
       const kind = kindOf(t);
@@ -5814,7 +5941,7 @@ const BossGfx = {
 Object.assign(Stage.prototype, {
   initBoss(info) {
     const def = BOSSES[info.idx];
-    const mult = Config.scale('bossHp') * (1 + 0.5 * this.extraPlayers) * (1 + 0.5 * info.loop);
+    const mult = Config.scale('bossHp') * Config.skill().boss * (1 + 0.5 * this.extraPlayers) * (1 + 0.5 * info.loop);
     const hp = n => Math.max(1, Math.round(n * mult));
     this.bossIdx = info.idx;
     this.bossLoop = info.loop;
@@ -6468,7 +6595,7 @@ Object.assign(Stage.prototype, {
 const NET_ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }];
 const NET_PREFIX = 'TANB4';
 // host settings that change how the guests' screens look
-const NET_CFG_KEYS = ['p1Color', 'p2Color', 'p3Color', 'p4Color', 'lives', 'bossRounds', 'bossEvery', 'shopPrices', 'mineCount', 'xp', 'perks', 'reviveCost'];
+const NET_CFG_KEYS = ['p1Color', 'p2Color', 'p3Color', 'p4Color', 'lives', 'bossRounds', 'bossEvery', 'shopPrices', 'mineCount', 'xp', 'perks', 'reviveCost', 'skill'];
 // sounds are forwarded to guests only from these screens
 const NET_SOUND_STATES = new Set(['play', 'curtain', 'score', 'shop', 'bigover']);
 
@@ -6676,7 +6803,7 @@ const Net = {
       id: st.netId, num: st.num, fr: st.frame, ov: st.over, ot: st.overTimer, ba: st.baseAlive, q: st.queue.length,
       df: st.netDiff || [],
       tk: st.tanks.filter(t => t.alive).map(t => [t.x, t.y, t.dir, t.isPlayer ? 1 : 0, t.player ? t.player.i : -1, t.type, t.hp,
-        t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow, t.reveal, t.ai, t.vet]),
+        t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow, t.reveal, t.ai, t.vet, t.segs ? t.segs.map(p => p[0] + ',' + p[1]).join(';') : 0]),
       bu: st.bullets.filter(b => b.alive).map(b => [r(b.x), r(b.y), b.dir, b.rocket ? 1 : 0, b.pierce ? 1 : 0]),
       fx: st.fx.map(f => [r(f.x), r(f.y), fxKind(f), f.per, f.tick]),
       pp: st.popups,
@@ -6830,6 +6957,7 @@ const Net = {
       x: a[0], y: a[1], dir: a[2], isPlayer: !!a[3], player: a[4] >= 0 ? G.players.find(p => p.i === a[4]) : null,
       type: a[5], hp: a[6], bonus: !!a[7], shield: a[8], frozen: a[9], ship: !!a[10], anim: a[11], boost: a[12] ? { ghost: 1 } : {},
       plates: a[13] || 0, glow: a[14] || 0, reveal: a[15] || 0, ai: a[16] || 0, vet: a[17] || 0, stealth: a[5] === 7,
+      segs: a[18] ? a[18].split(';').map(p => p.split(',').map(Number)) : null,
     }));
     if (sv.ea) { st.eagleArmor = sv.ea[0]; st.eagleFlash = sv.ea[1]; st.gunDir = sv.ea[2]; st.base = Object.assign(newBase(), { gun: sv.ea[3] }); }
     st.turrets = (sv.tu || []).map(a => ({ x: a[0], y: a[1], dir: a[2], hp: a[3], owner: G.players.find(p => p.i === a[4]) || null, enemy: !!a[5] }));
@@ -7238,6 +7366,8 @@ const Game = {
     m.push({ label: this.multiN + ' PLAYERS', act: () => this.newGame(this.multiN, false), adjust: d => { this.multiN = (this.multiN - 2 + d + 3) % 3 + 2; } });
     // left/right switches between hosting and joining an online game
     m.push({ label: this.onlineJoin ? 'ONLINE: JOIN' : 'ONLINE: HOST', act: () => this.openOnline(), adjust: () => { this.onlineJoin = !this.onlineJoin; } });
+    // skill level, named as in DOOM: left/right (or A) changes it
+    m.push({ label: Config.skill().name, skill: true, act: () => Config.step('skill', 1), adjust: d => Config.step('skill', d) });
     m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
     m.push({ label: 'SETTINGS', act: () => this.toSettings() });
     return m;
@@ -7282,14 +7412,15 @@ const Game = {
     Font.big(ctx, GAME_NAME, (SW - Font.bigWidth(GAME_NAME, 4)) >> 1, 58, 4, pat);
     const menu = this.titleMenu(), top = this.titleMenuY(), step = this.titleStep();
     menu.forEach((it, i) => {
-      Font.draw(ctx, it.label, 88, top + i * step, COL.white);
-      if (it.adjust && i === this.menuIdx) Font.draw(ctx, '<>', 88 + it.label.length * 8 + 6, top + i * step, COL.lgrey);
+      Font.draw(ctx, it.label, 88, top + i * step, it.skill ? ['#58D854', '#B8F818', COL.white, COL.orange, COL.red][Config.get('skill')] : COL.white);
+      if (it.adjust && !it.skill && i === this.menuIdx) Font.draw(ctx, '<>', 88 + it.label.length * 8 + 6, top + i * step, COL.lgrey);
     });
     if (this.titleY === 0) {
       const anim = (this.t >> 2) & 1;
       ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, top - 4 + this.menuIdx * step);
     }
-    Font.drawCenter(ctx, 'ENTER START  M MUTE', SW / 2, 206, COL.lgrey);
+    const cur = menu[this.menuIdx];
+    Font.drawCenter(ctx, cur && cur.skill && this.titleY === 0 ? '< > CHANGE SKILL' : 'ENTER START  M MUTE', SW / 2, 206, COL.lgrey);
     ctx.restore();
   },
 
@@ -7405,6 +7536,7 @@ const Game = {
       Font.drawRight(ctx, this.stageNum, cx + 32, cy - 8, COL.black);
       const boss = bossForStage(this.stageNum);
       if (boss) Font.drawCenter(ctx, 'BOSS: ' + BOSSES[boss.idx].name, cx, cy + 10, '#A00000');
+      if (Config.get('skill') !== 2) Font.drawCenter(ctx, Config.skill().name, cx, cy - 24, '#3C3C3C');
       if (c.selectable && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + (boss ? 24 : 12), '#3C3C3C');
     }
   },
@@ -8041,7 +8173,7 @@ const Game = {
   leaveSettings() {
     this.toTitle();
     this.titleY = 0;
-    this.menuIdx = 3;
+    this.menuIdx = this.titleMenu().findIndex(it => it.label === 'SETTINGS');
   },
 
   updateSettings() {

@@ -39,6 +39,8 @@ const ENEMY = [
   { name: 'SPOTTER', kind: 'spotter', speed: 1.1, bullet: 2.5, hp: 1, pts: 500, xp: 30, ai: [1, 0, 1, 8], pal: 'spotter', from: 23, fire: 0.4, desc: 'MARKS YOU FOR ALL ENEMIES' },
   // half of a destroyed splitter (never in a line-up)
   { name: 'MINI', kind: 'mini', speed: 1.4, bullet: 2.5, hp: 1, pts: 100, xp: 5, ai: [0, 1, 0, 0], pal: 'splitter', mini: true },
+  // a long snake: fast, never shoots, 10 hits (head only), eats your tank and grows
+  { name: 'SNAKE', kind: 'snake', speed: 1.4, bullet: 2.5, hp: 10, pts: 800, xp: 50, ai: [0, 0, 1, 0], pal: 'snake', from: 13, desc: 'FAST, 10 HITS, EATS TANKS' },
 ];
 // types that can join a line-up, and every non-classic type (the tally's NEW row)
 const NEW_TYPES = ENEMY.map((e, i) => i).filter(i => i >= 4 && !ENEMY[i].mini);
@@ -149,7 +151,8 @@ function buildQueue(stageNum) {
     }
   }
   if (Config.on('enemyGrowth')) {
-    const vet = Math.min(0.45, Math.max(0, (s - 9) * 0.02)), elite = Math.min(0.35, Math.max(0, (s - 19) * 0.015));
+    const vs = s + Config.skill().vet;   // harder skills bring veterans and elites sooner
+    const vet = Math.min(0.45, Math.max(0, (vs - 9) * 0.02)), elite = Math.min(0.35, Math.max(0, (vs - 19) * 0.015));
     for (const e of out) {
       const x = r();
       e.rank = x < elite ? 2 : x < elite + vet ? 1 : 0;
@@ -244,6 +247,7 @@ class Stage {
     this.bosses = []; this.beams = []; this.tracks = []; this.dust = [];
     this.flames = []; this.shells = []; this.heals = []; this.mark = null; this.jamList = [];   // see enemies.js
     this.turrets = []; this.claudes = []; this.strikes = []; this.reviveWait = 0;              // see extras.js
+    this.snakeList = [];
     this.applyBase(opts.base);                 // base upgrades from the shop (base.js)
     this.origTerrain = this.terrain.slice();   // what a mason rebuilds
     this.lastBrickSound = -1;
@@ -252,7 +256,7 @@ class Stage {
     this.killed = 0;
     this.spawnTimer = 0;
     this.spawnPos = 0;
-    this.spawnInterval = Math.round(Math.max(70, 190 - ((num - 1) % 35) * 4 - (this.twoP ? 20 : 0)) / Config.scale('spawnRate'));
+    this.spawnInterval = Math.round(Math.max(70, 190 - ((num - 1) % 35) * 4 - (this.twoP ? 20 : 0)) / Config.scale('spawnRate') / Config.skill().spawn);
     this.maxEnemies = Config.get('maxOnScreen') + [0, 2, 3, 4][this.extraPlayers];
     this.freezeE = 0;
     this.freezeP = 0;
@@ -285,7 +289,7 @@ class Stage {
   snapshot() {
     const tankKeys = ['x', 'y', 'dir', 'isPlayer', 'type', 'hp', 'bonus', 'shield', 'frozen', 'ship', 'cutter', 'power',
       'speed', 'bulletSpeed', 'maxBullets', 'boost', 'mines', 'plates', 'repair',
-      'ai', 'aiBase', 'hold', 'rocketGun', 'frontShield', 'crusher', 'stealth', 'vet', 'hover', 'cd', 'maxHp'];
+      'ai', 'aiBase', 'hold', 'rocketGun', 'frontShield', 'crusher', 'stealth', 'vet', 'hover', 'cd', 'maxHp', 'slither', 'segN', 'trail'];
     return {
       cols: COLS, rows: ROWS,
       terrain: Array.from(this.terrain).join(''),
@@ -421,11 +425,12 @@ class Stage {
         const type = s.enemy.type, vet = s.enemy.rank || 0, vr = ENEMY_RANKS[vet] || { hp: 0, shell: 1, speed: 1 };
         this.tanks.push(new Tank({
           x: s.x, y: s.y, dir: 2, type, hp: st.hp + vr.hp, bonus: s.enemy.bonus, vet,
-          speed: st.speed * vr.speed, bulletSpeed: st.bullet * vr.shell, maxBullets: 1,
+          speed: st.speed * vr.speed * Config.skill().speed, bulletSpeed: st.bullet * vr.shell * Config.skill().shell, maxBullets: 1,
           ai: s.enemy.ai !== undefined ? s.enemy.ai : pickPersonality(type, this.num),
           aiBase: type !== 4 && Math.random() < 0.3,  // some snipers shell the eagle instead of you (not rocket tanks)
           rocketGun: type === 4, frontShield: type === 5, crusher: type === 6, stealth: type === 7,
           mines: type === 6 ? 3 : 0, hover: type === 10,
+          slither: ENEMY[type].kind === 'snake', segN: 4, trail: ENEMY[type].kind === 'snake' ? [] : null,
         }));
         this.enemySpawned(this.tanks[this.tanks.length - 1]);
       } else {
@@ -581,7 +586,7 @@ class Stage {
     }
     if (t.mines > 0 && ok && !t.hold && Math.random() < (t.crusher ? 1 / 150 : 1 / 180)) { this.dropMine(t); t.mines--; }
     const kind = kindOf(t);
-    if (kind === 'flamer' || kind === 'mortar') { this[kind + 'Act'](t); return; }
+    if (kind === 'flamer' || kind === 'mortar' || kind === 'snake') { this[kind + 'Act'](t); return; }
     const maxB = t.boost.rapid ? 3 : 1;
     if (t.bullets < maxB && t.cool === 0) {
       let chance = ok ? 0.022 : 0.07;
@@ -590,6 +595,7 @@ class Stage {
       else if (smart && !ok && this.brickAhead(t)) chance = 0.2;
       chance *= Config.scale('enemyFire') * (t.boost.rapid ? 3 : 1) * (t.vet ? ENEMY_RANKS[t.vet].fire : 1) * (ENEMY[t.type].fire || 1);
       if (this.mark) chance *= 1.5;   // a spotter's mark: everyone shoots more
+      chance *= Config.skill().fire;
       if (Math.random() < chance) { this.fire(t); t.cool = t.rocketGun ? 50 : 16; }
     }
   }
@@ -646,6 +652,7 @@ class Stage {
         t.y += DXY[d][1];
         t.animTick++;
         if (t.crusher) this.crush(t);
+        if (t.trail) { t.trail.unshift([t.x + 8, t.y + 8]); t.trail.length = Math.min(t.trail.length, (t.segN + 1) * SNAKE_GAP); }
       } else {
         ok = false;
         t.acc = 0;
@@ -679,7 +686,7 @@ class Stage {
     for (let cy = y0 >> 2; cy <= y1 >> 2; cy++) {
       for (let cx = x0 >> 2; cx <= x1 >> 2; cx++) {
         const tt = this.get(cx, cy);
-        if (tt === T_STEEL || (tt === T_BRICK && !t.boost.ghost && !t.crusher)) return false;
+        if (tt === T_STEEL || (tt === T_BRICK && !t.boost.ghost && !t.crusher && !t.slither)) return false;
         if (tt === T_WATER && !t.ship && !t.boost.ghost && !t.hover) return false;
       }
     }
@@ -761,6 +768,7 @@ class Stage {
     }
     if (this.bulletTerrain(b)) return;
     if (this.turrets.length && this.bulletTurret(b)) return;
+    if (b.isPlayer && this.snakeList.length && this.bulletSnakeBody(b)) return;
     if (this.bosses.length && this.bossShell(b) === 'stop') return;
     if (overlap(b.x, b.y, 4, 4, BASE_X, BASE_Y, 16, 16)) {
       this.killBullet(b, true);
@@ -928,6 +936,11 @@ class Stage {
     this.addFx(t.x + 8, t.y + 8, BIG_EXPLOSION(), 5);
     if (!silent) Sound.play('explode');
     if (award && by && by.isPlayer) {
+      // NIGHTMARE!: destroyed enemies may come back, as in DOOM
+      if (Config.skill().respawn && !ENEMY[t.type].mini && Math.random() < Config.skill().respawn) {
+        this.queue.push({ type: t.type, rank: t.vet });
+        this.total++;
+      }
       const p = by.player, pts = ENEMY[t.type].pts;
       p.kills[t.type]++;
       this.addXp(p, ENEMY[t.type].xp * (t.vet ? ENEMY_RANKS[t.vet].xp : 1) + (t.bonus ? 5 : 0));
@@ -1209,6 +1222,7 @@ class Stage {
       }
       ctx.drawImage(img, t.x, t.y);
     } else {
+      if (kindOf(t) === 'snake') { this.drawSnake(ctx, t, pal); return; }
       // a shade is a faint shimmer unless it just fired, got hit or is close to a player
       if (t.stealth) ctx.globalAlpha = Math.min(ctx.globalAlpha, this.shadeAlpha(t));
       // veterans and elites wear rank stripes (and an elite a turret star)
