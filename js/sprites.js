@@ -696,3 +696,89 @@ const NEW_POWERUP_MASKS = [
 
 // a dropped mine (8x8): 1 light grey, 2 dark grey, 3 warning light
 const MINE_GRID = ['..1..1..', '...22...', '.222222.', '.223322.', '.223322.', '.222222.', '...22...', '..1..1..'];
+
+// ------------------------------------------------------------------ new enemy tanks (not in the original)
+// Hull art is 8 columns wide (columns 4-11, facing up); tracks are added on both sides and roll between the 2 frames.
+function newEnemyGrids(mid, top = 3, bottom = 14) {
+  return [0, 1].map(f => mid.map((m, y) => {
+    if (y < top || y > bottom) return '....' + m + '....';
+    const a = (y + f) & 1;
+    return '.' + (a ? '332' : '222') + m + (a ? '233' : '221') + '.';
+  }));
+}
+// ROCKET: twin missile pod instead of a gun
+TANK_GRIDS.e4 = newEnemyGrids([
+  '........',
+  '.1....1.',
+  '.21..12.',
+  '.21..12.',
+  '321..123',
+  '32111123',
+  '32333323',
+  '32311323',
+  '32311323',
+  '32333323',
+  '32222223',
+  '33222233',
+  '3.3113.3',
+  '3.3333.3',
+  '.333333.',
+  '........',
+]);
+// SHIELD: curved armour plate across the front, stubby gun
+TANK_GRIDS.e5 = newEnemyGrids([
+  '........',
+  '...11...',
+  '.111111.',
+  '11222211',
+  '13333331',
+  '.3.11.3.',
+  '.311113.',
+  '32122123',
+  '32133123',
+  '32133123',
+  '32122123',
+  '32211223',
+  '33222233',
+  '.322223.',
+  '.333333.',
+  '........',
+], 2, 14);
+// SAPPER: toothed dozer blade, mine rack on the back
+TANK_GRIDS.e6 = newEnemyGrids([
+  '........',
+  '1.1.1.1.',
+  '11111111',
+  '33333333',
+  '..3..3..',
+  '.322223.',
+  '32211223',
+  '32133123',
+  '32133123',
+  '32211223',
+  '32222223',
+  '33333333',
+  '31313131',
+  '33333333',
+  '.3.33.3.',
+  '........',
+], 4, 14);
+// SHADE: sleek angled stealth hull, long thin gun
+TANK_GRIDS.e7 = newEnemyGrids([
+  '...1....',
+  '...1....',
+  '...1....',
+  '...1....',
+  '..313...',
+  '.32123..',
+  '.321123.',
+  '32211123',
+  '32221123',
+  '32222113',
+  '32222223',
+  '.322223.',
+  '..3223..',
+  '...33...',
+  '........',
+  '........',
+], 5, 13);

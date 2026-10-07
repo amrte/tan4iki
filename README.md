@@ -105,6 +105,38 @@ score tally shows the level and the XP earned in the stage. Settings → XP AND 
 *looks only*, start level, XP lost on death (0% by default; only progress towards the next level, never a level)
 and *show ranks and perks*, a screen with every rank's tank.
 
+## Smarter and tougher enemies
+
+**Personalities.** In the original every enemy drives at random. Here each tank gets a personality when it
+appears. Tanks find their way with a path map that knows they can shoot through bricks but not steel or water.
+
+| Personality | What it does |
+|---|---|
+| Wander | the classic random drive (with the original's pull towards the eagle) |
+| Rush | heads for the eagle along the cheapest route and shoots through any bricks in the way |
+| Hunt | chases the nearest player |
+| Snipe | keeps its distance, lines up with a player (sometimes the eagle) and stops to shell from range; backs off if you get close |
+
+Which personality a tank gets depends on its type, and later stages have fewer wanderers. Settings → ENEMIES →
+AI PERSONALITIES: MIXED (default), CLASSIC (all wander) or all RUSH / HUNT / SNIPE. SHOW AI TYPE puts a coloured
+dot on each tank: red rush, yellow hunt, blue snipe.
+
+**New enemy tanks** join gradually (marked * in settings, each with its own speed, shell speed and hits):
+
+| Tank | From stage | Look | Ability | Points / XP |
+|---|---|---|---|---|
+| Rocket | 4 | orange, twin missile pod | slow rockets that blow up bricks and tanks around them; usually a sniper | 500 / 25 |
+| Sapper | 7 | khaki, toothed dozer blade | drives straight through bricks, crushing them, and lays mines; usually rushes the eagle | 400 / 20 |
+| Shield | 11 | blue, curved front plate | shells hitting the front bounce off (star-3, pierce and rocket shells get through); hit it from the side or back; 2 hits | 500 / 30 |
+| Shade | 15 | violet, sleek stealth hull | almost invisible; shows itself when it fires, gets hit or comes near you; usually hunts you | 600 / 35 |
+
+They take a bigger share of each stage as the game goes on (about 1 in 4 tanks by stage 20, about half by stage 35).
+NEW ENEMY TYPES: OFF / FEW / NORMAL / MANY. The score tally adds a NEW row for them.
+
+**Veterans and elites.** From stage 10 some enemies are veterans (2 white stripes: +1 hit, shells 30% faster,
+a bit faster, fire more, 1.5× XP), and from stage 20 some are elites (gold stripes and a turret star: +2 hits,
+shells 50% faster, 20% faster, fire more, 2× XP). Both grow more common in later stages. VETERANS + ELITES: on / off.
+
 ## Online play
 
 Play with friends over the internet, peer-to-peer: the game data goes directly between your computers, with no
@@ -151,6 +183,9 @@ Pause the game (Enter, P or Esc) and choose **SAVE GAME** to save exactly where 
 tanks, scores, lives, upgrades and mines. The game also saves automatically at the start of every stage.
 Choose **CONTINUE** on the title screen to resume; the game opens paused so you can get ready.
 There is one save slot, kept in the browser.
+
+The stage picker at the start of a new game remembers the stage you last played. You can pick any of the
+35 maps, or any stage up to the furthest one you have reached (up to 99).
 
 ## Field size and full screen
 
@@ -204,7 +239,8 @@ in the browser, and **RESET TO DEFAULTS** restores the classic game.
 |---|---|
 | Player | lives (3, or infinite), I-player / II-player tank color (yellow / green, 12 colors), tank speed (100%), shell speed (100%), start stars (0), keep stars on death (off), spawn shield (3 s), extra life at 20K (once / every / off), friendly fire (freeze / off) |
 | XP and levels | XP and levels (on), XP rate (100%), level perks (on / looks only), start level (1), XP lost on death (0%), *show ranks and perks* |
-| Enemies | tanks per stage (20, from 1 to 99), max on screen (4, up to 20, +2 in 2P), spawn rate, fire rate, base hunting (all 100%), flashing bonus tanks (on) |
+| Enemies | tanks per stage (20, from 1 to 99), max on screen (4, up to 20, +2 in 2P), spawn rate, fire rate, base hunting (all 100%), flashing bonus tanks (on), AI personalities (mixed), show AI type (off), new enemy types (normal), veterans + elites (on) |
+| Rocket / shield / sapper / shade tank | speed (100%), shell speed (100%), hits to destroy (1 / 2 / 1 / 1) |
 | Basic / fast / power / armor tank | speed (100%), shell speed (100%), hits to destroy (1 / 1 / 1 / 4) |
 | Power-ups | helmet time (10 s), clock time (10 s), shovel time (20 s), new power-up time (15 s), mines per pickup (3) |
 | Who can collect | for each of the 16 power-ups: **ANYONE** (you and enemies, default), **PLAYER** (only you) or **OFF** (never appears). Presets: *classic power-ups only* and *all power-ups on*. The selected power-up's icon and effect are shown at the bottom of the screen. |
@@ -225,7 +261,8 @@ js/gfx.js         palettes, font, sprite rendering and caching
 js/config.js      settings: definitions, defaults, saving, tank color presets
 js/audio.js       NES-style Web Audio synth (SFX, jingles, engine)
 js/input.js       keyboard / gamepad / touch
-js/stage.js       gameplay: terrain, movement, AI, bullets, power-ups, rendering
+js/stage.js       gameplay: terrain, movement, enemy types, bullets, power-ups, XP, rendering
+js/ai.js          enemy personalities (wander / rush / hunt / snipe) and path finding
 js/bosses.js      boss rounds: the 5 bosses, their arenas, sprites and behaviour
 js/net.js         online play: WebRTC connection, codes, host streaming, guest view, lobby panels
 js/main.js        state machine (title, settings, curtain, play, score, game over, construction) + loop

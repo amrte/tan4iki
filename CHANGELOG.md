@@ -3,6 +3,20 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.8
+
+- **Enemy personalities:** every enemy now wanders, rushes the eagle, hunts the nearest player or snipes from a
+  distance, using a path map that knows bricks can be shot through but steel and water can't. The mix depends on the
+  tank type, and later stages bring fewer wanderers. Settings: AI PERSONALITIES (mixed / classic / rush / hunt / snipe),
+  SHOW AI TYPE.
+- **New enemy tanks**, each with its own look and colours: Rocket (from stage 4, area-blast rockets), Sapper (7, crushes
+  bricks, lays mines), Shield (11, front plate bounces shells), Shade (15, nearly invisible). They take a growing share
+  of later stages. Settings: NEW ENEMY TYPES (off / few / normal / many) and speed, shell speed and hits for each.
+  The score tally has a NEW row for them.
+- **Veterans and elites:** from stage 10 (veterans) and 20 (elites), some enemies get extra hits and faster shells,
+  movement and fire, worth more XP, and wear rank stripes. Setting: VETERANS + ELITES.
+- The stage picker remembers the stage you last played and lets you pick any stage up to the furthest one you reached.
+
 ## 0.7
 
 - **XP and levels:** players earn XP for kills, power-ups, stage clears and boss damage, and climb 10 ranks

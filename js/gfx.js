@@ -21,6 +21,11 @@ const PALS = {
   red: [null, '#F8F8F8', '#E04030', '#B00088'],
   green: [null, '#66FFE1', '#00B56E', '#008E06'],
   gold: [null, '#EAFC66', '#FEAC4E', '#778900'],
+  // new enemy tanks
+  rocket: [null, '#FCE4A0', '#E46818', '#7C1C00'],
+  shieldE: [null, '#D8F0FC', '#5C94FC', '#0028A0'],
+  sapper: [null, '#F8E8A0', '#AC9C3C', '#4C3C00'],
+  shade: [null, '#E8D0FC', '#9064D8', '#381870'],
 };
 
 function makeCanvas(w, h) {

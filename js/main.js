@@ -24,7 +24,7 @@ const CONSTRUCT_PATS = [
 function newPlayer(i) {
   return {
     i, score: 0, lives: Config.startLives(), level: Config.get('startStars'), ship: false, cutter: false,
-    kills: [0, 0, 0, 0], out: false, extraGiven: false, extraCount: 0, mines: 0, tank: null,
+    kills: zeroKills(), out: false, extraGiven: false, extraCount: 0, mines: 0, tank: null,
     kit: null, shopShovel: false,
     rank: Config.get('startLevel'), xp: RANKS[Config.get('startLevel') - 1].xp, stageXp: 0,   // XP level (1-10)
   };
@@ -281,7 +281,8 @@ const Game = {
     Input.numPlayers = n;
     this.players = [];
     for (let i = 0; i < n; i++) this.players.push(newPlayer(i));
-    this.stageNum = 1;
+    // the stage picker starts where you last played
+    this.stageNum = Math.max(1, Math.min(this.stageLimit(), STORE.get('tank1990_lastStage', 1) | 0 || 1));
     this.customPending = custom;
     this.toCurtain(!custom);
   },
@@ -301,7 +302,7 @@ const Game = {
     }
     const m = Input.menu();
     if (c.selectable) {
-      const n = LEVELS.length;
+      const n = this.stageLimit();
       if (m.up || m.right) { this.stageNum = this.stageNum % n + 1; Sound.play('select'); }
       if (m.down || m.left) { this.stageNum = (this.stageNum + n - 2) % n + 1; Sound.play('select'); }
       if (m.ok) this.beginStage();
@@ -328,6 +329,9 @@ const Game = {
     }
   },
 
+  // stages you can pick: the 35 maps, or up to the furthest stage you have reached
+  stageLimit() { return Math.max(LEVELS.length, Math.min(99, STORE.get('tank1990_bestStage', 1) | 0)); },
+
   beginStage() {
     let map, custom = false;
     if (this.customPending) { map = this.custom; custom = true; this.customPending = false; }
@@ -340,6 +344,10 @@ const Game = {
     this.setState('play');
     Sound.play('start');
     this.saveGame(); // autosave at every stage start
+    if (!custom && Net.role !== 'client') {
+      STORE.set('tank1990_lastStage', this.stageNum);
+      if (this.stageNum > STORE.get('tank1990_bestStage', 1)) STORE.set('tank1990_bestStage', this.stageNum);
+    }
   },
 
   // ---------------------------------------------------------------- play
@@ -416,7 +424,10 @@ const Game = {
   // ---------------------------------------------------------------- score tally
   toScore(gameOver) {
     Sound.setEngine(0);
-    this.sc = { gameOver, row: 0, n: 0, wait: 30, phase: 'rows', bonus: -1 };
+    // one row per classic tank type, plus one for all the new types when any were destroyed
+    const rows = [[0], [1], [2], [3]];
+    if (this.players.some(p => NEW_TYPES.some(k => p.kills[k]))) rows.push(NEW_TYPES);
+    this.sc = { gameOver, row: 0, n: 0, wait: 30, phase: 'rows', bonus: -1, rows };
     this.setState('score');
   },
 
@@ -424,7 +435,7 @@ const Game = {
     const sc = this.sc;
     if (sc.wait > 0) { sc.wait--; return; }
     if (sc.phase === 'rows') {
-      const maxK = Math.max(...this.players.map(p => p.kills[sc.row]));
+      const maxK = Math.max(...this.players.map(p => this.rowKills(p, sc.row)));
       if (sc.n < maxK) {
         sc.n++;
         Sound.play('tick');
@@ -433,7 +444,7 @@ const Game = {
         sc.row++;
         sc.n = 0;
         sc.wait = 20;
-        if (sc.row >= 4) { sc.phase = 'total'; sc.wait = 30; }
+        if (sc.row >= sc.rows.length) { sc.phase = 'total'; sc.wait = 30; }
       }
     } else if (sc.phase === 'total') {
       if (this.players.length > 1 && !sc.gameOver) {
@@ -462,11 +473,27 @@ const Game = {
     }
   },
 
+  // kills and points of one tally row (the "new types" row adds several types together)
+  rowKills(p, row) { return this.sc.rows[row].reduce((a, k) => a + (p.kills[k] || 0), 0); },
+  rowPts(p, row, shown) {
+    const types = this.sc.rows[row], all = this.rowKills(p, row);
+    const pts = types.reduce((a, k) => a + (p.kills[k] || 0) * ENEMY[k].pts, 0);
+    return all ? Math.round(pts * shown / all) : 0;
+  },
+  rowIcon(row) {
+    const types = this.sc.rows[row], k = types[(this.t >> 5) % types.length];
+    return Sprites.tank('e' + k, 0, 0, ENEMY[k].pal || 'silver');
+  },
+  scShown(p, row) {
+    const sc = this.sc;
+    return row < sc.row || sc.phase !== 'rows' ? this.rowKills(p, row) : (row === sc.row ? Math.min(sc.n, this.rowKills(p, row)) : -1);
+  },
+
   // 3-4 players: one column per player
   renderScoreMulti(ctx) {
     const sc = this.sc, P = this.players, n = P.length;
     const colX = i => 72 + i * ((SW - 80) / n);
-    const shown = (p, row) => row < sc.row || sc.phase !== 'rows' ? p.kills[row] : (row === sc.row ? Math.min(sc.n, p.kills[row]) : -1);
+    const shown = (p, row) => this.scShown(p, row);
     P.forEach((p, i) => {
       const x = colX(i);
       ctx.drawImage(Sprites.playerIcon(Config.playerPal(i)), x + 10, 54);
@@ -474,10 +501,11 @@ const Game = {
       Font.drawRight(ctx, p.score, x + 40, 68, COL.gold);
       if (Config.xpOn()) Font.drawRight(ctx, 'LV' + p.rank, x + 40, 78, COL.white);
     });
-    for (let row = 0; row < 4; row++) {
-      const y = 92 + row * 20;
-      ctx.drawImage(Sprites.tank('e' + row, 0, 0, 'silver'), 12, y - 4);
-      Font.draw(ctx, String(ENEMY[row].pts), 32, y, COL.lgrey);
+    const nr = sc.rows.length, gap = nr > 4 ? 16 : 20;
+    for (let row = 0; row < nr; row++) {
+      const y = 92 + row * gap;
+      ctx.drawImage(this.rowIcon(row), 12, y - 4);
+      Font.draw(ctx, sc.rows[row].length > 1 ? 'NEW' : String(ENEMY[row].pts), 32, y, COL.lgrey);
       P.forEach((p, i) => { const k = shown(p, row); if (k >= 0) Font.drawRight(ctx, k, colX(i) + 24, y, COL.white); });
     }
     ctx.fillStyle = COL.white;
@@ -511,13 +539,14 @@ const Game = {
       Font.draw(ctx, (p.rank >= 10 ? 'L' : 'LV') + p.rank, x, 82, COL.white);
       if (p.stageXp) Font.drawRight(ctx, '+' + p.stageXp + 'XP', x + 80, 82, COL.lgrey);
     });
-    const shown = (p, row) => row < sc.row || sc.phase !== 'rows' ? p.kills[row] : (row === sc.row ? Math.min(sc.n, p.kills[row]) : -1);
-    for (let row = 0; row < 4; row++) {
-      const y = 96 + row * 22;
-      ctx.drawImage(Sprites.tank('e' + row, 0, 0, 'silver'), 120, y - 4);
+    const shown = (p, row) => this.scShown(p, row);
+    const nr = sc.rows.length, gap = nr > 4 ? 18 : 22;
+    for (let row = 0; row < nr; row++) {
+      const y = 96 + row * gap;
+      ctx.drawImage(this.rowIcon(row), 120, y - 4);
       const k1 = shown(P[0], row);
       if (k1 >= 0) {
-        Font.drawRight(ctx, k1 * ENEMY[row].pts, 56, y, COL.white);
+        Font.drawRight(ctx, this.rowPts(P[0], row, k1), 56, y, COL.white);
         Font.draw(ctx, 'PTS', 64, y, COL.white);
         Font.drawRight(ctx, k1, 102, y, COL.white);
       }
@@ -527,7 +556,7 @@ const Game = {
         const k2 = shown(P[1], row);
         if (k2 >= 0) {
           Font.drawRight(ctx, k2, 162, y, COL.white);
-          Font.drawRight(ctx, k2 * ENEMY[row].pts, 208, y, COL.white);
+          Font.drawRight(ctx, this.rowPts(P[1], row, k2), 208, y, COL.white);
           Font.draw(ctx, 'PTS', 216, y, COL.white);
         }
       }
@@ -961,7 +990,7 @@ const Game = {
         Font.draw(ctx, row.section, 8, y, COL.orange);
         ctx.fillStyle = COL.orange;
         ctx.fillRect(8 + row.section.length * 8 + 2, y + 3, 216 - row.section.length * 8, 1);
-        if (row.enemy !== undefined) ctx.drawImage(Sprites.tank('e' + row.enemy, 0, 3, 'silver'), 232, y - 5);
+        if (row.enemy !== undefined) ctx.drawImage(Sprites.tank('e' + row.enemy, 0, 3, ENEMY[row.enemy].pal || 'silver'), 232, y - 5);
         if (row.section === 'WHO CAN COLLECT') {
           ctx.fillStyle = COL.black;
           ctx.fillRect(184, y, 64, 8);
@@ -999,6 +1028,15 @@ const Game = {
     if (cur.powerup !== undefined) {
       ctx.drawImage(Sprites.powerups[cur.powerup], 8, 207);
       Font.draw(ctx, POWERUPS[cur.powerup].desc, 28, 212, COL.white);
+    } else if (cur.enemy !== undefined && ENEMY[cur.enemy].desc) {
+      ctx.drawImage(Sprites.tank('e' + cur.enemy, (this.t >> 3) & 1, 1, ENEMY[cur.enemy].pal), 8, 207);
+      Font.draw(ctx, ENEMY[cur.enemy].desc, 28, 212, COL.white);
+    } else if (cur.key === 'aiStyle' || cur.key === 'aiMarks') {
+      ['RUSH', 'HUNT', 'SNIPE'].forEach((w, i) => {
+        ctx.fillStyle = AI_MARK[i + 1];
+        ctx.fillRect(24 + i * 72, 213, 5, 5);
+        Font.draw(ctx, w, 34 + i * 72, 212, COL.white);
+      });
     } else {
       Font.drawCenter(ctx, '<> CHANGE   ESC BACK', SW / 2, 212, COL.lgrey);
     }

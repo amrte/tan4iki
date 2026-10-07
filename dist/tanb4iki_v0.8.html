@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.7</title>
+  <title>tanb4iki_v0.8</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.7';
+const APP_VERSION = '0.8';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -1679,6 +1679,92 @@ const NEW_POWERUP_MASKS = [
 // a dropped mine (8x8): 1 light grey, 2 dark grey, 3 warning light
 const MINE_GRID = ['..1..1..', '...22...', '.222222.', '.223322.', '.223322.', '.222222.', '...22...', '..1..1..'];
 
+// ------------------------------------------------------------------ new enemy tanks (not in the original)
+// Hull art is 8 columns wide (columns 4-11, facing up); tracks are added on both sides and roll between the 2 frames.
+function newEnemyGrids(mid, top = 3, bottom = 14) {
+  return [0, 1].map(f => mid.map((m, y) => {
+    if (y < top || y > bottom) return '....' + m + '....';
+    const a = (y + f) & 1;
+    return '.' + (a ? '332' : '222') + m + (a ? '233' : '221') + '.';
+  }));
+}
+// ROCKET: twin missile pod instead of a gun
+TANK_GRIDS.e4 = newEnemyGrids([
+  '........',
+  '.1....1.',
+  '.21..12.',
+  '.21..12.',
+  '321..123',
+  '32111123',
+  '32333323',
+  '32311323',
+  '32311323',
+  '32333323',
+  '32222223',
+  '33222233',
+  '3.3113.3',
+  '3.3333.3',
+  '.333333.',
+  '........',
+]);
+// SHIELD: curved armour plate across the front, stubby gun
+TANK_GRIDS.e5 = newEnemyGrids([
+  '........',
+  '...11...',
+  '.111111.',
+  '11222211',
+  '13333331',
+  '.3.11.3.',
+  '.311113.',
+  '32122123',
+  '32133123',
+  '32133123',
+  '32122123',
+  '32211223',
+  '33222233',
+  '.322223.',
+  '.333333.',
+  '........',
+], 2, 14);
+// SAPPER: toothed dozer blade, mine rack on the back
+TANK_GRIDS.e6 = newEnemyGrids([
+  '........',
+  '1.1.1.1.',
+  '11111111',
+  '33333333',
+  '..3..3..',
+  '.322223.',
+  '32211223',
+  '32133123',
+  '32133123',
+  '32211223',
+  '32222223',
+  '33333333',
+  '31313131',
+  '33333333',
+  '.3.33.3.',
+  '........',
+], 4, 14);
+// SHADE: sleek angled stealth hull, long thin gun
+TANK_GRIDS.e7 = newEnemyGrids([
+  '...1....',
+  '...1....',
+  '...1....',
+  '...1....',
+  '..313...',
+  '.32123..',
+  '.321123.',
+  '32211123',
+  '32221123',
+  '32222113',
+  '32222223',
+  '.322223.',
+  '..3223..',
+  '...33...',
+  '........',
+  '........',
+], 5, 13);
+
 </script>
   <script>
 'use strict';
@@ -1704,6 +1790,11 @@ const PALS = {
   red: [null, '#F8F8F8', '#E04030', '#B00088'],
   green: [null, '#66FFE1', '#00B56E', '#008E06'],
   gold: [null, '#EAFC66', '#FEAC4E', '#778900'],
+  // new enemy tanks
+  rocket: [null, '#FCE4A0', '#E46818', '#7C1C00'],
+  shieldE: [null, '#D8F0FC', '#5C94FC', '#0028A0'],
+  sapper: [null, '#F8E8A0', '#AC9C3C', '#4C3C00'],
+  shade: [null, '#E8D0FC', '#9064D8', '#381870'],
 };
 
 function makeCanvas(w, h) {
@@ -2063,8 +2154,6 @@ const RANKS = [
   { name: 'GENERAL', xp: 3000, perk: 'DOUBLE ARMOR PLATE' },
   { name: 'MARSHAL', xp: 3800, perk: 'PLATES SELF-REPAIR' },
 ];
-// XP for destroying a basic, fast, power and armor tank
-const XP_KILL = [10, 15, 20, 30];
 
 const pct = (...v) => v;
 const PCTS = pct(25, 50, 75, 100, 125, 150, 175, 200, 250, 300);
@@ -2107,6 +2196,11 @@ const SETTINGS_DEF = [
   { key: 'enemyFire', label: 'FIRE RATE', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'enemyAim', label: 'BASE HUNTING', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'bonusTanks', label: 'FLASHING TANKS', values: ONOFF, def: 'ON' },
+  // MIXED: each tank gets a personality (wander, rush the eagle, hunt players, snipe); CLASSIC: all wander
+  { key: 'aiStyle', label: 'AI PERSONALITIES', values: ['MIXED', 'CLASSIC', 'RUSH', 'HUNT', 'SNIPE'], def: 'MIXED' },
+  { key: 'aiMarks', label: 'SHOW AI TYPE', values: ['OFF', 'ON'], def: 'OFF' },
+  { key: 'newEnemies', label: 'NEW ENEMY TYPES', values: ['OFF', 'FEW', 'NORMAL', 'MANY'], def: 'NORMAL' },
+  { key: 'enemyGrowth', label: 'VETERANS + ELITES', values: ONOFF, def: 'ON' },
 
   { section: 'BASIC TANK', enemy: 0 },
   { key: 'e0Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct },
@@ -2124,6 +2218,22 @@ const SETTINGS_DEF = [
   { key: 'e3Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'e3Shell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'e3Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 4 },
+  { section: 'ROCKET TANK *', enemy: 4 },
+  { key: 'e4Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 4 },
+  { key: 'e4Shell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 4 },
+  { key: 'e4Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 4 },
+  { section: 'SHIELD TANK *', enemy: 5 },
+  { key: 'e5Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 5 },
+  { key: 'e5Shell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 5 },
+  { key: 'e5Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 5 },
+  { section: 'SAPPER TANK *', enemy: 6 },
+  { key: 'e6Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 6 },
+  { key: 'e6Shell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 6 },
+  { key: 'e6Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 6 },
+  { section: 'SHADE TANK *', enemy: 7 },
+  { key: 'e7Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 7 },
+  { key: 'e7Shell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 7 },
+  { key: 'e7Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 7 },
 
   { section: 'POWER-UPS' },
   { key: 'helmetTime', label: 'HELMET TIME', values: SECS.slice(1), def: 10, fmt: fmtSec },
@@ -2984,13 +3094,30 @@ const T_EMPTY = 0, T_BRICK = 1, T_STEEL = 2, T_WATER = 3, T_FOREST = 4, T_ICE = 
 const BLOCK_TYPE = { '.': T_EMPTY, '#': T_BRICK, '@': T_STEEL, '~': T_WATER, '%': T_FOREST, '_': T_ICE };
 const DXY = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
-// basic, fast, power, armor
+// basic, fast, power, armor, then the new types (not in the original):
+//   rocket - fires slow rockets that blow up bricks and tanks around them; likes to shell from a distance
+//   shield - a front plate bounces shells (unless they're star-3, pierce or rocket); hit it from the side or back
+//   sapper - its dozer blade crushes bricks as it drives, and it lays mines
+//   shade  - almost invisible; shows itself when it fires, gets hit or comes close to you
+// `ai` = chance of each personality [wander, rush (the eagle), hunt (players), snipe (from a distance)]
 const ENEMY = [
-  { speed: 0.5, bullet: 2.5, hp: 1, pts: 100 },
-  { speed: 1.25, bullet: 2.5, hp: 1, pts: 200 },
-  { speed: 0.75, bullet: 4.5, hp: 1, pts: 300 },
-  { speed: 0.5, bullet: 2.5, hp: 4, pts: 400 },
+  { name: 'BASIC', speed: 0.5, bullet: 2.5, hp: 1, pts: 100, xp: 10, ai: [4, 3, 2, 1] },
+  { name: 'FAST', speed: 1.25, bullet: 2.5, hp: 1, pts: 200, xp: 15, ai: [2, 4, 4, 0] },
+  { name: 'POWER', speed: 0.75, bullet: 4.5, hp: 1, pts: 300, xp: 20, ai: [2, 2, 2, 4] },
+  { name: 'ARMOR', speed: 0.5, bullet: 2.5, hp: 4, pts: 400, xp: 30, ai: [2, 5, 2, 1] },
+  { name: 'ROCKET', speed: 0.5, bullet: 2, hp: 1, pts: 500, xp: 25, ai: [1, 1, 1, 7], pal: 'rocket', from: 4, desc: 'ROCKETS BLAST AN AREA' },
+  { name: 'SHIELD', speed: 0.5, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [1, 6, 3, 0], pal: 'shieldE', from: 11, desc: 'FRONT PLATE STOPS SHELLS' },
+  { name: 'SAPPER', speed: 0.9, bullet: 2.5, hp: 1, pts: 400, xp: 20, ai: [1, 7, 2, 0], pal: 'sapper', from: 7, desc: 'CRUSHES BRICKS, LAYS MINES' },
+  { name: 'SHADE', speed: 1, bullet: 4.5, hp: 1, pts: 600, xp: 35, ai: [1, 1, 7, 1], pal: 'shade', from: 15, desc: 'NEARLY INVISIBLE HUNTER' },
 ];
+const NEW_TYPES = [4, 5, 6, 7];
+// Veteran and elite enemies (later stages): extra hits, faster shells and engine, more XP; they wear rank stripes
+const ENEMY_RANKS = [
+  null,
+  { hp: 1, shell: 1.3, speed: 1.1, fire: 1.2, xp: 1.5, look: 3 },
+  { hp: 2, shell: 1.5, speed: 1.2, fire: 1.5, xp: 2, look: 7 },
+];
+const zeroKills = () => new Array(ENEMY.length).fill(0);
 
 const PU = {
   HELMET: 0, CLOCK: 1, SHOVEL: 2, STAR: 3, GRENADE: 4, TANK: 5, GUN: 6, SHIP: 7,
@@ -3077,6 +3204,23 @@ function buildQueue(stageNum) {
   const count = Config.get('enemyCount'), bonus = Config.on('bonusTanks');
   const out = [];
   for (let i = 0; i < count; i++) out.push({ type: list[Math.floor(i * list.length / count)], bonus: bonus && isBonusSlot(i) });
+  // Later stages get tougher: new enemy types join one by one (rocket from stage 4, sapper 7, shield 11,
+  // shade 15) and take a growing share of the line-up; veterans appear from stage 10 and elites from stage 20.
+  const mult = { OFF: 0, FEW: 0.5, NORMAL: 1, MANY: 1.8 }[Config.get('newEnemies')] || 0;
+  const s = stageNum, kinds = NEW_TYPES.filter(k => s >= ENEMY[k].from);
+  if (mult && kinds.length) {
+    const share = Math.min(0.6, (0.06 + (s - 4) * 0.015) * mult);
+    for (let i = 2; i < out.length; i++) {   // never the very first tanks of a stage
+      if (r() < share) out[i].type = kinds[Math.floor(r() * kinds.length)];
+    }
+  }
+  if (Config.on('enemyGrowth')) {
+    const vet = Math.min(0.45, Math.max(0, (s - 9) * 0.02)), elite = Math.min(0.35, Math.max(0, (s - 19) * 0.015));
+    for (const e of out) {
+      const x = r();
+      e.rank = x < elite ? 2 : x < elite + vet ? 1 : 0;
+    }
+  }
   return out;
 }
 
@@ -3128,6 +3272,8 @@ class Tank {
     this.speed = 0.75; this.bulletSpeed = 2.5; this.maxBullets = 1;
     this.boost = {};   // active timed power-ups: name -> frames left
     this.mines = 0;    // mines carried by an enemy tank
+    this.ai = 0; this.aiBase = false; this.hold = 0; this.vet = 0;            // enemy personality (see ai.js)
+    this.rocketGun = false; this.frontShield = false; this.crusher = false; this.stealth = false; this.reveal = 0;
     this.plates = 0;   // armour plates (XP perk): each one soaks a hit
     this.repair = 0;
     this.glow = 0;     // level-up flash
@@ -3181,7 +3327,7 @@ class Stage {
     this.frame = 0;
     this.dirty = true;
     for (const p of players) {
-      p.kills = [0, 0, 0, 0];
+      p.kills = zeroKills();
       if (!opts.snapshot) p.stageXp = 0;
       p.tank = null;
       if (!p.out && !opts.snapshot) this.spawnPlayer(p, 0);
@@ -3200,7 +3346,8 @@ class Stage {
   // Everything needed to resume this stage later (shells in flight and effects are dropped).
   snapshot() {
     const tankKeys = ['x', 'y', 'dir', 'isPlayer', 'type', 'hp', 'bonus', 'shield', 'frozen', 'ship', 'cutter', 'power',
-      'speed', 'bulletSpeed', 'maxBullets', 'boost', 'mines', 'plates', 'repair'];
+      'speed', 'bulletSpeed', 'maxBullets', 'boost', 'mines', 'plates', 'repair',
+      'ai', 'aiBase', 'hold', 'rocketGun', 'frontShield', 'crusher', 'stealth', 'vet'];
     return {
       cols: COLS, rows: ROWS,
       terrain: Array.from(this.terrain).join(''),
@@ -3229,7 +3376,7 @@ class Stage {
     this.dirty = true;
     for (const k of ['queue', 'total', 'killed', 'spawnTimer', 'spawnPos', 'spawnInterval', 'maxEnemies', 'freezeE', 'freezeP', 'shovel', 'baseAlive', 'frame', 'powerup']) this[k] = sn[k];
     this.spawns = [];
-    for (const p of this.players) { p.tank = null; p.kills = sn.kills[p.i] || [0, 0, 0, 0]; }
+    for (const p of this.players) { p.tank = null; p.kills = zeroKills().map((z, k) => (sn.kills[p.i] || [])[k] || 0); }
     this.tanks = sn.tanks.map(o => {
       const t = new Tank(Object.assign({}, o, { boost: Object.assign({}, o.boost) }));
       delete t.pi;
@@ -3276,6 +3423,7 @@ class Stage {
   set(cx, cy, t) {
     if (cx < 0 || cy < 0 || cx >= GW || cy >= GH) return;
     this.terrain[cy * GW + cx] = t;
+    this.terrainVer = (this.terrainVer || 0) + 1;
     // the online host sends terrain changes to guests
     if (Net.role === 'host') (this.netDiff || (this.netDiff = [])).push(cy * GW + cx, t);
     this.dirty = true;
@@ -3325,9 +3473,14 @@ class Stage {
       if (s.enemy) {
         if (this.tanks.some(t => overlap(t.x, t.y, 16, 16, s.x, s.y, 16, 16)) || this.bossBlocksTank({ x: -99, y: -99 }, s.x, s.y)) { s.t = 1; continue; }
         const st = Config.enemy(s.enemy.type);
+        const type = s.enemy.type, vet = s.enemy.rank || 0, vr = ENEMY_RANKS[vet] || { hp: 0, shell: 1, speed: 1 };
         this.tanks.push(new Tank({
-          x: s.x, y: s.y, dir: 2, type: s.enemy.type, hp: st.hp, bonus: s.enemy.bonus,
-          speed: st.speed, bulletSpeed: st.bullet, maxBullets: 1,
+          x: s.x, y: s.y, dir: 2, type, hp: st.hp + vr.hp, bonus: s.enemy.bonus, vet,
+          speed: st.speed * vr.speed, bulletSpeed: st.bullet * vr.shell, maxBullets: 1,
+          ai: s.enemy.ai !== undefined ? s.enemy.ai : pickPersonality(type, this.num),
+          aiBase: type !== 4 && Math.random() < 0.3,  // some snipers shell the eagle instead of you (not rocket tanks)
+          rocketGun: type === 4, frontShield: type === 5, crusher: type === 6, stealth: type === 7,
+          mines: type === 6 ? 3 : 0,
         }));
       } else {
         const p = s.player;
@@ -3443,22 +3596,43 @@ class Stage {
 
   updateEnemy(t) {
     if (t.shield > 0) t.shield--;
+    if (t.reveal > 0) t.reveal--;
     if (this.freezeE > 0) return;
     if (t.cool > 0) t.cool--;
-    const ok = this.move(t, t.dir);
-    if (!ok) {
-      t.blocked++;
-      if (t.blocked >= 6 && Math.random() < 0.3) { this.chooseDir(t, true); t.blocked = 0; }
+    const smart = t.ai > 0;
+    let ok = true;
+    if (t.hold > 0) {
+      // a sniper parked in position; it moves on if a player gets too close
+      t.hold--;
+      const pt = this.nearestPlayer(t);
+      if (pt && Math.abs(pt.x - t.x) + Math.abs(pt.y - t.y) < SNIPE_MIN - 8) t.hold = 0;
     } else {
-      t.blocked = 0;
-      if ((t.x & 7) === 0 && (t.y & 7) === 0 && Math.random() < 1 / 20) this.chooseDir(t, false);
+      ok = this.move(t, t.dir);
+      if (!ok) {
+        t.blocked++;
+        // personalities shoot their way through bricks instead of turning away
+        const wait = smart && this.brickAhead(t) ? 40 : 6;
+        if (t.blocked >= wait && Math.random() < 0.3) {
+          if (smart) this.aiChoose(t, true); else this.chooseDir(t, true);
+          t.blocked = 0;
+        }
+      } else {
+        t.blocked = 0;
+        if ((t.x & 7) === 0 && (t.y & 7) === 0) {
+          if (smart) this.aiChoose(t, false);
+          else if (Math.random() < 1 / 20) this.chooseDir(t, false);
+        }
+      }
     }
-    if (t.mines > 0 && ok && Math.random() < 1 / 180) { this.dropMine(t); t.mines--; }
-    if (t.bullets < (t.boost.rapid ? 3 : 1) && t.cool === 0) {
+    if (t.mines > 0 && ok && !t.hold && Math.random() < (t.crusher ? 1 / 150 : 1 / 180)) { this.dropMine(t); t.mines--; }
+    const maxB = t.boost.rapid ? 3 : 1;
+    if (t.bullets < maxB && t.cool === 0) {
       let chance = ok ? 0.022 : 0.07;
       if (this.targetInSight(t)) chance = 0.15;
-      chance *= Config.scale('enemyFire') * (t.boost.rapid ? 3 : 1);
-      if (Math.random() < chance) { this.fire(t); t.cool = 16; }
+      if (t.hold > 0) chance = 0.1;
+      else if (smart && !ok && this.brickAhead(t)) chance = 0.2;
+      chance *= Config.scale('enemyFire') * (t.boost.rapid ? 3 : 1) * (t.vet ? ENEMY_RANKS[t.vet].fire : 1);
+      if (Math.random() < chance) { this.fire(t); t.cool = t.rocketGun ? 50 : 16; }
     }
   }
 
@@ -3513,6 +3687,7 @@ class Stage {
         t.x += DXY[d][0];
         t.y += DXY[d][1];
         t.animTick++;
+        if (t.crusher) this.crush(t);
       } else {
         ok = false;
         t.acc = 0;
@@ -3521,6 +3696,15 @@ class Stage {
     }
     t.anim = (t.animTick >> 1) & 1;
     return ok;
+  }
+
+  // a sapper's dozer blade flattens the bricks it drives into
+  crush(t) {
+    let n = 0;
+    for (let cy = t.y >> 2; cy <= (t.y + 15) >> 2; cy++) for (let cx = t.x >> 2; cx <= (t.x + 15) >> 2; cx++) {
+      if (this.get(cx, cy) === T_BRICK) { this.set(cx, cy, T_EMPTY); n++; }
+    }
+    if (n && this.lastBrickSound < this.frame - 20) { Sound.play('brick'); this.lastBrickSound = this.frame; }
   }
 
   canStep(t, d) {
@@ -3537,7 +3721,7 @@ class Stage {
     for (let cy = y0 >> 2; cy <= y1 >> 2; cy++) {
       for (let cx = x0 >> 2; cx <= x1 >> 2; cx++) {
         const tt = this.get(cx, cy);
-        if (tt === T_STEEL || (tt === T_BRICK && !t.boost.ghost)) return false;
+        if (tt === T_STEEL || (tt === T_BRICK && !t.boost.ghost && !t.crusher)) return false;
         if (tt === T_WATER && !t.ship && !t.boost.ghost) return false;
       }
     }
@@ -3555,7 +3739,7 @@ class Stage {
     const shell = (x, y, dir, free) => this.bullets.push({
       x, y, dir, speed: t.bulletSpeed, owner: t, free,
       isPlayer: t.isPlayer, power: t.power, cutter: t.cutter, alive: true,
-      pierce: !!t.boost.pierce, rocket: !!t.boost.rocket,
+      pierce: !!t.boost.pierce, rocket: !!(t.boost.rocket || t.rocketGun),
     });
     const pos = [[t.x + 6, t.y], [t.x + 12, t.y + 6], [t.x + 6, t.y + 12], [t.x, t.y + 6]][t.dir];
     shell(pos[0], pos[1], t.dir, false);
@@ -3566,6 +3750,7 @@ class Stage {
       shell(t.x + 6, t.y + 6, (t.dir + 3) % 4, true);
     }
     if (t.isPlayer) Sound.play('shot');
+    t.reveal = 60;
     return true;
   }
 
@@ -3631,6 +3816,13 @@ class Stage {
         else if (b.isPlayer) this.hitEnemy(t, b.owner);
         else this.hitPlayer(t);
         continue;
+      }
+      if (b.isPlayer && t.frontShield && !b.power && !b.rocket && b.dir === (t.dir + 2) % 4) {
+        // shell meets the front plate: it bounces off
+        this.killBullet(b, false);
+        this.addFx(b.x + 2, b.y + 2, [Sprites.smallExp[0]], 4);
+        Sound.play('steel');
+        return;
       }
       if (b.isPlayer) {
         if (t.isPlayer) {
@@ -3755,6 +3947,7 @@ class Stage {
 
   // ------------------------------------------------------------ damage
   hitEnemy(t, by) {
+    t.reveal = 90;
     if (t.bonus) { t.bonus = false; this.spawnPowerup(); }
     if (t.shield > 0) { Sound.play('steel'); return; }
     t.hp--;
@@ -3771,7 +3964,7 @@ class Stage {
     if (award && by && by.isPlayer) {
       const p = by.player, pts = ENEMY[t.type].pts;
       p.kills[t.type]++;
-      this.addXp(p, XP_KILL[t.type] + (t.bonus ? 5 : 0));
+      this.addXp(p, ENEMY[t.type].xp * (t.vet ? ENEMY_RANKS[t.vet].xp : 1) + (t.bonus ? 5 : 0));
       this.addScore(p, pts);
       this.popups.push({ x: t.x + 8, y: t.y + 8, text: String(pts), t: 0, delay: 25 });
     }
@@ -3989,6 +4182,16 @@ class Stage {
     this.dirty = false;
   }
 
+  shadeAlpha(t) {
+    if (t.reveal > 0) return Math.min(1, 0.15 + t.reveal / 40);
+    for (const o of this.tanks) {
+      if (!o.isPlayer || !o.alive) continue;
+      const d = Math.abs(o.x - t.x) + Math.abs(o.y - t.y);
+      if (d < 56) return Math.min(1, 0.15 + (56 - d) / 28);
+    }
+    return (this.frame & 63) < 4 ? 0.3 : 0.1;
+  }
+
   drawTank(ctx, t) {
     if (t.isPlayer && t.frozen > 0 && ((this.frame >> 2) & 1)) return;
     if (t.ship) ctx.drawImage(Sprites.hull[t.dir], t.x, t.y);
@@ -3999,6 +4202,7 @@ class Stage {
     } else {
       spec = 'e' + t.type;
       if (t.bonus && ((this.frame >> 3) & 1)) pal = 'red';
+      else if (ENEMY[t.type].pal) pal = ENEMY[t.type].pal;
       // armor tanks start green and fade to silver as they take hits
       else if (t.hp >= 4) pal = 'green';
       else if (t.hp === 3) pal = 'gold';
@@ -4015,7 +4219,14 @@ class Stage {
       }
       ctx.drawImage(img, t.x, t.y);
     } else {
-      ctx.drawImage(Sprites.tank(spec, t.anim, t.dir, pal), t.x, t.y);
+      // a shade is a faint shimmer unless it just fired, got hit or is close to a player
+      if (t.stealth) ctx.globalAlpha = Math.min(ctx.globalAlpha, this.shadeAlpha(t));
+      // veterans and elites wear rank stripes (and an elite a turret star)
+      ctx.drawImage(t.vet ? Sprites.rankTank(spec, t.anim, t.dir, pal, ENEMY_RANKS[t.vet].look, false) : Sprites.tank(spec, t.anim, t.dir, pal), t.x, t.y);
+      if (t.ai && Config.on('aiMarks') && ctx.globalAlpha > 0.5) {
+        ctx.fillStyle = AI_MARK[t.ai];
+        ctx.fillRect(t.x + 7, t.y + 7, 2, 2);
+      }
     }
     ctx.globalAlpha = 1;
     if (t.shield > 0) ctx.drawImage(Sprites.shield[(this.frame >> 1) & 1], t.x, t.y);
@@ -4164,6 +4375,222 @@ class Stage {
     Font.drawRight(ctx, String(this.num), H + 16, 200, COL.black);
   }
 }
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  Enemy personalities and path finding
+//  In the original every enemy wanders at random. Here each tank gets a personality when it appears:
+//    WANDER - the classic random drive
+//    RUSH   - heads for the eagle along the cheapest route, shooting through bricks on the way
+//    HUNT   - chases the nearest player
+//    SNIPE  - keeps its distance, lines up with a player (or the eagle) and shells from range
+// =====================================================================
+
+const AI = { WANDER: 0, RUSH: 1, HUNT: 2, SNIPE: 3 };
+const AI_MARK = [null, '#F83800', '#F8B800', '#3CBCFC'];   // "SHOW AI TYPE": rush, hunt, snipe
+const SNIPE_MIN = 40, SNIPE_MAX = 136;                    // preferred shelling range in pixels
+
+function pickPersonality(type, stageNum) {
+  const mode = Config.get('aiStyle');
+  if (mode === 'CLASSIC') return AI.WANDER;
+  if (mode !== 'MIXED') return AI[mode];
+  const w = ENEMY[type].ai.slice();
+  // later stages bring fewer aimless tanks
+  w[0] *= Math.max(0.35, 1 - (stageNum - 1) * 0.03);
+  let r = Math.random() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < 4; i++) { if (r < w[i]) return i; r -= w[i]; }
+  return AI.WANDER;
+}
+
+// small binary heap of [priority, node]
+class NavHeap {
+  constructor() { this.a = []; }
+  push(p, n) {
+    const a = this.a;
+    a.push([p, n]);
+    let i = a.length - 1;
+    while (i > 0) {
+      const j = (i - 1) >> 1;
+      if (a[j][0] <= a[i][0]) break;
+      [a[i], a[j]] = [a[j], a[i]];
+      i = j;
+    }
+  }
+  pop() {
+    const a = this.a, top = a[0], last = a.pop();
+    if (a.length) {
+      a[0] = last;
+      let i = 0;
+      for (;;) {
+        const l = i * 2 + 1, r = l + 1;
+        let m = i;
+        if (l < a.length && a[l][0] < a[m][0]) m = l;
+        if (r < a.length && a[r][0] < a[m][0]) m = r;
+        if (m === i) break;
+        [a[i], a[m]] = [a[m], a[i]];
+        i = m;
+      }
+    }
+    return top;
+  }
+  get size() { return this.a.length; }
+}
+
+Object.assign(Stage.prototype, {
+  // ------------------------------------------------------------ navigation grid
+  // Nodes are tank positions on the 8px grid. Entering a node costs 1, plus extra for every brick cell
+  // under the tank (it has to shoot its way through); steel, water and the eagle can't be entered.
+  navCosts() {
+    if (this.navCost && this.navCostVer === this.terrainVer) return this.navCost;
+    const NX = COLS * 2 - 1, NY = ROWS * 2 - 1, c = new Float32Array(NX * NY);
+    for (let by = 0; by < NY; by++) for (let bx = 0; bx < NX; bx++) {
+      let cost = 1;
+      for (let cy = by * 2; cy < by * 2 + 4 && cost > 0; cy++) for (let cx = bx * 2; cx < bx * 2 + 4; cx++) {
+        const t = this.get(cx, cy);
+        if (t === T_STEEL || t === T_WATER) { cost = -1; break; }
+        if (t === T_BRICK) cost += 0.6;
+      }
+      if (overlap(bx * 8, by * 8, 16, 16, BASE_X, BASE_Y, 16, 16)) cost = -1;
+      c[by * NX + bx] = cost;
+    }
+    this.navCost = c;
+    this.navCostVer = this.terrainVer;
+    return c;
+  },
+
+  // distance (in moves) from every node to the nearest seed node
+  navField(seeds) {
+    const NX = COLS * 2 - 1, cost = this.navCosts(), dist = new Float64Array(cost.length).fill(Infinity);
+    const h = new NavHeap();
+    for (const n of seeds) if (n >= 0 && n < dist.length) { dist[n] = 0; h.push(0, n); }
+    while (h.size) {
+      const [d, v] = h.pop();
+      if (d > dist[v]) continue;
+      const vx = v % NX, vy = (v / NX) | 0, step = Math.max(1, cost[v]);
+      for (const [dx, dy] of DXY) {
+        const ux = vx + dx, uy = vy + dy;
+        if (ux < 0 || uy < 0 || ux >= NX || uy * NX >= dist.length) continue;
+        const u = uy * NX + ux;
+        if (cost[u] < 0) continue;
+        const nd = d + step;
+        if (nd < dist[u]) { dist[u] = nd; h.push(nd, u); }
+      }
+    }
+    return dist;
+  },
+
+  // route to the eagle: any spot right next to it (rebuilt as the bricks change, at most twice a second)
+  navBase() {
+    const f = this.navBaseF;
+    if (f && (f.ver === this.terrainVer || this.frame - f.at < 30)) return f.dist;
+    const NX = COLS * 2 - 1, NY = ROWS * 2 - 1, seeds = [];
+    for (let by = 0; by < NY; by++) for (let bx = 0; bx < NX; bx++) {
+      const x = bx * 8, y = by * 8;
+      if (overlap(x, y, 16, 16, BASE_X - 8, BASE_Y - 8, 32, 32) && !overlap(x, y, 16, 16, BASE_X, BASE_Y, 16, 16)) seeds.push(by * NX + bx);
+    }
+    this.navBaseF = { dist: this.navField(seeds), at: this.frame, ver: this.terrainVer };
+    return this.navBaseF.dist;
+  },
+
+  // route to a player's tank (rebuilt three times a second)
+  navPlayer(pt) {
+    const cache = this.navPlayerF || (this.navPlayerF = new Map());
+    const f = cache.get(pt);
+    if (f && this.frame - f.at < 20) return f.dist;
+    const NX = COLS * 2 - 1, NY = ROWS * 2 - 1;
+    const bx = Math.max(0, Math.min(NX - 1, Math.round(pt.x / 8))), by = Math.max(0, Math.min(NY - 1, Math.round(pt.y / 8)));
+    const dist = this.navField([by * NX + bx]);
+    cache.set(pt, { dist, at: this.frame });
+    return dist;
+  },
+
+  nearestPlayer(t) {
+    let best = null, bd = Infinity;
+    for (const o of this.tanks) {
+      if (!o.isPlayer || !o.alive) continue;
+      const d = Math.abs(o.x - t.x) + Math.abs(o.y - t.y);
+      if (d < bd) { bd = d; best = o; }
+    }
+    return best;
+  },
+
+  // no steel or water between two points on one row/column (bricks are fine: shells break them)
+  clearLine(x0, y0, x1, y1) {
+    const n = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 4);
+    for (let i = 1; i < n; i++) {
+      const t = this.get(Math.floor((x0 + (x1 - x0) * i / n) / 4), Math.floor((y0 + (y1 - y0) * i / n) / 4));
+      if (t === T_STEEL) return false;
+    }
+    return true;
+  },
+
+  // step down the distance field from the tank's node; ties keep the current direction
+  followField(t, dist, blocked) {
+    const NX = COLS * 2 - 1, bx = t.x >> 3, by = t.y >> 3;
+    let best = -1, bd = Infinity;
+    for (let d = 0; d < 4; d++) {
+      if (blocked && d === t.dir) continue;
+      const ux = bx + DXY[d][0], uy = by + DXY[d][1];
+      if (ux < 0 || uy < 0 || ux >= NX || uy * NX >= dist.length) continue;
+      const v = dist[uy * NX + ux] + (d === t.dir ? -0.01 : 0);
+      if (v < bd) { bd = v; best = d; }
+    }
+    if (best < 0 || bd === Infinity) { this.chooseDir(t, blocked); return; }
+    this.turn(t, best);
+  },
+
+  faceTarget(t, tx, ty) {
+    const dx = tx - (t.x + 8), dy = ty - (t.y + 8);
+    this.turn(t, Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0));
+  },
+
+  // decide where to go next (called on the 8px grid, or when stuck)
+  aiChoose(t, blocked) {
+    // now and then do something unexpected, so tanks don't drive in single file
+    if (!blocked && Math.random() < 0.06) { this.chooseDir(t, false); return; }
+    const pt = this.nearestPlayer(t);
+    switch (t.ai) {
+      case AI.RUSH:
+        if (!blocked && this.navBase()[(t.y >> 3) * (COLS * 2 - 1) + (t.x >> 3)] === 0) { this.faceTarget(t, BASE_X + 8, BASE_Y + 8); return; }
+        this.followField(t, this.navBase(), blocked);
+        return;
+      case AI.HUNT:
+        this.followField(t, pt ? this.navPlayer(pt) : this.navBase(), blocked);
+        return;
+      case AI.SNIPE: {
+        const target = t.aiBase || !pt ? { x: BASE_X, y: BASE_Y } : pt;
+        const tx = target.x + 8, ty = target.y + 8, cx = t.x + 8, cy = t.y + 8;
+        const dx = tx - cx, dy = ty - cy, d = Math.abs(dx) + Math.abs(dy);
+        const lined = (Math.abs(dx) < 6 || Math.abs(dy) < 6) && d >= SNIPE_MIN && d <= SNIPE_MAX && this.clearLine(cx, cy, tx, ty);
+        if (lined && !blocked) {
+          // in position: stop, aim and shell
+          this.faceTarget(t, tx, ty);
+          t.hold = 40 + rnd(50);
+          return;
+        }
+        if (pt && Math.abs(pt.x - t.x) + Math.abs(pt.y - t.y) < SNIPE_MIN && !t.aiBase) {
+          // too close: back off along the main axis
+          const away = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 3 : 1) : (dy > 0 ? 0 : 2);
+          if (!(blocked && away === t.dir) && this.canStep(t, away)) { this.turn(t, away); return; }
+        }
+        this.followField(t, t.aiBase || !pt ? this.navBase() : this.navPlayer(pt), blocked);
+        return;
+      }
+      default:
+        this.chooseDir(t, blocked);
+    }
+  },
+
+  // is there brick right in front of the tank? (worth a shot)
+  brickAhead(t) {
+    const [x0, y0, x1, y1] = [[t.x, t.y - 4, t.x + 15, t.y - 1], [t.x + 16, t.y, t.x + 19, t.y + 15],
+      [t.x, t.y + 16, t.x + 15, t.y + 19], [t.x - 4, t.y, t.x - 1, t.y + 15]][t.dir];
+    for (let cy = y0 >> 2; cy <= y1 >> 2; cy++) for (let cx = x0 >> 2; cx <= x1 >> 2; cx++) if (this.get(cx, cy) === T_BRICK) return true;
+    return false;
+  },
+});
 
 </script>
   <script>
@@ -5289,7 +5716,7 @@ const Net = {
       id: st.netId, num: st.num, fr: st.frame, ov: st.over, ot: st.overTimer, ba: st.baseAlive, q: st.queue.length,
       df: st.netDiff || [],
       tk: st.tanks.filter(t => t.alive).map(t => [t.x, t.y, t.dir, t.isPlayer ? 1 : 0, t.player ? t.player.i : -1, t.type, t.hp,
-        t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow]),
+        t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow, t.reveal, t.ai, t.vet]),
       bu: st.bullets.filter(b => b.alive).map(b => [r(b.x), r(b.y), b.dir, b.rocket ? 1 : 0, b.pierce ? 1 : 0]),
       fx: st.fx.map(f => [r(f.x), r(f.y), fxKind(f), f.per, f.tick]),
       pp: st.popups,
@@ -5431,7 +5858,7 @@ const Net = {
     st.tanks = sv.tk.map(a => new Tank({
       x: a[0], y: a[1], dir: a[2], isPlayer: !!a[3], player: a[4] >= 0 ? G.players.find(p => p.i === a[4]) : null,
       type: a[5], hp: a[6], bonus: !!a[7], shield: a[8], frozen: a[9], ship: !!a[10], anim: a[11], boost: a[12] ? { ghost: 1 } : {},
-      plates: a[13] || 0, glow: a[14] || 0,
+      plates: a[13] || 0, glow: a[14] || 0, reveal: a[15] || 0, ai: a[16] || 0, vet: a[17] || 0, stealth: a[5] === 7,
     }));
     st.rankMsg = sv.rm ? { p: G.players.find(p => p.i === sv.rm[0]) || G.players[0], r: sv.rm[1], t: sv.rm[2] } : null;
     st.bullets = sv.bu.map(a => ({ x: a[0], y: a[1], dir: a[2], rocket: !!a[3], pierce: !!a[4], alive: true }));
@@ -5664,7 +6091,7 @@ const CONSTRUCT_PATS = [
 function newPlayer(i) {
   return {
     i, score: 0, lives: Config.startLives(), level: Config.get('startStars'), ship: false, cutter: false,
-    kills: [0, 0, 0, 0], out: false, extraGiven: false, extraCount: 0, mines: 0, tank: null,
+    kills: zeroKills(), out: false, extraGiven: false, extraCount: 0, mines: 0, tank: null,
     kit: null, shopShovel: false,
     rank: Config.get('startLevel'), xp: RANKS[Config.get('startLevel') - 1].xp, stageXp: 0,   // XP level (1-10)
   };
@@ -5921,7 +6348,8 @@ const Game = {
     Input.numPlayers = n;
     this.players = [];
     for (let i = 0; i < n; i++) this.players.push(newPlayer(i));
-    this.stageNum = 1;
+    // the stage picker starts where you last played
+    this.stageNum = Math.max(1, Math.min(this.stageLimit(), STORE.get('tank1990_lastStage', 1) | 0 || 1));
     this.customPending = custom;
     this.toCurtain(!custom);
   },
@@ -5941,7 +6369,7 @@ const Game = {
     }
     const m = Input.menu();
     if (c.selectable) {
-      const n = LEVELS.length;
+      const n = this.stageLimit();
       if (m.up || m.right) { this.stageNum = this.stageNum % n + 1; Sound.play('select'); }
       if (m.down || m.left) { this.stageNum = (this.stageNum + n - 2) % n + 1; Sound.play('select'); }
       if (m.ok) this.beginStage();
@@ -5968,6 +6396,9 @@ const Game = {
     }
   },
 
+  // stages you can pick: the 35 maps, or up to the furthest stage you have reached
+  stageLimit() { return Math.max(LEVELS.length, Math.min(99, STORE.get('tank1990_bestStage', 1) | 0)); },
+
   beginStage() {
     let map, custom = false;
     if (this.customPending) { map = this.custom; custom = true; this.customPending = false; }
@@ -5980,6 +6411,10 @@ const Game = {
     this.setState('play');
     Sound.play('start');
     this.saveGame(); // autosave at every stage start
+    if (!custom && Net.role !== 'client') {
+      STORE.set('tank1990_lastStage', this.stageNum);
+      if (this.stageNum > STORE.get('tank1990_bestStage', 1)) STORE.set('tank1990_bestStage', this.stageNum);
+    }
   },
 
   // ---------------------------------------------------------------- play
@@ -6056,7 +6491,10 @@ const Game = {
   // ---------------------------------------------------------------- score tally
   toScore(gameOver) {
     Sound.setEngine(0);
-    this.sc = { gameOver, row: 0, n: 0, wait: 30, phase: 'rows', bonus: -1 };
+    // one row per classic tank type, plus one for all the new types when any were destroyed
+    const rows = [[0], [1], [2], [3]];
+    if (this.players.some(p => NEW_TYPES.some(k => p.kills[k]))) rows.push(NEW_TYPES);
+    this.sc = { gameOver, row: 0, n: 0, wait: 30, phase: 'rows', bonus: -1, rows };
     this.setState('score');
   },
 
@@ -6064,7 +6502,7 @@ const Game = {
     const sc = this.sc;
     if (sc.wait > 0) { sc.wait--; return; }
     if (sc.phase === 'rows') {
-      const maxK = Math.max(...this.players.map(p => p.kills[sc.row]));
+      const maxK = Math.max(...this.players.map(p => this.rowKills(p, sc.row)));
       if (sc.n < maxK) {
         sc.n++;
         Sound.play('tick');
@@ -6073,7 +6511,7 @@ const Game = {
         sc.row++;
         sc.n = 0;
         sc.wait = 20;
-        if (sc.row >= 4) { sc.phase = 'total'; sc.wait = 30; }
+        if (sc.row >= sc.rows.length) { sc.phase = 'total'; sc.wait = 30; }
       }
     } else if (sc.phase === 'total') {
       if (this.players.length > 1 && !sc.gameOver) {
@@ -6102,11 +6540,27 @@ const Game = {
     }
   },
 
+  // kills and points of one tally row (the "new types" row adds several types together)
+  rowKills(p, row) { return this.sc.rows[row].reduce((a, k) => a + (p.kills[k] || 0), 0); },
+  rowPts(p, row, shown) {
+    const types = this.sc.rows[row], all = this.rowKills(p, row);
+    const pts = types.reduce((a, k) => a + (p.kills[k] || 0) * ENEMY[k].pts, 0);
+    return all ? Math.round(pts * shown / all) : 0;
+  },
+  rowIcon(row) {
+    const types = this.sc.rows[row], k = types[(this.t >> 5) % types.length];
+    return Sprites.tank('e' + k, 0, 0, ENEMY[k].pal || 'silver');
+  },
+  scShown(p, row) {
+    const sc = this.sc;
+    return row < sc.row || sc.phase !== 'rows' ? this.rowKills(p, row) : (row === sc.row ? Math.min(sc.n, this.rowKills(p, row)) : -1);
+  },
+
   // 3-4 players: one column per player
   renderScoreMulti(ctx) {
     const sc = this.sc, P = this.players, n = P.length;
     const colX = i => 72 + i * ((SW - 80) / n);
-    const shown = (p, row) => row < sc.row || sc.phase !== 'rows' ? p.kills[row] : (row === sc.row ? Math.min(sc.n, p.kills[row]) : -1);
+    const shown = (p, row) => this.scShown(p, row);
     P.forEach((p, i) => {
       const x = colX(i);
       ctx.drawImage(Sprites.playerIcon(Config.playerPal(i)), x + 10, 54);
@@ -6114,10 +6568,11 @@ const Game = {
       Font.drawRight(ctx, p.score, x + 40, 68, COL.gold);
       if (Config.xpOn()) Font.drawRight(ctx, 'LV' + p.rank, x + 40, 78, COL.white);
     });
-    for (let row = 0; row < 4; row++) {
-      const y = 92 + row * 20;
-      ctx.drawImage(Sprites.tank('e' + row, 0, 0, 'silver'), 12, y - 4);
-      Font.draw(ctx, String(ENEMY[row].pts), 32, y, COL.lgrey);
+    const nr = sc.rows.length, gap = nr > 4 ? 16 : 20;
+    for (let row = 0; row < nr; row++) {
+      const y = 92 + row * gap;
+      ctx.drawImage(this.rowIcon(row), 12, y - 4);
+      Font.draw(ctx, sc.rows[row].length > 1 ? 'NEW' : String(ENEMY[row].pts), 32, y, COL.lgrey);
       P.forEach((p, i) => { const k = shown(p, row); if (k >= 0) Font.drawRight(ctx, k, colX(i) + 24, y, COL.white); });
     }
     ctx.fillStyle = COL.white;
@@ -6151,13 +6606,14 @@ const Game = {
       Font.draw(ctx, (p.rank >= 10 ? 'L' : 'LV') + p.rank, x, 82, COL.white);
       if (p.stageXp) Font.drawRight(ctx, '+' + p.stageXp + 'XP', x + 80, 82, COL.lgrey);
     });
-    const shown = (p, row) => row < sc.row || sc.phase !== 'rows' ? p.kills[row] : (row === sc.row ? Math.min(sc.n, p.kills[row]) : -1);
-    for (let row = 0; row < 4; row++) {
-      const y = 96 + row * 22;
-      ctx.drawImage(Sprites.tank('e' + row, 0, 0, 'silver'), 120, y - 4);
+    const shown = (p, row) => this.scShown(p, row);
+    const nr = sc.rows.length, gap = nr > 4 ? 18 : 22;
+    for (let row = 0; row < nr; row++) {
+      const y = 96 + row * gap;
+      ctx.drawImage(this.rowIcon(row), 120, y - 4);
       const k1 = shown(P[0], row);
       if (k1 >= 0) {
-        Font.drawRight(ctx, k1 * ENEMY[row].pts, 56, y, COL.white);
+        Font.drawRight(ctx, this.rowPts(P[0], row, k1), 56, y, COL.white);
         Font.draw(ctx, 'PTS', 64, y, COL.white);
         Font.drawRight(ctx, k1, 102, y, COL.white);
       }
@@ -6167,7 +6623,7 @@ const Game = {
         const k2 = shown(P[1], row);
         if (k2 >= 0) {
           Font.drawRight(ctx, k2, 162, y, COL.white);
-          Font.drawRight(ctx, k2 * ENEMY[row].pts, 208, y, COL.white);
+          Font.drawRight(ctx, this.rowPts(P[1], row, k2), 208, y, COL.white);
           Font.draw(ctx, 'PTS', 216, y, COL.white);
         }
       }
@@ -6601,7 +7057,7 @@ const Game = {
         Font.draw(ctx, row.section, 8, y, COL.orange);
         ctx.fillStyle = COL.orange;
         ctx.fillRect(8 + row.section.length * 8 + 2, y + 3, 216 - row.section.length * 8, 1);
-        if (row.enemy !== undefined) ctx.drawImage(Sprites.tank('e' + row.enemy, 0, 3, 'silver'), 232, y - 5);
+        if (row.enemy !== undefined) ctx.drawImage(Sprites.tank('e' + row.enemy, 0, 3, ENEMY[row.enemy].pal || 'silver'), 232, y - 5);
         if (row.section === 'WHO CAN COLLECT') {
           ctx.fillStyle = COL.black;
           ctx.fillRect(184, y, 64, 8);
@@ -6639,6 +7095,15 @@ const Game = {
     if (cur.powerup !== undefined) {
       ctx.drawImage(Sprites.powerups[cur.powerup], 8, 207);
       Font.draw(ctx, POWERUPS[cur.powerup].desc, 28, 212, COL.white);
+    } else if (cur.enemy !== undefined && ENEMY[cur.enemy].desc) {
+      ctx.drawImage(Sprites.tank('e' + cur.enemy, (this.t >> 3) & 1, 1, ENEMY[cur.enemy].pal), 8, 207);
+      Font.draw(ctx, ENEMY[cur.enemy].desc, 28, 212, COL.white);
+    } else if (cur.key === 'aiStyle' || cur.key === 'aiMarks') {
+      ['RUSH', 'HUNT', 'SNIPE'].forEach((w, i) => {
+        ctx.fillStyle = AI_MARK[i + 1];
+        ctx.fillRect(24 + i * 72, 213, 5, 5);
+        Font.draw(ctx, w, 34 + i * 72, 212, COL.white);
+      });
     } else {
       Font.drawCenter(ctx, '<> CHANGE   ESC BACK', SW / 2, 212, COL.lgrey);
     }

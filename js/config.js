@@ -53,8 +53,6 @@ const RANKS = [
   { name: 'GENERAL', xp: 3000, perk: 'DOUBLE ARMOR PLATE' },
   { name: 'MARSHAL', xp: 3800, perk: 'PLATES SELF-REPAIR' },
 ];
-// XP for destroying a basic, fast, power and armor tank
-const XP_KILL = [10, 15, 20, 30];
 
 const pct = (...v) => v;
 const PCTS = pct(25, 50, 75, 100, 125, 150, 175, 200, 250, 300);
@@ -97,6 +95,11 @@ const SETTINGS_DEF = [
   { key: 'enemyFire', label: 'FIRE RATE', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'enemyAim', label: 'BASE HUNTING', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'bonusTanks', label: 'FLASHING TANKS', values: ONOFF, def: 'ON' },
+  // MIXED: each tank gets a personality (wander, rush the eagle, hunt players, snipe); CLASSIC: all wander
+  { key: 'aiStyle', label: 'AI PERSONALITIES', values: ['MIXED', 'CLASSIC', 'RUSH', 'HUNT', 'SNIPE'], def: 'MIXED' },
+  { key: 'aiMarks', label: 'SHOW AI TYPE', values: ['OFF', 'ON'], def: 'OFF' },
+  { key: 'newEnemies', label: 'NEW ENEMY TYPES', values: ['OFF', 'FEW', 'NORMAL', 'MANY'], def: 'NORMAL' },
+  { key: 'enemyGrowth', label: 'VETERANS + ELITES', values: ONOFF, def: 'ON' },
 
   { section: 'BASIC TANK', enemy: 0 },
   { key: 'e0Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct },
@@ -114,6 +117,22 @@ const SETTINGS_DEF = [
   { key: 'e3Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'e3Shell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'e3Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 4 },
+  { section: 'ROCKET TANK *', enemy: 4 },
+  { key: 'e4Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 4 },
+  { key: 'e4Shell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 4 },
+  { key: 'e4Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 4 },
+  { section: 'SHIELD TANK *', enemy: 5 },
+  { key: 'e5Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 5 },
+  { key: 'e5Shell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 5 },
+  { key: 'e5Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 5 },
+  { section: 'SAPPER TANK *', enemy: 6 },
+  { key: 'e6Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 6 },
+  { key: 'e6Shell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 6 },
+  { key: 'e6Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 6 },
+  { section: 'SHADE TANK *', enemy: 7 },
+  { key: 'e7Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 7 },
+  { key: 'e7Shell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 7 },
+  { key: 'e7Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 7 },
 
   { section: 'POWER-UPS' },
   { key: 'helmetTime', label: 'HELMET TIME', values: SECS.slice(1), def: 10, fmt: fmtSec },
