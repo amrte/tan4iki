@@ -23,7 +23,7 @@ const Sound = {
       if (!AC) return;
       this.ctx = new AC();
       this.master = this.ctx.createGain();
-      this.master.gain.value = this.muted ? 0 : 0.3;
+      this.applyVolume();
       this.master.connect(this.ctx.destination);
       this.waves.p50 = this.pulseWave(0.5);
       this.waves.p25 = this.pulseWave(0.25);
@@ -35,8 +35,15 @@ const Sound = {
 
   toggleMute() {
     this.muted = !this.muted;
-    if (this.master) this.master.gain.value = this.muted ? 0 : 0.3;
+    this.applyVolume();
     return this.muted;
+  },
+
+  applyVolume() {
+    if (!this.master) return;
+    const vol = typeof Config !== 'undefined' && Config.values.volume !== undefined ? Config.values.volume / 100 : 1;
+    this.master.gain.value = this.muted ? 0 : 0.3 * vol;
+    if (this.engine) this.applyEngine();
   },
 
   midi(n) { return 440 * Math.pow(2, (n - 69) / 12); },
@@ -113,7 +120,7 @@ const Sound = {
   },
 
   play(name) {
-    if (!this.ctx || this.muted) return;
+    if (!this.ctx || this.muted || this.master.gain.value === 0) return;
     const t = this.ctx.currentTime + 0.005;
     switch (name) {
       case 'start': this.stageStart(t); break;
@@ -258,7 +265,8 @@ const Sound = {
 
   applyEngine() {
     if (!this.engine) return;
-    const t = this.ctx.currentTime, e = this.engine, state = this.engineState;
+    const t = this.ctx.currentTime, e = this.engine;
+    const state = typeof Config !== 'undefined' && Config.values.engineSound === 'OFF' ? 0 : this.engineState;
     e.g.gain.cancelScheduledValues(t);
     if (state === 0) { e.g.gain.setTargetAtTime(0, t, 0.01); return; }
     const vol = state === 1 ? 0.06 : 0.07;

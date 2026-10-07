@@ -17,7 +17,10 @@ const CONSTRUCT_PATS = [
 ];
 
 function newPlayer(i) {
-  return { i, score: 0, lives: 2, level: 0, ship: false, cutter: false, kills: [0, 0, 0, 0], out: false, extraGiven: false, tank: null };
+  return {
+    i, score: 0, lives: Config.startLives(), level: Config.get('startStars'), ship: false, cutter: false,
+    kills: [0, 0, 0, 0], out: false, extraGiven: false, extraCount: 0, tank: null,
+  };
 }
 
 function defaultCustomMap() {
@@ -26,6 +29,10 @@ function defaultCustomMap() {
   for (const [bx, by] of BASE_WALL) rows[by][bx] = '#';
   return rows.map(r => r.join(''));
 }
+
+const TITLE_MENU = ['1 PLAYER', '2 PLAYERS', 'CONSTRUCTION', 'SETTINGS'];
+const TITLE_MENU_Y = 126;
+const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
 
 const Game = {
   state: 'title',
@@ -70,12 +77,15 @@ const Game = {
       if (m.any) this.titleY = 0;
       return;
     }
-    if (m.up) { this.menuIdx = (this.menuIdx + 2) % 3; Sound.play('select'); }
-    if (m.down || m.select) { this.menuIdx = (this.menuIdx + 1) % 3; Sound.play('select'); }
-    if (m.ok) {
-      if (this.menuIdx === 2) this.toConstruct();
-      else this.newGame(this.menuIdx === 1, false);
-    }
+    if (m.up) { this.menuIdx = (this.menuIdx + 3) % 4; Sound.play('select'); }
+    if (m.down || m.select) { this.menuIdx = (this.menuIdx + 1) % 4; Sound.play('select'); }
+    if (m.ok) this.chooseMenu(this.menuIdx);
+  },
+
+  chooseMenu(i) {
+    if (i === 3) this.toSettings();
+    else if (i === 2) this.toConstruct();
+    else this.newGame(i === 1, false);
   },
 
   renderTitle(ctx) {
@@ -94,11 +104,10 @@ const Game = {
     const pat = Sprites.bricks(ctx);
     Font.big(ctx, 'TANK', (SW - Font.bigWidth('TANK', 4)) >> 1, 40, 4, pat);
     Font.big(ctx, '1990', (SW - Font.bigWidth('1990', 4)) >> 1, 80, 4, pat);
-    const items = ['1 PLAYER', '2 PLAYERS', 'CONSTRUCTION'];
-    items.forEach((s, i) => Font.draw(ctx, s, 88, 132 + i * 16, COL.white));
+    TITLE_MENU.forEach((s, i) => Font.draw(ctx, s, 88, TITLE_MENU_Y + i * 14, COL.white));
     if (this.titleY === 0) {
       const anim = (this.t >> 2) & 1;
-      ctx.drawImage(Sprites.tank('p0', anim, 1, 'p1'), 64, 128 + this.menuIdx * 16);
+      ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, TITLE_MENU_Y - 4 + this.menuIdx * 14);
     }
     Font.drawCenter(ctx, 'NES TANK 1990 TRIBUTE', SW / 2, 192, COL.lgrey);
     Font.drawCenter(ctx, 'ENTER START  M MUTE', SW / 2, 206, COL.lgrey);
@@ -228,7 +237,7 @@ const Game = {
           sc.bonus = k[0] > k[1] ? 0 : 1;
           const p = this.players[sc.bonus];
           p.score += 1000;
-          if (!p.extraGiven && p.score >= 20000) { p.extraGiven = true; p.lives++; }
+          checkExtraLife(p);
           Sound.play('bonus');
           this.saveHi();
         }
@@ -391,7 +400,7 @@ const Game = {
     }
     ctx.drawImage(Sprites.eagle, BASE_X, BASE_Y);
     ctx.drawImage(st.forestLayer, 0, 0);
-    if (((this.t >> 3) & 1) === 0) ctx.drawImage(Sprites.tank('p0', 0, 0, 'p1'), this.ed.tx * 16, this.ed.ty * 16);
+    if (((this.t >> 3) & 1) === 0) ctx.drawImage(Sprites.tank('p0', 0, 0, Config.playerPal(0)), this.ed.tx * 16, this.ed.ty * 16);
     ctx.restore();
     // current pattern preview
     Font.draw(ctx, 'PAT', 228, 16, COL.black);
@@ -411,6 +420,131 @@ const Game = {
     Font.draw(ctx, 'ENT', 228, 190, COL.black);
   },
 
+  // ---------------------------------------------------------------- settings
+  toSettings() {
+    this.st = { idx: 1, scroll: 0, rep: 0 };
+    this.setState('settings');
+  },
+
+  settingsMove(dir) {
+    const n = SETTINGS_DEF.length, st = this.st;
+    let i = st.idx;
+    do { i = (i + dir + n) % n; } while (SETTINGS_DEF[i].section);
+    st.idx = i;
+    // keep the cursor (and the section header above it) on screen
+    if (st.idx < st.scroll + 1) st.scroll = Math.max(0, st.idx - 1);
+    if (st.idx >= st.scroll + SETTINGS_ROWS) st.scroll = st.idx - SETTINGS_ROWS + 1;
+    if (dir > 0 && st.idx < st.scroll) st.scroll = 0;
+  },
+
+  settingsActivate(dir) {
+    const row = SETTINGS_DEF[this.st.idx];
+    if (row.key) {
+      Config.step(row.key, dir);
+      Sound.play('select');
+    } else if (row.action === 'reset') {
+      Config.reset();
+      Sound.play('pickup');
+    } else if (row.action === 'back') {
+      this.leaveSettings();
+    }
+  },
+
+  leaveSettings() {
+    this.toTitle();
+    this.titleY = 0;
+    this.menuIdx = 3;
+  },
+
+  updateSettings() {
+    const m = Input.menu(), st = this.st;
+    const tapped = m.up ? 0 : m.right ? 1 : m.down ? 2 : m.left ? 3 : -1;
+    let d = -1;
+    if (tapped >= 0) { d = tapped; st.rep = 16; }
+    else {
+      const held = Input.heldDir();
+      if (held >= 0 && --st.rep <= 0) { d = held; st.rep = 4; }
+    }
+    if (d === 0) { this.settingsMove(-1); Sound.play('select'); }
+    if (d === 2) { this.settingsMove(1); Sound.play('select'); }
+    if (d === 1 || d === 3) {
+      if (SETTINGS_DEF[st.idx].key) this.settingsActivate(d === 1 ? 1 : -1);
+    }
+    if (m.ok) this.settingsActivate(1);
+    else if (m.alt) { if (SETTINGS_DEF[st.idx].key) this.settingsActivate(-1); }
+    else if (m.back) this.leaveSettings();
+  },
+
+  renderSettings(ctx) {
+    const st = this.st;
+    ctx.fillStyle = COL.black;
+    ctx.fillRect(0, 0, SW, SH);
+    Font.drawCenter(ctx, 'SETTINGS', SW / 2, 8, COL.red);
+    for (let r = 0; r < SETTINGS_ROWS; r++) {
+      const i = st.scroll + r, row = SETTINGS_DEF[i];
+      if (!row) break;
+      const y = SETTINGS_TOP + r * SETTINGS_ROW_H;
+      if (row.section) {
+        Font.draw(ctx, row.section, 8, y, COL.orange);
+        ctx.fillStyle = COL.orange;
+        ctx.fillRect(8 + row.section.length * 8 + 2, y + 3, 216 - row.section.length * 8, 1);
+        if (row.enemy !== undefined) ctx.drawImage(Sprites.tank('e' + row.enemy, 0, 3, 'silver'), 232, y - 5);
+        continue;
+      }
+      const sel = i === st.idx;
+      if (sel) {
+        ctx.fillStyle = '#20206C';
+        ctx.fillRect(4, y - 2, SW - 8, 11);
+      }
+      if (row.action) {
+        Font.draw(ctx, row.label, 16, y, row.action === 'reset' ? COL.red : COL.white);
+        continue;
+      }
+      Font.draw(ctx, row.label, 16, y, COL.white);
+      const val = Config.format(row.key);
+      Font.drawRight(ctx, val, 238, y, Config.isDefault(row.key) ? COL.lgrey : COL.gold);
+      if (sel) {
+        Font.draw(ctx, '<', 238 - val.length * 8 - 9, y, COL.white);
+        Font.draw(ctx, '>', 241, y, COL.white);
+      }
+      if (row.color) {
+        const c = TANK_COLORS[Config.get(row.key)];
+        c.forEach((col, k) => { ctx.fillStyle = col; ctx.fillRect(160 - 18 + k * 5, y, 5, 7); });
+      }
+    }
+    // scroll hints
+    ctx.fillStyle = COL.lgrey;
+    if (st.scroll > 0) for (let k = 0; k < 4; k++) ctx.fillRect(SW / 2 - k, 19 + k - 3, 1 + 2 * k, 1);
+    if (st.scroll + SETTINGS_ROWS < SETTINGS_DEF.length) for (let k = 0; k < 4; k++) ctx.fillRect(SW / 2 - 3 + k, 205 + k, 7 - 2 * k, 1);
+    Font.drawCenter(ctx, '<> CHANGE   ESC BACK', SW / 2, 212, COL.lgrey);
+  },
+
+  // mouse / touch on the canvas (in screen pixels)
+  pointer(x, y) {
+    Sound.unlock();
+    if (this.state === 'title' && this.titleY === 0) {
+      const i = Math.floor((y - TITLE_MENU_Y + 4) / 14);
+      if (i >= 0 && i < TITLE_MENU.length && x > 56 && x < 200) {
+        if (i === this.menuIdx) this.chooseMenu(i);
+        else { this.menuIdx = i; Sound.play('select'); }
+      }
+    } else if (this.state === 'settings') {
+      const r = Math.floor((y - SETTINGS_TOP + 2) / SETTINGS_ROW_H);
+      if (y < 20) { this.settingsMove(-1); return; }
+      if (y > 204) { this.settingsMove(1); return; }
+      const i = this.st.scroll + r, row = SETTINGS_DEF[i];
+      if (r < 0 || r >= SETTINGS_ROWS || !row || row.section) return;
+      if (i !== this.st.idx && !row.action) { this.st.idx = i; Sound.play('select'); return; }
+      this.st.idx = i;
+      if (row.key) this.settingsActivate(x < 196 ? -1 : 1);
+      else this.settingsActivate(1);
+    }
+  },
+
+  wheel(dy) {
+    if (this.state === 'settings') this.settingsMove(dy > 0 ? 1 : -1);
+  },
+
   // ---------------------------------------------------------------- dispatch
   update() {
     this.t++;
@@ -421,6 +555,7 @@ const Game = {
       case 'score': this.updateScore(); break;
       case 'bigover': this.updateBigOver(); break;
       case 'construct': this.updateConstruct(); break;
+      case 'settings': this.updateSettings(); break;
     }
   },
 
@@ -432,6 +567,7 @@ const Game = {
       case 'score': this.renderScore(ctx); break;
       case 'bigover': this.renderBigOver(ctx); break;
       case 'construct': this.renderConstruct(ctx); break;
+      case 'settings': this.renderSettings(ctx); break;
     }
   },
 };
@@ -445,8 +581,20 @@ const Game = {
   ctx.imageSmoothingEnabled = false;
 
   Sprites.init();
+  Config.init();
   Input.init();
   Game.init();
+
+  const toScreen = e => {
+    const r = canvas.getBoundingClientRect();
+    return [(e.clientX - r.left) * SW / r.width, (e.clientY - r.top) * SH / r.height];
+  };
+  canvas.addEventListener('pointerdown', e => { const [x, y] = toScreen(e); Game.pointer(x, y); });
+  canvas.addEventListener('wheel', e => {
+    if (Game.state !== 'settings') return;
+    e.preventDefault();
+    Game.wheel(e.deltaY);
+  }, { passive: false });
 
   function resize() {
     const wrap = document.getElementById('wrap');
@@ -467,13 +615,14 @@ const Game = {
     }
   });
 
-  const STEP = 1000 / 60;
+  const BASE_STEP = 1000 / 60;
   let last = performance.now(), acc = 0;
   function frame(now) {
     requestAnimationFrame(frame);
     acc += now - last;
     last = now;
     if (acc > 200) acc = 200;
+    const STEP = BASE_STEP / Config.scale('gameSpeed');
     while (acc >= STEP) {
       Input.poll();
       Game.update();

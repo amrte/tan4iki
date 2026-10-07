@@ -22,11 +22,8 @@ const BASE_X = 96, BASE_Y = 192;
 const ENEMY_SPAWN_X = [96, 192, 0];
 const PLAYER_SPAWN = [[64, 192], [128, 192]];
 const BASE_WALL = [[11, 23], [12, 23], [13, 23], [14, 23], [11, 24], [14, 24], [11, 25], [14, 25]];
-const BONUS_SLOTS = [3, 10, 17];   // 4th, 11th and 18th enemy carry a power-up
 const SPARKLE_TIME = 60;
 const BIG_EXPLOSION = () => [Sprites.smallExp[0], Sprites.smallExp[1], Sprites.smallExp[2], Sprites.bigExp[0], Sprites.bigExp[1]];
-
-const Settings = { enemyPickup: true };
 
 function rnd(n) { return Math.floor(Math.random() * n); }
 function overlap(ax, ay, aw, ah, bx, by, bw, bh) { return ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah; }
@@ -45,6 +42,9 @@ function mapToBlocks(map) {
   return out;
 }
 
+// 4th, 11th, 18th ... enemy carries a power-up
+const isBonusSlot = i => i % 7 === 3;
+
 function buildQueue(stageNum) {
   const mix = enemyMix(stageNum);
   const list = [];
@@ -55,7 +55,28 @@ function buildQueue(stageNum) {
     const j = Math.max(0, i - 1 - Math.floor(r() * 6));
     [list[i], list[j]] = [list[j], list[i]];
   }
-  return list.map((type, i) => ({ type, bonus: BONUS_SLOTS.includes(i) }));
+  // stretch or shrink the 20-tank line-up to the configured count
+  const count = Config.get('enemyCount'), bonus = Config.on('bonusTanks');
+  const out = [];
+  for (let i = 0; i < count; i++) out.push({ type: list[Math.floor(i * list.length / count)], bonus: bonus && isBonusSlot(i) });
+  return out;
+}
+
+// extra lives for crossing 20,000 points (once, or every 20,000)
+function checkExtraLife(p) {
+  const mode = Config.get('extraLife');
+  if (mode === 'OFF') return false;
+  if (mode === 'ONCE') {
+    if (p.extraGiven || p.score < 20000) return false;
+    p.extraGiven = true;
+    p.lives++;
+    return true;
+  }
+  const n = Math.floor(p.score / 20000), had = p.extraCount || 0;
+  if (n <= had) return false;
+  p.lives += n - had;
+  p.extraCount = n;
+  return true;
 }
 
 class Tank {
@@ -69,8 +90,8 @@ class Tank {
   }
   applyLevel() {
     const p = this.player, lv = p.level;
-    this.speed = 0.75;
-    this.bulletSpeed = lv >= 1 ? 4.5 : 2.5;
+    this.speed = 0.75 * Config.scale('pSpeed');
+    this.bulletSpeed = (lv >= 1 ? 4.5 : 2.5) * Config.scale('pShell');
     this.maxBullets = lv >= 2 ? 2 : 1;
     this.power = lv >= 3;
     this.cutter = p.cutter;
@@ -96,8 +117,8 @@ class Stage {
     this.killed = 0;
     this.spawnTimer = 0;
     this.spawnPos = 0;
-    this.spawnInterval = Math.max(70, 190 - ((num - 1) % 35) * 4 - (this.twoP ? 20 : 0));
-    this.maxEnemies = this.twoP ? 6 : 4;
+    this.spawnInterval = Math.round(Math.max(70, 190 - ((num - 1) % 35) * 4 - (this.twoP ? 20 : 0)) / Config.scale('spawnRate'));
+    this.maxEnemies = Config.get('maxOnScreen') + (this.twoP ? 2 : 0);
     this.freezeE = 0;
     this.freezeP = 0;
     this.shovel = 0;
@@ -182,14 +203,14 @@ class Stage {
       if (s.t > 0) continue;
       if (s.enemy) {
         if (this.tanks.some(t => overlap(t.x, t.y, 16, 16, s.x, s.y, 16, 16))) { s.t = 1; continue; }
-        const st = ENEMY[s.enemy.type];
+        const st = Config.enemy(s.enemy.type);
         this.tanks.push(new Tank({
           x: s.x, y: s.y, dir: 2, type: s.enemy.type, hp: st.hp, bonus: s.enemy.bonus,
           speed: st.speed, bulletSpeed: st.bullet, maxBullets: 1,
         }));
       } else {
         const p = s.player;
-        const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, player: p, shield: 180 });
+        const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, player: p, shield: Config.frames('spawnShield') });
         t.applyLevel();
         p.tank = t;
         this.tanks.push(t);
@@ -286,6 +307,7 @@ class Stage {
     if (t.bullets === 0 && t.cool === 0) {
       let chance = ok ? 0.022 : 0.07;
       if (this.targetInSight(t)) chance = 0.15;
+      chance *= Config.scale('enemyFire');
       if (Math.random() < chance) { this.fire(t); t.cool = 16; }
     }
   }
@@ -302,7 +324,7 @@ class Stage {
 
   chooseDir(t, blocked) {
     const r = Math.random();
-    const pBase = Math.min(0.5, 0.25 + this.num * 0.008);
+    const pBase = Math.min(0.8, Math.min(0.5, 0.25 + this.num * 0.008) * Config.scale('enemyAim'));
     let target = null;
     if (r < pBase) target = { x: BASE_X, y: BASE_Y };
     else if (r < pBase + 0.2) {
@@ -437,6 +459,7 @@ class Stage {
       if (b.isPlayer) {
         if (t.isPlayer) {
           // friendly fire freezes the other player for a few seconds
+          if (Config.get('friendlyFire') === 'OFF') continue;
           this.killBullet(b, false);
           if (t.shield <= 0) t.frozen = 180;
           return;
@@ -527,10 +550,14 @@ class Stage {
     t.alive = false;
     this.addFx(t.x + 8, t.y + 8, BIG_EXPLOSION(), 5);
     Sound.play('playerDie');
-    p.level = 0;
-    p.cutter = false;
+    if (!Config.on('keepStars')) {
+      p.level = Config.get('startStars');
+      p.cutter = false;
+    }
     p.tank = null;
-    if (p.lives > 0) {
+    if (Config.infiniteLives()) {
+      this.spawnPlayer(p, 30);
+    } else if (p.lives > 0) {
       p.lives--;
       this.spawnPlayer(p, 30);
     } else {
@@ -552,11 +579,7 @@ class Stage {
 
   addScore(p, n) {
     p.score += n;
-    if (!p.extraGiven && p.score >= 20000) {
-      p.extraGiven = true;
-      p.lives++;
-      Sound.play('life');
-    }
+    if (checkExtraLife(p)) Sound.play('life');
   }
 
   addFx(x, y, frames, per) {
@@ -585,7 +608,7 @@ class Stage {
   checkPickups() {
     const pu = this.powerup;
     if (!pu) return;
-    const order = this.tanks.filter(t => t.isPlayer).concat(Settings.enemyPickup ? this.tanks.filter(t => !t.isPlayer) : []);
+    const order = this.tanks.filter(t => t.isPlayer).concat(Config.on('enemyPickup') ? this.tanks.filter(t => !t.isPlayer) : []);
     for (const t of order) {
       if (t.alive && overlap(t.x, t.y, 16, 16, pu.x + 2, pu.y + 2, 12, 12)) {
         this.powerup = null;
@@ -603,9 +626,9 @@ class Stage {
       this.addScore(p, 500);
       this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: '500', t: 0, delay: 0 });
       switch (pu.type) {
-        case PU.HELMET: t.shield = 600; break;
-        case PU.CLOCK: this.freezeE = 600; snd = 'freeze'; break;
-        case PU.SHOVEL: this.shovel = 1200; this.setBaseWalls(T_STEEL); break;
+        case PU.HELMET: t.shield = Config.frames('helmetTime'); break;
+        case PU.CLOCK: this.freezeE = Config.frames('clockTime'); snd = 'freeze'; break;
+        case PU.SHOVEL: this.shovel = Config.frames('shovelTime'); this.setBaseWalls(T_STEEL); break;
         case PU.STAR:
           if (p.level < 3) p.level++; else p.cutter = true;
           t.applyLevel();
@@ -623,10 +646,10 @@ class Stage {
       // Tank 1990 rule: enemies can grab bonuses too
       Sound.play('enemyPickup');
       switch (pu.type) {
-        case PU.HELMET: enemies.forEach(e => { e.shield = 600; }); break;
-        case PU.CLOCK: this.freezeP = 600; break;
+        case PU.HELMET: enemies.forEach(e => { e.shield = Config.frames('helmetTime'); }); break;
+        case PU.CLOCK: this.freezeP = Config.frames('clockTime'); break;
         case PU.SHOVEL: this.shovel = 0; this.setBaseWalls(T_EMPTY); break;
-        case PU.STAR: enemies.forEach(e => { e.hp = Math.min(4, e.hp + 1); e.bulletSpeed = 4.5; }); break;
+        case PU.STAR: enemies.forEach(e => { e.hp = Math.min(Math.max(4, Config.enemy(e.type).hp), e.hp + 1); e.bulletSpeed = 4.5; }); break;
         case PU.GRENADE: this.tanks.filter(o => o.isPlayer).forEach(o => this.hitPlayer(o)); break;
         case PU.TANK: t.hp = Math.max(t.hp, 4); break;
         case PU.GUN: t.power = true; t.bulletSpeed = 4.5; break;
@@ -666,7 +689,7 @@ class Stage {
     let spec, pal;
     if (t.isPlayer) {
       spec = 'p' + t.player.level;
-      pal = t.player.i === 0 ? 'p1' : 'p2';
+      pal = Config.playerPal(t.player.i);
     } else {
       spec = 'e' + t.type;
       if (t.bonus && ((this.frame >> 3) & 1)) pal = 'red';
@@ -733,15 +756,16 @@ class Stage {
   }
 
   renderHud(ctx) {
-    const n = this.queue.length;
+    const n = Math.min(20, this.queue.length);
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, 232 + (i % 2) * 8, 24 + (i >> 1) * 8);
     Font.draw(ctx, 'IP', 232, 136, COL.black);
     ctx.drawImage(Sprites.lifeIcon, 232, 144);
-    Font.draw(ctx, String(Math.min(99, this.players[0].lives)), 240, 144, COL.black);
+    const lives = p => (Config.infiniteLives() ? '~' : String(Math.min(99, p.lives)));
+    Font.draw(ctx, lives(this.players[0]), 240, 144, COL.black);
     if (this.players[1]) {
       Font.draw(ctx, 'IIP', 232, 160, COL.black);
       ctx.drawImage(Sprites.lifeIcon, 232, 168);
-      Font.draw(ctx, String(Math.min(99, this.players[1].lives)), 240, 168, COL.black);
+      Font.draw(ctx, lives(this.players[1]), 240, 168, COL.black);
     }
     ctx.drawImage(Sprites.flag, 232, 184);
     Font.drawRight(ctx, String(this.num), 248, 200, COL.black);

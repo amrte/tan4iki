@@ -10,6 +10,9 @@ stored as 16×16 palette bitmaps in code, matching the NES originals. Sound come
 Open `index.html` in any modern browser. Double-clicking the file works too, because no server is needed.
 You can also serve the folder (`python3 -m http.server`) or publish it with GitHub Pages.
 
+**Single-file download:** [`dist/tank1990.html`](dist/tank1990.html) is the whole game in one HTML file,
+which you can save anywhere and open offline. To regenerate it after changing the code, run `node tools/build.js`.
+
 ### Controls
 
 | | Player 1 | Player 2 |
@@ -49,6 +52,20 @@ fire buttons appear on screen.
   Press **Delete** to clear the map and **Enter** to play your map. Custom maps are saved in the browser.
 - Chiptune sound effects and engine hum, made with Web Audio.
 
+## Settings
+
+Choose **SETTINGS** on the title screen. Use up/down to pick a row and left/right (or A/B) to change it;
+on desktop you can also click and use the mouse wheel. Changed values are shown in gold. Settings are saved
+in the browser, and **RESET TO DEFAULTS** restores the classic game.
+
+| Section | Settings (default) |
+|---|---|
+| Player | lives (3, or infinite), I-player / II-player tank color (yellow / green, 12 colors), tank speed (100%), shell speed (100%), start stars (0), keep stars on death (off), spawn shield (3 s), extra life at 20K (once / every / off), friendly fire (freeze / off) |
+| Enemies | tanks per stage (20), max on screen (4, +2 in 2P), spawn rate, fire rate, base hunting (all 100%), flashing bonus tanks (on), enemy power-up pickups (on) |
+| Basic / fast / power / armor tank | speed (100%), shell speed (100%), hits to destroy (1 / 1 / 1 / 4) |
+| Power-ups | helmet time (10 s), clock time (10 s), shovel time (20 s) |
+| Game | game speed (100%), volume (100%), engine sound (on) |
+
 ## Code layout
 
 ```
@@ -57,10 +74,12 @@ css/style.css     layout, pixel-perfect scaling
 js/data.js        font, terrain textures, 35 stage maps, enemy line-ups
 js/sprites.js     sprite bitmaps (tanks, power-ups, eagle, effects, HUD icons)
 js/gfx.js         palettes, font, sprite rendering and caching
+js/config.js      settings: definitions, defaults, saving, tank color presets
 js/audio.js       NES-style Web Audio synth (SFX, jingles, engine)
 js/input.js       keyboard / gamepad / touch
 js/stage.js       gameplay: terrain, movement, AI, bullets, power-ups, rendering
-js/main.js        state machine (title, curtain, play, score, game over, construction) + loop
+js/main.js        state machine (title, settings, curtain, play, score, game over, construction) + loop
+tools/build.js    bundles everything into dist/tank1990.html
 ```
 
 Stage maps in `js/data.js` are easy to edit. Each one is 13×13 tile codes (or 26×26 half-tile blocks),
