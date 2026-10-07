@@ -1,6 +1,6 @@
 # TANЬ4IKI (tanb4iki) — Tank 1990 browser replica
 
-**Current version: 0.3.1** (see [CHANGELOG.md](CHANGELOG.md)). The title screen shows the name **TANЬ4IKI** and the version as `tanb4iki_v0.3.1`.
+**Current version: 0.4** (see [CHANGELOG.md](CHANGELOG.md)). The title screen shows the name **TANЬ4IKI** and the version as `tanb4iki_v0.4`.
 
 A from-scratch browser remake of **Tank 1990**, the NES/Famicom variant of Battle City.
 It's plain HTML5 Canvas and JavaScript with no dependencies and no build step. Sprites are
@@ -12,7 +12,7 @@ stored as 16×16 palette bitmaps in code, matching the NES originals. Sound come
 Open `index.html` in any modern browser. Double-clicking the file works too, because no server is needed.
 You can also serve the folder (`python3 -m http.server`) or publish it with GitHub Pages.
 
-**Single-file download:** [`dist/tanb4iki_v0.3.1.html`](dist/tanb4iki_v0.3.1.html) is the whole game in one HTML file,
+**Single-file download:** [`dist/tanb4iki_v0.4.html`](dist/tanb4iki_v0.4.html) is the whole game in one HTML file,
 which you can save anywhere and open offline. To regenerate it after changing the code, run `node tools/build.js`;
 the file is named after the version in `js/version.js`.
 
@@ -25,6 +25,10 @@ the file is named after the version in `js/version.js`.
 | Start / pause | Enter / P / Esc opens the pause menu (CONTINUE / SAVE GAME / QUIT); P or Esc resumes | |
 | Fullscreen | double-click the game, or Settings → SCREEN | |
 | Mute | M | |
+
+**On a Mac** (Settings → SCREEN → CONTROLS, picked automatically on Apple devices) player 2 fires with **right ⌥ Option**,
+right ⇧ Shift, `/`, `.` or `,` and drops mines with `;`, `'` or `L`, because MacBooks have no right Ctrl or numpad.
+Return pauses, ⌃⌘F or a double-click toggles fullscreen, and fn+delete clears the map in Construction.
 
 The **B** button drops a mine while you carry mines; otherwise it fires, like on the NES.
 The game supports up to two gamepads (standard mapping). On phones and tablets, a D-pad and
@@ -56,6 +60,24 @@ fire buttons appear on screen.
 - **Construction mode:** move the cursor and press **A** (fire) to place or cycle 14 tile patterns, or **B** to cycle backwards.
   Press **Delete** to clear the map and **Enter** to play your map. Custom maps are saved in the browser.
 - Chiptune sound effects and engine hum, made with Web Audio.
+
+## Boss rounds
+
+Every 10th stage is a boss stage: the boss plus a smaller group of escort tanks (8 by default). Destroy the boss to clear
+the stage; its escorts blow up with it. The side panel shows the boss's HP bar and how many escorts are left.
+Every big attack flashes a warning first, each boss changes behaviour at half HP, and a power-up drops at 75%, 50% and 25% HP.
+Beating a boss scores 5,000–10,000 points and gives 25% off in the next shop. After stage 50 the bosses repeat with +50% HP each loop.
+In 2-player games boss HP is 50% higher.
+
+| Stage | Boss | How it fights | How to beat it |
+|---|---|---|---|
+| 10 | **Iron Bear** | slow heavy tank with a ram; 3-shell volleys; flashes red, then charges in a straight line, crushing bricks and anything in the way | dodge the charge; it's dazed afterwards (longer if it hit steel) and takes double damage |
+| 20 | **Mole** | moves underground (only a dust trail), surfaces near you or the eagle after a dust swirl, fires 8 shells in a cross, then burrows; breaks the steel ring in front of the eagle | hit it while it's up; at half HP it pops up twice and leaves mines |
+| 30 | **Hydra** | sits on an island; left turret fires gatling bursts, right turret rockets, centre turret a laser beam down the screen | a ship is provided; destroy the turrets one by one, then the exposed core |
+| 40 | **Phantom** | nearly invisible, shows itself only when firing; teleports and leaves decoys (more when angry, and then they fire) | decoys pop in one hit; only the real Phantom leaves tracks on the ice |
+| 50 | **Dreadnought** | huge fortress tank; phase 1 cannons that break steel and a hatch that releases armor tanks; phase 2 mine lines and spread volleys; phase 3 crawls toward the eagle and fires laser beams at you | dig through its steel with star-3 or rocket shells; stay mobile in phase 3 |
+
+Settings → BOSSES: boss rounds on/off, boss every 5–30 stages, boss HP 25%–300%.
 
 ## Save and load
 
@@ -120,7 +142,8 @@ in the browser, and **RESET TO DEFAULTS** restores the classic game.
 | Power-ups | helmet time (10 s), clock time (10 s), shovel time (20 s), new power-up time (15 s), mines per pickup (3) |
 | Who can collect | for each of the 16 power-ups: **ANYONE** (you and enemies, default), **PLAYER** (only you) or **OFF** (never appears). Presets: *classic power-ups only* and *all power-ups on*. The selected power-up's icon and effect are shown at the bottom of the screen. |
 | Shop | shop after stages (on), shop prices (100%) |
-| Screen | field width (13), field height (13), FIT, scaling (sharp / fill), *fit to my screen*, toggle fullscreen |
+| Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
+| Screen | field width (13), field height (13), FIT, scaling (sharp / fill), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
 | Game | game speed (100%), volume (100%), engine sound (on) |
 
 ## Code layout
@@ -135,6 +158,7 @@ js/config.js      settings: definitions, defaults, saving, tank color presets
 js/audio.js       NES-style Web Audio synth (SFX, jingles, engine)
 js/input.js       keyboard / gamepad / touch
 js/stage.js       gameplay: terrain, movement, AI, bullets, power-ups, rendering
+js/bosses.js      boss rounds: the 5 bosses, their arenas, sprites and behaviour
 js/main.js        state machine (title, settings, curtain, play, score, game over, construction) + loop
 js/version.js     app name and version (single source of truth)
 tools/build.js    bundles everything into dist/tanb4iki_v<version>.html

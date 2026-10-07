@@ -162,6 +162,7 @@ class Stage {
     this.spawns = [];
     this.powerup = null;
     this.mines = [];
+    this.bosses = []; this.beams = []; this.tracks = []; this.dust = [];
     this.lastBrickSound = -1;
     this.queue = buildQueue(num);
     this.total = this.queue.length;
@@ -191,6 +192,7 @@ class Stage {
         this.setBaseWalls(T_STEEL);
       }
     }
+    if (opts.boss) this.initBoss(opts.boss);
     if (opts.snapshot) this.restore(opts.snapshot);
   }
 
@@ -215,6 +217,10 @@ class Stage {
         return o;
       }),
       kills: this.players.map(p => p.kills.slice()),
+      boss: this.bossIdx === undefined ? null : {
+        idx: this.bossIdx, loop: this.bossLoop, dropAt: this.bossDropAt, defeated: !!this.bossDefeated,
+        bosses: this.bosses.map(b => Object.assign({}, b, { bullets: 0 })),
+      },
     };
   }
 
@@ -233,6 +239,14 @@ class Stage {
     // players who were waiting to respawn come back at their spawn point
     for (const p of this.players) if (!p.out && !p.tank) this.spawnPlayer(p, 0);
     this.mines = sn.mines.map(m => Object.assign({}, m, { owner: m.byPlayer && this.players[m.pi] ? { isPlayer: true, player: this.players[m.pi] } : null }));
+    if (sn.boss) {
+      this.bossIdx = sn.boss.idx;
+      this.bossLoop = sn.boss.loop;
+      this.bossDropAt = sn.boss.dropAt;
+      this.bossDefeated = sn.boss.defeated;
+      this.bossBanner = 0;
+      this.bosses = sn.boss.bosses.map(o => new Boss(o));
+    }
   }
 
   // ------------------------------------------------------------ terrain
@@ -289,8 +303,14 @@ class Stage {
     if (this.spawnTimer > 0) { this.spawnTimer--; return; }
     const onField = this.tanks.filter(t => !t.isPlayer).length + this.spawns.filter(s => s.enemy).length;
     if (onField >= this.maxEnemies) return;
+    // pick the next entry point that no boss is sitting on
+    let x = -1;
+    for (let k = 0; k < ENEMY_SPAWN_X.length && x < 0; k++) {
+      const cand = ENEMY_SPAWN_X[this.spawnPos++ % ENEMY_SPAWN_X.length];
+      if (!this.bossBlocksSpawn(cand)) x = cand;
+    }
+    if (x < 0) return;
     const item = this.queue.shift();
-    const x = ENEMY_SPAWN_X[this.spawnPos++ % ENEMY_SPAWN_X.length];
     this.spawns.push({ x, y: 0, t: SPARKLE_TIME, enemy: item });
     if (item.bonus) this.powerup = null;
     this.spawnTimer = this.spawnInterval;
@@ -301,7 +321,7 @@ class Stage {
       s.t--;
       if (s.t > 0) continue;
       if (s.enemy) {
-        if (this.tanks.some(t => overlap(t.x, t.y, 16, 16, s.x, s.y, 16, 16))) { s.t = 1; continue; }
+        if (this.tanks.some(t => overlap(t.x, t.y, 16, 16, s.x, s.y, 16, 16)) || this.bossBlocksTank({ x: -99, y: -99 }, s.x, s.y)) { s.t = 1; continue; }
         const st = Config.enemy(s.enemy.type);
         this.tanks.push(new Tank({
           x: s.x, y: s.y, dir: 2, type: s.enemy.type, hp: st.hp, bonus: s.enemy.bonus,
@@ -338,13 +358,14 @@ class Stage {
       for (const k in t.boost) if (--t.boost[k] <= 0) delete t.boost[k];
       if (t.isPlayer) this.updatePlayer(t); else this.updateEnemy(t);
     }
+    this.updateBosses();
     this.updateBullets();
     this.updateMines();
     this.tanks = this.tanks.filter(t => t.alive);
     this.checkPickups();
     if (this.powerup) this.powerup.t++;
     for (const f of this.fx) f.tick++;
-    this.fx = this.fx.filter(f => f.tick < f.frames.length * f.per);
+    this.fx = this.fx.filter(f => f.tick < f.frames.length * f.per); // negative tick = delayed
     for (const p of this.popups) p.t++;
     this.popups = this.popups.filter(p => p.t < p.delay + 48);
 
@@ -356,7 +377,7 @@ class Stage {
     if (this.over) {
       this.overTimer++;
       if (this.overTimer >= 320) this.result = 'gameover';
-    } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer)) {
+    } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer) && !this.bossAlive()) {
       this.clearTimer++;
       if (this.clearTimer >= 190) this.result = 'clear';
     }
@@ -505,6 +526,7 @@ class Stage {
       }
     }
     if (overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
+    if (this.bosses.length && this.bossBlocksTank(t, nx, ny)) return false;
     for (const o of this.tanks) {
       if (o === t || !o.alive) continue;
       if (overlap(nx, ny, 16, 16, o.x, o.y, 16, 16) && !overlap(t.x, t.y, 16, 16, o.x, o.y, 16, 16)) return false;
@@ -555,11 +577,11 @@ class Stage {
     this.bullets = bs.filter(b => b.alive);
   }
 
-  killBullet(b, fx, exclude) {
+  killBullet(b, fx, exclude, excludeBoss) {
     if (!b.alive) return;
     b.alive = false;
     if (!b.free) b.owner.bullets = Math.max(0, b.owner.bullets - 1);
-    if (fx && b.rocket) this.blast(b.x + 2, b.y + 2, ROCKET_RADIUS, b.isPlayer, b.owner, b.power, exclude);
+    if (fx && b.rocket) this.blast(b.x + 2, b.y + 2, ROCKET_RADIUS, b.isPlayer, b.owner, b.power, exclude, excludeBoss);
     else if (fx) this.addFx(b.x + 2, b.y + 2, Sprites.smallExp, 3);
   }
 
@@ -574,6 +596,7 @@ class Stage {
       return;
     }
     if (this.bulletTerrain(b)) return;
+    if (this.bosses.length && this.bossShell(b) === 'stop') return;
     if (overlap(b.x, b.y, 4, 4, BASE_X, BASE_Y, 16, 16)) {
       this.killBullet(b, true);
       if (this.baseAlive) this.destroyBase();
@@ -670,7 +693,7 @@ class Stage {
 
   // ------------------------------------------------------------ blasts and mines
   // explosion that breaks bricks (steel with power) and damages the other side's tanks
-  blast(cx, cy, r, byPlayer, owner, power, exclude) {
+  blast(cx, cy, r, byPlayer, owner, power, exclude, excludeBoss) {
     for (let y = Math.floor((cy - r) / 4); y <= Math.floor((cy + r) / 4); y++) {
       for (let x = Math.floor((cx - r) / 4); x <= Math.floor((cx + r) / 4); x++) {
         if (Math.hypot(x * 4 + 2 - cx, y * 4 + 2 - cy) > r) continue;
@@ -686,6 +709,11 @@ class Stage {
       else if (!byPlayer && t.isPlayer) this.hitPlayer(t);
     }
     if (!byPlayer && this.baseAlive && reaches(BASE_X, BASE_Y, 16, 16)) this.destroyBase();
+    if (byPlayer) {
+      for (const bo of this.bosses.slice()) {
+        if (bo !== excludeBoss && this.bossTangible(bo) && reaches(bo.x, bo.y, bo.w, bo.h)) this.bossHit(bo, 2, owner, cx);
+      }
+    }
     this.addFx(cx, cy, Sprites.bigExp, 5);
     Sound.play('explode');
   }
@@ -837,6 +865,12 @@ class Stage {
           break;
         case PU.GRENADE:
           enemies.forEach(e => this.killEnemy(e, null, false, true));
+          // bosses take a heavy hit instead (decoys pop)
+          for (const bo of this.bosses.slice()) {
+            if (!this.bossTangible(bo)) continue;
+            const live = bo.turrets ? bo.turrets.findIndex(tu => tu.hp > 0) : -1;
+            this.bossHit(bo, 5, t, bo.x + (live >= 0 ? live * 16 + 8 : 24));
+          }
           if (enemies.length) Sound.play('explode');
           break;
         case PU.TANK: p.lives++; snd = 'life'; break;
@@ -937,7 +971,9 @@ class Stage {
     ctx.drawImage(this.baseAlive ? Sprites.eagle : Sprites.eagleDead, BASE_X, BASE_Y);
 
     for (const m of this.mines) ctx.drawImage(Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0], m.x - 4, m.y - 4);
+    this.renderBossUnder(ctx);
     for (const t of this.tanks) this.drawTank(ctx, t);
+    this.renderBosses(ctx);
     for (const s of this.spawns) {
       if (s.t > SPARKLE_TIME) continue;
       const k = Math.floor((SPARKLE_TIME - s.t) / 4) % 6;
@@ -948,12 +984,14 @@ class Stage {
       ctx.drawImage(spr[b.dir], Math.round(b.x), Math.round(b.y));
     }
 
+    this.renderBeams(ctx);
     ctx.drawImage(this.forestLayer, 0, 0);
 
     if (this.powerup && ((this.powerup.t >> 3) & 1) === 0) {
       ctx.drawImage(Sprites.powerups[this.powerup.type], this.powerup.x, this.powerup.y);
     }
     for (const f of this.fx) {
+      if (f.tick < 0) continue;
       const fr = f.frames[Math.min(f.frames.length - 1, Math.floor(f.tick / f.per))];
       ctx.drawImage(fr, Math.round(f.x - fr.width / 2), Math.round(f.y - fr.height / 2));
     }
@@ -972,15 +1010,17 @@ class Stage {
       Font.draw(ctx, 'GAME', FW / 2 - 15, y, COL.red);
       Font.draw(ctx, 'OVER', FW / 2 - 15, y + 9, COL.red);
     }
+    this.renderBossBanner(ctx);
     ctx.restore();
     this.renderHud(ctx);
   }
 
   renderHud(ctx) {
-    const H = HUD_X, n = Math.min(20, this.queue.length);
+    const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
+    if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);
     // more than 20 waiting: show how many in total
-    if (this.queue.length > 20) Font.drawCenter(ctx, String(this.queue.length), H + 8, 106, COL.black);
+    if (n && this.queue.length > 20) Font.drawCenter(ctx, String(this.queue.length), H + 8, 106, COL.black);
     Font.draw(ctx, 'IP', H, 136, COL.black);
     ctx.drawImage(Sprites.lifeIcon, H, 144);
     const lives = p => (Config.infiniteLives() ? '~' : String(Math.min(99, p.lives)));

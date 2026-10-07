@@ -27,7 +27,29 @@ const KEYS = {
   alt: ['KeyB', 'KeyC', 'TFire2'],
 };
 
-const PREVENT = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Enter', 'Tab', 'Slash', 'Backspace']);
+// Mac keyboards (MacBook) have no right Ctrl or numpad: player 2 fires with right Option / right Shift / , . /
+// and drops mines with ; ' L. Cmd combos are left alone because the browser uses them.
+const KEYS_MAC = Object.assign({}, KEYS, {
+  p2: {
+    0: ['ArrowUp'], 1: ['ArrowRight'], 2: ['ArrowDown'], 3: ['ArrowLeft'],
+    fire: ['AltRight', 'ShiftRight', 'Slash', 'Period', 'Comma'],
+    alt: ['Semicolon', 'Quote', 'KeyL'],
+  },
+});
+
+const IS_MAC = /Mac|iPhone|iPad|iPod/.test([navigator.userAgentData && navigator.userAgentData.platform, navigator.platform, navigator.userAgent].join(' '));
+
+// help line under the game, per control scheme
+const HELP = {
+  PC: '<b>1P</b> Arrows/WASD move · Space/Z/J fire · B/C/Left Shift mines &nbsp;|&nbsp; '
+    + '<b>2P</b> P1 WASD + Space/F, mines C/B · P2 Arrows + Right Ctrl/Numpad0/L, mines Numpad1/K/; &nbsp;|&nbsp; '
+    + '<b>Enter</b> pause · <b>M</b> mute · <b>double-click</b> fullscreen · gamepads supported',
+  MAC: '<b>1P</b> ←↑↓→ or WASD move · Space/Z/J fire · B/C/⇧ mines &nbsp;|&nbsp; '
+    + '<b>2P</b> P1 WASD + Space/F, mines C/B · P2 ←↑↓→ + right ⌥ option / right ⇧ / slash fire, mines ; or \' &nbsp;|&nbsp; '
+    + '<b>return</b> pause · <b>M</b> mute · <b>double-click</b> or ⌃⌘F fullscreen · <b>fn+delete</b> clears a map in Construction',
+};
+
+const PREVENT = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Enter', 'Tab', 'Slash', 'Backspace', 'AltRight', 'AltLeft', 'Quote']);
 
 const Input = {
   down: new Set(),
@@ -61,6 +83,17 @@ const Input = {
   release(code) { this.down.delete(code); },
 
   endFrame() { this.just.clear(); },
+
+  // active control scheme: PC or MAC (AUTO picks MAC on Apple devices)
+  scheme() {
+    const v = typeof Config !== 'undefined' ? Config.get('controls') : 'AUTO';
+    return v === 'AUTO' || !v ? (IS_MAC ? 'MAC' : 'PC') : v;
+  },
+  keys() { return this.scheme() === 'MAC' ? KEYS_MAC : KEYS; },
+  updateHelp() {
+    const el = document.getElementById('help');
+    if (el) el.innerHTML = HELP[this.scheme()];
+  },
 
   anyJust(codes) { return codes.some(c => this.just.has(c)); },
   anyDown(codes) { return codes.some(c => this.down.has(c)); },
@@ -105,7 +138,8 @@ const Input = {
 
   // ---------------------------------------------------------- per-player state
   player(i) {
-    const map = this.twoP ? (i === 0 ? KEYS.p1 : KEYS.p2) : KEYS.solo;
+    const K = this.keys();
+    const map = this.twoP ? (i === 0 ? K.p1 : K.p2) : K.solo;
     let best = -1, bestStamp = -1;
     for (const d of [0, 1, 2, 3]) {
       for (const code of map[d]) {
@@ -132,7 +166,7 @@ const Input = {
       right: this.anyJust(all[1]),
       down: this.anyJust(all[2]),
       left: this.anyJust(all[3]),
-      fire: this.anyJust(all.fire) || this.anyJust(KEYS.p2.fire) || this.anyJust(['TFire2']),
+      fire: this.anyJust(all.fire) || this.anyJust(this.keys().p2.fire) || this.anyJust(['TFire2']),
       alt: this.anyJust(KEYS.alt),
       start: this.anyJust(KEYS.start),
       back: this.anyJust(KEYS.back),
@@ -152,7 +186,7 @@ const Input = {
   heldDir() {
     let best = -1, bestStamp = -1;
     for (const d of [0, 1, 2, 3]) {
-      for (const code of KEYS.solo[d].concat(KEYS.p2[d])) {
+      for (const code of KEYS.solo[d].concat(this.keys().p2[d])) {
         if (this.down.has(code) && this.stamp[code] > bestStamp) { best = d; bestStamp = this.stamp[code]; }
       }
       for (const p of this.pads) if (p[d] && p['stamp' + d] > bestStamp) { best = d; bestStamp = p['stamp' + d]; }

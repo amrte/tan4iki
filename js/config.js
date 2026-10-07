@@ -104,6 +104,11 @@ const SETTINGS_DEF = [
   { action: 'classicPU', label: 'CLASSIC POWER-UPS ONLY' },
   { action: 'allPU', label: 'ALL POWER-UPS ON' },
 
+  { section: 'BOSSES' },
+  { key: 'bossRounds', label: 'BOSS ROUNDS', values: ONOFF, def: 'ON' },
+  { key: 'bossEvery', label: 'BOSS EVERY', values: [5, 10, 15, 20, 25, 30], def: 10, fmt: v => v + ' ST' },
+  { key: 'bossHp', label: 'BOSS HP', values: PCTS, def: 100, fmt: fmtPct },
+
   { section: 'SHOP' },
   { key: 'shop', label: 'SHOP AFTER STAGES', values: ONOFF, def: 'ON' },
   { key: 'shopPrices', label: 'SHOP PRICES', values: PCTS, def: 100, fmt: fmtPct },
@@ -113,6 +118,7 @@ const SETTINGS_DEF = [
   { key: 'fieldW', label: 'FIELD WIDTH', values: range(13, 60).concat(['FIT']), def: 13 },
   { key: 'fieldH', label: 'FIELD HEIGHT', values: range(13, 40).concat(['FIT']), def: 13 },
   { key: 'scaling', label: 'SCALING', values: ['SHARP', 'FILL'], def: 'SHARP' },
+  { key: 'controls', label: 'CONTROLS', values: ['AUTO', 'PC', 'MAC'], def: 'AUTO' },
   { action: 'fitScreen', label: 'FIT TO MY SCREEN' },
   { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
@@ -181,6 +187,7 @@ const Config = {
     for (const name in TANK_COLORS) PALS['c_' + name] = [null].concat(TANK_COLORS[name]);
     if (typeof Sound !== 'undefined') Sound.applyVolume();
     if (typeof Game !== 'undefined' && Game.onResize) Game.onResize();
+    if (typeof Input !== 'undefined' && Input.updateHelp) Input.updateHelp();
   },
 
   // ---- helpers used by the game rules

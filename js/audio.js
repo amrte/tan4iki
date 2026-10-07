@@ -177,6 +177,29 @@ const Sound = {
       case 'skid': // sliding on ice
         this.noise(16000, t, [[0, 0.1], [0.2, 0.06], [0.24, 0]]);
         break;
+      case 'bossWarn': // siren
+        for (let i = 0; i < 3; i++) {
+          this.note(81, t + i * 0.24, 0.12, { vol: 0.15, flat: true, wave: 'p25' });
+          this.note(76, t + i * 0.24 + 0.12, 0.12, { vol: 0.15, flat: true, wave: 'p25' });
+        }
+        break;
+      case 'charge':
+        this.noise(700, t, [[0, 0.35], [0.12, 0]]);
+        break;
+      case 'laser':
+        this.note(2200, t, 0.35, { vol: 0.12, slideTo: 300, flat: true, wave: 'p12' });
+        this.noise(12000, t, [[0, 0.2], [0.35, 0]]);
+        break;
+      case 'burrow':
+        this.noise(500, t, [[0, 0.45], [0.4, 0.3], [0.55, 0]], 300);
+        break;
+      case 'teleport':
+        this.seq([72, 79, 84, 91, 96], 0.035, t, { vol: 0.12, decayTo: 0.4, wave: 'p25' });
+        break;
+      case 'bossDie':
+        this.noise(2000, t, [[0, 0.7], [0.5, 0.6], [1.6, 0]], 120);
+        this.seq([72, 67, 64, 60, 55, 48], 0.12, t + 0.2, { vol: 0.15, decayTo: 0.5 });
+        break;
       case 'select':
         this.noise(13000, t, [[0, 0.35], [0.03, 0]]);
         break;

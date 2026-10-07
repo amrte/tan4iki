@@ -60,7 +60,8 @@ const SHOP_ITEMS = [
 const SHOP_ROWS = 9, SHOP_TOP = 40, SHOP_ROW_H = 16;
 
 function shopPrice(item) {
-  return Math.round((item.price * Config.scale('shopPrices')) / 100) * 100;
+  const discount = Game.shopDiscount ? 0.75 : 1;
+  return Math.round((item.price * Config.scale('shopPrices') * discount) / 100) * 100;
 }
 
 // what the player already has; `max` means it can't be bought again
@@ -285,7 +286,9 @@ const Game = {
       const cx = SCREEN_W / 2, cy = SCREEN_H / 2;
       Font.draw(ctx, 'STAGE', cx - 32, cy - 8, COL.black);
       Font.drawRight(ctx, this.stageNum, cx + 32, cy - 8, COL.black);
-      if (c.selectable && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + 12, '#3C3C3C');
+      const boss = bossForStage(this.stageNum);
+      if (boss) Font.drawCenter(ctx, 'BOSS: ' + BOSSES[boss.idx].name, cx, cy + 10, '#A00000');
+      if (c.selectable && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + (boss ? 24 : 12), '#3C3C3C');
     }
   },
 
@@ -293,7 +296,9 @@ const Game = {
     let map, custom = false;
     if (this.customPending) { map = this.custom; custom = true; this.customPending = false; }
     else map = LEVELS[(this.stageNum - 1) % LEVELS.length];
-    this.stage = new Stage(this.stageNum, map, this.players, { custom });
+    const boss = custom ? null : bossForStage(this.stageNum);
+    if (boss) map = BOSS_ARENAS[boss.idx];
+    this.stage = new Stage(this.stageNum, map, this.players, { custom, boss });
     this.paused = false;
     this.openH = SCREEN_H / 2;
     this.setState('play');
@@ -323,6 +328,8 @@ const Game = {
     }
     this.stage.update();
     if (this.stage.result) {
+      // beating a boss earns 25% off in the next shop
+      this.shopDiscount = this.stage.result === 'clear' && this.stage.bossIdx !== undefined;
       this.saveHi();
       this.toScore(this.stage.result === 'gameover');
     }
@@ -612,6 +619,7 @@ const Game = {
     sh.turn++;
     sh.idx = 0; sh.scroll = 0; sh.msgT = 0;
     if (sh.turn >= sh.order.length) {
+      this.shopDiscount = false;
       this.lastScores = this.players.map(p => p.score);
       this.toCurtain(false);
     } else Sound.play('select');
@@ -635,7 +643,7 @@ const Game = {
     const sh = this.shop, p = sh.order[sh.turn];
     ctx.fillStyle = COL.black;
     ctx.fillRect(0, 0, SW, SH);
-    Font.drawCenter(ctx, 'SHOP', SW / 2, 6, COL.red);
+    Font.drawCenter(ctx, this.shopDiscount ? 'SHOP  BOSS BONUS -25%' : 'SHOP', SW / 2, 6, COL.red);
     ctx.drawImage(Sprites.tank('p' + p.level, (this.t >> 3) & 1, 1, Config.playerPal(p.i)), 6, 15);
     Font.draw(ctx, p.i === 0 ? 'I-PLAYER' : 'II-PLAYER', 26, 20, COL.red);
     Font.drawRight(ctx, p.score, 214, 20, COL.gold);
@@ -907,6 +915,7 @@ function toggleFullscreen() {
   Sprites.init();
   Config.init();
   Input.init();
+  Input.updateHelp();
   Game.init();
 
   const toScreen = e => {
