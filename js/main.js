@@ -38,7 +38,7 @@ function defaultCustomMap() {
 
 const TITLE_MENU_Y = 126;
 const ROMAN = ['I', 'II', 'III', 'IV'];
-const PAUSE_MENU = ['CONTINUE', 'SAVE GAME', 'QUIT'];
+const pauseMenu = () => (Net.role === 'host' ? ['CONTINUE', 'SAVE GAME', 'ONLINE PLAYERS', 'QUIT'] : ['CONTINUE', 'SAVE GAME', 'QUIT']);
 const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
 
 // Between-stage shop: score buys upgrades. price is in points at 100% "SHOP PRICES".
@@ -158,6 +158,8 @@ const Game = {
     m.push({ label: '1 PLAYER', act: () => this.newGame(1, false) });
     // left/right picks 2, 3 or 4 players
     m.push({ label: this.multiN + ' PLAYERS', act: () => this.newGame(this.multiN, false), adjust: d => { this.multiN = (this.multiN - 2 + d + 3) % 3 + 2; } });
+    // left/right switches between hosting and joining an online game
+    m.push({ label: this.onlineJoin ? 'ONLINE: JOIN' : 'ONLINE: HOST', act: () => this.openOnline(), adjust: () => { this.onlineJoin = !this.onlineJoin; } });
     m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
     m.push({ label: 'SETTINGS', act: () => this.toSettings() });
     return m;
@@ -198,21 +200,39 @@ const Game = {
     }
     const pat = Sprites.bricks(ctx);
     Font.big(ctx, GAME_NAME, (SW - Font.bigWidth(GAME_NAME, 4)) >> 1, 58, 4, pat);
-    const menu = this.titleMenu(), top = this.titleMenuY();
+    const menu = this.titleMenu(), top = this.titleMenuY(), step = this.titleStep();
     menu.forEach((it, i) => {
-      Font.draw(ctx, it.label, 88, top + i * 14, COL.white);
-      if (it.adjust && i === this.menuIdx) Font.draw(ctx, '<>', 88 + it.label.length * 8 + 6, top + i * 14, COL.lgrey);
+      Font.draw(ctx, it.label, 88, top + i * step, COL.white);
+      if (it.adjust && i === this.menuIdx) Font.draw(ctx, '<>', 88 + it.label.length * 8 + 6, top + i * step, COL.lgrey);
     });
     if (this.titleY === 0) {
       const anim = (this.t >> 2) & 1;
-      ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, top - 4 + this.menuIdx * 14);
+      ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, top - 4 + this.menuIdx * step);
     }
     Font.drawCenter(ctx, APP_TITLE, SW / 2, 192, COL.lgrey);
     Font.drawCenter(ctx, 'ENTER START  M MUTE', SW / 2, 206, COL.lgrey);
     ctx.restore();
   },
 
-  titleMenuY() { return TITLE_MENU_Y - (this.titleMenu().length - 4) * 7; },
+  openOnline() {
+    if (this.onlineJoin) Net.openPanel('join');
+    else { Net.startHosting(); Net.openPanel('lobby'); }
+  },
+
+  // a guest waiting for the host to start
+  renderNetWait(ctx) {
+    ctx.fillStyle = COL.black;
+    ctx.fillRect(0, 0, SW, SH);
+    Font.drawCenter(ctx, 'ONLINE GAME', SW / 2, 60, COL.red);
+    ctx.drawImage(Sprites.tank('p0', (this.t >> 3) & 1, 0, Config.playerPal(Net.slot)), SW / 2 - 8, 82);
+    Font.drawCenter(ctx, 'YOU ARE ' + ROMAN[Net.slot] + '-PLAYER', SW / 2, 110, COL.white);
+    Font.drawCenter(ctx, 'WAITING FOR THE HOST', SW / 2, 130, (this.t >> 4) & 1 ? COL.gold : COL.lgrey);
+    Font.drawCenter(ctx, 'ESC LEAVE', SW / 2, 200, COL.lgrey);
+  },
+
+  // tighter spacing when the menu gets long, so it never reaches the version line
+  titleStep() { return this.titleMenu().length > 6 ? 12 : 14; },
+  titleMenuY() { return TITLE_MENU_Y - (this.titleMenu().length - 4) * this.titleStep() / 2; },
 
   // ---------------------------------------------------------------- save / load
   // One save slot: written by SAVE GAME in the pause menu and automatically at every stage start.
@@ -229,6 +249,8 @@ const Game = {
   loadGame() {
     const s = STORE.get(SAVE_KEY, null);
     if (!s || !s.stage) return;
+    if (Net.role === 'host') Net.hangUp();
+    Input.remote = {};
     const n = s.numPlayers || (s.twoP ? 2 : 1);
     this.twoP = n > 1;
     Input.numPlayers = n;
@@ -248,8 +270,9 @@ const Game = {
   },
 
   // ---------------------------------------------------------------- new game / curtain
-  // n = number of players (1-4)
-  newGame(n, custom) {
+  // n = number of players (1-4); online: started from the online lobby
+  newGame(n, custom, online) {
+    if (!online) { if (Net.role === 'host') Net.hangUp(); Input.remote = {}; }
     this.applyLayout();
     n = Math.max(1, Math.min(4, +n || 1));
     this.twoP = n > 1;
@@ -323,7 +346,8 @@ const Game = {
     if (this.pauseMsgT > 0) this.pauseMsgT--;
     if (this.openH > 0) this.openH = Math.max(0, this.openH - 8);
     if (!this.paused) {
-      if ((m.start || m.back) && !this.stage.over) {
+      const guestPause = Object.values(Input.remote).some(r => r.menu && r.menu.start);
+      if ((m.start || m.back || guestPause) && !this.stage.over) {
         this.paused = true;
         this.pauseIdx = 0;
         Sound.play('pause');
@@ -331,10 +355,11 @@ const Game = {
       }
     } else {
       // pause menu: continue / save / quit (P or Esc resumes)
-      if (m.up) { this.pauseIdx = (this.pauseIdx + PAUSE_MENU.length - 1) % PAUSE_MENU.length; Sound.play('select'); }
-      if (m.down) { this.pauseIdx = (this.pauseIdx + 1) % PAUSE_MENU.length; Sound.play('select'); }
+      const PM = pauseMenu();
+      if (m.up) { this.pauseIdx = (this.pauseIdx + PM.length - 1) % PM.length; Sound.play('select'); }
+      if (m.down) { this.pauseIdx = (this.pauseIdx + 1) % PM.length; Sound.play('select'); }
       if (Input.anyJust(['KeyP', 'Escape'])) this.paused = false;
-      else if (m.ok) this.pauseAction(PAUSE_MENU[this.pauseIdx]);
+      else if (m.ok) this.pauseAction(PM[this.pauseIdx]);
       return;
     }
     this.stage.update();
@@ -353,7 +378,10 @@ const Game = {
       this.pauseMsg = ok ? 'GAME SAVED' : 'SAVE FAILED';
       this.pauseMsgT = 120;
       Sound.play(ok ? 'pickup' : 'steel');
+    } else if (action === 'ONLINE PLAYERS') {
+      Net.openPanel('ingame');
     } else if (action === 'QUIT') {
+      if (Net.role === 'host') Net.hangUp();
       this.saveHi();
       this.lastScores = this.players.map(p => p.score);
       this.stage = null;
@@ -370,7 +398,7 @@ const Game = {
       ctx.fillStyle = COL.lgrey;
       ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + h - 1, w, 1); ctx.fillRect(x, y, 1, h); ctx.fillRect(x + w - 1, y, 1, h);
       Font.drawCenter(ctx, 'PAUSE', x + w / 2, y + 6, COL.orange);
-      PAUSE_MENU.forEach((label, i) => {
+      pauseMenu().forEach((label, i) => {
         Font.draw(ctx, label, x + 24, y + 22 + i * 12, COL.white);
         if (i === this.pauseIdx) Font.draw(ctx, '>', x + 12, y + 22 + i * 12, COL.gold);
       });
@@ -666,7 +694,11 @@ const Game = {
   },
 
   updateShop() {
-    const m = Input.menu(), sh = this.shop;
+    const sh = this.shop, cur = sh.order[sh.turn];
+    // an online guest picks their own items; the host can skip their turn with Esc
+    const guest = Input.remote[cur.i];
+    if (guest && Input.anyJust(['Escape'])) { this.shopNext(); return; }
+    const m = guest ? Object.assign({}, guest.menu || {}) : Input.menu();
     if (sh.msgT > 0) sh.msgT--;
     let d = 0;
     if (m.up) { d = -1; sh.rep = 16; } else if (m.down) { d = 1; sh.rep = 16; }
@@ -973,7 +1005,7 @@ const Game = {
       return;
     }
     if (this.state === 'title' && this.titleY === 0) {
-      const i = Math.floor((y - this.titleMenuY() + 4) / 14);
+      const i = Math.floor((y - this.titleMenuY() + 4) / this.titleStep());
       if (i >= 0 && i < this.titleMenu().length && x > 56 && x < 200) {
         if (i === this.menuIdx) this.chooseMenu(i);
         else { this.menuIdx = i; Sound.play('select'); }
@@ -998,6 +1030,7 @@ const Game = {
 
   // ---------------------------------------------------------------- dispatch
   update() {
+    if (Net.role === 'client') { this.t++; Net.clientUpdate(); return; }
     this.t++;
     switch (this.state) {
       case 'title': this.updateTitle(); break;
@@ -1051,6 +1084,7 @@ const Game = {
       case 'settings': this.renderSettings(ctx); break;
       case 'shop': this.renderShop(ctx); break;
       case 'keys': this.renderKeys(ctx); break;
+      case 'netwait': this.renderNetWait(ctx); break;
     }
   },
 };
@@ -1139,7 +1173,8 @@ function toggleFullscreen() {
     const STEP = BASE_STEP / Config.scale('gameSpeed');
     while (acc >= STEP) {
       Input.poll();
-      Game.update();
+      if (!Net.panelOpen || Net.role === 'host') Game.update();
+      Net.hostTick();
       Input.endFrame();
       acc -= STEP;
     }

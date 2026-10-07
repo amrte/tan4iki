@@ -168,11 +168,17 @@ const Input = {
   stamp: {},
   seq: 0,
   numPlayers: 1,
+  remote: {},       // host of an online game: player index -> that guest's buttons
   pads: [],
   padPrev: [],
 
   init() {
     window.addEventListener('keydown', e => {
+      // the online panel needs normal typing and pasting
+      if (typeof Net !== 'undefined' && Net.panelOpen) {
+        if (e.code === 'Escape') Net.closePanel();
+        return;
+      }
       if (PREVENT.has(e.code)) e.preventDefault();
       Sound.unlock();
       // waiting for a new key on the key setup screen
@@ -278,17 +284,31 @@ const Input = {
       return st;
     });
     this.padPrev = this.pads;
+    // online guests: turn their press counters into this frame's edges
+    for (const k in this.remote) {
+      const r = this.remote[k];
+      const edge = name => { const v = r[name] || 0, seen = r['_' + name]; r['_' + name] = v; return seen !== undefined && v !== seen; };
+      r.firePressed = edge('fp');
+      r.altPressed = edge('ap');
+      r.menu = { up: edge('cu'), down: edge('cd'), left: edge('cl'), right: edge('cr'), ok: edge('ok'), back: edge('bk'), start: edge('stt') };
+    }
   },
 
+  // players at this computer (not online guests)
+  localCount() { return this.numPlayers - Object.keys(this.remote).length; },
+
   padsFor(i) {
-    if (this.numPlayers <= 1) return this.pads;
+    if (this.numPlayers <= 1 || this.localCount() === 1) return this.pads;
     return this.pads[i] ? [this.pads[i]] : [];
   },
 
   // ---------------------------------------------------------- per-player state
   player(i) {
     const K = this.keys();
-    const n = this.numPlayers;
+    const r = this.remote[i];
+    if (r) return { dir: r.d === undefined ? -1 : r.d, fire: !!r.f, firePressed: !!r.firePressed, alt: !!r.a, altPressed: !!r.altPressed };
+    // a single player at this computer gets the full one-player layout
+    const n = this.localCount() === 1 ? 1 : this.numPlayers;
     const map = Keymap.inputMap(i) || (n >= 3 ? KEYS_MULTI[i] : n === 2 ? (i === 0 ? K.p1 : K.p2) : K.solo);
     let best = -1, bestStamp = -1;
     for (const d of [0, 1, 2, 3]) {

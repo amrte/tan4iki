@@ -3,6 +3,15 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.6
+
+- **Online play** (peer-to-peer, no game server): title → ONLINE: HOST / JOIN. The host builds the line-up
+  (online friends and players on the host's keyboard, up to 4) and swaps a pair of copy-paste codes with each friend.
+  The host runs the game; guests send their buttons and see the host's game redrawn about 30 times a second,
+  with its sounds. Guests pick their own items in the shop; a dropped guest's tank waits and can rejoin from the
+  pause menu (ONLINE PLAYERS). Codes carry the game version. Works in the downloaded file or a hosted copy,
+  not on the claude.ai link.
+
 ## 0.5
 
 - **Up to 4 players:** the title's player row picks 2, 3 or 4 with left/right. Players III and IV spawn in the

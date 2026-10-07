@@ -1,6 +1,6 @@
 # TANЬ4IKI (tanb4iki) — Tank 1990 browser replica
 
-**Current version: 0.5** (see [CHANGELOG.md](CHANGELOG.md)). The title screen shows the name **TANЬ4IKI** and the version as `tanb4iki_v0.5`.
+**Current version: 0.6** (see [CHANGELOG.md](CHANGELOG.md)). The title screen shows the name **TANЬ4IKI** and the version as `tanb4iki_v0.6`.
 
 A from-scratch browser remake of **Tank 1990**, the NES/Famicom variant of Battle City.
 It's plain HTML5 Canvas and JavaScript with no dependencies and no build step. Sprites are
@@ -12,7 +12,7 @@ stored as 16×16 palette bitmaps in code, matching the NES originals. Sound come
 Open `index.html` in any modern browser. Double-clicking the file works too, because no server is needed.
 You can also serve the folder (`python3 -m http.server`) or publish it with GitHub Pages.
 
-**Single-file download:** [`dist/tanb4iki_v0.5.html`](dist/tanb4iki_v0.5.html) is the whole game in one HTML file,
+**Single-file download:** [`dist/tanb4iki_v0.6.html`](dist/tanb4iki_v0.6.html) is the whole game in one HTML file,
 which you can save anywhere and open offline. To regenerate it after changing the code, run `node tools/build.js`;
 the file is named after the version in `js/version.js`.
 
@@ -72,6 +72,28 @@ fire buttons appear on screen.
 - **Construction mode:** move the cursor and press **A** (fire) to place or cycle 14 tile patterns, or **B** to cycle backwards.
   Press **Delete** to clear the map and **Enter** to play your map. Custom maps are saved in the browser.
 - Chiptune sound effects and engine hum, made with Web Audio.
+
+## Online play
+
+Play with friends over the internet, peer-to-peer: the game data goes directly between your computers, with no
+game server. Everyone needs the **same version** of the game file (send them `tanb4iki_v0.6.html`).
+It works in the downloaded file or a hosted copy (e.g. GitHub Pages) in Chrome, Safari, Firefox or Edge;
+the claude.ai preview link blocks these connections.
+
+1. **Host:** title screen → **ONLINE: HOST** (left/right on that row switches HOST / JOIN). In the lobby, add
+   **+ Online friend** for each friend (and **+ Player on this keyboard** for anyone next to you), up to 4 players.
+2. Press **Create invite code** for a friend, then **Copy** and send it to them (any chat app or email).
+3. **Friend:** title screen → **ONLINE: JOIN**, paste the invite code, press **Create reply code**, then **Copy** and send the reply back.
+4. **Host:** paste the reply under that friend and press **Connect**. After a few seconds it shows *connected ✓*.
+5. Repeat for each friend, then press **Start game**, pick a stage and play.
+
+The host's computer runs the game and the host's settings apply. Friends use their usual keys or gamepad and see the
+host's game, with its sounds. Each friend chooses their own items in the shop; the host controls stages, pausing and saving.
+If a friend drops out, their tank waits; the host can send a new invite from the pause menu → **ONLINE PLAYERS**.
+A friend leaves with Esc → **Leave game**. Codes work once; if a page is reloaded, make new ones.
+
+**If it says "couldn't connect":** some networks (offices, schools, some mobile hotspots) block direct connections
+between computers. Try another network (e.g. a home Wi-Fi), or this would need a relay server.
 
 ## Boss rounds
 
@@ -172,6 +194,7 @@ js/audio.js       NES-style Web Audio synth (SFX, jingles, engine)
 js/input.js       keyboard / gamepad / touch
 js/stage.js       gameplay: terrain, movement, AI, bullets, power-ups, rendering
 js/bosses.js      boss rounds: the 5 bosses, their arenas, sprites and behaviour
+js/net.js         online play: WebRTC connection, codes, host streaming, guest view, lobby panels
 js/main.js        state machine (title, settings, curtain, play, score, game over, construction) + loop
 js/version.js     app name and version (single source of truth)
 tools/build.js    bundles everything into dist/tanb4iki_v<version>.html

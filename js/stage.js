@@ -278,6 +278,8 @@ class Stage {
   set(cx, cy, t) {
     if (cx < 0 || cy < 0 || cx >= GW || cy >= GH) return;
     this.terrain[cy * GW + cx] = t;
+    // the online host sends terrain changes to guests
+    if (Net.role === 'host') (this.netDiff || (this.netDiff = [])).push(cy * GW + cx, t);
     this.dirty = true;
   }
   setBlock(bx, by, t) {
