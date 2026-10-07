@@ -39,7 +39,7 @@ Object.assign(Stage.prototype, {
       // nearest target in range
       let best = null, bd = TURRET_RANGE;
       for (const t of this.tanks) {
-        if (!t.alive || t.isPlayer !== tu.enemy) continue;
+        if (!t.alive || t.isPlayer !== tu.enemy || t.boost.smoke) continue;
         const d = Math.abs(t.x + 8 - cx) + Math.abs(t.y + 8 - cy);
         if (d < bd) { bd = d; best = t; }
       }
@@ -241,5 +241,164 @@ Object.assign(Stage.prototype, {
     if (!lines.length || !((this.frame >> 4) & 1)) return;
     if (this.reviveWait > 0) lines.unshift('LAST CHANCE ' + Math.ceil(this.reviveWait / 60));
     lines.forEach((l, i) => Font.drawCenter(ctx, l, FW / 2, FH - 28 - (lines.length - 1 - i) * 10, COL.gold));
+  },
+});
+
+// =====================================================================
+//  Wingman, decoy eagle, smoke screen and bridge kit
+//    WINGMAN  (shop) an AI ally tank joins you: it hunts the nearest enemy and shoots; 2 hits; its kills score for you
+//    DECOY    (shop) a fake eagle stands in the middle of the field; rushing enemies go for it first (2 hits)
+//    SMOKE    (power-up or shop) enemies lose track of you for a while; an enemy that grabs it fades into smoke
+//    BRIDGE   (power-up or shop) carried bridge kits: drive into water and a bridge is laid across it
+// =====================================================================
+
+const BRIDGE_MAX = 40;   // cells (4px) a single bridge may span
+
+Object.assign(Stage.prototype, {
+  // ------------------------------------------------------------ wingman
+  spawnWingman(p) {
+    // a free player entry point if there is one, else beside its owner
+    const used = new Set(this.players.map(q => q.i));
+    let at = PLAYER_SPAWN.find((s, i) => !used.has(i));
+    if (!at) at = [Math.min(FW - 16, PLAYER_SPAWN[p.i][0] + 16), PLAYER_SPAWN[p.i][1]];
+    this.spawns.push({ x: at[0], y: at[1], t: SPARKLE_TIME, ally: p });
+  },
+
+  makeWingman(s) {
+    const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, ally: true, player: s.ally, hp: 2, shield: 120,
+      speed: 0.75 * Config.scale('pSpeed'), bulletSpeed: 4.5 * Config.scale('pShell'), maxBullets: 1 });
+    this.tanks.push(t);
+    this.popups.push({ x: s.x + 8, y: s.y, text: 'WINGMAN', label: true, color: COL.white, t: 0, delay: 0 });
+  },
+
+  nearestEnemy(t) {
+    let best = null, bd = Infinity;
+    for (const o of this.tanks) {
+      if (!o.alive || o.isPlayer) continue;
+      const d = Math.abs(o.x - t.x) + Math.abs(o.y - t.y);
+      if (d < bd) { bd = d; best = o; }
+    }
+    return best;
+  },
+
+  updateAlly(t) {
+    if (t.shield > 0) t.shield--;
+    if (t.cool > 0) t.cool--;
+    if (t.frozen > 0) { t.frozen--; t.moving = false; return; }
+    if (this.over || this.freezeP > 0) { t.moving = false; return; }
+    const foe = this.nearestEnemy(t);
+    if (!foe) { t.moving = false; return; }
+    // path to the target (rebuilt three times a second)
+    if (!t.nav || this.frame - t.nav.at >= 20 || t.nav.foe !== foe) {
+      const NX = COLS * 2 - 1, NY = ROWS * 2 - 1;
+      const bx = Math.max(0, Math.min(NX - 1, Math.round(foe.x / 8))), by = Math.max(0, Math.min(NY - 1, Math.round(foe.y / 8)));
+      t.nav = { dist: this.navField([by * NX + bx]), at: this.frame, foe };
+    }
+    const dx = foe.x - t.x, dy = foe.y - t.y;
+    const lined = Math.abs(dx) < 6 || Math.abs(dy) < 6;
+    if (lined && this.clearLine(t.x + 8, t.y + 8, foe.x + 8, foe.y + 8)) {
+      // lined up: turn and fire (never across the eagle)
+      this.faceTarget(t, foe.x + 8, foe.y + 8);
+      t.moving = false;
+      if (t.cool === 0 && !this.eagleInLine(t.x + 8, t.y + 8, foe.x + 8, foe.y + 8) && this.fire(t)) t.cool = 20;
+      return;
+    }
+    const ok = this.move(t, t.dir);
+    t.moving = ok;
+    if (!ok) {
+      if (this.brickAhead(t) && t.cool === 0 && !this.eagleInLine(t.x + 8, t.y + 8, t.x + 8 + DXY[t.dir][0] * 64, t.y + 8 + DXY[t.dir][1] * 64)) {
+        if (this.fire(t)) t.cool = 20;
+      } else if (++t.blocked > 8) { this.followField(t, t.nav.dist, true); t.blocked = 0; }
+    } else {
+      t.blocked = 0;
+      if ((t.x & 7) === 0 && (t.y & 7) === 0) this.followField(t, t.nav.dist, false);
+    }
+  },
+
+  hitAlly(t) {
+    if (!t.alive || t.shield > 0) return;
+    if (--t.hp > 0) { t.shield = 60; Sound.play('armor'); return; }
+    t.alive = false;
+    this.addFx(t.x + 8, t.y + 8, BIG_EXPLOSION(), 5);
+    Sound.play('explode');
+  },
+
+  // ------------------------------------------------------------ decoy eagle
+  placeDecoy() {
+    // the free 16px spot nearest the middle of the field
+    const cx = ((FW >> 1) - 8) >> 3, cy = Math.round(FH * 0.42 / 8);
+    for (let r = 0; r < 14; r++) {
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const x = (cx + dx) * 8, y = (cy + dy) * 8;
+        if (x < 0 || y < 40 || x > FW - 16 || y > FH - 64) continue;
+        let bad = false;
+        for (let yy = y >> 2; yy < (y + 16) >> 2; yy++) for (let xx = x >> 2; xx < (x + 16) >> 2; xx++) if (this.get(xx, yy) !== T_EMPTY) bad = true;
+        if (bad || this.tanks.some(o => o.alive && overlap(o.x, o.y, 16, 16, x, y, 16, 16))) continue;
+        this.decoy = { x, y, hp: 2, flash: 0 };
+        this.navBaseF = {};
+        this.popups.push({ x: x + 8, y, text: 'DECOY', label: true, color: '#C8A850', t: 0, delay: 0 });
+        return;
+      }
+    }
+  },
+
+  // where the enemies think the eagle is
+  baseTarget() { return this.decoy ? { x: this.decoy.x, y: this.decoy.y } : { x: BASE_X, y: BASE_Y }; },
+
+  hitDecoy() {
+    const d = this.decoy;
+    d.flash = 20;
+    if (--d.hp > 0) { Sound.play('armor'); return; }
+    this.addFx(d.x + 8, d.y + 8, BIG_EXPLOSION(), 6);
+    this.decoy = null;
+    this.navBaseF = {};
+    Sound.play('explode');
+  },
+
+  // ------------------------------------------------------------ bridges
+  // a player tank stuck at water with a bridge kit lays a bridge straight across
+  layBridge(t) {
+    const d = t.dir, cells = [];
+    const across = (d & 1) ? [t.y >> 2, (t.y + 15) >> 2] : [t.x >> 2, (t.x + 15) >> 2];
+    let along = [(t.y >> 2) - 1, (t.x + 16) >> 2, (t.y + 16) >> 2, (t.x >> 2) - 1][d];
+    const step = d === 0 || d === 3 ? -1 : 1;
+    for (let n = 0; n < BRIDGE_MAX; n++, along += step) {
+      let water = false;
+      for (let a = across[0]; a <= across[1]; a++) {
+        const [cx, cy] = (d & 1) ? [along, a] : [a, along];
+        if (this.get(cx, cy) === T_WATER) { water = true; cells.push([cx, cy]); }
+      }
+      if (!water) break;
+    }
+    if (!cells.length) return false;
+    for (const [cx, cy] of cells) this.set(cx, cy, T_BRIDGE);
+    Sound.play('build');
+    return true;
+  },
+
+  waterAhead(t) {
+    const [x0, y0, x1, y1] = [[t.x, t.y - 4, t.x + 15, t.y - 1], [t.x + 16, t.y, t.x + 19, t.y + 15],
+      [t.x, t.y + 16, t.x + 15, t.y + 19], [t.x - 4, t.y, t.x - 1, t.y + 15]][t.dir];
+    for (let cy = y0 >> 2; cy <= y1 >> 2; cy++) for (let cx = x0 >> 2; cx <= x1 >> 2; cx++) if (this.get(cx, cy) === T_WATER) return true;
+    return false;
+  },
+
+  // ------------------------------------------------------------ drawing
+  renderDecoy(ctx) {
+    const d = this.decoy;
+    if (!d) return;
+    if (d.flash > 0) d.flash--;
+    ctx.drawImage(Sprites.outline(Sprites.eagle, d.flash > 0 && (d.flash >> 2) & 1 ? COL.white : '#C8A850'), d.x - 1, d.y - 1);
+    ctx.drawImage(Sprites.eagle, d.x, d.y);
+  },
+
+  renderSmoke(ctx, t) {
+    ctx.fillStyle = 'rgba(200,200,200,0.35)';
+    for (let k = 0; k < 6; k++) {
+      const a = k * 1.05 + this.frame * 0.05, r = 7 + ((k * 3 + (this.frame >> 3)) % 4);
+      const x = t.x + 8 + Math.cos(a) * r, y = t.y + 8 + Math.sin(a) * r;
+      ctx.fillRect(Math.round(x) - 3, Math.round(y) - 3, 6, 6);
+    }
   },
 });

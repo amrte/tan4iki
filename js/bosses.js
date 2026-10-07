@@ -401,7 +401,7 @@ Object.assign(Stage.prototype, {
     const [cx, cy] = this.bossCenter(b);
     let best = null, bd = 1e9;
     for (const t of this.tanks) {
-      if (!t.isPlayer || !t.alive) continue;
+      if (!t.isPlayer || !t.alive || t.boost.smoke) continue;
       const d = Math.hypot(t.x + 8 - cx, t.y + 8 - cy);
       if (d < bd) { bd = d; best = [t.x + 8, t.y + 8]; }
     }

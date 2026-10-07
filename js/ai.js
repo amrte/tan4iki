@@ -20,7 +20,7 @@ function pickPersonality(type, stageNum) {
   // later stages bring fewer aimless tanks; the first few stages go easy on rushing and hunting
   w[0] *= Math.max(0.35, 1 - (stageNum - 1) * 0.03);
   const ramp = Math.min(1, 0.4 + stageNum * 0.12) * Config.skill().aggr;
-  w[1] *= ramp; w[2] *= ramp;
+  w[1] *= ramp; w[2] *= ramp; w[3] *= Config.skill().aggr;
   let r = Math.random() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < 4; i++) { if (r < w[i]) return i; r -= w[i]; }
   return AI.WANDER;
@@ -107,10 +107,10 @@ Object.assign(Stage.prototype, {
   navBase(mode = '') {
     const all = this.navBaseF || (this.navBaseF = {}), f = all[mode];
     if (f && (f.ver === this.terrainVer || this.frame - f.at < 30)) return f.dist;
-    const NX = COLS * 2 - 1, NY = ROWS * 2 - 1, seeds = [];
+    const NX = COLS * 2 - 1, NY = ROWS * 2 - 1, seeds = [], goal = this.baseTarget();   // a decoy eagle fools them
     for (let by = 0; by < NY; by++) for (let bx = 0; bx < NX; bx++) {
       const x = bx * 8, y = by * 8;
-      if (overlap(x, y, 16, 16, BASE_X - 8, BASE_Y - 8, 32, 32) && !overlap(x, y, 16, 16, BASE_X, BASE_Y, 16, 16)) seeds.push(by * NX + bx);
+      if (overlap(x, y, 16, 16, goal.x - 8, goal.y - 8, 32, 32) && !overlap(x, y, 16, 16, goal.x, goal.y, 16, 16)) seeds.push(by * NX + bx);
     }
     all[mode] = { dist: this.navField(seeds, mode), at: this.frame, ver: this.terrainVer };
     return all[mode].dist;
@@ -131,7 +131,7 @@ Object.assign(Stage.prototype, {
   nearestPlayer(t) {
     let best = null, bd = Infinity;
     for (const o of this.tanks) {
-      if (!o.isPlayer || !o.alive) continue;
+      if (!o.isPlayer || !o.alive || o.boost.smoke) continue;   // smoke hides you
       const d = Math.abs(o.x - t.x) + Math.abs(o.y - t.y);
       if (d < bd) { bd = d; best = o; }
     }
@@ -178,14 +178,14 @@ Object.assign(Stage.prototype, {
     if (marked) { this.followField(t, this.navPlayer(marked, mode), blocked); return; }
     switch (t.ai) {
       case AI.RUSH:
-        if (!blocked && this.navBase(mode)[(t.y >> 3) * (COLS * 2 - 1) + (t.x >> 3)] === 0) { this.faceTarget(t, BASE_X + 8, BASE_Y + 8); return; }
+        if (!blocked && this.navBase(mode)[(t.y >> 3) * (COLS * 2 - 1) + (t.x >> 3)] === 0) { const b = this.baseTarget(); this.faceTarget(t, b.x + 8, b.y + 8); return; }
         this.followField(t, this.navBase(mode), blocked);
         return;
       case AI.HUNT:
         this.followField(t, pt ? this.navPlayer(pt, mode) : this.navBase(mode), blocked);
         return;
       case AI.SNIPE: {
-        const target = t.aiBase || !pt ? { x: BASE_X, y: BASE_Y } : pt;
+        const target = t.aiBase || !pt ? this.baseTarget() : pt;
         const tx = target.x + 8, ty = target.y + 8, cx = t.x + 8, cy = t.y + 8;
         const dx = tx - cx, dy = ty - cy, d = Math.abs(dx) + Math.abs(dy);
         const lined = (Math.abs(dx) < 6 || Math.abs(dy) < 6) && d >= SNIPE_MIN && d <= SNIPE_MAX && this.clearLine(cx, cy, tx, ty);

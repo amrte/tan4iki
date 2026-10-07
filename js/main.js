@@ -24,7 +24,7 @@ const CONSTRUCT_PATS = [
 function newPlayer(i) {
   return {
     i, score: 0, lives: Config.startLives(), level: Config.get('startStars'), ship: false, cutter: false,
-    kills: zeroKills(), out: false, extraGiven: false, extraCount: 0, mines: 0, turrets: 0, tank: null,
+    kills: zeroKills(), out: false, extraGiven: false, extraCount: 0, mines: 0, turrets: 0, bridges: 0, tank: null,
     kit: null, shopShovel: false,
     rank: Config.get('startLevel'), xp: RANKS[Config.get('startLevel') - 1].xp, stageXp: 0,   // XP level (1-10)
   };
@@ -60,16 +60,46 @@ const SHOP_ITEMS = [
   { id: 'pierce', name: 'PIERCE', price: 3000, icon: PU.PIERCE, desc: 'PIERCING SHELLS AT START' },
   { id: 'turret', name: 'TURRET', price: 4000, icon: PU.TURRET, desc: 'PLACE IT ANYWHERE WITH B' },
   { id: 'claude', name: 'CLAUDE', price: 6000, icon: PU.CLAUDE, desc: 'CLAUDE JOINS NEXT STAGE' },
+  { id: 'wingman', name: 'WINGMAN', price: 5000, icon: PU.TANK, desc: 'AN AI TANK FIGHTS BESIDE YOU' },
+  { id: 'decoy', name: 'DECOY EAGLE', price: 3000, icon: PU.SHOVEL, desc: 'FAKE EAGLE LURES RUSHERS' },
+  { id: 'smoke', name: 'SMOKE', price: 1500, icon: PU.SMOKE, desc: 'SMOKE SCREEN AT STAGE START' },
+  { id: 'bridge', name: 'BRIDGE KIT', price: 1500, icon: PU.BRIDGE, desc: '2 BRIDGES: DRIVE INTO WATER' },
   // base upgrades: shared by the team, 3 levels each (base.js)
   ...BASE_UPGRADES.map((u, i) => ({ id: 'base_' + u.key, base: u.key, name: u.name, prices: u.prices, descs: u.descs, bicon: i })),
   { id: 'done', name: 'START STAGE' },
 ];
 const SHOP_ROWS = 9, SHOP_TOP = 40, SHOP_ROW_H = 16;
 
+// Daily challenge: the same 3 stages and 2 twists for everyone on a given day, 1 player, no shop, no saves.
+const DAILY_KEY = 'tank1990_daily', DAILY_STAGES = 3;
+const ENEMY_KEYS = k => ENEMY.map((e, i) => 'e' + i + k).filter(key => Config.defs[key]);
+const DAILY_MODS = [
+  { name: 'DOUBLE TROUBLE', set: v => { v.enemyCount = 40; v.maxOnScreen = 6; } },
+  { name: 'GLASS CANNON', set: v => { v.lives = 1; v.startStars = 3; v.pShell = 200; } },
+  { name: 'SPEED DEMONS', set: v => { for (const k of ENEMY_KEYS('Speed')) v[k] = 150; } },
+  { name: 'NO POWER-UPS', set: v => { POWERUPS.forEach((pu, i) => { v['pu' + i] = 'OFF'; }); } },
+  { name: 'NEW BREED', set: v => { v.newEnemies = 'MANY'; } },
+  { name: 'ROCKET PARTY', set: v => { v.startStars = 3; v.keepStars = 'ON'; } },
+  { name: 'IRON HIDES', set: v => { for (const k of ENEMY_KEYS('Hits')) v[k] = Math.min(9, v[k] + 1); } },
+  { name: 'WIDE OPEN', set: v => { v.fieldW = 20; v.fieldH = 15; } },
+  { name: 'NIGHT SHIFT', set: v => { v.skill = 4; } },
+  { name: 'EASY RIDER', set: v => { v.skill = 1; v.lives = 5; } },
+  { name: 'TURBO TANK', set: v => { v.pSpeed = 175; } },
+  { name: 'BOSS RUSH', set: v => { v.bossEvery = 5; } },
+];
+
+function dailyToday() {
+  const d = new Date(), date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const r = seeded(+date.replace(/-/g, '') * 2654435761);
+  const a = Math.floor(r() * DAILY_MODS.length);
+  let b = Math.floor(r() * (DAILY_MODS.length - 1)); if (b >= a) b++;
+  return { date, stage: 1 + Math.floor(r() * 30), mods: [a, b] };
+}
+
 function shopPrice(item) {
   const discount = Game.shopDiscount ? 0.75 : 1;
   if (item.id === 'revive') return reviveCost();   // the REVIVE COST setting, as during play
-  const price = item.prices ? item.prices[Math.min(2, Game.base[item.base] || 0)] : item.price;
+  const price = item.prices ? item.prices[Math.min(item.prices.length - 1, Game.base[item.base] || 0)] : item.price;
   return Math.round((price * Config.scale('shopPrices') * discount) / 100) * 100;
 }
 
@@ -84,8 +114,8 @@ function shopStatus(item, p) {
   if (p.out && item.id !== 'done') return { text: '', max: true };   // a fallen player can only buy a revival
   if (item.base) {
     if (!Config.on('baseShop')) return { text: 'OFF', max: true };
-    const lv = Game.base[item.base] || 0;
-    return { text: lv >= 3 ? 'MAX' : 'L' + lv + '/3', max: lv >= 3 };
+    const lv = Game.base[item.base] || 0, top = item.prices.length;
+    return { text: lv >= top ? 'MAX' : 'L' + lv + '/' + top, max: lv >= top };
   }
   switch (item.id) {
     case 'life': return Config.infiniteLives() ? { text: 'INF', max: true } : { text: 'X' + p.lives, max: p.lives >= 99 };
@@ -94,6 +124,7 @@ function shopStatus(item, p) {
     case 'ship': return p.ship ? { text: 'OWNED', max: true } : { text: '' };
     case 'mines': return { text: 'X' + (p.mines || 0), max: (p.mines || 0) >= 99 };
     case 'turret': return { text: 'X' + (p.turrets || 0), max: (p.turrets || 0) >= 9 };
+    case 'bridge': return { text: 'X' + (p.bridges || 0), max: (p.bridges || 0) >= 9 };
     case 'shovel': return p.shopShovel ? { text: 'READY', max: true } : { text: '' };
     case 'done': return { text: '' };
     default: return p.kit && p.kit[item.id] ? { text: 'READY', max: true } : { text: '' };
@@ -108,6 +139,7 @@ function shopApply(item, p) {
     return;
   }
   if (item.id === 'turret') { p.turrets = (p.turrets || 0) + 1; return; }
+  if (item.id === 'bridge') { p.bridges = (p.bridges || 0) + 2; return; }
   if (item.base) { Game.base[item.base] = (Game.base[item.base] || 0) + 1; return; }
   switch (item.id) {
     case 'life': p.lives++; break;
@@ -174,6 +206,7 @@ const Game = {
   // ---------------------------------------------------------------- title
   toTitle() {
     Sound.setEngine(0);
+    this.endDaily();
     this.applyLayout();
     this.titleY = SH;
     this.setState('title');
@@ -191,6 +224,7 @@ const Game = {
     // left/right switches between hosting and joining an online game
     m.push({ label: this.onlineJoin ? 'ONLINE: JOIN' : 'ONLINE: HOST', act: () => this.openOnline(), adjust: () => { this.onlineJoin = !this.onlineJoin; } });
     // skill level, named as in DOOM: left/right (or A) changes it
+    m.push({ label: 'DAILY CHALLENGE', daily: true, act: () => this.startDaily() });
     m.push({ label: Config.skill().name, skill: true, act: () => Config.step('skill', 1), adjust: d => Config.step('skill', d) });
     m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
     m.push({ label: 'SETTINGS', act: () => this.toSettings() });
@@ -244,7 +278,11 @@ const Game = {
       ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, top - 4 + this.menuIdx * step);
     }
     const cur = menu[this.menuIdx];
-    Font.drawCenter(ctx, cur && cur.skill && this.titleY === 0 ? '< > CHANGE SKILL' : 'ENTER START  M MUTE', SW / 2, 206, COL.lgrey);
+    if (cur && cur.daily && this.titleY === 0) {
+      const d = dailyToday(), best = STORE.get(DAILY_KEY, {});
+      Font.drawCenter(ctx, DAILY_MODS[d.mods[0]].name + ' + ' + DAILY_MODS[d.mods[1]].name, SW / 2, 203, COL.gold);
+      Font.drawCenter(ctx, 'STAGE ' + d.stage + '  BEST ' + (best.date === d.date ? best.score : 0), SW / 2, 213, COL.lgrey);
+    } else Font.drawCenter(ctx, cur && cur.skill && this.titleY === 0 ? '< > CHANGE SKILL' : 'ENTER START  M MUTE', SW / 2, 206, COL.lgrey);
     ctx.restore();
   },
 
@@ -271,7 +309,7 @@ const Game = {
   // ---------------------------------------------------------------- save / load
   // One save slot: written by SAVE GAME in the pause menu and automatically at every stage start.
   saveGame() {
-    if (!this.stage || this.stage.over) return false;
+    if (!this.stage || this.stage.over || this.daily) return false;
     const data = {
       app: APP_VERSION, time: Date.now(), numPlayers: this.players.length, stageNum: this.stageNum, lastScores: this.lastScores,
       players: this.players.map(p => { const o = Object.assign({}, p); delete o.tank; return o; }),
@@ -380,7 +418,7 @@ const Game = {
     this.setState('play');
     Sound.play('start');
     this.saveGame(); // autosave at every stage start
-    if (!custom && Net.role !== 'client') {
+    if (!custom && Net.role !== 'client' && !this.daily) {
       STORE.set('tank1990_lastStage', this.stageNum);
       if (this.stageNum > STORE.get('tank1990_bestStage', 1)) STORE.set('tank1990_bestStage', this.stageNum);
     }
@@ -421,7 +459,7 @@ const Game = {
     if (action === 'CONTINUE') this.paused = false;
     else if (action === 'SAVE GAME') {
       const ok = this.saveGame();
-      this.pauseMsg = ok ? 'GAME SAVED' : 'SAVE FAILED';
+      this.pauseMsg = ok ? 'GAME SAVED' : this.daily ? 'NO SAVES IN DAILY' : 'SAVE FAILED';
       this.pauseMsgT = 120;
       Sound.play(ok ? 'pickup' : 'steel');
     } else if (action === 'ONLINE PLAYERS') {
@@ -500,7 +538,8 @@ const Game = {
       sc.wait = 150;
     } else {
       this.lastScores = this.players.map(p => p.score);
-      if (sc.gameOver) this.toBigOver();
+      if (this.daily) this.dailyNext(sc.gameOver);
+      else if (sc.gameOver) this.toBigOver();
       else {
         this.stageNum++;
         if (Config.on('shop') && this.players.some(p => !p.out)) this.toShop();
@@ -609,6 +648,69 @@ const Game = {
         Font.draw(ctx, '1000 PTS', x, 213, COL.white);
       }
     }
+  },
+
+  // ---------------------------------------------------------------- daily challenge
+  startDaily() {
+    if (Net.role === 'host') Net.hangUp();
+    const d = dailyToday();
+    // today's twists go on top of your settings for this run only (never saved)
+    this.dailyBackup = Object.assign({}, Config.values);
+    Config.values.shop = 'OFF';
+    for (const i of d.mods) DAILY_MODS[i].set(Config.values);
+    Config.apply();
+    this.daily = { date: d.date, mods: d.mods, start: d.stage, cleared: 0 };
+    this.newGame(1, false);
+    this.stageNum = d.stage;
+    this.curtain.selectable = false;
+  },
+
+  dailyNext(gameOver) {
+    const dl = this.daily;
+    if (!gameOver) dl.cleared++;
+    if (gameOver || dl.cleared >= DAILY_STAGES) { this.finishDaily(); return; }
+    this.stageNum++;
+    this.toCurtain(false);
+  },
+
+  finishDaily() {
+    const dl = this.daily, score = this.players[0].score, best = STORE.get(DAILY_KEY, {});
+    dl.score = score;
+    dl.newBest = best.date !== dl.date || score > best.score;
+    dl.best = dl.newBest ? score : best.score;
+    if (dl.newBest) STORE.set(DAILY_KEY, { date: dl.date, score });
+    this.saveHi();
+    this.dailyDone = dl;
+    this.endDaily();
+    Sound.play(dl.newBest ? 'bonus' : 'gameover');
+    this.setState('dailyResult');
+  },
+
+  // put the player's own settings back
+  endDaily() {
+    if (!this.daily) return;
+    Config.values = this.dailyBackup;
+    this.daily = null;
+    Config.apply();
+  },
+
+  updateDailyResult() {
+    if (this.t > 60 && Input.menu().ok) { this.stage = null; this.toTitle(); this.titleY = 0; }
+  },
+
+  renderDailyResult(ctx) {
+    const d = this.dailyDone;
+    ctx.fillStyle = COL.black;
+    ctx.fillRect(0, 0, SW, SH);
+    Font.drawCenter(ctx, 'DAILY CHALLENGE', SW / 2, 30, COL.red);
+    Font.drawCenter(ctx, d.date, SW / 2, 46, COL.lgrey);
+    Font.drawCenter(ctx, DAILY_MODS[d.mods[0]].name, SW / 2, 70, COL.gold);
+    Font.drawCenter(ctx, '+ ' + DAILY_MODS[d.mods[1]].name, SW / 2, 82, COL.gold);
+    Font.drawCenter(ctx, 'STAGES CLEARED ' + d.cleared + '/' + DAILY_STAGES, SW / 2, 110, COL.white);
+    Font.drawCenter(ctx, 'SCORE ' + d.score, SW / 2, 130, COL.white);
+    Font.drawCenter(ctx, "TODAY'S BEST " + d.best, SW / 2, 146, COL.lgrey);
+    if (d.newBest && (this.t >> 4) & 1) Font.drawCenter(ctx, 'NEW BEST!', SW / 2, 166, COL.gold);
+    if (this.t > 60) Font.drawCenter(ctx, 'PRESS ENTER', SW / 2, 196, COL.lgrey);
   },
 
   // ---------------------------------------------------------------- big game over
@@ -820,7 +922,7 @@ const Game = {
     if (sh.msgT > 0) Font.drawCenter(ctx, sh.msg, SW / 2, 192, sh.msg.startsWith('BOUGHT') ? COL.gold : COL.red);
     else if (item.base) {
       const lv = Game.base[item.base] || 0;
-      Font.drawCenter(ctx, Config.on('baseShop') ? (lv >= 3 ? 'FULLY UPGRADED' : 'BASE: ' + item.descs[lv]) : 'BASE UPGRADES ARE OFF', SW / 2, 192, COL.gold);
+      Font.drawCenter(ctx, Config.on('baseShop') ? (lv >= item.prices.length ? 'FULLY UPGRADED' : 'BASE: ' + item.descs[lv]) : 'BASE UPGRADES ARE OFF', SW / 2, 192, COL.gold);
     } else if (item.desc) {
       const desc = item.id === 'mines' ? '+' + Config.get('mineCount') + ' ' + item.desc : item.desc;
       Font.drawCenter(ctx, desc, SW / 2, 192, COL.white);
@@ -1159,6 +1261,7 @@ const Game = {
       case 'shop': this.updateShop(); break;
       case 'keys': this.updateKeys(); break;
       case 'ranks': this.updateRanks(); break;
+      case 'dailyResult': this.updateDailyResult(); break;
     }
   },
 
@@ -1202,6 +1305,7 @@ const Game = {
       case 'shop': this.renderShop(ctx); break;
       case 'keys': this.renderKeys(ctx); break;
       case 'ranks': this.renderRanks(ctx); break;
+      case 'dailyResult': this.renderDailyResult(ctx); break;
       case 'netwait': this.renderNetWait(ctx); break;
     }
   },

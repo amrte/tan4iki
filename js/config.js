@@ -42,6 +42,8 @@ const POWERUPS = [
   { name: 'CLAUDE', weight: 1, isNew: true, desc: 'CLAUDE EATS ENEMY TANKS', who: 'PLAYER' },
   { name: 'REVIVE', weight: 1, isNew: true, desc: 'BRINGS FALLEN PLAYERS BACK' },
   { name: 'AIRSTRIKE', weight: 1, isNew: true, desc: 'BOMBS THE BUSIEST ROW' },
+  { name: 'BRIDGE', weight: 1, isNew: true, desc: '2 BRIDGE KITS FOR WATER' },
+  { name: 'SMOKE', weight: 2, isNew: true, desc: 'ENEMIES LOSE TRACK OF YOU' },
 ];
 
 // XP ranks: total XP needed for each level (1-10), and the perk it unlocks (descriptions max 22 chars)
@@ -60,13 +62,21 @@ const RANKS = [
 
 // Skill levels, named as in DOOM. HURT ME PLENTY is the game as it is (and the default).
 // fire / speed / shell / spawn / boss scale the enemies; lives = extra tanks; vet shifts when veterans and elites
-// appear (in stages); aggr scales how many enemies rush and hunt; respawn = chance a destroyed enemy comes back.
+// appear (in stages); aggr scales how many enemies rush, hunt and snipe (the rest wander as in the original);
+// newMult / newShift: share of the new enemy types and how many stages later each one first appears;
+// maxOn = change to enemies on screen; plates = free armour plate each life; eagle = free eagle armour each stage;
+// respawn = chance a destroyed enemy comes back.
 const SKILLS = [
-  { name: "I'M TOO YOUNG TO DIE", fire: 0.5, speed: 0.85, shell: 0.8, spawn: 0.7, boss: 0.6, lives: 2, vet: -10, aggr: 0.5, respawn: 0 },
-  { name: 'HEY, NOT TOO ROUGH', fire: 0.75, speed: 0.92, shell: 0.9, spawn: 0.85, boss: 0.8, lives: 1, vet: -5, aggr: 0.75, respawn: 0 },
-  { name: 'HURT ME PLENTY', fire: 1, speed: 1, shell: 1, spawn: 1, boss: 1, lives: 0, vet: 0, aggr: 1, respawn: 0 },
-  { name: 'ULTRA-VIOLENCE', fire: 1.3, speed: 1.1, shell: 1.15, spawn: 1.25, boss: 1.25, lives: 0, vet: 5, aggr: 1.25, respawn: 0 },
-  { name: 'NIGHTMARE!', fire: 1.6, speed: 1.2, shell: 1.3, spawn: 1.5, boss: 1.5, lives: 0, vet: 10, aggr: 1.5, respawn: 0.3 },
+  { name: "I'M TOO YOUNG TO DIE", fire: 0.35, speed: 0.75, shell: 0.7, spawn: 0.6, boss: 0.5, lives: 3, vet: -30, aggr: 0.15,
+    newMult: 0.3, newShift: 15, maxOn: -1, plates: 1, eagle: 2, respawn: 0 },
+  { name: 'HEY, NOT TOO ROUGH', fire: 0.6, speed: 0.88, shell: 0.85, spawn: 0.75, boss: 0.75, lives: 2, vet: -15, aggr: 0.45,
+    newMult: 0.6, newShift: 6, maxOn: 0, plates: 0, eagle: 1, respawn: 0 },
+  { name: 'HURT ME PLENTY', fire: 1, speed: 1, shell: 1, spawn: 1, boss: 1, lives: 0, vet: 0, aggr: 0.85,
+    newMult: 1, newShift: 0, maxOn: 0, plates: 0, eagle: 0, respawn: 0 },
+  { name: 'ULTRA-VIOLENCE', fire: 1.3, speed: 1.1, shell: 1.15, spawn: 1.25, boss: 1.25, lives: 0, vet: 5, aggr: 1.25,
+    newMult: 1.2, newShift: 0, maxOn: 1, plates: 0, eagle: 0, respawn: 0 },
+  { name: 'NIGHTMARE!', fire: 1.6, speed: 1.2, shell: 1.3, spawn: 1.5, boss: 1.5, lives: 0, vet: 10, aggr: 1.5,
+    newMult: 1.5, newShift: 0, maxOn: 2, plates: 0, eagle: 0, respawn: 0.3 },
 ];
 
 const pct = (...v) => v;

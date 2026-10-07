@@ -3,6 +3,17 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.13
+
+- **Easier easy skills:** I'M TOO YOUNG TO DIE now gives 3 extra tanks, a free armour plate every life, 2 free eagle
+  armour each stage, one enemy fewer on screen, enemies that mostly wander and rarely shoot, new enemy types much later
+  and rarer, and no veterans. HEY, NOT TOO ROUGH is gentler too, and HURT ME PLENTY a little calmer.
+- **Base upgrades:** 5 levels for walls, eagle armor, repair crew, eagle gun (steel-breaking, then exploding shells) and
+  minefield, plus four new ones: Tesla coil, Tank traps, Supply drop and Radar. They stay from stage to stage until
+  game over.
+- **Wingman** (AI ally tank), **Decoy eagle**, **Smoke** screen (power-up and shop), **Bridge kits** (power-up and shop;
+  drive into water to lay a bridge) and a **Daily challenge** mode on the title screen.
+
 ## 0.12
 
 - **Skill levels named as in DOOM**, picked on the title screen: I'M TOO YOUNG TO DIE, HEY, NOT TOO ROUGH, HURT ME

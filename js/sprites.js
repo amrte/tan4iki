@@ -826,7 +826,8 @@ TANK_GRIDS.e15 = canvasEnemyGrids(['......11', '.....123', '......11', '111....1
 TANK_GRIDS.e16 = canvasEnemyGrids(['........', '........', '........', '.......1', '.......1', '...11111', '...13122', '...11123',
   '...13122', '...11122', '...13111', '...111..', '........', '........', '........', '........']);
 
-// Base-upgrade shop icons (framed like the power-ups, in orange): walls, armor, repair, gun, minefield
+// Base-upgrade shop icons (framed like the power-ups, in orange): walls, armor, repair, gun, minefield,
+// tesla, traps, supply, radar
 const BASE_ICON_MASKS = [
   [ // walls
     '............', 'XXXX.XXXX.XX', 'XXXX.XXXX.XX', '............', 'XX.XXXX.XXXX', 'XX.XXXX.XXXX', '............', 'XXXX.XXXX.XX', 'XXXX.XXXX.XX', '............', '............'],
@@ -838,6 +839,14 @@ const BASE_ICON_MASKS = [
     '.....XX.....', '.....XX.....', '.....XX.....', '.....XX.....', '...XXXXXX...', '..XXXXXXXX..', '..XXX..XXX..', '..XXX..XXX..', '..XXXXXXXX..', '.XXXXXXXXXX.', '............'],
   [ // field
     '..X.....X...', '.XXX...XXX..', 'XXXXX.XXXXX.', '.XXX...XXX..', '..X.....X...', '.....X......', '....XXX.....', '...XXXXX....', '....XXX.....', '.....X......', '............'],
+  [ // tesla
+    '....XXXX....', '...X....X...', '....XXXX....', '.....XX.....', '..X..XX..X..', '.X...XX...X.', '..X.XXXX.X..', '....XXXX....', '....XXXX....', '...XXXXXX...', '............'],
+  [ // traps
+    'X.........X.', '.X.......X..', '..X.....X...', '...XX.XX....', '....XXX.....', '....XXX.....', '...XX.XX....', '..X.....X...', '.X.......X..', 'XXX.....XXX.', '............'],
+  [ // supply
+    '...XXXXXX...', '.XX......XX.', 'X..........X', '.X...XX...X.', '..X..XX..X..', '...X.XX.X...', '..XXXXXXXX..', '..X.X..X.X..', '..XX.XX.XX..', '..XXXXXXXX..', '............'],
+  [ // radar
+    '.XX.........', 'X..XX.......', 'X....XX.....', '.X.....X....', '..X..X..X...', '...X.XX.X...', '....X..XX...', '.....XXXX...', '......XX....', '....XXXXXX..', '............'],
 ];
 
 // Turret: grey base plate (rotates never) and a gun in the owner's colours (rotated to aim)
@@ -863,6 +872,10 @@ const EXTRA_POWERUP_MASKS = {
     '...X.XX.X...', '..X..XX..X..', '.X...XX...X.', 'X....XX....X', '............'],
   revive: ['............', '.XXX...XXX..', 'XXXXX.XXXXX.', 'XXXXXXXXXXX.', 'XXXXXXXXXXX.', '.XXXXXXXXX..',
     '..XXXXXXX...', '...XXXXX....', '....XXX.....', '.....X......', '............'],
+  bridge: ['............', 'X..........X', 'XXXXXXXXXXXX', 'X.X.X.X.X.XX', 'XXXXXXXXXXXX', 'X..........X',
+    'X..........X', '.XX..XX..XX.', 'X..XX..XX..X', '............', '............'],
+  smoke: ['....XXX.....', '..XXXXXXX...', '.XXXXXXXXX..', 'XXXXXXXXXXX.', 'XXXXXXXXXXXX', '.XXXXXXXXXXX',
+    '..XXXXXXXXX.', '...XXX.XX...', '.......X....', '..XX........', '.XXXX.......'],
   airstrike: ['.....XX.....', '.....XX.....', '....XXXX....', 'XXXXXXXXXXXX', 'XXXXXXXXXXXX', '....XXXX....',
     '.....XX.....', '.....XX.....', '...XXXXXX...', '...XXXXXX...', '............'],
 };

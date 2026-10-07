@@ -9,7 +9,7 @@ let COLS = 13, ROWS = 13;
 let FW = 208, FH = 208;                            // field size in pixels
 let GW = 52, GH = 52;                              // terrain grid (4px cells)
 let SCREEN_W = 256, SCREEN_H = 224, HUD_X = 232;   // whole play screen and the side panel
-const T_EMPTY = 0, T_BRICK = 1, T_STEEL = 2, T_WATER = 3, T_FOREST = 4, T_ICE = 5;
+const T_EMPTY = 0, T_BRICK = 1, T_STEEL = 2, T_WATER = 3, T_FOREST = 4, T_ICE = 5, T_BRIDGE = 6;
 const BLOCK_TYPE = { '.': T_EMPTY, '#': T_BRICK, '@': T_STEEL, '~': T_WATER, '%': T_FOREST, '_': T_ICE };
 const DXY = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
@@ -58,10 +58,10 @@ const PU = {
   HELMET: 0, CLOCK: 1, SHOVEL: 2, STAR: 3, GRENADE: 4, TANK: 5, GUN: 6, SHIP: 7,
   // additions that were not in the original game
   TURBO: 8, RAPID: 9, SPREAD: 10, PIERCE: 11, ROCKET: 12, MINES: 13, GHOST: 14, COIN: 15,
-  TURRET: 16, CLAUDE: 17, REVIVE: 18, AIRSTRIKE: 19,   // see extras.js
+  TURRET: 16, CLAUDE: 17, REVIVE: 18, AIRSTRIKE: 19, BRIDGE: 20, SMOKE: 21,   // see extras.js
 };
 // timed effects granted by the new power-ups (stored per tank in t.boost)
-const TIMED_BOOSTS = { [PU.TURBO]: 'turbo', [PU.RAPID]: 'rapid', [PU.SPREAD]: 'spread', [PU.PIERCE]: 'pierce', [PU.ROCKET]: 'rocket', [PU.GHOST]: 'ghost' };
+const TIMED_BOOSTS = { [PU.TURBO]: 'turbo', [PU.RAPID]: 'rapid', [PU.SPREAD]: 'spread', [PU.PIERCE]: 'pierce', [PU.ROCKET]: 'rocket', [PU.GHOST]: 'ghost', [PU.SMOKE]: 'smoke' };
 const TURBO_MULT = 1.75;
 const ROCKET_RADIUS = 14, MINE_RADIUS = 18, MINE_ARM_TIME = 40, MAX_MINES = 16;
 let BASE_X = 96, BASE_Y = 192;
@@ -142,10 +142,10 @@ function buildQueue(stageNum) {
   for (let i = 0; i < count; i++) out.push({ type: list[Math.floor(i * list.length / count)], bonus: bonus && isBonusSlot(i) });
   // Later stages get tougher: new enemy types join one by one (rocket from stage 4, sapper 7, shield 11,
   // shade 15) and take a growing share of the line-up; veterans appear from stage 10 and elites from stage 20.
-  const mult = { OFF: 0, FEW: 0.5, NORMAL: 1, MANY: 1.8 }[Config.get('newEnemies')] || 0;
-  const s = stageNum, kinds = NEW_TYPES.filter(k => s >= ENEMY[k].from && Config.get('e' + k + 'On') !== 'OFF');
+  const sk = Config.skill(), mult = ({ OFF: 0, FEW: 0.5, NORMAL: 1, MANY: 1.8 }[Config.get('newEnemies')] || 0) * sk.newMult;
+  const s = stageNum, kinds = NEW_TYPES.filter(k => s >= ENEMY[k].from + sk.newShift && Config.get('e' + k + 'On') !== 'OFF');
   if (mult && kinds.length) {
-    const share = Math.min(0.6, (0.06 + (s - 4) * 0.015) * mult);
+    const share = Math.min(0.6, (0.06 + (s - 4 - sk.newShift) * 0.015) * mult);
     for (let i = 2; i < out.length; i++) {   // never the very first tanks of a stage
       if (r() < share) out[i].type = kinds[Math.floor(r() * kinds.length)];
     }
@@ -248,6 +248,7 @@ class Stage {
     this.flames = []; this.shells = []; this.heals = []; this.mark = null; this.jamList = [];   // see enemies.js
     this.turrets = []; this.claudes = []; this.strikes = []; this.reviveWait = 0;              // see extras.js
     this.snakeList = [];
+    this.decoy = null;
     this.applyBase(opts.base);                 // base upgrades from the shop (base.js)
     this.origTerrain = this.terrain.slice();   // what a mason rebuilds
     this.lastBrickSound = -1;
@@ -257,7 +258,7 @@ class Stage {
     this.spawnTimer = 0;
     this.spawnPos = 0;
     this.spawnInterval = Math.round(Math.max(70, 190 - ((num - 1) % 35) * 4 - (this.twoP ? 20 : 0)) / Config.scale('spawnRate') / Config.skill().spawn);
-    this.maxEnemies = Config.get('maxOnScreen') + [0, 2, 3, 4][this.extraPlayers];
+    this.maxEnemies = Math.max(1, Config.get('maxOnScreen') + [0, 2, 3, 4][this.extraPlayers] + Config.skill().maxOn);
     this.freezeE = 0;
     this.freezeP = 0;
     this.shovel = 0;
@@ -289,7 +290,7 @@ class Stage {
   snapshot() {
     const tankKeys = ['x', 'y', 'dir', 'isPlayer', 'type', 'hp', 'bonus', 'shield', 'frozen', 'ship', 'cutter', 'power',
       'speed', 'bulletSpeed', 'maxBullets', 'boost', 'mines', 'plates', 'repair',
-      'ai', 'aiBase', 'hold', 'rocketGun', 'frontShield', 'crusher', 'stealth', 'vet', 'hover', 'cd', 'maxHp', 'slither', 'segN', 'trail'];
+      'ai', 'aiBase', 'hold', 'rocketGun', 'frontShield', 'crusher', 'stealth', 'vet', 'hover', 'cd', 'maxHp', 'slither', 'segN', 'trail', 'ally'];
     return {
       cols: COLS, rows: ROWS,
       terrain: Array.from(this.terrain).join(''),
@@ -307,6 +308,7 @@ class Stage {
       }),
       kills: this.players.map(p => p.kills.slice()),
       eagleArmor: this.eagleArmor,
+      decoy: this.decoy,
       turrets: this.turrets.map(tu => Object.assign({}, tu, { owner: tu.owner ? tu.owner.i : -1 })),
       claudes: this.claudes.map(c => Object.assign({}, c, { p: c.p ? c.p.i : -1 })),
       boss: this.bossIdx === undefined ? null : {
@@ -321,6 +323,7 @@ class Stage {
     this.dirty = true;
     for (const k of ['queue', 'total', 'killed', 'spawnTimer', 'spawnPos', 'spawnInterval', 'maxEnemies', 'freezeE', 'freezeP', 'shovel', 'baseAlive', 'frame', 'powerup']) this[k] = sn[k];
     if (sn.eagleArmor !== undefined) this.eagleArmor = sn.eagleArmor;
+    this.decoy = sn.decoy || null;
     this.turrets = (sn.turrets || []).map(tu => Object.assign({}, tu, { owner: this.players[tu.owner] || null }));
     this.claudes = (sn.claudes || []).map(c => Object.assign({}, c, { p: this.players[c.p] || null }));
     this.spawns = [];
@@ -328,7 +331,7 @@ class Stage {
     this.tanks = sn.tanks.map(o => {
       const t = new Tank(Object.assign({}, o, { boost: Object.assign({}, o.boost) }));
       delete t.pi;
-      if (o.pi >= 0) { t.player = this.players[o.pi]; t.player.tank = t; }
+      if (o.pi >= 0) { t.player = this.players[o.pi]; if (!o.ally) t.player.tank = t; }
       return t;
     });
     // players who were waiting to respawn come back at their spawn point
@@ -433,19 +436,24 @@ class Stage {
           slither: ENEMY[type].kind === 'snake', segN: 4, trail: ENEMY[type].kind === 'snake' ? [] : null,
         }));
         this.enemySpawned(this.tanks[this.tanks.length - 1]);
+      } else if (s.ally) {
+        if (this.tanks.some(t => overlap(t.x, t.y, 16, 16, s.x, s.y, 16, 16))) { s.t = 1; continue; }
+        this.makeWingman(s);
       } else {
         const p = s.player;
         const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, player: p, shield: Config.frames('spawnShield') });
         const perk = rankPerks(p.rank || 1);
         p.level = Math.max(p.level, perk.star);
-        t.plates = perk.plates;
+        t.plates = Math.max(perk.plates, Config.skill().plates);   // the easiest skill: a plate every life
         t.applyLevel();
         p.tank = t;
         // items bought in the shop take effect on the first spawn of the stage
         if (p.kit) {
           if (p.kit.helmet) t.shield = Math.max(t.shield, Config.frames('helmetTime'));
-          for (const k of ['turbo', 'rapid', 'rocket', 'pierce', 'spread', 'ghost']) if (p.kit[k]) t.boost[k] = Config.frames('newTime');
+          for (const k of ['turbo', 'rapid', 'rocket', 'pierce', 'spread', 'ghost', 'smoke']) if (p.kit[k]) t.boost[k] = Config.frames('newTime');
           if (p.kit.claude) this.summonClaude(t.x, Math.max(0, t.y - 16), p);
+          if (p.kit.wingman) this.spawnWingman(p);
+          if (p.kit.decoy) this.placeDecoy();
           p.kit = null;
         }
         this.tanks.push(t);
@@ -467,7 +475,7 @@ class Stage {
       if (!t.alive) continue;
       // inside a jammer's field your timed power-ups stop counting down
       if (!(t.isPlayer && this.jamList.length && this.jammed(t.x + 8, t.y + 8))) for (const k in t.boost) if (--t.boost[k] <= 0) delete t.boost[k];
-      if (t.isPlayer) this.updatePlayer(t); else this.updateEnemy(t);
+      if (t.ally) this.updateAlly(t); else if (t.isPlayer) this.updatePlayer(t); else this.updateEnemy(t);
     }
     this.updateSpecials();
     this.updateBase();
@@ -532,7 +540,8 @@ class Stage {
     const inp = Input.player(p.i);
     if (inp.dir >= 0) {
       this.turn(t, inp.dir);
-      this.move(t, t.dir);
+      // a bridge kit lays a bridge when you drive into water
+      if (!this.move(t, t.dir) && p.bridges > 0 && !t.ship && this.waterAhead(t) && this.layBridge(t)) p.bridges--;
       t.moving = true;
       t.slide = 0;
     } else {
@@ -601,7 +610,7 @@ class Stage {
   }
 
   targetInSight(t) {
-    const targets = [{ x: BASE_X, y: BASE_Y }].concat(this.tanks.filter(o => o.isPlayer));
+    const targets = [this.baseTarget()].concat(this.tanks.filter(o => o.isPlayer && !o.boost.smoke));
     for (const o of targets) {
       const dx = o.x - t.x, dy = o.y - t.y;
       if (Math.abs(dx) < 8 && ((t.dir === 0 && dy < 0) || (t.dir === 2 && dy > 0))) return true;
@@ -614,9 +623,9 @@ class Stage {
     const r = Math.random();
     const pBase = Math.min(0.8, Math.min(0.5, 0.25 + this.num * 0.008) * Config.scale('enemyAim'));
     let target = null;
-    if (r < pBase) target = { x: BASE_X, y: BASE_Y };
+    if (r < pBase) target = this.baseTarget();
     else if (r < pBase + 0.2) {
-      const ps = this.tanks.filter(o => o.isPlayer);
+      const ps = this.tanks.filter(o => o.isPlayer && !o.boost.smoke);
       if (ps.length) target = ps[rnd(ps.length)];
     }
     let d;
@@ -643,7 +652,7 @@ class Stage {
   }
 
   move(t, d) {
-    t.acc += t.speed * (t.boost.turbo ? TURBO_MULT : 1);
+    t.acc += t.speed * (t.boost.turbo ? TURBO_MULT : 1) * (t.isPlayer ? 1 : this.trapFactor(t));
     let ok = true;
     while (t.acc >= 1) {
       t.acc -= 1;
@@ -691,6 +700,7 @@ class Stage {
       }
     }
     if (overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
+    if (this.decoy && overlap(nx, ny, 16, 16, this.decoy.x, this.decoy.y, 16, 16)) return false;
     if (this.bosses.length && this.bossBlocksTank(t, nx, ny)) return false;
     if (this.turrets.length) {
       const tu = this.turretAt(nx, ny, 16, 16);
@@ -708,7 +718,7 @@ class Stage {
     const shell = (x, y, dir, free) => this.bullets.push({
       x, y, dir, speed: t.bulletSpeed, owner: t, free,
       isPlayer: t.isPlayer, power: t.power, cutter: t.cutter, alive: true,
-      pierce: !!t.boost.pierce, rocket: !!(t.boost.rocket || t.rocketGun),
+      pierce: !!t.boost.pierce, rocket: !!(t.boost.rocket || t.rocketGun), passPlayers: !!t.ally,
     });
     const pos = [[t.x + 6, t.y], [t.x + 12, t.y + 6], [t.x + 6, t.y + 12], [t.x, t.y + 6]][t.dir];
     shell(pos[0], pos[1], t.dir, false);
@@ -770,6 +780,11 @@ class Stage {
     if (this.turrets.length && this.bulletTurret(b)) return;
     if (b.isPlayer && this.snakeList.length && this.bulletSnakeBody(b)) return;
     if (this.bosses.length && this.bossShell(b) === 'stop') return;
+    if (this.decoy && !b.isPlayer && overlap(b.x, b.y, 4, 4, this.decoy.x, this.decoy.y, 16, 16)) {
+      this.killBullet(b, true);
+      this.hitDecoy();
+      return;
+    }
     if (overlap(b.x, b.y, 4, 4, BASE_X, BASE_Y, 16, 16)) {
       this.killBullet(b, true);
       if (this.baseAlive) this.destroyBase();
@@ -889,6 +904,7 @@ class Stage {
       else if (!byPlayer && t.isPlayer) this.hitPlayer(t);
     }
     if (!byPlayer && this.baseAlive && reaches(BASE_X, BASE_Y, 16, 16)) this.destroyBase();
+    if (!byPlayer && this.decoy && reaches(this.decoy.x, this.decoy.y, 16, 16)) this.hitDecoy();
     if (byPlayer) {
       for (const bo of this.bosses.slice()) {
         if (bo !== excludeBoss && this.bossTangible(bo) && reaches(bo.x, bo.y, bo.w, bo.h)) this.bossHit(bo, 2, owner, cx);
@@ -950,6 +966,7 @@ class Stage {
   }
 
   hitPlayer(t) {
+    if (t.ally) { this.hitAlly(t); return; }
     if (!t.alive || t.shield > 0) return;
     const p = t.player;
     if (t.plates > 0) {
@@ -1074,7 +1091,7 @@ class Stage {
   checkPickups() {
     const pu = this.powerup;
     if (!pu) return;
-    const order = this.tanks.filter(t => t.isPlayer).concat(this.tanks.filter(t => !t.isPlayer));
+    const order = this.tanks.filter(t => t.isPlayer && !t.ally).concat(this.tanks.filter(t => !t.isPlayer));
     for (const t of order) {
       if (t.alive && Config.canCollect(pu.type, t.isPlayer) && overlap(t.x, t.y, 16, 16, pu.x + 2, pu.y + 2, 12, 12)) {
         this.powerup = null;
@@ -1120,6 +1137,7 @@ class Stage {
         case PU.TURRET: this.placeTurret(pu.x, pu.y, p, false); break;
         case PU.CLAUDE: this.summonClaude(pu.x, pu.y, p); break;
         case PU.AIRSTRIKE: this.callAirstrike(true, gunner(p)); break;
+        case PU.BRIDGE: p.bridges = (p.bridges || 0) + 2; break;
         case PU.REVIVE: {
           const fallen = this.players.filter(q => q.out);
           if (fallen.length) fallen.forEach(q => this.revive(q, null));
@@ -1150,6 +1168,7 @@ class Stage {
           this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: 'NOPE!', label: true, color: '#F0A080', t: 0, delay: 0 });
           break;
         case PU.AIRSTRIKE: this.callAirstrike(false, null); break;
+        case PU.BRIDGE: t.hover = true; break;   // that tank can cross water now
         case PU.REVIVE: // reinforcements
           for (let k = 0; k < 2; k++) this.queue.push({ type: rnd(4) });
           this.total += 2;
@@ -1178,6 +1197,7 @@ class Stage {
         if (t === T_BRICK) bg.drawImage(tex.brick, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_STEEL) bg.drawImage(tex.steel, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_ICE) bg.drawImage(tex.ice, sx, sy, 4, 4, dx, dy, 4, 4);
+        else if (t === T_BRIDGE) bg.drawImage(Sprites.bridgeTex, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_FOREST) fo.drawImage(tex.forest, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_WATER) this.waterCells.push(cy * GW + cx);
       }
@@ -1186,6 +1206,7 @@ class Stage {
   }
 
   shadeAlpha(t) {
+    if (this.base && this.base.radar >= 1) return Math.max(0.6, Math.min(1, 0.15 + t.reveal / 40));   // radar 1
     if (t.reveal > 0) return Math.min(1, 0.15 + t.reveal / 40);
     for (const o of this.tanks) {
       if (!o.isPlayer || !o.alive) continue;
@@ -1199,7 +1220,10 @@ class Stage {
     if (t.isPlayer && t.frozen > 0 && ((this.frame >> 2) & 1)) return;
     if (t.ship) ctx.drawImage(Sprites.hull[t.dir], t.x, t.y);
     let spec, pal;
-    if (t.isPlayer) {
+    if (t.ally) {
+      spec = 'p1';
+      pal = 'c_WHITE';
+    } else if (t.isPlayer) {
       spec = 'p' + t.player.level;
       pal = Config.playerPal(t.player.i);
     } else {
@@ -1213,10 +1237,14 @@ class Stage {
       else pal = 'silver';
     }
     if (t.boost.ghost) ctx.globalAlpha = (this.frame >> 2) & 1 ? 0.35 : 0.6;
-    if (t.isPlayer) {
+    if (t.boost.smoke) { this.renderSmoke(ctx, t); if (!t.isPlayer) ctx.globalAlpha = 0.4; }
+    if (t.ally) {
+      ctx.drawImage(Sprites.tank(spec, t.anim, t.dir, pal), t.x, t.y);
+      ctx.fillStyle = '#3CBCFC'; ctx.fillRect(t.x + 7, t.y + 7, 2, 2);   // a blue mark tells it apart
+    } else if (t.isPlayer) {
       // the tank wears its XP rank; a marshal (level 10) and a fresh promotion glow
       const lv = Config.xpOn() ? t.player.rank || 1 : 1;
-      const img = Sprites.rankTank(spec, t.anim, t.dir, pal, lv, t.plates > 0);
+      const img = Sprites.rankTank(spec, t.anim, t.dir, pal, lv, t.plates > 0 ? (lv >= 5 ? 1 : 2) : 0);
       if (t.glow > 0 ? (t.glow >> 2) & 1 : lv >= 10 && (this.frame & 31) < 20) {
         ctx.drawImage(Sprites.outline(img, t.glow > 0 ? COL.white : COL.gold), t.x - 1, t.y - 1);
       }
@@ -1256,10 +1284,12 @@ class Stage {
       ctx.drawImage(wt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
     }
     this.renderEagle(ctx);
+    this.renderDecoy(ctx);
 
     for (const m of this.mines) ctx.drawImage(Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0], m.x - 4, m.y - 4);
     this.renderBossUnder(ctx);
     this.renderSpecialsUnder(ctx);
+    this.renderBaseZones(ctx);
     this.renderTurrets(ctx);
     for (const t of this.tanks) this.drawTank(ctx, t);
     this.renderClaudes(ctx);
@@ -1268,6 +1298,12 @@ class Stage {
       if (s.t > SPARKLE_TIME) continue;
       const k = Math.floor((SPARKLE_TIME - s.t) / 4) % 6;
       ctx.drawImage(Sprites.sparkle[[0, 1, 2, 3, 2, 1][k]], s.x, s.y);
+      // radar 2: see which tank is about to appear
+      if (s.enemy && this.base && this.base.radar >= 2 && (this.frame >> 3) & 1) {
+        ctx.globalAlpha = 0.5;
+        ctx.drawImage(Sprites.tank('e' + s.enemy.type, 0, 2, ENEMY[s.enemy.type].pal || 'silver'), s.x, s.y);
+        ctx.globalAlpha = 1;
+      }
     }
     for (const b of this.bullets) {
       const spr = b.rocket ? Sprites.bulletRocket : b.pierce ? Sprites.bulletPierce : Sprites.bullet;
@@ -1341,6 +1377,7 @@ class Stage {
     const dots = [];
     if (!turretsOnly) for (let k = 0; k < (p.mines || 0); k++) dots.push('#505050');
     for (let k = 0; k < (p.turrets || 0); k++) dots.push('#F8B800');
+    for (let k = 0; k < (p.bridges || 0); k++) dots.push('#B76506');
     dots.slice(0, max).forEach((c, k) => { ctx.fillStyle = c; ctx.fillRect(x + (vertical ? 0 : k * 3), y + (vertical ? k * 3 : 0), 2, 2); });
   }
 

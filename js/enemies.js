@@ -218,8 +218,9 @@ Object.assign(Stage.prototype, {
 
   // a spotter sees along its row or column, until steel, brick or trees block the view
   spotterLook(t) {
+    if (this.base && this.base.radar >= 3) return;   // radar 3: spotters can't mark you
     for (const o of this.tanks) {
-      if (!o.isPlayer || !o.alive) continue;
+      if (!o.isPlayer || !o.alive || o.boost.smoke) continue;
       const dx = o.x - t.x, dy = o.y - t.y;
       if ((Math.abs(dx) >= 8 && Math.abs(dy) >= 8) || Math.abs(dx) + Math.abs(dy) > SPOT_RANGE) continue;
       if (!this.sightLine(t.x + 8, t.y + 8, o.x + 8, o.y + 8)) continue;

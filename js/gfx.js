@@ -236,7 +236,7 @@ function decorateTank(rows, level, plate) {
     });
   }
   // armour skirts: a riveted steel plate outside each track
-  const skirt = plate && level >= 5;
+  const skirt = plate && (level >= 5 || plate === 2);   // 2: a plate below level 5 (the easiest skill's free plate)
   if (skirt) {
     for (const x of [minX - 1, maxX + 1]) {
       if (x < 0 || x > 15) continue;
@@ -303,7 +303,12 @@ const Sprites = {
       g(framedIcon(EXTRA_POWERUP_MASKS.turret), POWERUP_PAL),
       gridCanvas(claudeIcon, POWERUP_PAL.concat(['#D97757', '#F0A080'])),
       g(framedIcon(EXTRA_POWERUP_MASKS.revive), POWERUP_PAL),
-      g(framedIcon(EXTRA_POWERUP_MASKS.airstrike), POWERUP_PAL));
+      g(framedIcon(EXTRA_POWERUP_MASKS.airstrike), POWERUP_PAL),
+      g(framedIcon(EXTRA_POWERUP_MASKS.bridge), POWERUP_PAL),
+      g(framedIcon(EXTRA_POWERUP_MASKS.smoke), POWERUP_PAL));
+    // wooden planks laid over water (8px pattern, drawn in 4px cells like the other terrain)
+    this.bridgeTex = paintRows(['33333333', '11111111', '22222222', '22222222', '33333333', '11111111', '22222222', '22222222'],
+      { 1: '#E8A048', 2: '#B76506', 3: '#5C2C00' });
     this.claude = [0, 1].map(f => gridCanvas(claudeGrid(16, f), CLAUDE_INK));
     this.snakeSeg = [12, 8].map(d => gridCanvas(snakeSegment(d), PALS.snake));
     this.snakeSegHit = [12, 8].map(d => gridCanvas(snakeSegment(d), PALS.silver));
@@ -337,8 +342,8 @@ const Sprites = {
   },
   // a player tank wearing its rank (XP level); plate = armour plate still intact
   rankTank(spec, frame, dir, pal, level, plate) {
-    if (level <= 1) return this.tank(spec, frame, dir, pal);
-    const k = 'r' + spec + frame + dir + pal + level + (plate ? 'p' : '');
+    if (level <= 1 && !plate) return this.tank(spec, frame, dir, pal);
+    const k = 'r' + spec + frame + dir + pal + level + 'p' + (plate || 0);
     let c = this.cache.get(k);
     if (!c) {
       let g = decorateTank(TANK_GRIDS[spec][frame], level, plate);

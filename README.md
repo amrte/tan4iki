@@ -111,11 +111,11 @@ Pick the skill on the title screen (the coloured row; left/right changes it). Th
 
 | Skill | What changes |
 |---|---|
-| I'M TOO YOUNG TO DIE | 2 extra tanks; enemies fire half as often, move and shoot slower, arrive more slowly; fewer rush or hunt you; veterans 10 stages later; bosses 60% HP |
-| HEY, NOT TOO ROUGH | 1 extra tank; enemies a little gentler; veterans 5 stages later; bosses 80% HP |
-| HURT ME PLENTY | the game as it was (default) |
-| ULTRA-VIOLENCE | enemies fire 30% more, move and shoot faster, arrive sooner, rush and hunt more; veterans 5 stages earlier; bosses 125% HP |
-| NIGHTMARE! | all of that and more (fire +60%, bosses 150% HP, veterans 10 stages earlier), and as in DOOM, enemies you destroy may come back (about 1 in 3) |
+| I'M TOO YOUNG TO DIE | 3 extra tanks; every life starts with an armour plate (like DOOM's half damage); the eagle has 2 free armour each stage; one enemy fewer on screen; enemies mostly wander, fire about a third as often and move and shoot slower; new enemy types come 15 stages later and rarely; no veterans; bosses 50% HP |
+| HEY, NOT TOO ROUGH | 2 extra tanks; the eagle has 1 free armour; enemies gentler and mostly wander; new types 6 stages later and less often; veterans 15 stages later; bosses 75% HP |
+| HURT ME PLENTY | the default: the full mix of enemies, a little less aggressive than before |
+| ULTRA-VIOLENCE | one more enemy on screen; enemies fire 30% more, move and shoot faster, arrive sooner, rush and hunt more; more new types; veterans 5 stages earlier; bosses 125% HP |
+| NIGHTMARE! | two more on screen and all of that and more (fire +60%, bosses 150% HP, veterans 10 stages earlier), and as in DOOM, enemies you destroy may come back (about 1 in 3) |
 
 The skill is saved with your settings (also Settings → GAME → SKILL), shown on the stage curtain when it isn't
 HURT ME PLENTY, and the host's skill applies to online games. It works on top of all the other settings.
@@ -242,28 +242,36 @@ something takes its price off your score. In 2-player games player I shops first
 | Helmet, turbo, rapid, spread, rocket, pierce | 1000–3000 | that effect is active when your tank first appears in the next stage |
 | Turret | 4000 | one turret to place with **B** |
 | Claude | 6000 | Claude joins you at the start of the next stage |
+| Wingman | 5000 | an AI tank fights beside you next stage |
+| Decoy eagle | 3000 | a fake eagle lures rushing enemies next stage |
+| Smoke | 1500 | smoke screen when your tank first appears |
+| Bridge kit | 1500 | 2 bridges: drive into water to lay one |
 
 Upgrades you buy are kept until you lose a tank, as with ones picked up during play. In Settings → SHOP you can turn the shop off or
 scale all prices (25%–300%). There is no shop after a game over.
 
 **Base upgrades** (orange icons, at the end of the list) improve the eagle's fortress. They belong to the whole team:
-any player can buy the next level, and they last until game over (they are kept in saves). Each has 3 levels; the
-status column shows the level you have (`L1/3`) and the line below says what the next level adds.
+any player can buy the next level, and they stay from stage to stage until the game is over (they are kept in saves).
+The status column shows the level you have (`L2/5`) and the line below says what the next level adds.
 
-| Upgrade | Level 1 / 2 / 3 | Price per level |
+| Upgrade | Levels | Price per level |
 |---|---|---|
-| Base walls | an extra brick ring around the fortress / steel corners / a full steel inner ring | 4000 / 7000 / 12000 |
-| Eagle armor | the eagle survives 1 / 2 / 3 hits each stage (cyan outline, gold at 3) | 3000 / 6000 / 10000 |
-| Repair crew | rebuilds one missing fortress block every 10 / 6 / 3 seconds | 2500 / 5000 / 8000 |
-| Eagle gun | a turret on the eagle shoots enemies lined up above or beside it: 6-tile range / faster, 9 tiles / steel-breaking shells, 12 tiles. Its shells pass through your tanks and never break the fortress; its kills earn no points | 5000 / 8000 / 12000 |
-| Minefield | 2 / 4 / 6 armed mines in front of the fortress at the start of each stage | 2000 / 3000 / 4000 |
+| Base walls | extra brick ring / steel inner corners / steel inner ring / steel outer corners / all-steel fortress | 4000 – 18000 |
+| Eagle armor | the eagle survives 1 – 5 hits each stage (cyan outline, gold from 3) | 3000 – 15000 |
+| Repair crew | rebuilds one missing fortress block every 10 / 7 / 5 / 3 / 2 s | 2500 – 10000 |
+| Eagle gun | a turret on the eagle shoots enemies lined up above or beside it; range 6 → 15 tiles and faster each level; steel-breaking shells at 4, exploding shells at 5. Its shells pass through your tanks and never break the fortress; its kills earn no points | 5000 – 16000 |
+| Minefield | 2 / 4 / 6 / 8 / 10 armed mines in front of the fortress at the start of each stage | 2000 – 6000 |
+| Tesla coil | zaps every enemy within 2 → 4 tiles of the eagle, every 3 s → every second | 6000 – 16000 |
+| Tank traps | enemies near the eagle (2.5 → 4.5 tiles) move 30% → 70% slower; a dotted arc marks the zone | 2500 – 9000 |
+| Supply drop | a power-up lands just in front of the fortress every 60 / 45 / 35 / 25 / 20 s | 4000 – 12000 |
+| Radar (3 levels) | stealth tanks always show / see which tank is about to appear at each entry point / spotters can't mark you | 3000 – 7000 |
 
 After a shovel runs out, the walls go back to their upgraded state, not plain brick. Settings → SHOP → BASE UPGRADES
 turns them off.
 
 ## New power-ups
 
-These 12 were not in the original game. They're marked with `*` in Settings and can be switched off there.
+These 14 were not in the original game. They're marked with `*` in Settings and can be switched off there.
 
 | Power-up | You get | If an enemy grabs it |
 |---|---|---|
@@ -278,7 +286,30 @@ These 12 were not in the original game. They're marked with `*` in Settings and 
 | **Turret** (tripod) | a turret appears where you grab it: it swings round to the nearest enemy within 8 tiles and fires once lined up; 3 hits; never fires across your eagle; its kills score for you | a red turret that shoots you |
 | **Claude** (the orange Claude sparkle) | Claude walks the field for 20 s, chirping, and eats every enemy tank (armor included) and enemy shell it bumps into; it nibbles bosses; points are yours | "NOPE!": Claude doesn't work for them (only players can collect it by default) |
 | **Revive** (heart) | every fallen teammate comes back with one tank; if nobody is down, an extra life | 2 more enemy tanks join the stage |
+| **Bridge** (planks) | 2 bridge kits: drive into water to lay a bridge | that tank can cross water |
+| **Smoke** (cloud) | enemies lose track of you for 15 s | that tank fades into smoke |
 | **Airstrike** (plane) | a plane flies along the row with the most enemies (never the rows by your eagle) and bombs it | the plane bombs your row |
+
+## Wingman, decoy eagle, smoke and bridges
+
+- **Wingman** (shop, 5000): a white AI tank with a blue dot joins you at the start of the next stage. It hunts the
+  nearest enemy, shoots through bricks in its way, never fires across your eagle, survives one hit and its kills score
+  for you. Losing it costs no life.
+- **Decoy eagle** (shop, 3000): a fake eagle (straw-coloured outline) stands in the middle of the field. Rushing
+  enemies, base hunters and snipers go for it first; it takes 2 hits.
+- **Smoke** (power-up, or 1500 in the shop for the start of a stage): for 15 s enemies, their turrets, spotters and
+  bosses lose track of you (they still bump into you). An enemy that grabs it fades into smoke.
+- **Bridge kit** (power-up gives 2, shop 1500 for 2): drive into water and a bridge is laid straight across it; it
+  stays for the stage and anyone can use it. Carried kits show as brown dots in the side panel. An enemy that grabs
+  the power-up can cross water.
+
+## Daily challenge
+
+DAILY CHALLENGE on the title screen: the same 3 stages and 2 twists for everyone on a given day (the starting stage and
+the twists come from the date), 1 player, no shop and no saves. The title shows today's twists and your best score;
+after the run (3 stages or game over) you see your score and today's best. Twists: double trouble, glass cannon,
+speed demons, no power-ups, new breed, rocket party, iron hides, wide open, night shift, easy rider, turbo tank and
+boss rush. Your own settings come back afterwards.
 
 ## Turrets, Claude and revival
 

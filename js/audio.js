@@ -193,6 +193,10 @@ const Sound = {
         this.seq(tune, 0.05 + Math.random() * 0.03, t, { vol: 0.09, decayTo: 0.5, wave: Math.random() < 0.5 ? 'p25' : 'p12' });
         break;
       }
+      case 'zap': // tesla coil
+        this.noise(20000, t, [[0, 0.12], [0.04, 0.02], [0.06, 0.12], [0.14, 0]]);
+        this.note(96, t, 0.12, { vol: 0.06, slideTo: 400, wave: 'p12' });
+        break;
       case 'chomp': // the snake swallows a tank
         this.note(40, t, 0.12, { vol: 0.2, slideTo: 28 });
         this.noise(2000, t + 0.05, [[0, 0.15], [0.2, 0]]);
