@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.9</title>
+  <title>tanb4iki_v0.10</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.9';
+const APP_VERSION = '0.10';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -1808,6 +1808,20 @@ TANK_GRIDS.e15 = canvasEnemyGrids(['......11', '.....123', '......11', '111....1
 TANK_GRIDS.e16 = canvasEnemyGrids(['........', '........', '........', '.......1', '.......1', '...11111', '...13122', '...11123',
   '...13122', '...11122', '...13111', '...111..', '........', '........', '........', '........']);
 
+// Base-upgrade shop icons (framed like the power-ups, in orange): walls, armor, repair, gun, minefield
+const BASE_ICON_MASKS = [
+  [ // walls
+    '............', 'XXXX.XXXX.XX', 'XXXX.XXXX.XX', '............', 'XX.XXXX.XXXX', 'XX.XXXX.XXXX', '............', 'XXXX.XXXX.XX', 'XXXX.XXXX.XX', '............', '............'],
+  [ // armor
+    '.XXXXXXXXXX.', '.XXXXXXXXXX.', '.XX......XX.', '.XX.XXXX.XX.', '.XX.XXXX.XX.', '..XX.XX.XX..', '..XX....XX..', '...XX..XX...', '....XXXX....', '.....XX.....', '............'],
+  [ // repair
+    '..XXXXXX....', '..XXXXXXXX..', '..XXXXXX....', '.....XX.....', '.....XX.....', '.....XX.....', '.....XX.....', '.....XX.....', '.....XX.....', '....XXXX....', '............'],
+  [ // gun
+    '.....XX.....', '.....XX.....', '.....XX.....', '.....XX.....', '...XXXXXX...', '..XXXXXXXX..', '..XXX..XXX..', '..XXX..XXX..', '..XXXXXXXX..', '.XXXXXXXXXX.', '............'],
+  [ // field
+    '..X.....X...', '.XXX...XXX..', 'XXXXX.XXXXX.', '.XXX...XXX..', '..X.....X...', '.....X......', '....XXX.....', '...XXXXX....', '....XXX.....', '.....X......', '............'],
+];
+
 </script>
   <script>
 'use strict';
@@ -2070,6 +2084,7 @@ const Sprites = {
     this.smallExp = EXPLOSION_GRIDS.map(r => g(r, EXPLOSION_PAL));
     this.bigExp = BIG_EXPLOSION_GRIDS.map(r => g(r, EXPLOSION_PAL));
     this.powerups = POWERUP_GRIDS.concat(NEW_POWERUP_MASKS.map(framedIcon)).map(r => g(r, POWERUP_PAL));
+    this.baseIcons = BASE_ICON_MASKS.map(m => g(framedIcon(m), [null, '#FCE4A0', '#E45C10', '#7C1C00']));
     this.mine = [g(MINE_GRID, [null, '#ADADAD', '#505050', '#E04030']), g(MINE_GRID, [null, '#ADADAD', '#505050', '#600000'])];
     this.hull = [0, 1, 2, 3].map(genHull);
     this.bullet = [0, 1, 2, 3].map(d => genBullet(d));
@@ -2347,6 +2362,7 @@ const SETTINGS_DEF = [
   { section: 'SHOP' },
   { key: 'shop', label: 'SHOP AFTER STAGES', values: ONOFF, def: 'ON' },
   { key: 'shopPrices', label: 'SHOP PRICES', values: PCTS, def: 100, fmt: fmtPct },
+  { key: 'baseShop', label: 'BASE UPGRADES', values: ONOFF, def: 'ON' },
 
   // field size in 16px tiles; FIT sizes it to the window's shape when a game starts
   { section: 'SCREEN' },
@@ -3420,7 +3436,6 @@ class Stage {
     this.terrain = new Uint8Array(GW * GH);
     const classic = COLS === 13 && ROWS === 13;
     this.load(expandBlocks(mapToBlocks(map)), !opts.custom || !classic);
-    this.origTerrain = this.terrain.slice();   // what a mason rebuilds
     this.tanks = [];
     this.bullets = [];
     this.fx = [];
@@ -3430,6 +3445,8 @@ class Stage {
     this.mines = [];
     this.bosses = []; this.beams = []; this.tracks = []; this.dust = [];
     this.flames = []; this.shells = []; this.heals = []; this.mark = null; this.jamList = [];   // see enemies.js
+    this.applyBase(opts.base);                 // base upgrades from the shop (base.js)
+    this.origTerrain = this.terrain.slice();   // what a mason rebuilds
     this.lastBrickSound = -1;
     this.queue = buildQueue(num);
     this.total = this.queue.length;
@@ -3486,6 +3503,7 @@ class Stage {
         return o;
       }),
       kills: this.players.map(p => p.kills.slice()),
+      eagleArmor: this.eagleArmor,
       boss: this.bossIdx === undefined ? null : {
         idx: this.bossIdx, loop: this.bossLoop, dropAt: this.bossDropAt, defeated: !!this.bossDefeated,
         bosses: this.bosses.map(b => Object.assign({}, b, { bullets: 0 })),
@@ -3497,6 +3515,7 @@ class Stage {
     for (let i = 0; i < this.terrain.length; i++) this.terrain[i] = sn.terrain.charCodeAt(i) - 48;
     this.dirty = true;
     for (const k of ['queue', 'total', 'killed', 'spawnTimer', 'spawnPos', 'spawnInterval', 'maxEnemies', 'freezeE', 'freezeP', 'shovel', 'baseAlive', 'frame', 'powerup']) this[k] = sn[k];
+    if (sn.eagleArmor !== undefined) this.eagleArmor = sn.eagleArmor;
     this.spawns = [];
     for (const p of this.players) { p.tank = null; p.kills = zeroKills().map((z, k) => (sn.kills[p.i] || [])[k] || 0); }
     this.tanks = sn.tanks.map(o => {
@@ -3557,8 +3576,9 @@ class Stage {
     const bx = cx & ~1, by = cy & ~1;
     for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) if (this.get(bx + x, by + y) === type) this.set(bx + x, by + y, T_EMPTY);
   }
+  // brick means "the normal walls": steel where the WALLS base upgrade says so
   setBaseWalls(t) {
-    for (const [bx, by] of BASE_WALL) this.setBlock(bx, by, t);
+    BASE_WALL.forEach(([bx, by], i) => this.setBlock(bx, by, t === T_BRICK ? this.baseWallType(i) : t));
   }
   onIce(t) {
     return this.get((t.x + 8) >> 2, (t.y + 8) >> 2) === T_ICE;
@@ -3641,6 +3661,7 @@ class Stage {
       if (t.isPlayer) this.updatePlayer(t); else this.updateEnemy(t);
     }
     this.updateSpecials();
+    this.updateBase();
     this.updateBosses();
     this.updateBullets();
     this.updateMines();
@@ -3933,7 +3954,7 @@ class Stage {
       return;
     }
     for (const t of this.tanks) {
-      if (!t.alive || t === b.owner) continue;
+      if (!t.alive || t === b.owner || (b.eagle && t.isPlayer)) continue;
       if (!overlap(b.x, b.y, 4, 4, t.x, t.y, 16, 16)) continue;
       if (b.pierce) {
         // piercing shells damage each tank once and keep flying
@@ -4150,6 +4171,7 @@ class Stage {
   }
 
   destroyBase() {
+    if (this.eagleArmorHit()) return;
     this.baseAlive = false;
     this.addFx(BASE_X + 8, BASE_Y + 8, BIG_EXPLOSION(), 6);
     Sound.play('baseDie');
@@ -4382,7 +4404,7 @@ class Stage {
       const cx = i % GW, cy = (i / GW) | 0;
       ctx.drawImage(wt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
     }
-    ctx.drawImage(this.baseAlive ? Sprites.eagle : Sprites.eagleDead, BASE_X, BASE_Y);
+    this.renderEagle(ctx);
 
     for (const m of this.mines) ctx.drawImage(Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0], m.x - 4, m.y - 4);
     this.renderBossUnder(ctx);
@@ -4977,6 +4999,167 @@ Object.assign(Stage.prototype, {
       for (const [x, y, w, h] of [[-2, -2, 5, 1], [-2, -2, 1, 5], [13, -2, 5, 1], [17, -2, 1, 5], [-2, 17, 5, 1], [-2, 13, 1, 5], [13, 17, 5, 1], [17, 13, 1, 5]]) {
         ctx.fillRect(mt.x + x, mt.y + y, w, h);
       }
+    }
+  },
+});
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  Base upgrades: bought in the shop between stages, shared by the whole team, kept until game over.
+//    WALLS       1 an extra brick ring · 2 steel corners · 3 a full steel inner ring
+//    ARMOR       the eagle survives 1 / 2 / 3 hits per stage
+//    REPAIR      a crew rebuilds the fortress, one block every 10 / 6 / 3 seconds
+//    GUN         the eagle shoots enemies lined up with it · faster, longer range · steel-breaking shells
+//    FIELD       2 / 4 / 6 armed mines in front of the fortress at the start of every stage
+// =====================================================================
+
+const BASE_UPGRADES = [
+  { key: 'walls', name: 'BASE WALLS', prices: [4000, 7000, 12000], descs: ['AN EXTRA BRICK RING', 'STEEL CORNERS', 'FULL STEEL INNER RING'] },
+  { key: 'armor', name: 'EAGLE ARMOR', prices: [3000, 6000, 10000], descs: ['EAGLE SURVIVES 1 HIT', 'EAGLE SURVIVES 2 HITS', 'EAGLE SURVIVES 3 HITS'] },
+  { key: 'repair', name: 'REPAIR CREW', prices: [2500, 5000, 8000], descs: ['REBUILDS WALLS EVERY 10 S', 'REBUILDS WALLS EVERY 6 S', 'REBUILDS WALLS EVERY 3 S'] },
+  { key: 'gun', name: 'EAGLE GUN', prices: [5000, 8000, 12000], descs: ['EAGLE SHOOTS TANKS IN LINE', 'FASTER, LONGER RANGE', 'SHELLS BREAK STEEL'] },
+  { key: 'field', name: 'MINEFIELD', prices: [2000, 3000, 4000], descs: ['2 MINES BEFORE THE EAGLE', '4 MINES BEFORE THE EAGLE', '6 MINES BEFORE THE EAGLE'] },
+];
+const newBase = () => ({ walls: 0, armor: 0, repair: 0, gun: 0, field: 0 });
+const REPAIR_EVERY = [0, 600, 360, 180];
+const GUN_EVERY = [0, 110, 70, 45], GUN_RANGE = [0, 96, 144, 192];
+const EAGLE_GUN = { isPlayer: false, bullets: 0, eagle: true };   // owner of the eagle's shells (no points)
+
+Object.assign(Stage.prototype, {
+  // at stage start (before the stage's terrain is remembered for masons)
+  applyBase(base) {
+    this.base = Object.assign(newBase(), base || {});
+    this.eagleArmor = this.base.armor;
+    this.eagleInv = 0;
+    this.eagleFlash = 0;
+    this.repairT = 0;
+    this.gunT = 60;
+    this.gunDir = 0;
+    if (this.base.walls >= 1) for (const [x, y] of this.outerRing()) this.setBlock(x, y, T_BRICK);
+    if (this.base.walls >= 2) this.setBaseWalls(T_BRICK);
+    this.placeMinefield([0, 2, 4, 6][this.base.field]);
+  },
+
+  // the extra ring of blocks around the classic fortress
+  outerRing() {
+    const bx = BASE_X / 8, by = BASE_Y / 8, out = [];
+    for (let y = by - 2; y <= by + 1; y++) for (let x = bx - 2; x <= bx + 3; x++) {
+      if ((x === bx - 2 || x === bx + 3 || y === by - 2) && x >= 0 && x < COLS * 2 && y >= 0) out.push([x, y]);
+    }
+    return out;
+  },
+
+  // what a fortress block is made of with the WALLS upgrade (i = index in BASE_WALL)
+  baseWallType(i) {
+    const w = this.base ? this.base.walls : 0;
+    if (w >= 3) return T_STEEL;
+    if (w >= 2) {
+      const [x, y] = BASE_WALL[i], bx = BASE_X / 8, by = BASE_Y / 8;
+      if ((x === bx - 1 || x === bx + 2) && (y === by - 1 || y === by + 1)) return T_STEEL;
+    }
+    return T_BRICK;
+  },
+
+  placeMinefield(n) {
+    const spots = [];
+    for (const dy of [48, 72]) for (const dx of [0, -24, 24, -48, 48, -72, 72]) spots.push([BASE_X + 8 + dx, BASE_Y + 8 - dy]);
+    for (const [x, y] of spots) {
+      if (n <= 0) break;
+      if (x < 8 || x > FW - 8 || y < 8) continue;
+      const t = this.get(x >> 2, y >> 2);
+      if (t !== T_EMPTY && t !== T_FOREST) continue;
+      if (PLAYER_SPAWN.some(([sx, sy]) => overlap(x - 4, y - 4, 8, 8, sx, sy, 16, 16))) continue;
+      this.mines.push({ x, y, byPlayer: true, owner: null, t: MINE_ARM_TIME });
+      n--;
+    }
+  },
+
+  // every frame
+  updateBase() {
+    if (!this.base || !this.baseAlive || this.over) return;
+    if (this.eagleInv > 0) this.eagleInv--;
+    if (this.eagleFlash > 0) this.eagleFlash--;
+    const r = this.base.repair;
+    if (r && this.shovel <= 0 && ++this.repairT >= REPAIR_EVERY[r]) { this.repairT = 0; this.repairFortress(); }
+    const g = this.base.gun;
+    if (g && this.freezeP <= 0 && --this.gunT <= 0) this.eagleShoot(g);
+  },
+
+  // put back one missing block of the fortress
+  repairFortress() {
+    const want = BASE_WALL.map((b, i) => [b[0], b[1], this.baseWallType(i)]);
+    if (this.base.walls >= 1) for (const [x, y] of this.outerRing()) want.push([x, y, T_BRICK]);
+    for (const [x, y, type] of want) {
+      let missing = false;
+      for (let k = 0; k < 4; k++) if (this.get(x * 2 + (k & 1), y * 2 + (k >> 1)) === T_EMPTY) missing = true;
+      if (!missing || this.tanks.some(o => o.alive && overlap(o.x, o.y, 16, 16, x * 8, y * 8, 8, 8))) continue;
+      for (let k = 0; k < 4; k++) {
+        const cx = x * 2 + (k & 1), cy = y * 2 + (k >> 1);
+        if (this.get(cx, cy) === T_EMPTY) this.set(cx, cy, type);
+      }
+      this.addFx(x * 8 + 4, y * 8 + 4, [Sprites.sparkle[0], Sprites.sparkle[1]], 4);
+      Sound.play('build');
+      return;
+    }
+  },
+
+  // the eagle fires at the nearest enemy lined up with it (up, left or right)
+  eagleShoot(g) {
+    this.gunT = 12;
+    const ex = BASE_X + 8, ey = BASE_Y + 8;
+    let best = null, bd = GUN_RANGE[g];
+    for (const t of this.tanks) {
+      if (!t.alive || t.isPlayer) continue;
+      const dx = t.x + 8 - ex, dy = t.y + 8 - ey;
+      let dir = -1;
+      if (Math.abs(dx) < 8 && dy < 0) dir = 0;
+      else if (Math.abs(dy) < 8) dir = dx > 0 ? 1 : 3;
+      const d = Math.abs(dx) + Math.abs(dy);
+      if (dir >= 0 && d < bd) { bd = d; best = dir; }
+    }
+    if (best === null) return;
+    // the shell starts outside the fortress so it never breaks its own walls
+    const off = 8 + (this.base.walls >= 1 ? 16 : 8) + 2;
+    this.bullets.push({
+      x: ex - 2 + DXY[best][0] * off, y: ey - 2 + DXY[best][1] * off, dir: best, speed: 4, owner: EAGLE_GUN, free: true,
+      isPlayer: true, eagle: true, power: g >= 3, cutter: false, alive: true, pierce: false, rocket: false,
+    });
+    this.gunDir = best;
+    this.gunT = GUN_EVERY[g];
+    Sound.play('shot');
+  },
+
+  // a hit on the eagle: armor soaks it if there is any left
+  eagleArmorHit() {
+    if (this.eagleInv > 0) return true;
+    if (this.eagleArmor <= 0) return false;
+    this.eagleArmor--;
+    this.eagleInv = 40;
+    this.eagleFlash = 30;
+    this.addFx(BASE_X + 8, BASE_Y + 8, Sprites.smallExp, 3);
+    Sound.play('armor');
+    return true;
+  },
+
+  renderEagle(ctx) {
+    if (!this.baseAlive) { ctx.drawImage(Sprites.eagleDead, BASE_X, BASE_Y); return; }
+    if (this.eagleArmor > 0 || this.eagleFlash > 0) {
+      const c = this.eagleFlash > 0 && (this.eagleFlash >> 2) & 1 ? COL.white : this.eagleArmor >= 3 ? COL.gold : '#3CBCFC';
+      ctx.drawImage(Sprites.outline(Sprites.eagle, c), BASE_X - 1, BASE_Y - 1);
+    }
+    ctx.drawImage(Sprites.eagle, BASE_X, BASE_Y);
+    if (this.base && this.base.gun) {
+      // a small turret on the eagle's head
+      const cx = BASE_X + 8, cy = BASE_Y + 5;
+      ctx.fillStyle = '#505050';
+      ctx.fillRect(cx - 2, cy - 2, 4, 4);
+      ctx.fillStyle = this.base.gun >= 3 ? COL.gold : '#ADADAD';
+      ctx.fillRect(cx - 1, cy - 1, 2, 2);
+      const [dx, dy] = DXY[this.gunDir || 0];
+      ctx.fillStyle = '#505050';
+      for (let k = 2; k <= 4; k++) ctx.fillRect(cx - (dx ? 0 : 1) + dx * k - (dx < 0 ? 1 : 0), cy - (dy ? 0 : 1) + dy * k - (dy < 0 ? 1 : 0), dx ? 1 : 2, dy ? 1 : 2);
     }
   },
 });
@@ -6081,6 +6264,7 @@ const Net = {
       i: p.i, score: p.score, lives: p.lives, level: p.level, mines: p.mines, kills: p.kills, out: p.out,
       ship: p.ship, cutter: p.cutter, kit: p.kit, shopShovel: p.shopShovel, xp: p.xp, rank: p.rank, stageXp: p.stageXp,
     }));
+    v.base = G.base;
     v.snd = this.sndQueue.splice(0);
     if (G.toastT > 0) v.toast = [G.toastText, G.toastT];
     const st = G.stage;
@@ -6118,6 +6302,7 @@ const Net = {
       ar: st.shells.map(a => [a.x, a.y, a.t]),
       hl: st.heals.map(h => [h.x1, h.y1, h.x2, h.y2, h.t, h.build ? 1 : 0]),
       mk: st.mark ? st.mark.p.i : -1,
+      ea: [st.eagleArmor, st.eagleFlash, st.gunDir, st.base ? st.base.gun : 0],
     };
     st.netDiff = [];
     if (full) sv.tf = Array.from(st.terrain).join('');
@@ -6215,6 +6400,7 @@ const Net = {
     const G = Game;
     if (v.c !== COLS || v.r !== ROWS) setFieldSize(v.c, v.r);
     G.players = v.pl.map((o, k) => Object.assign(G.players[k] && G.players[k].i === o.i ? G.players[k] : newPlayer(o.i), o, { tank: null }));
+    if (v.base) G.base = v.base;
     G.twoP = G.players.length > 1;
     G.stageNum = v.stn;
     G.hi = v.hi;
@@ -6254,6 +6440,7 @@ const Net = {
       type: a[5], hp: a[6], bonus: !!a[7], shield: a[8], frozen: a[9], ship: !!a[10], anim: a[11], boost: a[12] ? { ghost: 1 } : {},
       plates: a[13] || 0, glow: a[14] || 0, reveal: a[15] || 0, ai: a[16] || 0, vet: a[17] || 0, stealth: a[5] === 7,
     }));
+    if (sv.ea) { st.eagleArmor = sv.ea[0]; st.eagleFlash = sv.ea[1]; st.gunDir = sv.ea[2]; st.base = Object.assign(newBase(), { gun: sv.ea[3] }); }
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
     st.heals = (sv.hl || []).map(a => ({ x1: a[0], y1: a[1], x2: a[2], y2: a[3], t: a[4], build: !!a[5] }));
@@ -6523,17 +6710,25 @@ const SHOP_ITEMS = [
   { id: 'spread', name: 'SPREAD', price: 2000, icon: PU.SPREAD, desc: '3-WAY FIRE AT STAGE START' },
   { id: 'rocket', name: 'ROCKET', price: 3000, icon: PU.ROCKET, desc: 'ROCKETS AT STAGE START' },
   { id: 'pierce', name: 'PIERCE', price: 3000, icon: PU.PIERCE, desc: 'PIERCING SHELLS AT START' },
+  // base upgrades: shared by the team, 3 levels each (base.js)
+  ...BASE_UPGRADES.map((u, i) => ({ id: 'base_' + u.key, base: u.key, name: u.name, prices: u.prices, descs: u.descs, bicon: i })),
   { id: 'done', name: 'START STAGE' },
 ];
 const SHOP_ROWS = 9, SHOP_TOP = 40, SHOP_ROW_H = 16;
 
 function shopPrice(item) {
   const discount = Game.shopDiscount ? 0.75 : 1;
-  return Math.round((item.price * Config.scale('shopPrices') * discount) / 100) * 100;
+  const price = item.prices ? item.prices[Math.min(2, Game.base[item.base] || 0)] : item.price;
+  return Math.round((price * Config.scale('shopPrices') * discount) / 100) * 100;
 }
 
 // what the player already has; `max` means it can't be bought again
 function shopStatus(item, p) {
+  if (item.base) {
+    if (!Config.on('baseShop')) return { text: 'OFF', max: true };
+    const lv = Game.base[item.base] || 0;
+    return { text: lv >= 3 ? 'MAX' : 'L' + lv + '/3', max: lv >= 3 };
+  }
   switch (item.id) {
     case 'life': return Config.infiniteLives() ? { text: 'INF', max: true } : { text: 'X' + p.lives, max: p.lives >= 99 };
     case 'star': return { text: p.level + '/3', max: p.level >= 3 };
@@ -6547,6 +6742,7 @@ function shopStatus(item, p) {
 }
 
 function shopApply(item, p) {
+  if (item.base) { Game.base[item.base] = (Game.base[item.base] || 0) + 1; return; }
   switch (item.id) {
     case 'life': p.lives++; break;
     case 'star': p.level++; break;
@@ -6563,6 +6759,7 @@ const Game = {
   t: 0,
   hi: 20000,
   players: [],
+  base: newBase(),   // base upgrades bought in the shop (shared)
   twoP: false,
   multiN: 2,     // players chosen on the MULTIPLAYER row (2-4)
   stageNum: 1,
@@ -6709,6 +6906,7 @@ const Game = {
     const data = {
       app: APP_VERSION, time: Date.now(), numPlayers: this.players.length, stageNum: this.stageNum, lastScores: this.lastScores,
       players: this.players.map(p => { const o = Object.assign({}, p); delete o.tank; return o; }),
+      base: this.base,
       stage: this.stage.snapshot(),
     };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); return true; } catch (e) { return false; }
@@ -6728,7 +6926,8 @@ const Game = {
     this.customPending = false;
     // the saved terrain only fits the field size it was saved with
     this.applyLayout(s.stage.cols, s.stage.rows);
-    this.stage = new Stage(this.stageNum, LEVELS[(this.stageNum - 1) % LEVELS.length], this.players, { snapshot: s.stage });
+    this.base = Object.assign(newBase(), s.base || {});
+    this.stage = new Stage(this.stageNum, LEVELS[(this.stageNum - 1) % LEVELS.length], this.players, { snapshot: s.stage, base: this.base });
     this.paused = true;
     this.pauseIdx = 0;
     this.pauseMsg = 'GAME LOADED';
@@ -6747,6 +6946,7 @@ const Game = {
     Input.numPlayers = n;
     this.players = [];
     for (let i = 0; i < n; i++) this.players.push(newPlayer(i));
+    this.base = newBase();
     // the stage picker starts where you last played
     this.stageNum = Math.max(1, Math.min(this.stageLimit(), STORE.get('tank1990_lastStage', 1) | 0 || 1));
     this.customPending = custom;
@@ -6804,7 +7004,7 @@ const Game = {
     else map = LEVELS[(this.stageNum - 1) % LEVELS.length];
     const boss = custom ? null : bossForStage(this.stageNum);
     if (boss) map = BOSS_ARENAS[boss.idx];
-    this.stage = new Stage(this.stageNum, map, this.players, { custom, boss });
+    this.stage = new Stage(this.stageNum, map, this.players, { custom, boss, base: this.base });
     this.paused = false;
     this.openH = SCREEN_H / 2;
     this.setState('play');
@@ -7233,7 +7433,7 @@ const Game = {
         Font.draw(ctx, item.name + ' ' + this.stageNum, 34, y, COL.white);
         continue;
       }
-      ctx.drawImage(Sprites.powerups[item.icon], 12, y - 4);
+      ctx.drawImage(item.base ? Sprites.baseIcons[item.bicon] : Sprites.powerups[item.icon], 12, y - 4);
       const price = shopPrice(item), st = shopStatus(item, p);
       Font.draw(ctx, item.name, 34, y, st.max ? COL.lgrey : COL.white);
       if (!st.max) Font.drawRight(ctx, price, 190, y, p.score >= price ? COL.gold : '#7C3C3C');
@@ -7244,7 +7444,10 @@ const Game = {
     if (sh.scroll + SHOP_ROWS < SHOP_ITEMS.length) for (let k = 0; k < 4; k++) ctx.fillRect(SW / 2 - 3 + k, SHOP_TOP + SHOP_ROWS * SHOP_ROW_H - 3 + k, 7 - 2 * k, 1);
     const item = SHOP_ITEMS[sh.idx];
     if (sh.msgT > 0) Font.drawCenter(ctx, sh.msg, SW / 2, 192, sh.msg.startsWith('BOUGHT') ? COL.gold : COL.red);
-    else if (item.desc) {
+    else if (item.base) {
+      const lv = Game.base[item.base] || 0;
+      Font.drawCenter(ctx, Config.on('baseShop') ? (lv >= 3 ? 'FULLY UPGRADED' : 'BASE: ' + item.descs[lv]) : 'BASE UPGRADES ARE OFF', SW / 2, 192, COL.gold);
+    } else if (item.desc) {
       const desc = item.id === 'mines' ? '+' + Config.get('mineCount') + ' ' + item.desc : item.desc;
       Font.drawCenter(ctx, desc, SW / 2, 192, COL.white);
     }

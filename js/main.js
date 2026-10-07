@@ -57,17 +57,25 @@ const SHOP_ITEMS = [
   { id: 'spread', name: 'SPREAD', price: 2000, icon: PU.SPREAD, desc: '3-WAY FIRE AT STAGE START' },
   { id: 'rocket', name: 'ROCKET', price: 3000, icon: PU.ROCKET, desc: 'ROCKETS AT STAGE START' },
   { id: 'pierce', name: 'PIERCE', price: 3000, icon: PU.PIERCE, desc: 'PIERCING SHELLS AT START' },
+  // base upgrades: shared by the team, 3 levels each (base.js)
+  ...BASE_UPGRADES.map((u, i) => ({ id: 'base_' + u.key, base: u.key, name: u.name, prices: u.prices, descs: u.descs, bicon: i })),
   { id: 'done', name: 'START STAGE' },
 ];
 const SHOP_ROWS = 9, SHOP_TOP = 40, SHOP_ROW_H = 16;
 
 function shopPrice(item) {
   const discount = Game.shopDiscount ? 0.75 : 1;
-  return Math.round((item.price * Config.scale('shopPrices') * discount) / 100) * 100;
+  const price = item.prices ? item.prices[Math.min(2, Game.base[item.base] || 0)] : item.price;
+  return Math.round((price * Config.scale('shopPrices') * discount) / 100) * 100;
 }
 
 // what the player already has; `max` means it can't be bought again
 function shopStatus(item, p) {
+  if (item.base) {
+    if (!Config.on('baseShop')) return { text: 'OFF', max: true };
+    const lv = Game.base[item.base] || 0;
+    return { text: lv >= 3 ? 'MAX' : 'L' + lv + '/3', max: lv >= 3 };
+  }
   switch (item.id) {
     case 'life': return Config.infiniteLives() ? { text: 'INF', max: true } : { text: 'X' + p.lives, max: p.lives >= 99 };
     case 'star': return { text: p.level + '/3', max: p.level >= 3 };
@@ -81,6 +89,7 @@ function shopStatus(item, p) {
 }
 
 function shopApply(item, p) {
+  if (item.base) { Game.base[item.base] = (Game.base[item.base] || 0) + 1; return; }
   switch (item.id) {
     case 'life': p.lives++; break;
     case 'star': p.level++; break;
@@ -97,6 +106,7 @@ const Game = {
   t: 0,
   hi: 20000,
   players: [],
+  base: newBase(),   // base upgrades bought in the shop (shared)
   twoP: false,
   multiN: 2,     // players chosen on the MULTIPLAYER row (2-4)
   stageNum: 1,
@@ -243,6 +253,7 @@ const Game = {
     const data = {
       app: APP_VERSION, time: Date.now(), numPlayers: this.players.length, stageNum: this.stageNum, lastScores: this.lastScores,
       players: this.players.map(p => { const o = Object.assign({}, p); delete o.tank; return o; }),
+      base: this.base,
       stage: this.stage.snapshot(),
     };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); return true; } catch (e) { return false; }
@@ -262,7 +273,8 @@ const Game = {
     this.customPending = false;
     // the saved terrain only fits the field size it was saved with
     this.applyLayout(s.stage.cols, s.stage.rows);
-    this.stage = new Stage(this.stageNum, LEVELS[(this.stageNum - 1) % LEVELS.length], this.players, { snapshot: s.stage });
+    this.base = Object.assign(newBase(), s.base || {});
+    this.stage = new Stage(this.stageNum, LEVELS[(this.stageNum - 1) % LEVELS.length], this.players, { snapshot: s.stage, base: this.base });
     this.paused = true;
     this.pauseIdx = 0;
     this.pauseMsg = 'GAME LOADED';
@@ -281,6 +293,7 @@ const Game = {
     Input.numPlayers = n;
     this.players = [];
     for (let i = 0; i < n; i++) this.players.push(newPlayer(i));
+    this.base = newBase();
     // the stage picker starts where you last played
     this.stageNum = Math.max(1, Math.min(this.stageLimit(), STORE.get('tank1990_lastStage', 1) | 0 || 1));
     this.customPending = custom;
@@ -338,7 +351,7 @@ const Game = {
     else map = LEVELS[(this.stageNum - 1) % LEVELS.length];
     const boss = custom ? null : bossForStage(this.stageNum);
     if (boss) map = BOSS_ARENAS[boss.idx];
-    this.stage = new Stage(this.stageNum, map, this.players, { custom, boss });
+    this.stage = new Stage(this.stageNum, map, this.players, { custom, boss, base: this.base });
     this.paused = false;
     this.openH = SCREEN_H / 2;
     this.setState('play');
@@ -767,7 +780,7 @@ const Game = {
         Font.draw(ctx, item.name + ' ' + this.stageNum, 34, y, COL.white);
         continue;
       }
-      ctx.drawImage(Sprites.powerups[item.icon], 12, y - 4);
+      ctx.drawImage(item.base ? Sprites.baseIcons[item.bicon] : Sprites.powerups[item.icon], 12, y - 4);
       const price = shopPrice(item), st = shopStatus(item, p);
       Font.draw(ctx, item.name, 34, y, st.max ? COL.lgrey : COL.white);
       if (!st.max) Font.drawRight(ctx, price, 190, y, p.score >= price ? COL.gold : '#7C3C3C');
@@ -778,7 +791,10 @@ const Game = {
     if (sh.scroll + SHOP_ROWS < SHOP_ITEMS.length) for (let k = 0; k < 4; k++) ctx.fillRect(SW / 2 - 3 + k, SHOP_TOP + SHOP_ROWS * SHOP_ROW_H - 3 + k, 7 - 2 * k, 1);
     const item = SHOP_ITEMS[sh.idx];
     if (sh.msgT > 0) Font.drawCenter(ctx, sh.msg, SW / 2, 192, sh.msg.startsWith('BOUGHT') ? COL.gold : COL.red);
-    else if (item.desc) {
+    else if (item.base) {
+      const lv = Game.base[item.base] || 0;
+      Font.drawCenter(ctx, Config.on('baseShop') ? (lv >= 3 ? 'FULLY UPGRADED' : 'BASE: ' + item.descs[lv]) : 'BASE UPGRADES ARE OFF', SW / 2, 192, COL.gold);
+    } else if (item.desc) {
       const desc = item.id === 'mines' ? '+' + Config.get('mineCount') + ' ' + item.desc : item.desc;
       Font.drawCenter(ctx, desc, SW / 2, 192, COL.white);
     }

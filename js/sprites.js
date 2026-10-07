@@ -825,3 +825,17 @@ TANK_GRIDS.e15 = canvasEnemyGrids(['......11', '.....123', '......11', '111....1
 // MINI: one half of a split Splitter
 TANK_GRIDS.e16 = canvasEnemyGrids(['........', '........', '........', '.......1', '.......1', '...11111', '...13122', '...11123',
   '...13122', '...11122', '...13111', '...111..', '........', '........', '........', '........']);
+
+// Base-upgrade shop icons (framed like the power-ups, in orange): walls, armor, repair, gun, minefield
+const BASE_ICON_MASKS = [
+  [ // walls
+    '............', 'XXXX.XXXX.XX', 'XXXX.XXXX.XX', '............', 'XX.XXXX.XXXX', 'XX.XXXX.XXXX', '............', 'XXXX.XXXX.XX', 'XXXX.XXXX.XX', '............', '............'],
+  [ // armor
+    '.XXXXXXXXXX.', '.XXXXXXXXXX.', '.XX......XX.', '.XX.XXXX.XX.', '.XX.XXXX.XX.', '..XX.XX.XX..', '..XX....XX..', '...XX..XX...', '....XXXX....', '.....XX.....', '............'],
+  [ // repair
+    '..XXXXXX....', '..XXXXXXXX..', '..XXXXXX....', '.....XX.....', '.....XX.....', '.....XX.....', '.....XX.....', '.....XX.....', '.....XX.....', '....XXXX....', '............'],
+  [ // gun
+    '.....XX.....', '.....XX.....', '.....XX.....', '.....XX.....', '...XXXXXX...', '..XXXXXXXX..', '..XXX..XXX..', '..XXX..XXX..', '..XXXXXXXX..', '.XXXXXXXXXX.', '............'],
+  [ // field
+    '..X.....X...', '.XXX...XXX..', 'XXXXX.XXXXX.', '.XXX...XXX..', '..X.....X...', '.....X......', '....XXX.....', '...XXXXX....', '....XXX.....', '.....X......', '............'],
+];

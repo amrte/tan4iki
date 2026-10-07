@@ -3,6 +3,13 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.10
+
+- **Base upgrades** in the between-stage shop, shared by the team and kept until game over: Base walls (extra brick
+  ring / steel corners / full steel ring), Eagle armor (survives 1-3 hits per stage), Repair crew (rebuilds the
+  fortress every 10 / 6 / 3 s), Eagle gun (a turret on the eagle shoots enemies lined up with it) and Minefield
+  (2 / 4 / 6 mines in front of the fortress). Three levels each, with their own orange shop icons. Setting: BASE UPGRADES.
+
 ## 0.9
 
 - **Eight more enemy tanks** from the *Tank 1990 New Enemies* design canvas, each with its own sprite: Skimmer

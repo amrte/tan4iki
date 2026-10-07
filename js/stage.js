@@ -233,7 +233,6 @@ class Stage {
     this.terrain = new Uint8Array(GW * GH);
     const classic = COLS === 13 && ROWS === 13;
     this.load(expandBlocks(mapToBlocks(map)), !opts.custom || !classic);
-    this.origTerrain = this.terrain.slice();   // what a mason rebuilds
     this.tanks = [];
     this.bullets = [];
     this.fx = [];
@@ -243,6 +242,8 @@ class Stage {
     this.mines = [];
     this.bosses = []; this.beams = []; this.tracks = []; this.dust = [];
     this.flames = []; this.shells = []; this.heals = []; this.mark = null; this.jamList = [];   // see enemies.js
+    this.applyBase(opts.base);                 // base upgrades from the shop (base.js)
+    this.origTerrain = this.terrain.slice();   // what a mason rebuilds
     this.lastBrickSound = -1;
     this.queue = buildQueue(num);
     this.total = this.queue.length;
@@ -299,6 +300,7 @@ class Stage {
         return o;
       }),
       kills: this.players.map(p => p.kills.slice()),
+      eagleArmor: this.eagleArmor,
       boss: this.bossIdx === undefined ? null : {
         idx: this.bossIdx, loop: this.bossLoop, dropAt: this.bossDropAt, defeated: !!this.bossDefeated,
         bosses: this.bosses.map(b => Object.assign({}, b, { bullets: 0 })),
@@ -310,6 +312,7 @@ class Stage {
     for (let i = 0; i < this.terrain.length; i++) this.terrain[i] = sn.terrain.charCodeAt(i) - 48;
     this.dirty = true;
     for (const k of ['queue', 'total', 'killed', 'spawnTimer', 'spawnPos', 'spawnInterval', 'maxEnemies', 'freezeE', 'freezeP', 'shovel', 'baseAlive', 'frame', 'powerup']) this[k] = sn[k];
+    if (sn.eagleArmor !== undefined) this.eagleArmor = sn.eagleArmor;
     this.spawns = [];
     for (const p of this.players) { p.tank = null; p.kills = zeroKills().map((z, k) => (sn.kills[p.i] || [])[k] || 0); }
     this.tanks = sn.tanks.map(o => {
@@ -370,8 +373,9 @@ class Stage {
     const bx = cx & ~1, by = cy & ~1;
     for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) if (this.get(bx + x, by + y) === type) this.set(bx + x, by + y, T_EMPTY);
   }
+  // brick means "the normal walls": steel where the WALLS base upgrade says so
   setBaseWalls(t) {
-    for (const [bx, by] of BASE_WALL) this.setBlock(bx, by, t);
+    BASE_WALL.forEach(([bx, by], i) => this.setBlock(bx, by, t === T_BRICK ? this.baseWallType(i) : t));
   }
   onIce(t) {
     return this.get((t.x + 8) >> 2, (t.y + 8) >> 2) === T_ICE;
@@ -454,6 +458,7 @@ class Stage {
       if (t.isPlayer) this.updatePlayer(t); else this.updateEnemy(t);
     }
     this.updateSpecials();
+    this.updateBase();
     this.updateBosses();
     this.updateBullets();
     this.updateMines();
@@ -746,7 +751,7 @@ class Stage {
       return;
     }
     for (const t of this.tanks) {
-      if (!t.alive || t === b.owner) continue;
+      if (!t.alive || t === b.owner || (b.eagle && t.isPlayer)) continue;
       if (!overlap(b.x, b.y, 4, 4, t.x, t.y, 16, 16)) continue;
       if (b.pierce) {
         // piercing shells damage each tank once and keep flying
@@ -963,6 +968,7 @@ class Stage {
   }
 
   destroyBase() {
+    if (this.eagleArmorHit()) return;
     this.baseAlive = false;
     this.addFx(BASE_X + 8, BASE_Y + 8, BIG_EXPLOSION(), 6);
     Sound.play('baseDie');
@@ -1195,7 +1201,7 @@ class Stage {
       const cx = i % GW, cy = (i / GW) | 0;
       ctx.drawImage(wt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
     }
-    ctx.drawImage(this.baseAlive ? Sprites.eagle : Sprites.eagleDead, BASE_X, BASE_Y);
+    this.renderEagle(ctx);
 
     for (const m of this.mines) ctx.drawImage(Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0], m.x - 4, m.y - 4);
     this.renderBossUnder(ctx);

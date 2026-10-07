@@ -258,6 +258,7 @@ const Sprites = {
     this.smallExp = EXPLOSION_GRIDS.map(r => g(r, EXPLOSION_PAL));
     this.bigExp = BIG_EXPLOSION_GRIDS.map(r => g(r, EXPLOSION_PAL));
     this.powerups = POWERUP_GRIDS.concat(NEW_POWERUP_MASKS.map(framedIcon)).map(r => g(r, POWERUP_PAL));
+    this.baseIcons = BASE_ICON_MASKS.map(m => g(framedIcon(m), [null, '#FCE4A0', '#E45C10', '#7C1C00']));
     this.mine = [g(MINE_GRID, [null, '#ADADAD', '#505050', '#E04030']), g(MINE_GRID, [null, '#ADADAD', '#505050', '#600000'])];
     this.hull = [0, 1, 2, 3].map(genHull);
     this.bullet = [0, 1, 2, 3].map(d => genBullet(d));

@@ -194,6 +194,7 @@ const SETTINGS_DEF = [
   { section: 'SHOP' },
   { key: 'shop', label: 'SHOP AFTER STAGES', values: ONOFF, def: 'ON' },
   { key: 'shopPrices', label: 'SHOP PRICES', values: PCTS, def: 100, fmt: fmtPct },
+  { key: 'baseShop', label: 'BASE UPGRADES', values: ONOFF, def: 'ON' },
 
   // field size in 16px tiles; FIT sizes it to the window's shape when a game starts
   { section: 'SCREEN' },

@@ -227,6 +227,21 @@ something takes its price off your score. In 2-player games player I shops first
 Upgrades you buy are kept until you lose a tank, as with ones picked up during play. In Settings → SHOP you can turn the shop off or
 scale all prices (25%–300%). There is no shop after a game over.
 
+**Base upgrades** (orange icons, at the end of the list) improve the eagle's fortress. They belong to the whole team:
+any player can buy the next level, and they last until game over (they are kept in saves). Each has 3 levels; the
+status column shows the level you have (`L1/3`) and the line below says what the next level adds.
+
+| Upgrade | Level 1 / 2 / 3 | Price per level |
+|---|---|---|
+| Base walls | an extra brick ring around the fortress / steel corners / a full steel inner ring | 4000 / 7000 / 12000 |
+| Eagle armor | the eagle survives 1 / 2 / 3 hits each stage (cyan outline, gold at 3) | 3000 / 6000 / 10000 |
+| Repair crew | rebuilds one missing fortress block every 10 / 6 / 3 seconds | 2500 / 5000 / 8000 |
+| Eagle gun | a turret on the eagle shoots enemies lined up above or beside it: 6-tile range / faster, 9 tiles / steel-breaking shells, 12 tiles. Its shells pass through your tanks and never break the fortress; its kills earn no points | 5000 / 8000 / 12000 |
+| Minefield | 2 / 4 / 6 armed mines in front of the fortress at the start of each stage | 2000 / 3000 / 4000 |
+
+After a shovel runs out, the walls go back to their upgraded state, not plain brick. Settings → SHOP → BASE UPGRADES
+turns them off.
+
 ## New power-ups
 
 These 8 were not in the original game. They're marked with `*` in Settings and can be switched off there.
@@ -258,7 +273,7 @@ in the browser, and **RESET TO DEFAULTS** restores the classic game.
 | Basic / fast / power / armor tank | speed (100%), shell speed (100%), hits to destroy (1 / 1 / 1 / 4) |
 | Power-ups | helmet time (10 s), clock time (10 s), shovel time (20 s), new power-up time (15 s), mines per pickup (3) |
 | Who can collect | for each of the 16 power-ups: **ANYONE** (you and enemies, default), **PLAYER** (only you) or **OFF** (never appears). Presets: *classic power-ups only* and *all power-ups on*. The selected power-up's icon and effect are shown at the bottom of the screen. |
-| Shop | shop after stages (on), shop prices (100%) |
+| Shop | shop after stages (on), shop prices (100%), base upgrades (on) |
 | Players | III / IV-PLAYER COLOR (blue / pink), gamepad rumble (on), key and pad setup |
 | Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
 | Screen | field width (13), field height (13), FIT, scaling (sharp / fill), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
@@ -278,6 +293,7 @@ js/input.js       keyboard / gamepad / touch
 js/stage.js       gameplay: terrain, movement, enemy types, bullets, power-ups, XP, rendering
 js/ai.js          enemy personalities (wander / rush / hunt / snipe) and path finding
 js/enemies.js     abilities of the enemies from the design canvas (mason, mortar, flamer, medic, ...)
+js/base.js        base upgrades: fortress walls, eagle armor, repair crew, eagle gun, minefield
 js/bosses.js      boss rounds: the 5 bosses, their arenas, sprites and behaviour
 js/net.js         online play: WebRTC connection, codes, host streaming, guest view, lobby panels
 js/main.js        state machine (title, settings, curtain, play, score, game over, construction) + loop

@@ -191,6 +191,7 @@ const Net = {
       i: p.i, score: p.score, lives: p.lives, level: p.level, mines: p.mines, kills: p.kills, out: p.out,
       ship: p.ship, cutter: p.cutter, kit: p.kit, shopShovel: p.shopShovel, xp: p.xp, rank: p.rank, stageXp: p.stageXp,
     }));
+    v.base = G.base;
     v.snd = this.sndQueue.splice(0);
     if (G.toastT > 0) v.toast = [G.toastText, G.toastT];
     const st = G.stage;
@@ -228,6 +229,7 @@ const Net = {
       ar: st.shells.map(a => [a.x, a.y, a.t]),
       hl: st.heals.map(h => [h.x1, h.y1, h.x2, h.y2, h.t, h.build ? 1 : 0]),
       mk: st.mark ? st.mark.p.i : -1,
+      ea: [st.eagleArmor, st.eagleFlash, st.gunDir, st.base ? st.base.gun : 0],
     };
     st.netDiff = [];
     if (full) sv.tf = Array.from(st.terrain).join('');
@@ -325,6 +327,7 @@ const Net = {
     const G = Game;
     if (v.c !== COLS || v.r !== ROWS) setFieldSize(v.c, v.r);
     G.players = v.pl.map((o, k) => Object.assign(G.players[k] && G.players[k].i === o.i ? G.players[k] : newPlayer(o.i), o, { tank: null }));
+    if (v.base) G.base = v.base;
     G.twoP = G.players.length > 1;
     G.stageNum = v.stn;
     G.hi = v.hi;
@@ -364,6 +367,7 @@ const Net = {
       type: a[5], hp: a[6], bonus: !!a[7], shield: a[8], frozen: a[9], ship: !!a[10], anim: a[11], boost: a[12] ? { ghost: 1 } : {},
       plates: a[13] || 0, glow: a[14] || 0, reveal: a[15] || 0, ai: a[16] || 0, vet: a[17] || 0, stealth: a[5] === 7,
     }));
+    if (sv.ea) { st.eagleArmor = sv.ea[0]; st.eagleFlash = sv.ea[1]; st.gunDir = sv.ea[2]; st.base = Object.assign(newBase(), { gun: sv.ea[3] }); }
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
     st.heals = (sv.hl || []).map(a => ({ x1: a[0], y1: a[1], x2: a[2], y2: a[3], t: a[4], build: !!a[5] }));
