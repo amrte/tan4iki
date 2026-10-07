@@ -1,6 +1,6 @@
 # tan4iki — Tank 1990 browser replica
 
-**Current version: 0.3** (see [CHANGELOG.md](CHANGELOG.md)). The version is shown on the title screen as `tan4iki_v0.3`.
+**Current version: 0.3.1** (see [CHANGELOG.md](CHANGELOG.md)). The title screen shows the name **TANЬ4IKI** and the version as `tan4iki_v0.3.1`.
 
 A from-scratch browser remake of **Tank 1990**, the NES/Famicom variant of Battle City.
 It's plain HTML5 Canvas and JavaScript with no dependencies and no build step. Sprites are
@@ -12,7 +12,7 @@ stored as 16×16 palette bitmaps in code, matching the NES originals. Sound come
 Open `index.html` in any modern browser. Double-clicking the file works too, because no server is needed.
 You can also serve the folder (`python3 -m http.server`) or publish it with GitHub Pages.
 
-**Single-file download:** [`dist/tan4iki_v0.3.html`](dist/tan4iki_v0.3.html) is the whole game in one HTML file,
+**Single-file download:** [`dist/tan4iki_v0.3.1.html`](dist/tan4iki_v0.3.1.html) is the whole game in one HTML file,
 which you can save anywhere and open offline. To regenerate it after changing the code, run `node tools/build.js`;
 the file is named after the version in `js/version.js`.
 

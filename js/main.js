@@ -191,8 +191,7 @@ const Game = {
       Font.drawRight(ctx, this.lastScores[1], 248, 16, COL.white);
     }
     const pat = Sprites.bricks(ctx);
-    Font.big(ctx, 'TANK', (SW - Font.bigWidth('TANK', 4)) >> 1, 40, 4, pat);
-    Font.big(ctx, '1990', (SW - Font.bigWidth('1990', 4)) >> 1, 80, 4, pat);
+    Font.big(ctx, GAME_NAME, (SW - Font.bigWidth(GAME_NAME, 4)) >> 1, 58, 4, pat);
     const menu = this.titleMenu(), top = this.titleMenuY();
     menu.forEach((it, i) => Font.draw(ctx, it.label, 88, top + i * 14, COL.white));
     if (this.titleY === 0) {

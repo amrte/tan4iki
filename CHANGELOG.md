@@ -3,6 +3,10 @@
 The version lives in `js/version.js` and is shown on the title screen as `tan4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tan4iki_v<version>.html`.
 
+## 0.3.1
+
+- Title screen shows the game's name **TANЬ4IKI** in brick letters (was "TANK 1990"); the pixel font gained a `Ь` glyph.
+
 ## 0.3
 
 - **Field size setting:** width 13–60 and height 13–40 tiles (classic 13×13), or **FIT** to size the field to

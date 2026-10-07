@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tan4iki_v0.3</title>
+  <title>tan4iki_v0.3.1</title>
   <style>
 :root {
   --bg: #000;
@@ -166,8 +166,10 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tan4iki';
-const APP_VERSION = '0.3';
+const APP_VERSION = '0.3.1';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
+// the game's name in brick letters on the title screen
+const GAME_NAME = 'TANЬ4IKI';
 
 </script>
   <script>
@@ -214,6 +216,7 @@ const FONT_SRC = {
   'X': ['X...X', 'X...X', '.X.X.', '..X..', '.X.X.', 'X...X', 'X...X'],
   'Y': ['X...X', 'X...X', '.X.X.', '..X..', '..X..', '..X..', '..X..'],
   'Z': ['XXXXX', '....X', '...X.', '..X..', '.X...', 'X....', 'XXXXX'],
+  'Ь': ['X....', 'X....', 'X....', 'XXXX.', 'X...X', 'X...X', 'XXXX.'],
   '-': ['.....', '.....', '.....', 'XXXX.', '.....', '.....', '.....'],
   '.': ['.....', '.....', '.....', '.....', '.....', '..X..', '..X..'],
   ':': ['.....', '..X..', '..X..', '.....', '..X..', '..X..', '.....'],
@@ -3754,8 +3757,7 @@ const Game = {
       Font.drawRight(ctx, this.lastScores[1], 248, 16, COL.white);
     }
     const pat = Sprites.bricks(ctx);
-    Font.big(ctx, 'TANK', (SW - Font.bigWidth('TANK', 4)) >> 1, 40, 4, pat);
-    Font.big(ctx, '1990', (SW - Font.bigWidth('1990', 4)) >> 1, 80, 4, pat);
+    Font.big(ctx, GAME_NAME, (SW - Font.bigWidth(GAME_NAME, 4)) >> 1, 58, 4, pat);
     const menu = this.titleMenu(), top = this.titleMenuY();
     menu.forEach((it, i) => Font.draw(ctx, it.label, 88, top + i * 14, COL.white));
     if (this.titleY === 0) {
