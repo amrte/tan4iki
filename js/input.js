@@ -9,15 +9,18 @@ const KEYS = {
     1: ['ArrowRight', 'KeyD', 'TRight'],
     2: ['ArrowDown', 'KeyS', 'TDown'],
     3: ['ArrowLeft', 'KeyA', 'TLeft'],
-    fire: ['Space', 'KeyJ', 'KeyK', 'KeyZ', 'KeyX', 'KeyF', 'TFire', 'TFire2'],
+    fire: ['Space', 'KeyJ', 'KeyK', 'KeyZ', 'KeyX', 'KeyF', 'TFire'],
+    alt: ['KeyB', 'KeyC', 'KeyN', 'ShiftLeft', 'TFire2'],
   },
   p1: {
     0: ['KeyW', 'TUp'], 1: ['KeyD', 'TRight'], 2: ['KeyS', 'TDown'], 3: ['KeyA', 'TLeft'],
-    fire: ['Space', 'KeyF', 'KeyG', 'KeyV', 'TFire', 'TFire2'],
+    fire: ['Space', 'KeyF', 'KeyG', 'KeyV', 'TFire'],
+    alt: ['KeyB', 'KeyC', 'KeyH', 'TFire2'],
   },
   p2: {
     0: ['ArrowUp'], 1: ['ArrowRight'], 2: ['ArrowDown'], 3: ['ArrowLeft'],
     fire: ['ControlRight', 'ShiftRight', 'Numpad0', 'Slash', 'Period', 'KeyL', 'Comma'],
+    alt: ['Numpad1', 'NumpadDecimal', 'Semicolon', 'Quote', 'KeyK'],
   },
   start: ['Enter', 'NumpadEnter', 'KeyP', 'TStart'],
   back: ['Escape', 'Backspace'],
@@ -75,8 +78,8 @@ const Input = {
         2: b(13) || ay > 0.5,
         3: b(14) || ax < -0.5,
         1: b(15) || ax > 0.5,
-        fire: b(0) || b(1) || b(2) || b(3) || b(5) || b(7),
-        alt: b(1) || b(3),
+        fire: b(0) || b(2) || b(5) || b(7),
+        alt: b(1) || b(3) || b(4) || b(6),
         start: b(9),
         back: b(8),
       };
@@ -110,12 +113,15 @@ const Input = {
       }
     }
     let fire = this.anyDown(map.fire), firePressed = this.anyJust(map.fire);
+    let alt = this.anyDown(map.alt), altPressed = this.anyJust(map.alt);
     for (const p of this.padsFor(i)) {
+      alt = alt || p.alt;
+      altPressed = altPressed || p.justAlt;
       for (const d of [0, 1, 2, 3]) if (p[d] && p['stamp' + d] > bestStamp) { best = d; bestStamp = p['stamp' + d]; }
       fire = fire || p.fire;
       firePressed = firePressed || p.justFire;
     }
-    return { dir: best, fire, firePressed };
+    return { dir: best, fire, firePressed, alt, altPressed };
   },
 
   // ---------------------------------------------------------- menus
@@ -126,7 +132,7 @@ const Input = {
       right: this.anyJust(all[1]),
       down: this.anyJust(all[2]),
       left: this.anyJust(all[3]),
-      fire: this.anyJust(all.fire) || this.anyJust(KEYS.p2.fire),
+      fire: this.anyJust(all.fire) || this.anyJust(KEYS.p2.fire) || this.anyJust(['TFire2']),
       alt: this.anyJust(KEYS.alt),
       start: this.anyJust(KEYS.start),
       back: this.anyJust(KEYS.back),

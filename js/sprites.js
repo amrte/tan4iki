@@ -662,3 +662,36 @@ const POPUP_DIGITS = {
   '8': ['.11.', '1..1', '1..1', '.11.', '1..1', '1..1', '.11.'],
   '9': ['.11.', '1..1', '1..1', '.111', '...1', '...1', '.11.'],
 };
+
+// New (non-original) power-ups: shapes only ('X'); shading, drop shadow and the
+// teal frame are added automatically so they match the classic icons.
+// order: turbo, rapid, spread, pierce, rocket, mines, ghost, coin (12x11 each)
+const NEW_POWERUP_MASKS = [
+  [ // turbo: lightning bolt
+    '.......XX...', '......XX....', '.....XX.....', '....XX......', '...XXXXXXX..', '.......XX...',
+    '......XX....', '.....XX.....', '....XX......', '...XX.......', '............'],
+  [ // rapid: three shells
+    '............', '.X...X...X..', 'XXX.XXX.XXX.', 'XXX.XXX.XXX.', 'XXX.XXX.XXX.', 'XXX.XXX.XXX.',
+    'XXX.XXX.XXX.', '............', 'XXXXXXXXXXX.', '............', '............'],
+  [ // spread: arrows in three directions
+    '.....XX.....', '....XXXX....', '...XXXXXX...', '.X...XX...X.', 'XX...XX...XX', 'XXXXXXXXXXXX',
+    'XX...XX...XX', '.X...XX...X.', '.....XX.....', '....XXXX....', '............'],
+  [ // pierce: arrow through a wall
+    '.....XX.....', '....XXXX....', '...XXXXXX...', '.....XX.....', 'XXXX.XX.XXXX', 'XXXX.XX.XXXX',
+    '.....XX.....', 'XXXX.XX.XXXX', 'XXXX.XX.XXXX', '.....XX.....', '.....XX.....'],
+  [ // rocket
+    '.....XX.....', '....XXXX....', '....XXXX....', '....XXXX....', '....XXXX....', '....XXXX....',
+    '...XXXXXX...', '..XXXXXXXX..', '..XX.XX.XX..', '.....XX.....', '....X..X....'],
+  [ // mine
+    '.....XX.....', '..X..XX..X..', '...XXXXXX...', '..XXXXXXXX..', 'XXXXXXXXXXXX', 'XXXXXXXXXXXX',
+    '..XXXXXXXX..', '...XXXXXX...', '..X..XX..X..', '.....XX.....', '............'],
+  [ // ghost
+    '....XXXX....', '..XXXXXXXX..', '.XXXXXXXXXX.', '.XX..XX..XX.', '.XX..XX..XX.', '.XXXXXXXXXX.',
+    '.XXXXXXXXXX.', '.XXXXXXXXXX.', '.XXXXXXXXXX.', '.X.XX.XX.XX.', '............'],
+  [ // coin
+    '...XXXXXX...', '..XX....XX..', '.XX..XX..XX.', '.X..XXXX..X.', '.X..XX....X.', '.X..XXXX..X.',
+    '.X....XX..X.', '.X..XXXX..X.', '.XX..XX..XX.', '..XX....XX..', '...XXXXXX...'],
+];
+
+// a dropped mine (8x8): 1 light grey, 2 dark grey, 3 warning light
+const MINE_GRID = ['..1..1..', '...22...', '.222222.', '.223322.', '.223322.', '.222222.', '...22...', '..1..1..'];

@@ -17,11 +17,12 @@ which you can save anywhere and open offline. To regenerate it after changing th
 
 | | Player 1 | Player 2 |
 |---|---|---|
-| 1-player game | Arrows **or** WASD, fire with Space / Z / X / J / K / F | — |
-| 2-player game | WASD, fire with Space / F / G / V | Arrows, fire with Right Ctrl / Right Shift / Numpad 0 / L / `/` |
+| 1-player game | Arrows **or** WASD, fire with Space / Z / X / J / K / F, **B** button: B / C / N / Left Shift | — |
+| 2-player game | WASD, fire with Space / F / G / V, **B** button: B / C / H | Arrows, fire with Right Ctrl / Right Shift / Numpad 0 / L / `/`, **B** button: Numpad 1 / K / `;` |
 | Start / pause | Enter / P / Esc (Esc while paused quits to the title) | |
 | Mute | M | |
 
+The **B** button drops a mine while you carry mines; otherwise it fires, like on the NES.
 The game supports up to two gamepads (standard mapping). On phones and tablets, a D-pad and
 fire buttons appear on screen.
 
@@ -52,6 +53,21 @@ fire buttons appear on screen.
   Press **Delete** to clear the map and **Enter** to play your map. Custom maps are saved in the browser.
 - Chiptune sound effects and engine hum, made with Web Audio.
 
+## New power-ups
+
+These 8 were not in the original game. They're marked with `*` in Settings and can be switched off there.
+
+| Power-up | You get | If an enemy grabs it |
+|---|---|---|
+| **Turbo** (lightning) | 1.75× tank speed for 15 s | that tank speeds up |
+| **Rapid** (three shells) | up to 4 shells on screen and quick fire for 15 s | that tank fires much more often |
+| **Spread** (arrows) | every shot also fires left and right for 15 s | that tank fires 3-way |
+| **Pierce** (arrow through wall) | shells pass through tanks, enemy shells and bricks for 15 s | its shells pierce too |
+| **Rocket** | shells explode, breaking bricks and damaging nearby tanks, for 15 s | its shells explode (and can hurt the eagle) |
+| **Mines** | 3 mines; drop one with **B**; it arms after a moment and blows up the next enemy that drives over it | that tank lays mines for you |
+| **Ghost** | drive through bricks and water for 15 s | that tank drives through walls |
+| **Coin** | 1000 bonus points | it steals 1000 points from each player |
+
 ## Settings
 
 Choose **SETTINGS** on the title screen. Use up/down to pick a row and left/right (or A/B) to change it;
@@ -61,9 +77,10 @@ in the browser, and **RESET TO DEFAULTS** restores the classic game.
 | Section | Settings (default) |
 |---|---|
 | Player | lives (3, or infinite), I-player / II-player tank color (yellow / green, 12 colors), tank speed (100%), shell speed (100%), start stars (0), keep stars on death (off), spawn shield (3 s), extra life at 20K (once / every / off), friendly fire (freeze / off) |
-| Enemies | tanks per stage (20), max on screen (4, +2 in 2P), spawn rate, fire rate, base hunting (all 100%), flashing bonus tanks (on), enemy power-up pickups (on) |
+| Enemies | tanks per stage (20), max on screen (4, +2 in 2P), spawn rate, fire rate, base hunting (all 100%), flashing bonus tanks (on) |
 | Basic / fast / power / armor tank | speed (100%), shell speed (100%), hits to destroy (1 / 1 / 1 / 4) |
-| Power-ups | helmet time (10 s), clock time (10 s), shovel time (20 s) |
+| Power-ups | helmet time (10 s), clock time (10 s), shovel time (20 s), new power-up time (15 s), mines per pickup (3) |
+| Who can collect | for each of the 16 power-ups: **ANYONE** (you and enemies, default), **PLAYER** (only you) or **OFF** (never appears). Presets: *classic power-ups only* and *all power-ups on*. The selected power-up's icon and effect are shown at the bottom of the screen. |
 | Game | game speed (100%), volume (100%), engine sound (on) |
 
 ## Code layout

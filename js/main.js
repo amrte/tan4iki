@@ -19,7 +19,7 @@ const CONSTRUCT_PATS = [
 function newPlayer(i) {
   return {
     i, score: 0, lives: Config.startLives(), level: Config.get('startStars'), ship: false, cutter: false,
-    kills: [0, 0, 0, 0], out: false, extraGiven: false, extraCount: 0, tank: null,
+    kills: [0, 0, 0, 0], out: false, extraGiven: false, extraCount: 0, mines: 0, tank: null,
   };
 }
 
@@ -445,6 +445,12 @@ const Game = {
     } else if (row.action === 'reset') {
       Config.reset();
       Sound.play('pickup');
+    } else if (row.action === 'classicPU') {
+      Config.setPowerups(pu => (pu.isNew ? 'OFF' : 'ANYONE'));
+      Sound.play('pickup');
+    } else if (row.action === 'allPU') {
+      Config.setPowerups(() => 'ANYONE');
+      Sound.play('pickup');
     } else if (row.action === 'back') {
       this.leaveSettings();
     }
@@ -489,6 +495,11 @@ const Game = {
         ctx.fillStyle = COL.orange;
         ctx.fillRect(8 + row.section.length * 8 + 2, y + 3, 216 - row.section.length * 8, 1);
         if (row.enemy !== undefined) ctx.drawImage(Sprites.tank('e' + row.enemy, 0, 3, 'silver'), 232, y - 5);
+        if (row.section === 'WHO CAN COLLECT') {
+          ctx.fillStyle = COL.black;
+          ctx.fillRect(184, y, 64, 8);
+          Font.draw(ctx, '* NEW', 200, y, COL.gold);
+        }
         continue;
       }
       const sel = i === st.idx;
@@ -497,7 +508,7 @@ const Game = {
         ctx.fillRect(4, y - 2, SW - 8, 11);
       }
       if (row.action) {
-        Font.draw(ctx, row.label, 16, y, row.action === 'reset' ? COL.red : COL.white);
+        Font.draw(ctx, row.label, 16, y, row.action === 'reset' ? COL.red : row.action === 'back' ? COL.white : COL.gold);
         continue;
       }
       Font.draw(ctx, row.label, 16, y, COL.white);
@@ -516,7 +527,14 @@ const Game = {
     ctx.fillStyle = COL.lgrey;
     if (st.scroll > 0) for (let k = 0; k < 4; k++) ctx.fillRect(SW / 2 - k, 19 + k - 3, 1 + 2 * k, 1);
     if (st.scroll + SETTINGS_ROWS < SETTINGS_DEF.length) for (let k = 0; k < 4; k++) ctx.fillRect(SW / 2 - 3 + k, 205 + k, 7 - 2 * k, 1);
-    Font.drawCenter(ctx, '<> CHANGE   ESC BACK', SW / 2, 212, COL.lgrey);
+    // footer: what the selected power-up does, otherwise the controls
+    const cur = SETTINGS_DEF[st.idx];
+    if (cur.powerup !== undefined) {
+      ctx.drawImage(Sprites.powerups[cur.powerup], 8, 207);
+      Font.draw(ctx, POWERUPS[cur.powerup].desc, 28, 212, COL.white);
+    } else {
+      Font.drawCenter(ctx, '<> CHANGE   ESC BACK', SW / 2, 212, COL.lgrey);
+    }
   },
 
   // mouse / touch on the canvas (in screen pixels)

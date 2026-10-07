@@ -142,7 +142,21 @@ function seeded(seed) {
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 }
 
-const PU_NAMES = ['HELMET', 'CLOCK', 'SHOVEL', 'STAR', 'GRENADE', 'TANK', 'GUN', 'SHIP'];
+// build a framed 16x16 power-up icon from a 12x11 shape mask
+function framedIcon(mask) {
+  const inside = (x, y) => y >= 0 && y < 11 && x >= 0 && x < 12 && mask[y][x] === 'X';
+  const rows = ['................', '.11111111111112.', '1.............13'];
+  for (let y = 0; y < 11; y++) {
+    let r = '';
+    for (let x = 0; x < 12; x++) {
+      if (inside(x, y)) r += (inside(x + 1, y) && inside(x, y + 1)) ? '1' : '2';
+      else r += inside(x - 1, y - 1) || inside(x - 1, y) || inside(x, y - 1) ? '.' : '3';
+    }
+    rows.push('1.' + r + '13');
+  }
+  rows.push('2111111111111123', '.33333333333333.');
+  return rows;
+}
 const EXPLOSION_PAL = [null, '#F8F8F8', '#E04030', '#B00088'];
 const POWERUP_PAL = [null, '#F8F8F8', '#C0C0C0', '#007880'];
 
@@ -160,8 +174,8 @@ function genHull(dir) {
   return gridCanvas(g, [null, '#E8F0FF', '#2C48F0']);
 }
 
-function genBullet(dir) {
-  return rotatedCanvas(['..1.', '.111', '.111', '.111'], dir, [null, '#C6C6C6']);
+function genBullet(dir, color = '#C6C6C6') {
+  return rotatedCanvas(['..1.', '.111', '.111', '.111'], dir, [null, color]);
 }
 
 // ------------------------------------------------------------------ sprite registry
@@ -178,9 +192,12 @@ const Sprites = {
     this.shield = SHIELD_GRIDS.map(r => g(r, [null, '#F8F8F8']));
     this.smallExp = EXPLOSION_GRIDS.map(r => g(r, EXPLOSION_PAL));
     this.bigExp = BIG_EXPLOSION_GRIDS.map(r => g(r, EXPLOSION_PAL));
-    this.powerups = POWERUP_GRIDS.map(r => g(r, POWERUP_PAL));
+    this.powerups = POWERUP_GRIDS.concat(NEW_POWERUP_MASKS.map(framedIcon)).map(r => g(r, POWERUP_PAL));
+    this.mine = [g(MINE_GRID, [null, '#ADADAD', '#505050', '#E04030']), g(MINE_GRID, [null, '#ADADAD', '#505050', '#600000'])];
     this.hull = [0, 1, 2, 3].map(genHull);
-    this.bullet = [0, 1, 2, 3].map(genBullet);
+    this.bullet = [0, 1, 2, 3].map(d => genBullet(d));
+    this.bulletPierce = [0, 1, 2, 3].map(d => genBullet(d, '#58F8F8'));
+    this.bulletRocket = [0, 1, 2, 3].map(d => genBullet(d, '#F87830'));
     this.enemyIcon = g(ENEMY_ICON_GRID, [null, '#000000']);
     this.lifeIcon = g(LIFE_ICON_GRID, [null, '#B76506']);
     this.flag = g(FLAG_GRID, [null, '#B76506', '#000000']);

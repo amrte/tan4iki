@@ -19,6 +19,27 @@ const TANK_COLORS = {
   OLIVE: ['#D8F878', '#88A818', '#304800'],
 };
 
+// All power-ups. The first 8 are the Tank 1990 originals; `isNew` ones are additions.
+// weight = relative chance of appearing; desc is shown on the settings screen (max 28 chars).
+const POWERUPS = [
+  { name: 'HELMET', weight: 2, desc: 'SHIELD AGAINST ALL SHELLS' },
+  { name: 'CLOCK', weight: 2, desc: 'FREEZES ALL ENEMY TANKS' },
+  { name: 'SHOVEL', weight: 2, desc: 'STEEL WALLS AROUND EAGLE' },
+  { name: 'STAR', weight: 3, desc: 'UPGRADES YOUR TANK' },
+  { name: 'GRENADE', weight: 2, desc: 'DESTROYS TANKS ON SCREEN' },
+  { name: 'TANK', weight: 1, desc: 'EXTRA LIFE' },
+  { name: 'GUN', weight: 1, desc: 'MAX LEVEL + CUTS TREES' },
+  { name: 'SHIP', weight: 1, desc: 'CROSS WATER, SOAKS A HIT' },
+  { name: 'TURBO', weight: 2, isNew: true, desc: 'TANK MOVES MUCH FASTER' },
+  { name: 'RAPID', weight: 2, isNew: true, desc: 'UP TO 4 SHELLS, FAST FIRE' },
+  { name: 'SPREAD', weight: 2, isNew: true, desc: 'FIRES IN 3 DIRECTIONS' },
+  { name: 'PIERCE', weight: 1, isNew: true, desc: 'SHELLS PIERCE TANKS+BRICK' },
+  { name: 'ROCKET', weight: 1, isNew: true, desc: 'SHELLS EXPLODE IN A BLAST' },
+  { name: 'MINES', weight: 2, isNew: true, desc: 'DROP MINES WITH B BUTTON' },
+  { name: 'GHOST', weight: 1, isNew: true, desc: 'DRIVE THROUGH BRICK+WATER' },
+  { name: 'COIN', weight: 2, isNew: true, desc: '1000 BONUS POINTS' },
+];
+
 const pct = (...v) => v;
 const PCTS = pct(25, 50, 75, 100, 125, 150, 175, 200, 250, 300);
 const SECS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 45, 60];
@@ -50,7 +71,6 @@ const SETTINGS_DEF = [
   { key: 'enemyFire', label: 'FIRE RATE', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'enemyAim', label: 'BASE HUNTING', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'bonusTanks', label: 'FLASHING TANKS', values: ONOFF, def: 'ON' },
-  { key: 'enemyPickup', label: 'ENEMY PICKUPS', values: ONOFF, def: 'ON' },
 
   { section: 'BASIC TANK', enemy: 0 },
   { key: 'e0Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct },
@@ -73,6 +93,16 @@ const SETTINGS_DEF = [
   { key: 'helmetTime', label: 'HELMET TIME', values: SECS.slice(1), def: 10, fmt: fmtSec },
   { key: 'clockTime', label: 'CLOCK TIME', values: SECS.slice(1), def: 10, fmt: fmtSec },
   { key: 'shovelTime', label: 'SHOVEL TIME', values: SECS.slice(5), def: 20, fmt: fmtSec },
+  { key: 'newTime', label: 'NEW P-UP TIME', values: SECS.slice(5), def: 15, fmt: fmtSec },
+  { key: 'mineCount', label: 'MINES PER PICKUP', values: range(1, 9), def: 3 },
+
+  // who may collect each power-up: ANYONE (players and enemies), PLAYER only, or OFF (never appears)
+  { section: 'WHO CAN COLLECT' },
+  ...POWERUPS.map((pu, i) => ({
+    key: 'pu' + i, label: pu.name + (pu.isNew ? ' *' : ''), values: ['ANYONE', 'PLAYER', 'OFF'], def: 'ANYONE', powerup: i,
+  })),
+  { action: 'classicPU', label: 'CLASSIC POWER-UPS ONLY' },
+  { action: 'allPU', label: 'ALL POWER-UPS ON' },
 
   { section: 'GAME' },
   { key: 'gameSpeed', label: 'GAME SPEED', values: [50, 75, 100, 125, 150, 200], def: 100, fmt: fmtPct },
@@ -111,6 +141,16 @@ const Config = {
   reset(save = true) {
     for (const k in this.defs) this.values[k] = this.defs[k].def;
     if (save) { this.save(); this.apply(); }
+  },
+
+  // power-up rules: can this kind of tank pick it up?
+  canCollect(i, isPlayer) {
+    const v = this.values['pu' + i];
+    return v === 'ANYONE' || (isPlayer && v === 'PLAYER');
+  },
+  setPowerups(fn) {
+    POWERUPS.forEach((pu, i) => { this.values['pu' + i] = fn(pu); });
+    this.save();
   },
 
   isDefault(k) { return this.values[k] === this.defs[k].def; },

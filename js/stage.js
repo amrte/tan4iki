@@ -16,8 +16,15 @@ const ENEMY = [
   { speed: 0.5, bullet: 2.5, hp: 4, pts: 400 },
 ];
 
-const PU = { HELMET: 0, CLOCK: 1, SHOVEL: 2, STAR: 3, GRENADE: 4, TANK: 5, GUN: 6, SHIP: 7 };
-const PU_WEIGHTS = [2, 2, 2, 3, 2, 1, 1, 1];
+const PU = {
+  HELMET: 0, CLOCK: 1, SHOVEL: 2, STAR: 3, GRENADE: 4, TANK: 5, GUN: 6, SHIP: 7,
+  // additions that were not in the original game
+  TURBO: 8, RAPID: 9, SPREAD: 10, PIERCE: 11, ROCKET: 12, MINES: 13, GHOST: 14, COIN: 15,
+};
+// timed effects granted by the new power-ups (stored per tank in t.boost)
+const TIMED_BOOSTS = { [PU.TURBO]: 'turbo', [PU.RAPID]: 'rapid', [PU.SPREAD]: 'spread', [PU.PIERCE]: 'pierce', [PU.ROCKET]: 'rocket', [PU.GHOST]: 'ghost' };
+const TURBO_MULT = 1.75;
+const ROCKET_RADIUS = 14, MINE_RADIUS = 18, MINE_ARM_TIME = 40, MAX_MINES = 16;
 const BASE_X = 96, BASE_Y = 192;
 const ENEMY_SPAWN_X = [96, 192, 0];
 const PLAYER_SPAWN = [[64, 192], [128, 192]];
@@ -86,6 +93,8 @@ class Tank {
     this.moving = false; this.alive = true; this.ship = false; this.cutter = false; this.power = false;
     this.blocked = 0; this.isPlayer = false; this.player = null; this.type = 0; this.hp = 1; this.bonus = false;
     this.speed = 0.75; this.bulletSpeed = 2.5; this.maxBullets = 1;
+    this.boost = {};   // active timed power-ups: name -> frames left
+    this.mines = 0;    // mines carried by an enemy tank
     Object.assign(this, o);
   }
   applyLevel() {
@@ -112,6 +121,8 @@ class Stage {
     this.popups = [];
     this.spawns = [];
     this.powerup = null;
+    this.mines = [];
+    this.lastBrickSound = -1;
     this.queue = buildQueue(num);
     this.total = this.queue.length;
     this.killed = 0;
@@ -230,9 +241,11 @@ class Stage {
     this.updateSpawns();
     for (const t of this.tanks) {
       if (!t.alive) continue;
+      for (const k in t.boost) if (--t.boost[k] <= 0) delete t.boost[k];
       if (t.isPlayer) this.updatePlayer(t); else this.updateEnemy(t);
     }
     this.updateBullets();
+    this.updateMines();
     this.tanks = this.tanks.filter(t => t.alive);
     this.checkPickups();
     if (this.powerup) this.powerup.t++;
@@ -287,8 +300,13 @@ class Stage {
         if (!this.move(t, t.dir)) t.slide = 0;
       }
     }
-    if (inp.firePressed || (inp.fire && t.cool === 0)) {
-      if (this.fire(t)) t.cool = 14;
+    // B drops a mine while you carry some; otherwise it fires like A
+    const hasMines = p.mines > 0;
+    if (hasMines && inp.altPressed) { this.dropMine(t); p.mines--; }
+    const firePressed = inp.firePressed || (!hasMines && inp.altPressed);
+    const fireHeld = inp.fire || (!hasMines && inp.alt);
+    if (firePressed || (fireHeld && t.cool === 0)) {
+      if (this.fire(t)) t.cool = t.boost.rapid ? 5 : 14;
     }
   }
 
@@ -304,10 +322,11 @@ class Stage {
       t.blocked = 0;
       if ((t.x & 7) === 0 && (t.y & 7) === 0 && Math.random() < 1 / 20) this.chooseDir(t, false);
     }
-    if (t.bullets === 0 && t.cool === 0) {
+    if (t.mines > 0 && ok && Math.random() < 1 / 180) { this.dropMine(t); t.mines--; }
+    if (t.bullets < (t.boost.rapid ? 3 : 1) && t.cool === 0) {
       let chance = ok ? 0.022 : 0.07;
       if (this.targetInSight(t)) chance = 0.15;
-      chance *= Config.scale('enemyFire');
+      chance *= Config.scale('enemyFire') * (t.boost.rapid ? 3 : 1);
       if (Math.random() < chance) { this.fire(t); t.cool = 16; }
     }
   }
@@ -355,7 +374,7 @@ class Stage {
   }
 
   move(t, d) {
-    t.acc += t.speed;
+    t.acc += t.speed * (t.boost.turbo ? TURBO_MULT : 1);
     let ok = true;
     while (t.acc >= 1) {
       t.acc -= 1;
@@ -387,8 +406,8 @@ class Stage {
     for (let cy = y0 >> 2; cy <= y1 >> 2; cy++) {
       for (let cx = x0 >> 2; cx <= x1 >> 2; cx++) {
         const tt = this.get(cx, cy);
-        if (tt === T_BRICK || tt === T_STEEL) return false;
-        if (tt === T_WATER && !t.ship) return false;
+        if (tt === T_STEEL || (tt === T_BRICK && !t.boost.ghost)) return false;
+        if (tt === T_WATER && !t.ship && !t.boost.ghost) return false;
       }
     }
     if (overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
@@ -400,13 +419,20 @@ class Stage {
   }
 
   fire(t) {
-    if (t.bullets >= t.maxBullets) return false;
-    const pos = [[t.x + 6, t.y], [t.x + 12, t.y + 6], [t.x + 6, t.y + 12], [t.x, t.y + 6]][t.dir];
-    this.bullets.push({
-      x: pos[0], y: pos[1], dir: t.dir, speed: t.bulletSpeed, owner: t,
+    if (t.bullets >= (t.boost.rapid ? Math.max(4, t.maxBullets) : t.maxBullets)) return false;
+    const shell = (x, y, dir, free) => this.bullets.push({
+      x, y, dir, speed: t.bulletSpeed, owner: t, free,
       isPlayer: t.isPlayer, power: t.power, cutter: t.cutter, alive: true,
+      pierce: !!t.boost.pierce, rocket: !!t.boost.rocket,
     });
+    const pos = [[t.x + 6, t.y], [t.x + 12, t.y + 6], [t.x + 6, t.y + 12], [t.x, t.y + 6]][t.dir];
+    shell(pos[0], pos[1], t.dir, false);
     t.bullets++;
+    if (t.boost.spread) {
+      // side shells don't count against the shell limit
+      shell(t.x + 6, t.y + 6, (t.dir + 1) % 4, true);
+      shell(t.x + 6, t.y + 6, (t.dir + 3) % 4, true);
+    }
     if (t.isPlayer) Sound.play('shot');
     return true;
   }
@@ -423,18 +449,24 @@ class Stage {
         for (let j = i + 1; j < bs.length; j++) {
           const c = bs[j];
           if (!c.alive || a.isPlayer === c.isPlayer) continue;
-          if (overlap(a.x, a.y, 4, 4, c.x, c.y, 4, 4)) { this.killBullet(a, false); this.killBullet(c, false); break; }
+          if (overlap(a.x, a.y, 4, 4, c.x, c.y, 4, 4)) {
+            // piercing shells plough through ordinary ones
+            if (!a.pierce || c.pierce) this.killBullet(a, a.rocket);
+            if (!c.pierce || a.pierce) this.killBullet(c, c.rocket);
+            if (!a.alive) break;
+          }
         }
       }
     }
     this.bullets = bs.filter(b => b.alive);
   }
 
-  killBullet(b, fx) {
+  killBullet(b, fx, exclude) {
     if (!b.alive) return;
     b.alive = false;
-    b.owner.bullets = Math.max(0, b.owner.bullets - 1);
-    if (fx) this.addFx(b.x + 2, b.y + 2, Sprites.smallExp, 3);
+    if (!b.free) b.owner.bullets = Math.max(0, b.owner.bullets - 1);
+    if (fx && b.rocket) this.blast(b.x + 2, b.y + 2, ROCKET_RADIUS, b.isPlayer, b.owner, b.power, exclude);
+    else if (fx) this.addFx(b.x + 2, b.y + 2, Sprites.smallExp, 3);
   }
 
   stepBullet(b, dist) {
@@ -456,6 +488,17 @@ class Stage {
     for (const t of this.tanks) {
       if (!t.alive || t === b.owner) continue;
       if (!overlap(b.x, b.y, 4, 4, t.x, t.y, 16, 16)) continue;
+      if (b.pierce) {
+        // piercing shells damage each tank once and keep flying
+        if (b.isPlayer === t.isPlayer && (!b.isPlayer || Config.get('friendlyFire') === 'OFF')) continue;
+        b.hits = b.hits || new Set();
+        if (b.hits.has(t)) continue;
+        b.hits.add(t);
+        if (b.isPlayer && t.isPlayer) { if (t.shield <= 0) t.frozen = 180; }
+        else if (b.isPlayer) this.hitEnemy(t, b.owner);
+        else this.hitPlayer(t);
+        continue;
+      }
       if (b.isPlayer) {
         if (t.isPlayer) {
           // friendly fire freezes the other player for a few seconds
@@ -464,13 +507,13 @@ class Stage {
           if (t.shield <= 0) t.frozen = 180;
           return;
         }
-        this.killBullet(b, true);
         this.hitEnemy(t, b.owner);
+        this.killBullet(b, true, t);
         return;
       }
       if (!t.isPlayer) continue;
-      this.killBullet(b, true);
       this.hitPlayer(t);
+      this.killBullet(b, true, t);
       return;
     }
   }
@@ -490,6 +533,24 @@ class Stage {
       }
     }
     if (hitRow < 0 && hitCol < 0) return false;
+
+    // piercing shells tunnel through bricks (and trees for cutters), stopping only at steel they can't break
+    if (b.pierce) {
+      let blocked = false;
+      for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) if (this.get(cx, cy) === T_STEEL && !b.power) blocked = true;
+      if (!blocked) {
+        const lo = vert ? Math.floor((b.x + 2 - 8) / 4) : Math.floor((b.y + 2 - 8) / 4);
+        const hi = vert ? Math.floor((b.x + 2 + 7.99) / 4) : Math.floor((b.y + 2 + 7.99) / 4);
+        for (let k = lo; k <= hi; k++) {
+          const cx = vert ? k : hitCol, cy = vert ? hitRow : k, t = this.get(cx, cy);
+          if (t === T_BRICK) this.set(cx, cy, T_EMPTY);
+          else if (t === T_STEEL) this.clearGroup(cx, cy, T_STEEL);
+          else if (t === T_FOREST && b.cutter) this.clearGroup(cx, cy, T_FOREST);
+        }
+        if (b.isPlayer && this.lastBrickSound < this.frame - 3) { Sound.play('brick'); this.lastBrickSound = this.frame; }
+        return false;
+      }
+    }
 
     // a shell blasts a 16px-wide strip; power shells (star level 3) dig twice as deep and break steel
     const depth = b.power ? 2 : 1;
@@ -511,6 +572,47 @@ class Stage {
     this.killBullet(b, true);
     if (b.isPlayer) Sound.play(broke ? 'brick' : 'steel');
     return true;
+  }
+
+  // ------------------------------------------------------------ blasts and mines
+  // explosion that breaks bricks (steel with power) and damages the other side's tanks
+  blast(cx, cy, r, byPlayer, owner, power, exclude) {
+    for (let y = Math.floor((cy - r) / 4); y <= Math.floor((cy + r) / 4); y++) {
+      for (let x = Math.floor((cx - r) / 4); x <= Math.floor((cx + r) / 4); x++) {
+        if (Math.hypot(x * 4 + 2 - cx, y * 4 + 2 - cy) > r) continue;
+        const t = this.get(x, y);
+        if (t === T_BRICK) this.set(x, y, T_EMPTY);
+        else if (t === T_STEEL && power) this.clearGroup(x, y, T_STEEL);
+      }
+    }
+    const reaches = (x, y, w, h) => Math.hypot(Math.max(x, Math.min(cx, x + w)) - cx, Math.max(y, Math.min(cy, y + h)) - cy) < r - 2;
+    for (const t of this.tanks) {
+      if (!t.alive || t === exclude || !reaches(t.x, t.y, 16, 16)) continue;
+      if (byPlayer && !t.isPlayer) this.hitEnemy(t, owner);
+      else if (!byPlayer && t.isPlayer) this.hitPlayer(t);
+    }
+    if (!byPlayer && this.baseAlive && reaches(BASE_X, BASE_Y, 16, 16)) this.destroyBase();
+    this.addFx(cx, cy, Sprites.bigExp, 5);
+    Sound.play('explode');
+  }
+
+  dropMine(t) {
+    if (this.mines.length >= MAX_MINES) return;
+    this.mines.push({ x: t.x + 8, y: t.y + 8, byPlayer: t.isPlayer, owner: t, t: 0 });
+    Sound.play('build');
+  }
+
+  updateMines() {
+    for (const m of this.mines) {
+      m.t++;
+      if (m.t < MINE_ARM_TIME) continue;
+      const victim = this.tanks.find(t => t.alive && t.isPlayer !== m.byPlayer && overlap(t.x, t.y, 16, 16, m.x - 4, m.y - 4, 8, 8));
+      if (victim) {
+        m.done = true;
+        this.blast(m.x, m.y, MINE_RADIUS, m.byPlayer, m.owner, false);
+      }
+    }
+    this.mines = this.mines.filter(m => !m.done);
   }
 
   // ------------------------------------------------------------ damage
@@ -588,8 +690,12 @@ class Stage {
 
   // ------------------------------------------------------------ power-ups
   spawnPowerup() {
-    let total = PU_WEIGHTS.reduce((a, b) => a + b, 0), r = rnd(total), type = 0;
-    while (r >= PU_WEIGHTS[type]) { r -= PU_WEIGHTS[type]; type++; }
+    // only power-ups enabled in the settings can appear
+    const weights = POWERUPS.map((pu, i) => (Config.get('pu' + i) === 'OFF' ? 0 : pu.weight));
+    const total = weights.reduce((a, b) => a + b, 0);
+    if (total === 0) return;
+    let r = rnd(total), type = 0;
+    while (r >= weights[type]) { r -= weights[type]; type++; }
     let x = 0, y = 0;
     for (let tries = 0; tries < 60; tries++) {
       x = rnd(25) * 8; y = rnd(25) * 8;
@@ -608,9 +714,9 @@ class Stage {
   checkPickups() {
     const pu = this.powerup;
     if (!pu) return;
-    const order = this.tanks.filter(t => t.isPlayer).concat(Config.on('enemyPickup') ? this.tanks.filter(t => !t.isPlayer) : []);
+    const order = this.tanks.filter(t => t.isPlayer).concat(this.tanks.filter(t => !t.isPlayer));
     for (const t of order) {
-      if (t.alive && overlap(t.x, t.y, 16, 16, pu.x + 2, pu.y + 2, 12, 12)) {
+      if (t.alive && Config.canCollect(pu.type, t.isPlayer) && overlap(t.x, t.y, 16, 16, pu.x + 2, pu.y + 2, 12, 12)) {
         this.powerup = null;
         this.applyPowerup(t, pu);
         return;
@@ -624,7 +730,9 @@ class Stage {
       const p = t.player;
       let snd = 'pickup';
       this.addScore(p, 500);
-      this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: '500', t: 0, delay: 0 });
+      if (POWERUPS[pu.type].isNew) this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: POWERUPS[pu.type].name, label: true, color: COL.white, t: 0, delay: 0 });
+      else this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: '500', t: 0, delay: 0 });
+      if (TIMED_BOOSTS[pu.type]) t.boost[TIMED_BOOSTS[pu.type]] = Config.frames('newTime');
       switch (pu.type) {
         case PU.HELMET: t.shield = Config.frames('helmetTime'); break;
         case PU.CLOCK: this.freezeE = Config.frames('clockTime'); snd = 'freeze'; break;
@@ -640,6 +748,8 @@ class Stage {
         case PU.TANK: p.lives++; snd = 'life'; break;
         case PU.GUN: p.level = 3; p.cutter = true; t.applyLevel(); break;
         case PU.SHIP: p.ship = true; t.ship = true; break;
+        case PU.MINES: p.mines = (p.mines || 0) + Config.get('mineCount'); break;
+        case PU.COIN: this.addScore(p, 1000); snd = 'bonus'; break;
       }
       Sound.play(snd);
     } else {
@@ -654,7 +764,13 @@ class Stage {
         case PU.TANK: t.hp = Math.max(t.hp, 4); break;
         case PU.GUN: t.power = true; t.bulletSpeed = 4.5; break;
         case PU.SHIP: t.ship = true; break;
+        case PU.MINES: t.mines += Config.get('mineCount'); break;
+        case PU.COIN: // the enemy steals points
+          for (const q of this.players) q.score = Math.max(0, q.score - 1000);
+          this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: '-1000', label: true, color: COL.red, t: 0, delay: 0 });
+          break;
       }
+      if (TIMED_BOOSTS[pu.type]) t.boost[TIMED_BOOSTS[pu.type]] = Config.frames('newTime');
     }
   }
 
@@ -699,7 +815,9 @@ class Stage {
       else if (t.hp === 2) pal = (this.frame >> 2) & 1 ? 'gold' : 'silver';
       else pal = 'silver';
     }
+    if (t.boost.ghost) ctx.globalAlpha = (this.frame >> 2) & 1 ? 0.35 : 0.6;
     ctx.drawImage(Sprites.tank(spec, t.anim, t.dir, pal), t.x, t.y);
+    ctx.globalAlpha = 1;
     if (t.shield > 0) ctx.drawImage(Sprites.shield[(this.frame >> 1) & 1], t.x, t.y);
   }
 
@@ -724,13 +842,17 @@ class Stage {
     }
     ctx.drawImage(this.baseAlive ? Sprites.eagle : Sprites.eagleDead, BASE_X, BASE_Y);
 
+    for (const m of this.mines) ctx.drawImage(Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0], m.x - 4, m.y - 4);
     for (const t of this.tanks) this.drawTank(ctx, t);
     for (const s of this.spawns) {
       if (s.t > SPARKLE_TIME) continue;
       const k = Math.floor((SPARKLE_TIME - s.t) / 4) % 6;
       ctx.drawImage(Sprites.sparkle[[0, 1, 2, 3, 2, 1][k]], s.x, s.y);
     }
-    for (const b of this.bullets) ctx.drawImage(Sprites.bullet[b.dir], Math.round(b.x), Math.round(b.y));
+    for (const b of this.bullets) {
+      const spr = b.rocket ? Sprites.bulletRocket : b.pierce ? Sprites.bulletPierce : Sprites.bullet;
+      ctx.drawImage(spr[b.dir], Math.round(b.x), Math.round(b.y));
+    }
 
     ctx.drawImage(this.forestLayer, 0, 0);
 
@@ -743,6 +865,11 @@ class Stage {
     }
     for (const p of this.popups) {
       if (p.t < p.delay) continue;
+      if (p.label) {
+        const half = p.text.length * 4;
+        Font.drawCenter(ctx, p.text, Math.max(half, Math.min(FS - half, p.x)), Math.max(0, Math.round(p.y - 4 - p.t / 6)), p.color);
+        continue;
+      }
       const c = Sprites.mini(p.text);
       ctx.drawImage(c, Math.round(p.x - c.width / 2), Math.round(p.y - 3));
     }
@@ -767,6 +894,13 @@ class Stage {
       ctx.drawImage(Sprites.lifeIcon, 232, 168);
       Font.draw(ctx, lives(this.players[1]), 240, 168, COL.black);
     }
+    // mines carried
+    this.players.forEach((p, i) => {
+      if (!p.mines) return;
+      const y = i === 0 ? 152 : 176;
+      ctx.drawImage(Sprites.mine[0], 232, y);
+      Font.draw(ctx, String(Math.min(9, p.mines)), 240, y, COL.black);
+    });
     ctx.drawImage(Sprites.flag, 232, 184);
     Font.drawRight(ctx, String(this.num), 248, 200, COL.black);
   }
