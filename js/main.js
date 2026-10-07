@@ -3,7 +3,12 @@
 //  Game flow: title → stage curtain → play → score tally → next / over
 // =====================================================================
 
+// Menus (title, settings, shop, score) are drawn in a classic 256x224 frame, centred on the
+// play screen, whose size follows the field size (SCREEN_W x SCREEN_H, see setFieldSize).
 const SW = 256, SH = 224;
+const SAVE_KEY = 'tank1990_save';
+const menuOX = () => (SCREEN_W - SW) >> 1;
+const menuOY = () => (SCREEN_H - SH) >> 1;
 const STORE = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
@@ -31,8 +36,8 @@ function defaultCustomMap() {
   return rows.map(r => r.join(''));
 }
 
-const TITLE_MENU = ['1 PLAYER', '2 PLAYERS', 'CONSTRUCTION', 'SETTINGS'];
 const TITLE_MENU_Y = 126;
+const PAUSE_MENU = ['CONTINUE', 'SAVE GAME', 'QUIT'];
 const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
 
 // Between-stage shop: score buys upgrades. price is in points at 100% "SHOP PRICES".
@@ -95,6 +100,9 @@ const Game = {
   paused: false,
   lastScores: [0, 0],
   menuIdx: 0,
+  pauseIdx: 0,
+  pauseMsg: '',
+  pauseMsgT: 0,
   titleY: SH,
   custom: null,
   customPending: false,
@@ -113,11 +121,42 @@ const Game = {
     STORE.set('tank1990_hi', this.hi);
   },
 
+  // ---------------------------------------------------------------- screen layout
+  // field size from the settings; FIT matches the window's shape
+  desiredField() {
+    let w = Config.get('fieldW'), h = Config.get('fieldH');
+    const wrap = document.getElementById('wrap');
+    const aspect = wrap && wrap.clientHeight ? wrap.clientWidth / wrap.clientHeight : 16 / 10;
+    if (w === 'FIT' && h === 'FIT') h = 13;
+    if (w === 'FIT') w = Math.max(13, Math.min(60, Math.round((aspect * (h * 16 + 16) - 48) / 16)));
+    if (h === 'FIT') h = Math.max(13, Math.min(40, Math.round(((w * 16 + 48) / aspect - 16) / 16)));
+    return [w, h];
+  },
+
+  applyLayout(cols, rows) {
+    if (cols === undefined) [cols, rows] = this.desiredField();
+    setFieldSize(cols, rows);
+  },
+
   // ---------------------------------------------------------------- title
   toTitle() {
     Sound.setEngine(0);
+    this.applyLayout();
     this.titleY = SH;
     this.setState('title');
+    if (this.menuIdx >= this.titleMenu().length) this.menuIdx = 0;
+  },
+
+  hasSave() { return !!STORE.get(SAVE_KEY, null); },
+
+  titleMenu() {
+    const m = [];
+    if (this.hasSave()) m.push({ label: 'CONTINUE', act: () => this.loadGame() });
+    m.push({ label: '1 PLAYER', act: () => this.newGame(false, false) });
+    m.push({ label: '2 PLAYERS', act: () => this.newGame(true, false) });
+    m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
+    m.push({ label: 'SETTINGS', act: () => this.toSettings() });
+    return m;
   },
 
   updateTitle() {
@@ -127,15 +166,15 @@ const Game = {
       if (m.any) this.titleY = 0;
       return;
     }
-    if (m.up) { this.menuIdx = (this.menuIdx + 3) % 4; Sound.play('select'); }
-    if (m.down || m.select) { this.menuIdx = (this.menuIdx + 1) % 4; Sound.play('select'); }
+    const n = this.titleMenu().length;
+    if (m.up) { this.menuIdx = (this.menuIdx + n - 1) % n; Sound.play('select'); }
+    if (m.down || m.select) { this.menuIdx = (this.menuIdx + 1) % n; Sound.play('select'); }
     if (m.ok) this.chooseMenu(this.menuIdx);
   },
 
   chooseMenu(i) {
-    if (i === 3) this.toSettings();
-    else if (i === 2) this.toConstruct();
-    else this.newGame(i === 1, false);
+    const item = this.titleMenu()[i];
+    if (item) item.act();
   },
 
   renderTitle(ctx) {
@@ -154,18 +193,54 @@ const Game = {
     const pat = Sprites.bricks(ctx);
     Font.big(ctx, 'TANK', (SW - Font.bigWidth('TANK', 4)) >> 1, 40, 4, pat);
     Font.big(ctx, '1990', (SW - Font.bigWidth('1990', 4)) >> 1, 80, 4, pat);
-    TITLE_MENU.forEach((s, i) => Font.draw(ctx, s, 88, TITLE_MENU_Y + i * 14, COL.white));
+    const menu = this.titleMenu(), top = this.titleMenuY();
+    menu.forEach((it, i) => Font.draw(ctx, it.label, 88, top + i * 14, COL.white));
     if (this.titleY === 0) {
       const anim = (this.t >> 2) & 1;
-      ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, TITLE_MENU_Y - 4 + this.menuIdx * 14);
+      ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, top - 4 + this.menuIdx * 14);
     }
     Font.drawCenter(ctx, APP_TITLE, SW / 2, 192, COL.lgrey);
     Font.drawCenter(ctx, 'ENTER START  M MUTE', SW / 2, 206, COL.lgrey);
     ctx.restore();
   },
 
+  titleMenuY() { return TITLE_MENU_Y - (this.titleMenu().length - 4) * 7; },
+
+  // ---------------------------------------------------------------- save / load
+  // One save slot: written by SAVE GAME in the pause menu and automatically at every stage start.
+  saveGame() {
+    if (!this.stage || this.stage.over) return false;
+    const data = {
+      app: APP_VERSION, time: Date.now(), twoP: this.twoP, stageNum: this.stageNum, lastScores: this.lastScores,
+      players: this.players.map(p => { const o = Object.assign({}, p); delete o.tank; return o; }),
+      stage: this.stage.snapshot(),
+    };
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); return true; } catch (e) { return false; }
+  },
+
+  loadGame() {
+    const s = STORE.get(SAVE_KEY, null);
+    if (!s || !s.stage) return;
+    this.twoP = s.twoP;
+    Input.twoP = s.twoP;
+    this.players = s.players.map(p => Object.assign(newPlayer(p.i), p, { tank: null }));
+    this.stageNum = s.stageNum;
+    this.lastScores = s.lastScores || [0, 0];
+    this.customPending = false;
+    // the saved terrain only fits the field size it was saved with
+    this.applyLayout(s.stage.cols, s.stage.rows);
+    this.stage = new Stage(this.stageNum, LEVELS[(this.stageNum - 1) % LEVELS.length], this.players, { snapshot: s.stage });
+    this.paused = true;
+    this.pauseIdx = 0;
+    this.pauseMsg = 'GAME LOADED';
+    this.pauseMsgT = 120;
+    this.openH = SCREEN_H / 2;
+    this.setState('play');
+  },
+
   // ---------------------------------------------------------------- new game / curtain
   newGame(twoP, custom) {
+    this.applyLayout();
     this.twoP = twoP;
     Input.twoP = twoP;
     this.players = [newPlayer(0)];
@@ -184,8 +259,8 @@ const Game = {
   updateCurtain() {
     const c = this.curtain;
     if (c.phase === 'close') {
-      c.h = Math.min(SH / 2, c.h + 8);
-      if (c.h >= SH / 2) { c.phase = 'show'; this.t = 0; }
+      c.h = Math.min(SCREEN_H / 2, c.h + 8);
+      if (c.h >= SCREEN_H / 2) { c.phase = 'show'; this.t = 0; }
       return;
     }
     const m = Input.menu();
@@ -203,14 +278,15 @@ const Game = {
   renderCurtain(ctx) {
     const c = this.curtain;
     if (c.phase === 'close' && this.stage) this.stage.render(ctx);
-    else if (c.phase === 'close') { ctx.fillStyle = COL.black; ctx.fillRect(0, 0, SW, SH); }
+    else if (c.phase === 'close') { ctx.fillStyle = COL.black; ctx.fillRect(0, 0, SCREEN_W, SCREEN_H); }
     ctx.fillStyle = COL.bg;
-    ctx.fillRect(0, 0, SW, c.h);
-    ctx.fillRect(0, SH - c.h, SW, c.h);
+    ctx.fillRect(0, 0, SCREEN_W, c.h);
+    ctx.fillRect(0, SCREEN_H - c.h, SCREEN_W, c.h);
     if (c.phase === 'show') {
-      Font.draw(ctx, 'STAGE', 96, 104, COL.black);
-      Font.drawRight(ctx, this.stageNum, 160, 104, COL.black);
-      if (c.selectable && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', SW / 2, 124, '#3C3C3C');
+      const cx = SCREEN_W / 2, cy = SCREEN_H / 2;
+      Font.draw(ctx, 'STAGE', cx - 32, cy - 8, COL.black);
+      Font.drawRight(ctx, this.stageNum, cx + 32, cy - 8, COL.black);
+      if (c.selectable && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + 12, '#3C3C3C');
     }
   },
 
@@ -220,27 +296,32 @@ const Game = {
     else map = LEVELS[(this.stageNum - 1) % LEVELS.length];
     this.stage = new Stage(this.stageNum, map, this.players, { custom });
     this.paused = false;
-    this.openH = SH / 2;
+    this.openH = SCREEN_H / 2;
     this.setState('play');
     Sound.play('start');
+    this.saveGame(); // autosave at every stage start
   },
 
   // ---------------------------------------------------------------- play
   updatePlay() {
     const m = Input.menu();
-    if ((m.start || (m.back && !this.paused)) && !this.stage.over) {
-      this.paused = !this.paused;
-      if (this.paused) { Sound.play('pause'); Sound.setEngine(0); }
-    } else if (m.back && this.paused) {
-      // Esc while paused quits to the title screen
-      this.saveHi();
-      this.lastScores = this.players.map(p => p.score);
-      this.stage = null;
-      this.toTitle();
+    if (this.pauseMsgT > 0) this.pauseMsgT--;
+    if (this.openH > 0) this.openH = Math.max(0, this.openH - 8);
+    if (!this.paused) {
+      if ((m.start || m.back) && !this.stage.over) {
+        this.paused = true;
+        this.pauseIdx = 0;
+        Sound.play('pause');
+        Sound.setEngine(0);
+      }
+    } else {
+      // pause menu: continue / save / quit (P or Esc resumes)
+      if (m.up) { this.pauseIdx = (this.pauseIdx + PAUSE_MENU.length - 1) % PAUSE_MENU.length; Sound.play('select'); }
+      if (m.down) { this.pauseIdx = (this.pauseIdx + 1) % PAUSE_MENU.length; Sound.play('select'); }
+      if (Input.anyJust(['KeyP', 'Escape'])) this.paused = false;
+      else if (m.ok) this.pauseAction(PAUSE_MENU[this.pauseIdx]);
       return;
     }
-    if (this.openH > 0) this.openH = Math.max(0, this.openH - 8);
-    if (this.paused) return;
     this.stage.update();
     if (this.stage.result) {
       this.saveHi();
@@ -248,13 +329,40 @@ const Game = {
     }
   },
 
+  pauseAction(action) {
+    if (action === 'CONTINUE') this.paused = false;
+    else if (action === 'SAVE GAME') {
+      const ok = this.saveGame();
+      this.pauseMsg = ok ? 'GAME SAVED' : 'SAVE FAILED';
+      this.pauseMsgT = 120;
+      Sound.play(ok ? 'pickup' : 'steel');
+    } else if (action === 'QUIT') {
+      this.saveHi();
+      this.lastScores = this.players.map(p => p.score);
+      this.stage = null;
+      this.toTitle();
+    }
+  },
+
   renderPlay(ctx) {
     this.stage.render(ctx);
-    if (this.paused && ((this.t >> 4) & 1) === 0) Font.drawCenter(ctx, 'PAUSE', FX + FS / 2, FY + 100, COL.orange);
+    if (this.paused) {
+      const w = 112, h = 70, x = FX + ((FW - w) >> 1), y = FY + ((FH - h) >> 1);
+      ctx.fillStyle = COL.black;
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = COL.lgrey;
+      ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + h - 1, w, 1); ctx.fillRect(x, y, 1, h); ctx.fillRect(x + w - 1, y, 1, h);
+      Font.drawCenter(ctx, 'PAUSE', x + w / 2, y + 6, COL.orange);
+      PAUSE_MENU.forEach((label, i) => {
+        Font.draw(ctx, label, x + 24, y + 22 + i * 12, COL.white);
+        if (i === this.pauseIdx) Font.draw(ctx, '>', x + 12, y + 22 + i * 12, COL.gold);
+      });
+      if (this.pauseMsgT > 0) Font.drawCenter(ctx, this.pauseMsg, x + w / 2, y + h + 4, COL.gold);
+    }
     if (this.openH > 0) {
       ctx.fillStyle = COL.bg;
-      ctx.fillRect(0, 0, SW, this.openH);
-      ctx.fillRect(0, SH - this.openH, SW, this.openH);
+      ctx.fillRect(0, 0, SCREEN_W, this.openH);
+      ctx.fillRect(0, SCREEN_H - this.openH, SCREEN_W, this.openH);
     }
   },
 
@@ -383,6 +491,7 @@ const Game = {
 
   // ---------------------------------------------------------------- construction
   toConstruct() {
+    this.applyLayout(13, 13); // the editor works on the classic 13x13 field
     this.ed = {
       tx: 0, ty: 0, pat: -1, last: null, rep: 0,
       stage: new Stage(1, this.custom, [], { custom: true }),
@@ -440,13 +549,13 @@ const Game = {
     ctx.fillStyle = COL.bg;
     ctx.fillRect(0, 0, SW, SH);
     ctx.fillStyle = COL.black;
-    ctx.fillRect(FX, FY, FS, FS);
+    ctx.fillRect(FX, FY, FW, FH);
     if (st.dirty) st.buildLayers();
     ctx.save();
     ctx.translate(FX, FY);
     ctx.drawImage(st.bgLayer, 0, 0);
     for (const i of st.waterCells) {
-      const cx = i % GN, cy = (i / GN) | 0;
+      const cx = i % GW, cy = (i / GW) | 0;
       ctx.drawImage(Sprites.tex.water0, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
     }
     ctx.drawImage(Sprites.eagle, BASE_X, BASE_Y);
@@ -590,6 +699,18 @@ const Game = {
     } else if (row.action === 'allPU') {
       Config.setPowerups(() => 'ANYONE');
       Sound.play('pickup');
+    } else if (row.action === 'fitScreen') {
+      // one click: field sized to the screen shape, scaled to fill it, fullscreen
+      Config.values.fieldW = 'FIT';
+      Config.values.fieldH = 13;
+      Config.values.scaling = 'FILL';
+      Config.save();
+      if (!(document.fullscreenElement || document.webkitFullscreenElement)) toggleFullscreen();
+      this.applyLayout();
+      Config.apply();
+      Sound.play('pickup');
+    } else if (row.action === 'fullscreen') {
+      toggleFullscreen();
     } else if (row.action === 'back') {
       this.leaveSettings();
     }
@@ -680,6 +801,7 @@ const Game = {
   // mouse / touch on the canvas (in screen pixels)
   pointer(x, y) {
     Sound.unlock();
+    if (this.state === 'title' || this.state === 'settings' || this.state === 'shop') { x -= menuOX(); y -= menuOY(); }
     if (this.state === 'shop') {
       const r = Math.floor((y - SHOP_TOP + 4) / SHOP_ROW_H), i = this.shop.scroll + r;
       if (r < 0 || r >= SHOP_ROWS || !SHOP_ITEMS[i]) return;
@@ -688,8 +810,8 @@ const Game = {
       return;
     }
     if (this.state === 'title' && this.titleY === 0) {
-      const i = Math.floor((y - TITLE_MENU_Y + 4) / 14);
-      if (i >= 0 && i < TITLE_MENU.length && x > 56 && x < 200) {
+      const i = Math.floor((y - this.titleMenuY() + 4) / 14);
+      if (i >= 0 && i < this.titleMenu().length && x > 56 && x < 200) {
         if (i === this.menuIdx) this.chooseMenu(i);
         else { this.menuIdx = i; Sound.play('select'); }
       }
@@ -727,6 +849,27 @@ const Game = {
   },
 
   render(ctx) {
+    // the canvas follows the field size; menus sit in a centred 256x224 frame
+    const c = ctx.canvas;
+    if (c.width !== SCREEN_W || c.height !== SCREEN_H) {
+      c.width = SCREEN_W;
+      c.height = SCREEN_H;
+      ctx.imageSmoothingEnabled = false;
+      Sprites.brickPattern = null;
+      if (this.onResize) this.onResize();
+    }
+    const full = this.state === 'play' || this.state === 'curtain' || this.state === 'construct';
+    if (!full) {
+      ctx.fillStyle = COL.black;
+      ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
+      ctx.save();
+      ctx.translate(menuOX(), menuOY());
+    }
+    this.renderState(ctx);
+    if (!full) ctx.restore();
+  },
+
+  renderState(ctx) {
     switch (this.state) {
       case 'title': this.renderTitle(ctx); break;
       case 'curtain': this.renderCurtain(ctx); break;
@@ -739,6 +882,19 @@ const Game = {
     }
   },
 };
+
+function toggleFullscreen() {
+  const el = document.getElementById('wrap');
+  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  try {
+    if (fsEl) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else {
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      const r = req && req.call(el);
+      if (r && r.catch) r.catch(() => {});
+    }
+  } catch (e) { /* fullscreen not available here */ }
+}
 
 // =====================================================================
 //  Boot & main loop (fixed 60 Hz simulation)
@@ -756,7 +912,7 @@ const Game = {
 
   const toScreen = e => {
     const r = canvas.getBoundingClientRect();
-    return [(e.clientX - r.left) * SW / r.width, (e.clientY - r.top) * SH / r.height];
+    return [(e.clientX - r.left) * canvas.width / r.width, (e.clientY - r.top) * canvas.height / r.height];
   };
   canvas.addEventListener('pointerdown', e => { const [x, y] = toScreen(e); Game.pointer(x, y); });
   canvas.addEventListener('wheel', e => {
@@ -765,21 +921,34 @@ const Game = {
     Game.wheel(e.deltaY);
   }, { passive: false });
 
+  // SHARP scales by whole pixels; FILL uses all the space it can
   function resize() {
     const wrap = document.getElementById('wrap');
-    const w = wrap.clientWidth, h = wrap.clientHeight;
-    let s = Math.min(w / SW, h / SH);
-    if (s >= 1) s = Math.floor(s);
-    s = Math.max(0.5, s);
-    canvas.style.width = Math.round(SW * s) + 'px';
-    canvas.style.height = Math.round(SH * s) + 'px';
+    const cs = getComputedStyle(wrap);
+    const w = wrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const h = wrap.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    let s = Math.min(w / canvas.width, h / canvas.height);
+    if (s >= 1 && Config.get('scaling') === 'SHARP') s = Math.floor(s);
+    s = Math.max(0.25, s);
+    canvas.style.width = Math.round(canvas.width * s) + 'px';
+    canvas.style.height = Math.round(canvas.height * s) + 'px';
   }
-  window.addEventListener('resize', resize);
+  Game.onResize = resize;
+  const relayout = () => {
+    // outside a game, FIT field sizes follow the window shape
+    if (Game.state === 'title' || Game.state === 'settings') Game.applyLayout();
+    resize();
+  };
+  window.addEventListener('resize', relayout);
+  document.addEventListener('fullscreenchange', relayout);
+  document.addEventListener('webkitfullscreenchange', relayout);
+  canvas.addEventListener('dblclick', toggleFullscreen);
   resize();
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && Game.state === 'play' && !Game.paused && !Game.stage.over) {
       Game.paused = true;
+      Game.pauseIdx = 0;
       Sound.setEngine(0);
     }
   });

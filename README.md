@@ -1,6 +1,6 @@
 # tan4iki — Tank 1990 browser replica
 
-**Current version: 0.2** (see [CHANGELOG.md](CHANGELOG.md)). The version is shown on the title screen as `tan4iki_v0.2`.
+**Current version: 0.3** (see [CHANGELOG.md](CHANGELOG.md)). The version is shown on the title screen as `tan4iki_v0.3`.
 
 A from-scratch browser remake of **Tank 1990**, the NES/Famicom variant of Battle City.
 It's plain HTML5 Canvas and JavaScript with no dependencies and no build step. Sprites are
@@ -12,7 +12,7 @@ stored as 16×16 palette bitmaps in code, matching the NES originals. Sound come
 Open `index.html` in any modern browser. Double-clicking the file works too, because no server is needed.
 You can also serve the folder (`python3 -m http.server`) or publish it with GitHub Pages.
 
-**Single-file download:** [`dist/tan4iki_v0.2.html`](dist/tan4iki_v0.2.html) is the whole game in one HTML file,
+**Single-file download:** [`dist/tan4iki_v0.3.html`](dist/tan4iki_v0.3.html) is the whole game in one HTML file,
 which you can save anywhere and open offline. To regenerate it after changing the code, run `node tools/build.js`;
 the file is named after the version in `js/version.js`.
 
@@ -22,7 +22,8 @@ the file is named after the version in `js/version.js`.
 |---|---|---|
 | 1-player game | Arrows **or** WASD, fire with Space / Z / X / J / K / F, **B** button: B / C / N / Left Shift | — |
 | 2-player game | WASD, fire with Space / F / G / V, **B** button: B / C / H | Arrows, fire with Right Ctrl / Right Shift / Numpad 0 / L / `/`, **B** button: Numpad 1 / K / `;` |
-| Start / pause | Enter / P / Esc (Esc while paused quits to the title) | |
+| Start / pause | Enter / P / Esc opens the pause menu (CONTINUE / SAVE GAME / QUIT); P or Esc resumes | |
+| Fullscreen | double-click the game, or Settings → SCREEN | |
 | Mute | M | |
 
 The **B** button drops a mine while you carry mines; otherwise it fires, like on the NES.
@@ -55,6 +56,21 @@ fire buttons appear on screen.
 - **Construction mode:** move the cursor and press **A** (fire) to place or cycle 14 tile patterns, or **B** to cycle backwards.
   Press **Delete** to clear the map and **Enter** to play your map. Custom maps are saved in the browser.
 - Chiptune sound effects and engine hum, made with Web Audio.
+
+## Save and load
+
+Pause the game (Enter, P or Esc) and choose **SAVE GAME** to save exactly where you are: the stage, terrain,
+tanks, scores, lives, upgrades and mines. The game also saves automatically at the start of every stage.
+Choose **CONTINUE** on the title screen to resume; the game opens paused so you can get ready.
+There is one save slot, kept in the browser.
+
+## Field size and full screen
+
+The classic field is 13×13 tiles. In Settings → SCREEN you can set **FIELD WIDTH** (13–60) and **FIELD HEIGHT** (13–40),
+or choose **FIT** to match the window's shape. Bigger fields extend each stage by mirroring it outwards, with the
+eagle kept at the bottom centre. **FIT TO MY SCREEN** sets everything at once for a laptop such as a 13" MacBook:
+FIT width, FILL scaling and fullscreen. On a 16:10 MacBook screen in fullscreen that gives a 19×13 field.
+**SCALING** is SHARP (whole-pixel scaling, crispest) or FILL (uses all the space).
 
 ## Shop
 
@@ -99,11 +115,12 @@ in the browser, and **RESET TO DEFAULTS** restores the classic game.
 | Section | Settings (default) |
 |---|---|
 | Player | lives (3, or infinite), I-player / II-player tank color (yellow / green, 12 colors), tank speed (100%), shell speed (100%), start stars (0), keep stars on death (off), spawn shield (3 s), extra life at 20K (once / every / off), friendly fire (freeze / off) |
-| Enemies | tanks per stage (20), max on screen (4, +2 in 2P), spawn rate, fire rate, base hunting (all 100%), flashing bonus tanks (on) |
+| Enemies | tanks per stage (20, from 1 to 99), max on screen (4, up to 20, +2 in 2P), spawn rate, fire rate, base hunting (all 100%), flashing bonus tanks (on) |
 | Basic / fast / power / armor tank | speed (100%), shell speed (100%), hits to destroy (1 / 1 / 1 / 4) |
 | Power-ups | helmet time (10 s), clock time (10 s), shovel time (20 s), new power-up time (15 s), mines per pickup (3) |
 | Who can collect | for each of the 16 power-ups: **ANYONE** (you and enemies, default), **PLAYER** (only you) or **OFF** (never appears). Presets: *classic power-ups only* and *all power-ups on*. The selected power-up's icon and effect are shown at the bottom of the screen. |
 | Shop | shop after stages (on), shop prices (100%) |
+| Screen | field width (13), field height (13), FIT, scaling (sharp / fill), *fit to my screen*, toggle fullscreen |
 | Game | game speed (100%), volume (100%), engine sound (on) |
 
 ## Code layout

@@ -3,7 +3,12 @@
 //  Stage: terrain, tanks, bullets, power-ups, AI and rendering of play
 // =====================================================================
 
-const FX = 16, FY = 8, FS = 208, GN = 52;          // field offset/size, terrain grid (4px cells)
+const FX = 16, FY = 8;                             // field offset on screen
+// Field size in 16px tiles (classic 13x13). Set with setFieldSize(); everything below derives from it.
+let COLS = 13, ROWS = 13;
+let FW = 208, FH = 208;                            // field size in pixels
+let GW = 52, GH = 52;                              // terrain grid (4px cells)
+let SCREEN_W = 256, SCREEN_H = 224, HUD_X = 232;   // whole play screen and the side panel
 const T_EMPTY = 0, T_BRICK = 1, T_STEEL = 2, T_WATER = 3, T_FOREST = 4, T_ICE = 5;
 const BLOCK_TYPE = { '.': T_EMPTY, '#': T_BRICK, '@': T_STEEL, '~': T_WATER, '%': T_FOREST, '_': T_ICE };
 const DXY = [[0, -1], [1, 0], [0, 1], [-1, 0]];
@@ -25,10 +30,44 @@ const PU = {
 const TIMED_BOOSTS = { [PU.TURBO]: 'turbo', [PU.RAPID]: 'rapid', [PU.SPREAD]: 'spread', [PU.PIERCE]: 'pierce', [PU.ROCKET]: 'rocket', [PU.GHOST]: 'ghost' };
 const TURBO_MULT = 1.75;
 const ROCKET_RADIUS = 14, MINE_RADIUS = 18, MINE_ARM_TIME = 40, MAX_MINES = 16;
-const BASE_X = 96, BASE_Y = 192;
-const ENEMY_SPAWN_X = [96, 192, 0];
-const PLAYER_SPAWN = [[64, 192], [128, 192]];
-const BASE_WALL = [[11, 23], [12, 23], [13, 23], [14, 23], [11, 24], [14, 24], [11, 25], [14, 25]];
+let BASE_X = 96, BASE_Y = 192;
+let ENEMY_SPAWN_X = [96, 192, 0];
+let PLAYER_SPAWN = [[64, 192], [128, 192]];
+let BASE_WALL = [[11, 23], [12, 23], [13, 23], [14, 23], [11, 24], [14, 24], [11, 25], [14, 25]];
+
+function setFieldSize(cols, rows) {
+  COLS = cols; ROWS = rows;
+  FW = cols * 16; FH = rows * 16;
+  GW = cols * 4; GH = rows * 4;
+  SCREEN_W = FX + FW + 32; SCREEN_H = FY * 2 + FH; HUD_X = FX + FW + 8;
+  // eagle at the bottom centre, with its brick fortress
+  BASE_X = cols * 8 - 8; BASE_Y = FH - 16;
+  const bx = BASE_X / 8, by = BASE_Y / 8;
+  BASE_WALL = [[bx - 1, by - 1], [bx, by - 1], [bx + 1, by - 1], [bx + 2, by - 1], [bx - 1, by], [bx + 2, by], [bx - 1, by + 1], [bx + 2, by + 1]];
+  PLAYER_SPAWN = [[BASE_X - 32, BASE_Y], [BASE_X + 32, BASE_Y]];
+  // enemy entry points along the top: centre, right, left, then more for wide fields
+  const n = 2 * Math.max(1, Math.round((cols - 1) / 12)) + 1, mid = (n - 1) / 2;
+  const at = i => Math.round(i * (cols - 1) / (n - 1)) * 16;
+  ENEMY_SPAWN_X = [at(mid)];
+  for (let k = 1; k <= mid; k++) ENEMY_SPAWN_X.push(at(mid + k), at(mid - k));
+}
+
+// Fit a 26x26-block stage into the current field: the original sits at the bottom centre
+// (so the eagle lines up) and is mirrored outwards to fill any extra width and height.
+function expandBlocks(blocks) {
+  const TW = COLS * 2, TH = ROWS * 2;
+  if (TW === 26 && TH === 26) return blocks;
+  const offX = 2 * Math.floor((COLS - 13) / 2), offY = TH - 26;
+  const mirror = (i, n) => { const p = 2 * n, m = ((i % p) + p) % p; return m < n ? m : p - 1 - m; };
+  const out = [];
+  for (let y = 0; y < TH; y++) {
+    let row = '';
+    const sy = mirror(y - offY, 26);
+    for (let x = 0; x < TW; x++) row += blocks[sy][mirror(x - offX, 26)];
+    out.push(row);
+  }
+  return out;
+}
 const SPARKLE_TIME = 60;
 const BIG_EXPLOSION = () => [Sprites.smallExp[0], Sprites.smallExp[1], Sprites.smallExp[2], Sprites.bigExp[0], Sprites.bigExp[1]];
 
@@ -113,8 +152,9 @@ class Stage {
     this.num = num;
     this.players = players;
     this.twoP = players.length > 1;
-    this.terrain = new Uint8Array(GN * GN);
-    this.load(mapToBlocks(map), !opts.custom);
+    this.terrain = new Uint8Array(GW * GH);
+    const classic = COLS === 13 && ROWS === 13;
+    this.load(expandBlocks(mapToBlocks(map)), !opts.custom || !classic);
     this.tanks = [];
     this.bullets = [];
     this.fx = [];
@@ -143,7 +183,7 @@ class Stage {
     for (const p of players) {
       p.kills = [0, 0, 0, 0];
       p.tank = null;
-      if (!p.out) this.spawnPlayer(p, 0);
+      if (!p.out && !opts.snapshot) this.spawnPlayer(p, 0);
       // a shovel charge bought in the shop fortifies the eagle from the start
       if (p.shopShovel) {
         p.shopShovel = false;
@@ -151,12 +191,54 @@ class Stage {
         this.setBaseWalls(T_STEEL);
       }
     }
+    if (opts.snapshot) this.restore(opts.snapshot);
+  }
+
+  // ------------------------------------------------------------ save / load
+  // Everything needed to resume this stage later (shells in flight and effects are dropped).
+  snapshot() {
+    const tankKeys = ['x', 'y', 'dir', 'isPlayer', 'type', 'hp', 'bonus', 'shield', 'frozen', 'ship', 'cutter', 'power',
+      'speed', 'bulletSpeed', 'maxBullets', 'boost', 'mines'];
+    return {
+      cols: COLS, rows: ROWS,
+      terrain: Array.from(this.terrain).join(''),
+      queue: this.spawns.filter(s => s.enemy).map(s => s.enemy).concat(this.queue),
+      total: this.total, killed: this.killed, spawnTimer: this.spawnTimer, spawnPos: this.spawnPos,
+      spawnInterval: this.spawnInterval, maxEnemies: this.maxEnemies,
+      freezeE: this.freezeE, freezeP: this.freezeP, shovel: this.shovel, baseAlive: this.baseAlive, frame: this.frame,
+      powerup: this.powerup,
+      mines: this.mines.map(m => ({ x: m.x, y: m.y, byPlayer: m.byPlayer, t: m.t, pi: m.owner && m.owner.player ? m.owner.player.i : -1 })),
+      tanks: this.tanks.filter(t => t.alive).map(t => {
+        const o = {};
+        for (const k of tankKeys) o[k] = t[k];
+        o.pi = t.player ? t.player.i : -1;
+        return o;
+      }),
+      kills: this.players.map(p => p.kills.slice()),
+    };
+  }
+
+  restore(sn) {
+    for (let i = 0; i < this.terrain.length; i++) this.terrain[i] = sn.terrain.charCodeAt(i) - 48;
+    this.dirty = true;
+    for (const k of ['queue', 'total', 'killed', 'spawnTimer', 'spawnPos', 'spawnInterval', 'maxEnemies', 'freezeE', 'freezeP', 'shovel', 'baseAlive', 'frame', 'powerup']) this[k] = sn[k];
+    this.spawns = [];
+    for (const p of this.players) { p.tank = null; p.kills = sn.kills[p.i] || [0, 0, 0, 0]; }
+    this.tanks = sn.tanks.map(o => {
+      const t = new Tank(Object.assign({}, o, { boost: Object.assign({}, o.boost) }));
+      delete t.pi;
+      if (o.pi >= 0) { t.player = this.players[o.pi]; t.player.tank = t; }
+      return t;
+    });
+    // players who were waiting to respawn come back at their spawn point
+    for (const p of this.players) if (!p.out && !p.tank) this.spawnPlayer(p, 0);
+    this.mines = sn.mines.map(m => Object.assign({}, m, { owner: m.byPlayer && this.players[m.pi] ? { isPlayer: true, player: this.players[m.pi] } : null }));
   }
 
   // ------------------------------------------------------------ terrain
   load(blocks, forceBase) {
-    for (let by = 0; by < 26; by++) {
-      for (let bx = 0; bx < 26; bx++) {
+    for (let by = 0; by < ROWS * 2; by++) {
+      for (let bx = 0; bx < COLS * 2; bx++) {
         this.setBlock(bx, by, BLOCK_TYPE[blocks[by][bx]] || T_EMPTY);
       }
     }
@@ -167,19 +249,19 @@ class Stage {
         if (t === T_BRICK || t === T_STEEL || t === T_WATER) this.setBlock(x, y, T_EMPTY);
       }
     };
-    [0, 12, 24].forEach(bx => clearSolid(bx, 0));
-    clearSolid(8, 24); clearSolid(16, 24);
+    ENEMY_SPAWN_X.forEach(x => clearSolid(x / 8, 0));
+    PLAYER_SPAWN.forEach(([x, y]) => clearSolid(x / 8, y / 8));
     // the eagle and its fortress
-    for (let y = 24; y < 26; y++) for (let x = 12; x < 14; x++) this.setBlock(x, y, T_EMPTY);
+    for (let y = BASE_Y / 8; y < BASE_Y / 8 + 2; y++) for (let x = BASE_X / 8; x < BASE_X / 8 + 2; x++) this.setBlock(x, y, T_EMPTY);
     if (forceBase) this.setBaseWalls(T_BRICK);
   }
   get(cx, cy) {
-    if (cx < 0 || cy < 0 || cx >= GN || cy >= GN) return -1;
-    return this.terrain[cy * GN + cx];
+    if (cx < 0 || cy < 0 || cx >= GW || cy >= GH) return -1;
+    return this.terrain[cy * GW + cx];
   }
   set(cx, cy, t) {
-    if (cx < 0 || cy < 0 || cx >= GN || cy >= GN) return;
-    this.terrain[cy * GN + cx] = t;
+    if (cx < 0 || cy < 0 || cx >= GW || cy >= GH) return;
+    this.terrain[cy * GW + cx] = t;
     this.dirty = true;
   }
   setBlock(bx, by, t) {
@@ -208,7 +290,7 @@ class Stage {
     const onField = this.tanks.filter(t => !t.isPlayer).length + this.spawns.filter(s => s.enemy).length;
     if (onField >= this.maxEnemies) return;
     const item = this.queue.shift();
-    const x = ENEMY_SPAWN_X[this.spawnPos++ % 3];
+    const x = ENEMY_SPAWN_X[this.spawnPos++ % ENEMY_SPAWN_X.length];
     this.spawns.push({ x, y: 0, t: SPARKLE_TIME, enemy: item });
     if (item.bonus) this.powerup = null;
     this.spawnTimer = this.spawnInterval;
@@ -406,7 +488,7 @@ class Stage {
 
   canStep(t, d) {
     const nx = t.x + DXY[d][0], ny = t.y + DXY[d][1];
-    if (nx < 0 || ny < 0 || nx > FS - 16 || ny > FS - 16) return false;
+    if (nx < 0 || ny < 0 || nx > FW - 16 || ny > FH - 16) return false;
     // only the leading edge is tested, so a tank that was snapped into a wall can still back out
     let x0, x1, y0, y1;
     switch (d) {
@@ -484,9 +566,9 @@ class Stage {
   stepBullet(b, dist) {
     b.x += DXY[b.dir][0] * dist;
     b.y += DXY[b.dir][1] * dist;
-    if (b.x < 0 || b.y < 0 || b.x > FS - 4 || b.y > FS - 4) {
-      b.x = Math.max(0, Math.min(FS - 4, b.x));
-      b.y = Math.max(0, Math.min(FS - 4, b.y));
+    if (b.x < 0 || b.y < 0 || b.x > FW - 4 || b.y > FH - 4) {
+      b.x = Math.max(0, Math.min(FW - 4, b.x));
+      b.y = Math.max(0, Math.min(FH - 4, b.y));
       this.killBullet(b, true);
       if (b.isPlayer) Sound.play('steel');
       return;
@@ -710,8 +792,8 @@ class Stage {
     while (r >= weights[type]) { r -= weights[type]; type++; }
     let x = 0, y = 0;
     for (let tries = 0; tries < 60; tries++) {
-      x = rnd(25) * 8; y = rnd(25) * 8;
-      if (overlap(x, y, 16, 16, 80, 176, 48, 32)) continue;
+      x = rnd((FW - 16) / 8 + 1) * 8; y = rnd((FH - 16) / 8 + 1) * 8;
+      if (overlap(x, y, 16, 16, BASE_X - 16, BASE_Y - 16, 48, 32)) continue;
       let bad = 0;
       for (let cy = y >> 2; cy < (y + 16) >> 2; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
         const t = this.get(cx, cy);
@@ -789,23 +871,23 @@ class Stage {
   // ------------------------------------------------------------ rendering
   buildLayers() {
     if (!this.bgLayer) {
-      this.bgLayer = makeCanvas(FS, FS);
-      this.forestLayer = makeCanvas(FS, FS);
+      this.bgLayer = makeCanvas(FW, FH);
+      this.forestLayer = makeCanvas(FW, FH);
     }
     const bg = this.bgLayer.getContext('2d'), fo = this.forestLayer.getContext('2d'), tex = Sprites.tex;
-    bg.clearRect(0, 0, FS, FS);
-    fo.clearRect(0, 0, FS, FS);
+    bg.clearRect(0, 0, FW, FH);
+    fo.clearRect(0, 0, FW, FH);
     this.waterCells = [];
-    for (let cy = 0; cy < GN; cy++) {
-      for (let cx = 0; cx < GN; cx++) {
-        const t = this.terrain[cy * GN + cx];
+    for (let cy = 0; cy < GH; cy++) {
+      for (let cx = 0; cx < GW; cx++) {
+        const t = this.terrain[cy * GW + cx];
         if (!t) continue;
         const sx = (cx & 1) * 4, sy = (cy & 1) * 4, dx = cx * 4, dy = cy * 4;
         if (t === T_BRICK) bg.drawImage(tex.brick, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_STEEL) bg.drawImage(tex.steel, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_ICE) bg.drawImage(tex.ice, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_FOREST) fo.drawImage(tex.forest, sx, sy, 4, 4, dx, dy, 4, 4);
-        else if (t === T_WATER) this.waterCells.push(cy * GN + cx);
+        else if (t === T_WATER) this.waterCells.push(cy * GW + cx);
       }
     }
     this.dirty = false;
@@ -835,21 +917,21 @@ class Stage {
 
   render(ctx) {
     ctx.fillStyle = COL.bg;
-    ctx.fillRect(0, 0, 256, 224);
+    ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
     ctx.fillStyle = COL.black;
-    ctx.fillRect(FX, FY, FS, FS);
+    ctx.fillRect(FX, FY, FW, FH);
     if (this.dirty) this.buildLayers();
 
     ctx.save();
     ctx.translate(FX, FY);
     ctx.beginPath();
-    ctx.rect(0, 0, FS, FS);
+    ctx.rect(0, 0, FW, FH);
     ctx.clip();
 
     ctx.drawImage(this.bgLayer, 0, 0);
     const wt = Sprites.tex[(this.frame >> 5) & 1 ? 'water1' : 'water0'];
     for (const i of this.waterCells) {
-      const cx = i % GN, cy = (i / GN) | 0;
+      const cx = i % GW, cy = (i / GW) | 0;
       ctx.drawImage(wt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
     }
     ctx.drawImage(this.baseAlive ? Sprites.eagle : Sprites.eagleDead, BASE_X, BASE_Y);
@@ -879,41 +961,43 @@ class Stage {
       if (p.t < p.delay) continue;
       if (p.label) {
         const half = p.text.length * 4;
-        Font.drawCenter(ctx, p.text, Math.max(half, Math.min(FS - half, p.x)), Math.max(0, Math.round(p.y - 4 - p.t / 6)), p.color);
+        Font.drawCenter(ctx, p.text, Math.max(half, Math.min(FW - half, p.x)), Math.max(0, Math.round(p.y - 4 - p.t / 6)), p.color);
         continue;
       }
       const c = Sprites.mini(p.text);
       ctx.drawImage(c, Math.round(p.x - c.width / 2), Math.round(p.y - 3));
     }
     if (this.over) {
-      const y = Math.max(96, FS - this.overTimer * 1.3);
-      Font.draw(ctx, 'GAME', 89, y, COL.red);
-      Font.draw(ctx, 'OVER', 89, y + 9, COL.red);
+      const y = Math.max(FH / 2 - 8, FH - this.overTimer * 1.3);
+      Font.draw(ctx, 'GAME', FW / 2 - 15, y, COL.red);
+      Font.draw(ctx, 'OVER', FW / 2 - 15, y + 9, COL.red);
     }
     ctx.restore();
     this.renderHud(ctx);
   }
 
   renderHud(ctx) {
-    const n = Math.min(20, this.queue.length);
-    for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, 232 + (i % 2) * 8, 24 + (i >> 1) * 8);
-    Font.draw(ctx, 'IP', 232, 136, COL.black);
-    ctx.drawImage(Sprites.lifeIcon, 232, 144);
+    const H = HUD_X, n = Math.min(20, this.queue.length);
+    for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);
+    // more than 20 waiting: show how many in total
+    if (this.queue.length > 20) Font.drawCenter(ctx, String(this.queue.length), H + 8, 106, COL.black);
+    Font.draw(ctx, 'IP', H, 136, COL.black);
+    ctx.drawImage(Sprites.lifeIcon, H, 144);
     const lives = p => (Config.infiniteLives() ? '~' : String(Math.min(99, p.lives)));
-    Font.draw(ctx, lives(this.players[0]), 240, 144, COL.black);
+    Font.draw(ctx, lives(this.players[0]), H + 8, 144, COL.black);
     if (this.players[1]) {
-      Font.draw(ctx, 'IIP', 232, 160, COL.black);
-      ctx.drawImage(Sprites.lifeIcon, 232, 168);
-      Font.draw(ctx, lives(this.players[1]), 240, 168, COL.black);
+      Font.draw(ctx, 'IIP', H, 160, COL.black);
+      ctx.drawImage(Sprites.lifeIcon, H, 168);
+      Font.draw(ctx, lives(this.players[1]), H + 8, 168, COL.black);
     }
     // mines carried
     this.players.forEach((p, i) => {
       if (!p.mines) return;
       const y = i === 0 ? 152 : 176;
-      ctx.drawImage(Sprites.mine[0], 232, y);
-      Font.draw(ctx, String(Math.min(9, p.mines)), 240, y, COL.black);
+      ctx.drawImage(Sprites.mine[0], H, y);
+      Font.draw(ctx, String(Math.min(9, p.mines)), H + 8, y, COL.black);
     });
-    ctx.drawImage(Sprites.flag, 232, 184);
-    Font.drawRight(ctx, String(this.num), 248, 200, COL.black);
+    ctx.drawImage(Sprites.flag, H, 184);
+    Font.drawRight(ctx, String(this.num), H + 16, 200, COL.black);
   }
 }

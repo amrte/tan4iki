@@ -65,8 +65,8 @@ const SETTINGS_DEF = [
   { key: 'friendlyFire', label: 'FRIENDLY FIRE', values: ['FREEZE', 'OFF'], def: 'FREEZE' },
 
   { section: 'ENEMIES' },
-  { key: 'enemyCount', label: 'TANKS PER STAGE', values: [5, 10, 15, 20, 25, 30, 40, 50, 75, 99], def: 20 },
-  { key: 'maxOnScreen', label: 'MAX ON SCREEN', values: range(1, 10), def: 4 },
+  { key: 'enemyCount', label: 'TANKS PER STAGE', values: range(1, 99), def: 20 },
+  { key: 'maxOnScreen', label: 'MAX ON SCREEN', values: range(1, 20), def: 4 },
   { key: 'spawnRate', label: 'SPAWN RATE', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'enemyFire', label: 'FIRE RATE', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'enemyAim', label: 'BASE HUNTING', values: PCTS, def: 100, fmt: fmtPct },
@@ -107,6 +107,14 @@ const SETTINGS_DEF = [
   { section: 'SHOP' },
   { key: 'shop', label: 'SHOP AFTER STAGES', values: ONOFF, def: 'ON' },
   { key: 'shopPrices', label: 'SHOP PRICES', values: PCTS, def: 100, fmt: fmtPct },
+
+  // field size in 16px tiles; FIT sizes it to the window's shape when a game starts
+  { section: 'SCREEN' },
+  { key: 'fieldW', label: 'FIELD WIDTH', values: range(13, 60).concat(['FIT']), def: 13 },
+  { key: 'fieldH', label: 'FIELD HEIGHT', values: range(13, 40).concat(['FIT']), def: 13 },
+  { key: 'scaling', label: 'SCALING', values: ['SHARP', 'FILL'], def: 'SHARP' },
+  { action: 'fitScreen', label: 'FIT TO MY SCREEN' },
+  { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
   { section: 'GAME' },
   { key: 'gameSpeed', label: 'GAME SPEED', values: [50, 75, 100, 125, 150, 200], def: 100, fmt: fmtPct },
@@ -172,6 +180,7 @@ const Config = {
   apply() {
     for (const name in TANK_COLORS) PALS['c_' + name] = [null].concat(TANK_COLORS[name]);
     if (typeof Sound !== 'undefined') Sound.applyVolume();
+    if (typeof Game !== 'undefined' && Game.onResize) Game.onResize();
   },
 
   // ---- helpers used by the game rules

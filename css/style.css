@@ -33,6 +33,9 @@ body {
   padding: 8px;
 }
 
+#wrap:fullscreen { padding: 0; background: #000; }
+#wrap:-webkit-full-screen { padding: 0; background: #000; }
+
 #screen {
   display: block;
   image-rendering: pixelated;

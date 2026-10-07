@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tan4iki_v0.2</title>
+  <title>tan4iki_v0.3</title>
   <style>
 :root {
   --bg: #000;
@@ -40,6 +40,9 @@ body {
   justify-content: center;
   padding: 8px;
 }
+
+#wrap:fullscreen { padding: 0; background: #000; }
+#wrap:-webkit-full-screen { padding: 0; background: #000; }
 
 #screen {
   display: block;
@@ -145,7 +148,7 @@ body.touch #touch {
   <aside id="help">
     <b>1P</b> Arrows/WASD move · Space/Z/J fire &nbsp;|&nbsp;
     <b>2P</b> P1 WASD + Space/F · P2 Arrows + Right Ctrl/Numpad0/L &nbsp;|&nbsp;
-    <b>Enter</b> start/pause · <b>M</b> mute · Gamepads supported
+    <b>Enter</b> start/pause · <b>M</b> mute · <b>double-click</b> fullscreen · Gamepads supported
   </aside>
 
   <div id="touch" aria-hidden="true">
@@ -163,7 +166,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tan4iki';
-const APP_VERSION = '0.2';
+const APP_VERSION = '0.3';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 
 </script>
@@ -1925,8 +1928,8 @@ const SETTINGS_DEF = [
   { key: 'friendlyFire', label: 'FRIENDLY FIRE', values: ['FREEZE', 'OFF'], def: 'FREEZE' },
 
   { section: 'ENEMIES' },
-  { key: 'enemyCount', label: 'TANKS PER STAGE', values: [5, 10, 15, 20, 25, 30, 40, 50, 75, 99], def: 20 },
-  { key: 'maxOnScreen', label: 'MAX ON SCREEN', values: range(1, 10), def: 4 },
+  { key: 'enemyCount', label: 'TANKS PER STAGE', values: range(1, 99), def: 20 },
+  { key: 'maxOnScreen', label: 'MAX ON SCREEN', values: range(1, 20), def: 4 },
   { key: 'spawnRate', label: 'SPAWN RATE', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'enemyFire', label: 'FIRE RATE', values: PCTS, def: 100, fmt: fmtPct },
   { key: 'enemyAim', label: 'BASE HUNTING', values: PCTS, def: 100, fmt: fmtPct },
@@ -1967,6 +1970,14 @@ const SETTINGS_DEF = [
   { section: 'SHOP' },
   { key: 'shop', label: 'SHOP AFTER STAGES', values: ONOFF, def: 'ON' },
   { key: 'shopPrices', label: 'SHOP PRICES', values: PCTS, def: 100, fmt: fmtPct },
+
+  // field size in 16px tiles; FIT sizes it to the window's shape when a game starts
+  { section: 'SCREEN' },
+  { key: 'fieldW', label: 'FIELD WIDTH', values: range(13, 60).concat(['FIT']), def: 13 },
+  { key: 'fieldH', label: 'FIELD HEIGHT', values: range(13, 40).concat(['FIT']), def: 13 },
+  { key: 'scaling', label: 'SCALING', values: ['SHARP', 'FILL'], def: 'SHARP' },
+  { action: 'fitScreen', label: 'FIT TO MY SCREEN' },
+  { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
   { section: 'GAME' },
   { key: 'gameSpeed', label: 'GAME SPEED', values: [50, 75, 100, 125, 150, 200], def: 100, fmt: fmtPct },
@@ -2032,6 +2043,7 @@ const Config = {
   apply() {
     for (const name in TANK_COLORS) PALS['c_' + name] = [null].concat(TANK_COLORS[name]);
     if (typeof Sound !== 'undefined') Sound.applyVolume();
+    if (typeof Game !== 'undefined' && Game.onResize) Game.onResize();
   },
 
   // ---- helpers used by the game rules
@@ -2548,7 +2560,12 @@ const Input = {
 //  Stage: terrain, tanks, bullets, power-ups, AI and rendering of play
 // =====================================================================
 
-const FX = 16, FY = 8, FS = 208, GN = 52;          // field offset/size, terrain grid (4px cells)
+const FX = 16, FY = 8;                             // field offset on screen
+// Field size in 16px tiles (classic 13x13). Set with setFieldSize(); everything below derives from it.
+let COLS = 13, ROWS = 13;
+let FW = 208, FH = 208;                            // field size in pixels
+let GW = 52, GH = 52;                              // terrain grid (4px cells)
+let SCREEN_W = 256, SCREEN_H = 224, HUD_X = 232;   // whole play screen and the side panel
 const T_EMPTY = 0, T_BRICK = 1, T_STEEL = 2, T_WATER = 3, T_FOREST = 4, T_ICE = 5;
 const BLOCK_TYPE = { '.': T_EMPTY, '#': T_BRICK, '@': T_STEEL, '~': T_WATER, '%': T_FOREST, '_': T_ICE };
 const DXY = [[0, -1], [1, 0], [0, 1], [-1, 0]];
@@ -2570,10 +2587,44 @@ const PU = {
 const TIMED_BOOSTS = { [PU.TURBO]: 'turbo', [PU.RAPID]: 'rapid', [PU.SPREAD]: 'spread', [PU.PIERCE]: 'pierce', [PU.ROCKET]: 'rocket', [PU.GHOST]: 'ghost' };
 const TURBO_MULT = 1.75;
 const ROCKET_RADIUS = 14, MINE_RADIUS = 18, MINE_ARM_TIME = 40, MAX_MINES = 16;
-const BASE_X = 96, BASE_Y = 192;
-const ENEMY_SPAWN_X = [96, 192, 0];
-const PLAYER_SPAWN = [[64, 192], [128, 192]];
-const BASE_WALL = [[11, 23], [12, 23], [13, 23], [14, 23], [11, 24], [14, 24], [11, 25], [14, 25]];
+let BASE_X = 96, BASE_Y = 192;
+let ENEMY_SPAWN_X = [96, 192, 0];
+let PLAYER_SPAWN = [[64, 192], [128, 192]];
+let BASE_WALL = [[11, 23], [12, 23], [13, 23], [14, 23], [11, 24], [14, 24], [11, 25], [14, 25]];
+
+function setFieldSize(cols, rows) {
+  COLS = cols; ROWS = rows;
+  FW = cols * 16; FH = rows * 16;
+  GW = cols * 4; GH = rows * 4;
+  SCREEN_W = FX + FW + 32; SCREEN_H = FY * 2 + FH; HUD_X = FX + FW + 8;
+  // eagle at the bottom centre, with its brick fortress
+  BASE_X = cols * 8 - 8; BASE_Y = FH - 16;
+  const bx = BASE_X / 8, by = BASE_Y / 8;
+  BASE_WALL = [[bx - 1, by - 1], [bx, by - 1], [bx + 1, by - 1], [bx + 2, by - 1], [bx - 1, by], [bx + 2, by], [bx - 1, by + 1], [bx + 2, by + 1]];
+  PLAYER_SPAWN = [[BASE_X - 32, BASE_Y], [BASE_X + 32, BASE_Y]];
+  // enemy entry points along the top: centre, right, left, then more for wide fields
+  const n = 2 * Math.max(1, Math.round((cols - 1) / 12)) + 1, mid = (n - 1) / 2;
+  const at = i => Math.round(i * (cols - 1) / (n - 1)) * 16;
+  ENEMY_SPAWN_X = [at(mid)];
+  for (let k = 1; k <= mid; k++) ENEMY_SPAWN_X.push(at(mid + k), at(mid - k));
+}
+
+// Fit a 26x26-block stage into the current field: the original sits at the bottom centre
+// (so the eagle lines up) and is mirrored outwards to fill any extra width and height.
+function expandBlocks(blocks) {
+  const TW = COLS * 2, TH = ROWS * 2;
+  if (TW === 26 && TH === 26) return blocks;
+  const offX = 2 * Math.floor((COLS - 13) / 2), offY = TH - 26;
+  const mirror = (i, n) => { const p = 2 * n, m = ((i % p) + p) % p; return m < n ? m : p - 1 - m; };
+  const out = [];
+  for (let y = 0; y < TH; y++) {
+    let row = '';
+    const sy = mirror(y - offY, 26);
+    for (let x = 0; x < TW; x++) row += blocks[sy][mirror(x - offX, 26)];
+    out.push(row);
+  }
+  return out;
+}
 const SPARKLE_TIME = 60;
 const BIG_EXPLOSION = () => [Sprites.smallExp[0], Sprites.smallExp[1], Sprites.smallExp[2], Sprites.bigExp[0], Sprites.bigExp[1]];
 
@@ -2658,8 +2709,9 @@ class Stage {
     this.num = num;
     this.players = players;
     this.twoP = players.length > 1;
-    this.terrain = new Uint8Array(GN * GN);
-    this.load(mapToBlocks(map), !opts.custom);
+    this.terrain = new Uint8Array(GW * GH);
+    const classic = COLS === 13 && ROWS === 13;
+    this.load(expandBlocks(mapToBlocks(map)), !opts.custom || !classic);
     this.tanks = [];
     this.bullets = [];
     this.fx = [];
@@ -2688,7 +2740,7 @@ class Stage {
     for (const p of players) {
       p.kills = [0, 0, 0, 0];
       p.tank = null;
-      if (!p.out) this.spawnPlayer(p, 0);
+      if (!p.out && !opts.snapshot) this.spawnPlayer(p, 0);
       // a shovel charge bought in the shop fortifies the eagle from the start
       if (p.shopShovel) {
         p.shopShovel = false;
@@ -2696,12 +2748,54 @@ class Stage {
         this.setBaseWalls(T_STEEL);
       }
     }
+    if (opts.snapshot) this.restore(opts.snapshot);
+  }
+
+  // ------------------------------------------------------------ save / load
+  // Everything needed to resume this stage later (shells in flight and effects are dropped).
+  snapshot() {
+    const tankKeys = ['x', 'y', 'dir', 'isPlayer', 'type', 'hp', 'bonus', 'shield', 'frozen', 'ship', 'cutter', 'power',
+      'speed', 'bulletSpeed', 'maxBullets', 'boost', 'mines'];
+    return {
+      cols: COLS, rows: ROWS,
+      terrain: Array.from(this.terrain).join(''),
+      queue: this.spawns.filter(s => s.enemy).map(s => s.enemy).concat(this.queue),
+      total: this.total, killed: this.killed, spawnTimer: this.spawnTimer, spawnPos: this.spawnPos,
+      spawnInterval: this.spawnInterval, maxEnemies: this.maxEnemies,
+      freezeE: this.freezeE, freezeP: this.freezeP, shovel: this.shovel, baseAlive: this.baseAlive, frame: this.frame,
+      powerup: this.powerup,
+      mines: this.mines.map(m => ({ x: m.x, y: m.y, byPlayer: m.byPlayer, t: m.t, pi: m.owner && m.owner.player ? m.owner.player.i : -1 })),
+      tanks: this.tanks.filter(t => t.alive).map(t => {
+        const o = {};
+        for (const k of tankKeys) o[k] = t[k];
+        o.pi = t.player ? t.player.i : -1;
+        return o;
+      }),
+      kills: this.players.map(p => p.kills.slice()),
+    };
+  }
+
+  restore(sn) {
+    for (let i = 0; i < this.terrain.length; i++) this.terrain[i] = sn.terrain.charCodeAt(i) - 48;
+    this.dirty = true;
+    for (const k of ['queue', 'total', 'killed', 'spawnTimer', 'spawnPos', 'spawnInterval', 'maxEnemies', 'freezeE', 'freezeP', 'shovel', 'baseAlive', 'frame', 'powerup']) this[k] = sn[k];
+    this.spawns = [];
+    for (const p of this.players) { p.tank = null; p.kills = sn.kills[p.i] || [0, 0, 0, 0]; }
+    this.tanks = sn.tanks.map(o => {
+      const t = new Tank(Object.assign({}, o, { boost: Object.assign({}, o.boost) }));
+      delete t.pi;
+      if (o.pi >= 0) { t.player = this.players[o.pi]; t.player.tank = t; }
+      return t;
+    });
+    // players who were waiting to respawn come back at their spawn point
+    for (const p of this.players) if (!p.out && !p.tank) this.spawnPlayer(p, 0);
+    this.mines = sn.mines.map(m => Object.assign({}, m, { owner: m.byPlayer && this.players[m.pi] ? { isPlayer: true, player: this.players[m.pi] } : null }));
   }
 
   // ------------------------------------------------------------ terrain
   load(blocks, forceBase) {
-    for (let by = 0; by < 26; by++) {
-      for (let bx = 0; bx < 26; bx++) {
+    for (let by = 0; by < ROWS * 2; by++) {
+      for (let bx = 0; bx < COLS * 2; bx++) {
         this.setBlock(bx, by, BLOCK_TYPE[blocks[by][bx]] || T_EMPTY);
       }
     }
@@ -2712,19 +2806,19 @@ class Stage {
         if (t === T_BRICK || t === T_STEEL || t === T_WATER) this.setBlock(x, y, T_EMPTY);
       }
     };
-    [0, 12, 24].forEach(bx => clearSolid(bx, 0));
-    clearSolid(8, 24); clearSolid(16, 24);
+    ENEMY_SPAWN_X.forEach(x => clearSolid(x / 8, 0));
+    PLAYER_SPAWN.forEach(([x, y]) => clearSolid(x / 8, y / 8));
     // the eagle and its fortress
-    for (let y = 24; y < 26; y++) for (let x = 12; x < 14; x++) this.setBlock(x, y, T_EMPTY);
+    for (let y = BASE_Y / 8; y < BASE_Y / 8 + 2; y++) for (let x = BASE_X / 8; x < BASE_X / 8 + 2; x++) this.setBlock(x, y, T_EMPTY);
     if (forceBase) this.setBaseWalls(T_BRICK);
   }
   get(cx, cy) {
-    if (cx < 0 || cy < 0 || cx >= GN || cy >= GN) return -1;
-    return this.terrain[cy * GN + cx];
+    if (cx < 0 || cy < 0 || cx >= GW || cy >= GH) return -1;
+    return this.terrain[cy * GW + cx];
   }
   set(cx, cy, t) {
-    if (cx < 0 || cy < 0 || cx >= GN || cy >= GN) return;
-    this.terrain[cy * GN + cx] = t;
+    if (cx < 0 || cy < 0 || cx >= GW || cy >= GH) return;
+    this.terrain[cy * GW + cx] = t;
     this.dirty = true;
   }
   setBlock(bx, by, t) {
@@ -2753,7 +2847,7 @@ class Stage {
     const onField = this.tanks.filter(t => !t.isPlayer).length + this.spawns.filter(s => s.enemy).length;
     if (onField >= this.maxEnemies) return;
     const item = this.queue.shift();
-    const x = ENEMY_SPAWN_X[this.spawnPos++ % 3];
+    const x = ENEMY_SPAWN_X[this.spawnPos++ % ENEMY_SPAWN_X.length];
     this.spawns.push({ x, y: 0, t: SPARKLE_TIME, enemy: item });
     if (item.bonus) this.powerup = null;
     this.spawnTimer = this.spawnInterval;
@@ -2951,7 +3045,7 @@ class Stage {
 
   canStep(t, d) {
     const nx = t.x + DXY[d][0], ny = t.y + DXY[d][1];
-    if (nx < 0 || ny < 0 || nx > FS - 16 || ny > FS - 16) return false;
+    if (nx < 0 || ny < 0 || nx > FW - 16 || ny > FH - 16) return false;
     // only the leading edge is tested, so a tank that was snapped into a wall can still back out
     let x0, x1, y0, y1;
     switch (d) {
@@ -3029,9 +3123,9 @@ class Stage {
   stepBullet(b, dist) {
     b.x += DXY[b.dir][0] * dist;
     b.y += DXY[b.dir][1] * dist;
-    if (b.x < 0 || b.y < 0 || b.x > FS - 4 || b.y > FS - 4) {
-      b.x = Math.max(0, Math.min(FS - 4, b.x));
-      b.y = Math.max(0, Math.min(FS - 4, b.y));
+    if (b.x < 0 || b.y < 0 || b.x > FW - 4 || b.y > FH - 4) {
+      b.x = Math.max(0, Math.min(FW - 4, b.x));
+      b.y = Math.max(0, Math.min(FH - 4, b.y));
       this.killBullet(b, true);
       if (b.isPlayer) Sound.play('steel');
       return;
@@ -3255,8 +3349,8 @@ class Stage {
     while (r >= weights[type]) { r -= weights[type]; type++; }
     let x = 0, y = 0;
     for (let tries = 0; tries < 60; tries++) {
-      x = rnd(25) * 8; y = rnd(25) * 8;
-      if (overlap(x, y, 16, 16, 80, 176, 48, 32)) continue;
+      x = rnd((FW - 16) / 8 + 1) * 8; y = rnd((FH - 16) / 8 + 1) * 8;
+      if (overlap(x, y, 16, 16, BASE_X - 16, BASE_Y - 16, 48, 32)) continue;
       let bad = 0;
       for (let cy = y >> 2; cy < (y + 16) >> 2; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
         const t = this.get(cx, cy);
@@ -3334,23 +3428,23 @@ class Stage {
   // ------------------------------------------------------------ rendering
   buildLayers() {
     if (!this.bgLayer) {
-      this.bgLayer = makeCanvas(FS, FS);
-      this.forestLayer = makeCanvas(FS, FS);
+      this.bgLayer = makeCanvas(FW, FH);
+      this.forestLayer = makeCanvas(FW, FH);
     }
     const bg = this.bgLayer.getContext('2d'), fo = this.forestLayer.getContext('2d'), tex = Sprites.tex;
-    bg.clearRect(0, 0, FS, FS);
-    fo.clearRect(0, 0, FS, FS);
+    bg.clearRect(0, 0, FW, FH);
+    fo.clearRect(0, 0, FW, FH);
     this.waterCells = [];
-    for (let cy = 0; cy < GN; cy++) {
-      for (let cx = 0; cx < GN; cx++) {
-        const t = this.terrain[cy * GN + cx];
+    for (let cy = 0; cy < GH; cy++) {
+      for (let cx = 0; cx < GW; cx++) {
+        const t = this.terrain[cy * GW + cx];
         if (!t) continue;
         const sx = (cx & 1) * 4, sy = (cy & 1) * 4, dx = cx * 4, dy = cy * 4;
         if (t === T_BRICK) bg.drawImage(tex.brick, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_STEEL) bg.drawImage(tex.steel, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_ICE) bg.drawImage(tex.ice, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_FOREST) fo.drawImage(tex.forest, sx, sy, 4, 4, dx, dy, 4, 4);
-        else if (t === T_WATER) this.waterCells.push(cy * GN + cx);
+        else if (t === T_WATER) this.waterCells.push(cy * GW + cx);
       }
     }
     this.dirty = false;
@@ -3380,21 +3474,21 @@ class Stage {
 
   render(ctx) {
     ctx.fillStyle = COL.bg;
-    ctx.fillRect(0, 0, 256, 224);
+    ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
     ctx.fillStyle = COL.black;
-    ctx.fillRect(FX, FY, FS, FS);
+    ctx.fillRect(FX, FY, FW, FH);
     if (this.dirty) this.buildLayers();
 
     ctx.save();
     ctx.translate(FX, FY);
     ctx.beginPath();
-    ctx.rect(0, 0, FS, FS);
+    ctx.rect(0, 0, FW, FH);
     ctx.clip();
 
     ctx.drawImage(this.bgLayer, 0, 0);
     const wt = Sprites.tex[(this.frame >> 5) & 1 ? 'water1' : 'water0'];
     for (const i of this.waterCells) {
-      const cx = i % GN, cy = (i / GN) | 0;
+      const cx = i % GW, cy = (i / GW) | 0;
       ctx.drawImage(wt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
     }
     ctx.drawImage(this.baseAlive ? Sprites.eagle : Sprites.eagleDead, BASE_X, BASE_Y);
@@ -3424,42 +3518,44 @@ class Stage {
       if (p.t < p.delay) continue;
       if (p.label) {
         const half = p.text.length * 4;
-        Font.drawCenter(ctx, p.text, Math.max(half, Math.min(FS - half, p.x)), Math.max(0, Math.round(p.y - 4 - p.t / 6)), p.color);
+        Font.drawCenter(ctx, p.text, Math.max(half, Math.min(FW - half, p.x)), Math.max(0, Math.round(p.y - 4 - p.t / 6)), p.color);
         continue;
       }
       const c = Sprites.mini(p.text);
       ctx.drawImage(c, Math.round(p.x - c.width / 2), Math.round(p.y - 3));
     }
     if (this.over) {
-      const y = Math.max(96, FS - this.overTimer * 1.3);
-      Font.draw(ctx, 'GAME', 89, y, COL.red);
-      Font.draw(ctx, 'OVER', 89, y + 9, COL.red);
+      const y = Math.max(FH / 2 - 8, FH - this.overTimer * 1.3);
+      Font.draw(ctx, 'GAME', FW / 2 - 15, y, COL.red);
+      Font.draw(ctx, 'OVER', FW / 2 - 15, y + 9, COL.red);
     }
     ctx.restore();
     this.renderHud(ctx);
   }
 
   renderHud(ctx) {
-    const n = Math.min(20, this.queue.length);
-    for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, 232 + (i % 2) * 8, 24 + (i >> 1) * 8);
-    Font.draw(ctx, 'IP', 232, 136, COL.black);
-    ctx.drawImage(Sprites.lifeIcon, 232, 144);
+    const H = HUD_X, n = Math.min(20, this.queue.length);
+    for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);
+    // more than 20 waiting: show how many in total
+    if (this.queue.length > 20) Font.drawCenter(ctx, String(this.queue.length), H + 8, 106, COL.black);
+    Font.draw(ctx, 'IP', H, 136, COL.black);
+    ctx.drawImage(Sprites.lifeIcon, H, 144);
     const lives = p => (Config.infiniteLives() ? '~' : String(Math.min(99, p.lives)));
-    Font.draw(ctx, lives(this.players[0]), 240, 144, COL.black);
+    Font.draw(ctx, lives(this.players[0]), H + 8, 144, COL.black);
     if (this.players[1]) {
-      Font.draw(ctx, 'IIP', 232, 160, COL.black);
-      ctx.drawImage(Sprites.lifeIcon, 232, 168);
-      Font.draw(ctx, lives(this.players[1]), 240, 168, COL.black);
+      Font.draw(ctx, 'IIP', H, 160, COL.black);
+      ctx.drawImage(Sprites.lifeIcon, H, 168);
+      Font.draw(ctx, lives(this.players[1]), H + 8, 168, COL.black);
     }
     // mines carried
     this.players.forEach((p, i) => {
       if (!p.mines) return;
       const y = i === 0 ? 152 : 176;
-      ctx.drawImage(Sprites.mine[0], 232, y);
-      Font.draw(ctx, String(Math.min(9, p.mines)), 240, y, COL.black);
+      ctx.drawImage(Sprites.mine[0], H, y);
+      Font.draw(ctx, String(Math.min(9, p.mines)), H + 8, y, COL.black);
     });
-    ctx.drawImage(Sprites.flag, 232, 184);
-    Font.drawRight(ctx, String(this.num), 248, 200, COL.black);
+    ctx.drawImage(Sprites.flag, H, 184);
+    Font.drawRight(ctx, String(this.num), H + 16, 200, COL.black);
   }
 }
 
@@ -3470,7 +3566,12 @@ class Stage {
 //  Game flow: title → stage curtain → play → score tally → next / over
 // =====================================================================
 
+// Menus (title, settings, shop, score) are drawn in a classic 256x224 frame, centred on the
+// play screen, whose size follows the field size (SCREEN_W x SCREEN_H, see setFieldSize).
 const SW = 256, SH = 224;
+const SAVE_KEY = 'tank1990_save';
+const menuOX = () => (SCREEN_W - SW) >> 1;
+const menuOY = () => (SCREEN_H - SH) >> 1;
 const STORE = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
@@ -3498,8 +3599,8 @@ function defaultCustomMap() {
   return rows.map(r => r.join(''));
 }
 
-const TITLE_MENU = ['1 PLAYER', '2 PLAYERS', 'CONSTRUCTION', 'SETTINGS'];
 const TITLE_MENU_Y = 126;
+const PAUSE_MENU = ['CONTINUE', 'SAVE GAME', 'QUIT'];
 const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
 
 // Between-stage shop: score buys upgrades. price is in points at 100% "SHOP PRICES".
@@ -3562,6 +3663,9 @@ const Game = {
   paused: false,
   lastScores: [0, 0],
   menuIdx: 0,
+  pauseIdx: 0,
+  pauseMsg: '',
+  pauseMsgT: 0,
   titleY: SH,
   custom: null,
   customPending: false,
@@ -3580,11 +3684,42 @@ const Game = {
     STORE.set('tank1990_hi', this.hi);
   },
 
+  // ---------------------------------------------------------------- screen layout
+  // field size from the settings; FIT matches the window's shape
+  desiredField() {
+    let w = Config.get('fieldW'), h = Config.get('fieldH');
+    const wrap = document.getElementById('wrap');
+    const aspect = wrap && wrap.clientHeight ? wrap.clientWidth / wrap.clientHeight : 16 / 10;
+    if (w === 'FIT' && h === 'FIT') h = 13;
+    if (w === 'FIT') w = Math.max(13, Math.min(60, Math.round((aspect * (h * 16 + 16) - 48) / 16)));
+    if (h === 'FIT') h = Math.max(13, Math.min(40, Math.round(((w * 16 + 48) / aspect - 16) / 16)));
+    return [w, h];
+  },
+
+  applyLayout(cols, rows) {
+    if (cols === undefined) [cols, rows] = this.desiredField();
+    setFieldSize(cols, rows);
+  },
+
   // ---------------------------------------------------------------- title
   toTitle() {
     Sound.setEngine(0);
+    this.applyLayout();
     this.titleY = SH;
     this.setState('title');
+    if (this.menuIdx >= this.titleMenu().length) this.menuIdx = 0;
+  },
+
+  hasSave() { return !!STORE.get(SAVE_KEY, null); },
+
+  titleMenu() {
+    const m = [];
+    if (this.hasSave()) m.push({ label: 'CONTINUE', act: () => this.loadGame() });
+    m.push({ label: '1 PLAYER', act: () => this.newGame(false, false) });
+    m.push({ label: '2 PLAYERS', act: () => this.newGame(true, false) });
+    m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
+    m.push({ label: 'SETTINGS', act: () => this.toSettings() });
+    return m;
   },
 
   updateTitle() {
@@ -3594,15 +3729,15 @@ const Game = {
       if (m.any) this.titleY = 0;
       return;
     }
-    if (m.up) { this.menuIdx = (this.menuIdx + 3) % 4; Sound.play('select'); }
-    if (m.down || m.select) { this.menuIdx = (this.menuIdx + 1) % 4; Sound.play('select'); }
+    const n = this.titleMenu().length;
+    if (m.up) { this.menuIdx = (this.menuIdx + n - 1) % n; Sound.play('select'); }
+    if (m.down || m.select) { this.menuIdx = (this.menuIdx + 1) % n; Sound.play('select'); }
     if (m.ok) this.chooseMenu(this.menuIdx);
   },
 
   chooseMenu(i) {
-    if (i === 3) this.toSettings();
-    else if (i === 2) this.toConstruct();
-    else this.newGame(i === 1, false);
+    const item = this.titleMenu()[i];
+    if (item) item.act();
   },
 
   renderTitle(ctx) {
@@ -3621,18 +3756,54 @@ const Game = {
     const pat = Sprites.bricks(ctx);
     Font.big(ctx, 'TANK', (SW - Font.bigWidth('TANK', 4)) >> 1, 40, 4, pat);
     Font.big(ctx, '1990', (SW - Font.bigWidth('1990', 4)) >> 1, 80, 4, pat);
-    TITLE_MENU.forEach((s, i) => Font.draw(ctx, s, 88, TITLE_MENU_Y + i * 14, COL.white));
+    const menu = this.titleMenu(), top = this.titleMenuY();
+    menu.forEach((it, i) => Font.draw(ctx, it.label, 88, top + i * 14, COL.white));
     if (this.titleY === 0) {
       const anim = (this.t >> 2) & 1;
-      ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, TITLE_MENU_Y - 4 + this.menuIdx * 14);
+      ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, top - 4 + this.menuIdx * 14);
     }
     Font.drawCenter(ctx, APP_TITLE, SW / 2, 192, COL.lgrey);
     Font.drawCenter(ctx, 'ENTER START  M MUTE', SW / 2, 206, COL.lgrey);
     ctx.restore();
   },
 
+  titleMenuY() { return TITLE_MENU_Y - (this.titleMenu().length - 4) * 7; },
+
+  // ---------------------------------------------------------------- save / load
+  // One save slot: written by SAVE GAME in the pause menu and automatically at every stage start.
+  saveGame() {
+    if (!this.stage || this.stage.over) return false;
+    const data = {
+      app: APP_VERSION, time: Date.now(), twoP: this.twoP, stageNum: this.stageNum, lastScores: this.lastScores,
+      players: this.players.map(p => { const o = Object.assign({}, p); delete o.tank; return o; }),
+      stage: this.stage.snapshot(),
+    };
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); return true; } catch (e) { return false; }
+  },
+
+  loadGame() {
+    const s = STORE.get(SAVE_KEY, null);
+    if (!s || !s.stage) return;
+    this.twoP = s.twoP;
+    Input.twoP = s.twoP;
+    this.players = s.players.map(p => Object.assign(newPlayer(p.i), p, { tank: null }));
+    this.stageNum = s.stageNum;
+    this.lastScores = s.lastScores || [0, 0];
+    this.customPending = false;
+    // the saved terrain only fits the field size it was saved with
+    this.applyLayout(s.stage.cols, s.stage.rows);
+    this.stage = new Stage(this.stageNum, LEVELS[(this.stageNum - 1) % LEVELS.length], this.players, { snapshot: s.stage });
+    this.paused = true;
+    this.pauseIdx = 0;
+    this.pauseMsg = 'GAME LOADED';
+    this.pauseMsgT = 120;
+    this.openH = SCREEN_H / 2;
+    this.setState('play');
+  },
+
   // ---------------------------------------------------------------- new game / curtain
   newGame(twoP, custom) {
+    this.applyLayout();
     this.twoP = twoP;
     Input.twoP = twoP;
     this.players = [newPlayer(0)];
@@ -3651,8 +3822,8 @@ const Game = {
   updateCurtain() {
     const c = this.curtain;
     if (c.phase === 'close') {
-      c.h = Math.min(SH / 2, c.h + 8);
-      if (c.h >= SH / 2) { c.phase = 'show'; this.t = 0; }
+      c.h = Math.min(SCREEN_H / 2, c.h + 8);
+      if (c.h >= SCREEN_H / 2) { c.phase = 'show'; this.t = 0; }
       return;
     }
     const m = Input.menu();
@@ -3670,14 +3841,15 @@ const Game = {
   renderCurtain(ctx) {
     const c = this.curtain;
     if (c.phase === 'close' && this.stage) this.stage.render(ctx);
-    else if (c.phase === 'close') { ctx.fillStyle = COL.black; ctx.fillRect(0, 0, SW, SH); }
+    else if (c.phase === 'close') { ctx.fillStyle = COL.black; ctx.fillRect(0, 0, SCREEN_W, SCREEN_H); }
     ctx.fillStyle = COL.bg;
-    ctx.fillRect(0, 0, SW, c.h);
-    ctx.fillRect(0, SH - c.h, SW, c.h);
+    ctx.fillRect(0, 0, SCREEN_W, c.h);
+    ctx.fillRect(0, SCREEN_H - c.h, SCREEN_W, c.h);
     if (c.phase === 'show') {
-      Font.draw(ctx, 'STAGE', 96, 104, COL.black);
-      Font.drawRight(ctx, this.stageNum, 160, 104, COL.black);
-      if (c.selectable && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', SW / 2, 124, '#3C3C3C');
+      const cx = SCREEN_W / 2, cy = SCREEN_H / 2;
+      Font.draw(ctx, 'STAGE', cx - 32, cy - 8, COL.black);
+      Font.drawRight(ctx, this.stageNum, cx + 32, cy - 8, COL.black);
+      if (c.selectable && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + 12, '#3C3C3C');
     }
   },
 
@@ -3687,27 +3859,32 @@ const Game = {
     else map = LEVELS[(this.stageNum - 1) % LEVELS.length];
     this.stage = new Stage(this.stageNum, map, this.players, { custom });
     this.paused = false;
-    this.openH = SH / 2;
+    this.openH = SCREEN_H / 2;
     this.setState('play');
     Sound.play('start');
+    this.saveGame(); // autosave at every stage start
   },
 
   // ---------------------------------------------------------------- play
   updatePlay() {
     const m = Input.menu();
-    if ((m.start || (m.back && !this.paused)) && !this.stage.over) {
-      this.paused = !this.paused;
-      if (this.paused) { Sound.play('pause'); Sound.setEngine(0); }
-    } else if (m.back && this.paused) {
-      // Esc while paused quits to the title screen
-      this.saveHi();
-      this.lastScores = this.players.map(p => p.score);
-      this.stage = null;
-      this.toTitle();
+    if (this.pauseMsgT > 0) this.pauseMsgT--;
+    if (this.openH > 0) this.openH = Math.max(0, this.openH - 8);
+    if (!this.paused) {
+      if ((m.start || m.back) && !this.stage.over) {
+        this.paused = true;
+        this.pauseIdx = 0;
+        Sound.play('pause');
+        Sound.setEngine(0);
+      }
+    } else {
+      // pause menu: continue / save / quit (P or Esc resumes)
+      if (m.up) { this.pauseIdx = (this.pauseIdx + PAUSE_MENU.length - 1) % PAUSE_MENU.length; Sound.play('select'); }
+      if (m.down) { this.pauseIdx = (this.pauseIdx + 1) % PAUSE_MENU.length; Sound.play('select'); }
+      if (Input.anyJust(['KeyP', 'Escape'])) this.paused = false;
+      else if (m.ok) this.pauseAction(PAUSE_MENU[this.pauseIdx]);
       return;
     }
-    if (this.openH > 0) this.openH = Math.max(0, this.openH - 8);
-    if (this.paused) return;
     this.stage.update();
     if (this.stage.result) {
       this.saveHi();
@@ -3715,13 +3892,40 @@ const Game = {
     }
   },
 
+  pauseAction(action) {
+    if (action === 'CONTINUE') this.paused = false;
+    else if (action === 'SAVE GAME') {
+      const ok = this.saveGame();
+      this.pauseMsg = ok ? 'GAME SAVED' : 'SAVE FAILED';
+      this.pauseMsgT = 120;
+      Sound.play(ok ? 'pickup' : 'steel');
+    } else if (action === 'QUIT') {
+      this.saveHi();
+      this.lastScores = this.players.map(p => p.score);
+      this.stage = null;
+      this.toTitle();
+    }
+  },
+
   renderPlay(ctx) {
     this.stage.render(ctx);
-    if (this.paused && ((this.t >> 4) & 1) === 0) Font.drawCenter(ctx, 'PAUSE', FX + FS / 2, FY + 100, COL.orange);
+    if (this.paused) {
+      const w = 112, h = 70, x = FX + ((FW - w) >> 1), y = FY + ((FH - h) >> 1);
+      ctx.fillStyle = COL.black;
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = COL.lgrey;
+      ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + h - 1, w, 1); ctx.fillRect(x, y, 1, h); ctx.fillRect(x + w - 1, y, 1, h);
+      Font.drawCenter(ctx, 'PAUSE', x + w / 2, y + 6, COL.orange);
+      PAUSE_MENU.forEach((label, i) => {
+        Font.draw(ctx, label, x + 24, y + 22 + i * 12, COL.white);
+        if (i === this.pauseIdx) Font.draw(ctx, '>', x + 12, y + 22 + i * 12, COL.gold);
+      });
+      if (this.pauseMsgT > 0) Font.drawCenter(ctx, this.pauseMsg, x + w / 2, y + h + 4, COL.gold);
+    }
     if (this.openH > 0) {
       ctx.fillStyle = COL.bg;
-      ctx.fillRect(0, 0, SW, this.openH);
-      ctx.fillRect(0, SH - this.openH, SW, this.openH);
+      ctx.fillRect(0, 0, SCREEN_W, this.openH);
+      ctx.fillRect(0, SCREEN_H - this.openH, SCREEN_W, this.openH);
     }
   },
 
@@ -3850,6 +4054,7 @@ const Game = {
 
   // ---------------------------------------------------------------- construction
   toConstruct() {
+    this.applyLayout(13, 13); // the editor works on the classic 13x13 field
     this.ed = {
       tx: 0, ty: 0, pat: -1, last: null, rep: 0,
       stage: new Stage(1, this.custom, [], { custom: true }),
@@ -3907,13 +4112,13 @@ const Game = {
     ctx.fillStyle = COL.bg;
     ctx.fillRect(0, 0, SW, SH);
     ctx.fillStyle = COL.black;
-    ctx.fillRect(FX, FY, FS, FS);
+    ctx.fillRect(FX, FY, FW, FH);
     if (st.dirty) st.buildLayers();
     ctx.save();
     ctx.translate(FX, FY);
     ctx.drawImage(st.bgLayer, 0, 0);
     for (const i of st.waterCells) {
-      const cx = i % GN, cy = (i / GN) | 0;
+      const cx = i % GW, cy = (i / GW) | 0;
       ctx.drawImage(Sprites.tex.water0, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
     }
     ctx.drawImage(Sprites.eagle, BASE_X, BASE_Y);
@@ -4057,6 +4262,18 @@ const Game = {
     } else if (row.action === 'allPU') {
       Config.setPowerups(() => 'ANYONE');
       Sound.play('pickup');
+    } else if (row.action === 'fitScreen') {
+      // one click: field sized to the screen shape, scaled to fill it, fullscreen
+      Config.values.fieldW = 'FIT';
+      Config.values.fieldH = 13;
+      Config.values.scaling = 'FILL';
+      Config.save();
+      if (!(document.fullscreenElement || document.webkitFullscreenElement)) toggleFullscreen();
+      this.applyLayout();
+      Config.apply();
+      Sound.play('pickup');
+    } else if (row.action === 'fullscreen') {
+      toggleFullscreen();
     } else if (row.action === 'back') {
       this.leaveSettings();
     }
@@ -4147,6 +4364,7 @@ const Game = {
   // mouse / touch on the canvas (in screen pixels)
   pointer(x, y) {
     Sound.unlock();
+    if (this.state === 'title' || this.state === 'settings' || this.state === 'shop') { x -= menuOX(); y -= menuOY(); }
     if (this.state === 'shop') {
       const r = Math.floor((y - SHOP_TOP + 4) / SHOP_ROW_H), i = this.shop.scroll + r;
       if (r < 0 || r >= SHOP_ROWS || !SHOP_ITEMS[i]) return;
@@ -4155,8 +4373,8 @@ const Game = {
       return;
     }
     if (this.state === 'title' && this.titleY === 0) {
-      const i = Math.floor((y - TITLE_MENU_Y + 4) / 14);
-      if (i >= 0 && i < TITLE_MENU.length && x > 56 && x < 200) {
+      const i = Math.floor((y - this.titleMenuY() + 4) / 14);
+      if (i >= 0 && i < this.titleMenu().length && x > 56 && x < 200) {
         if (i === this.menuIdx) this.chooseMenu(i);
         else { this.menuIdx = i; Sound.play('select'); }
       }
@@ -4194,6 +4412,27 @@ const Game = {
   },
 
   render(ctx) {
+    // the canvas follows the field size; menus sit in a centred 256x224 frame
+    const c = ctx.canvas;
+    if (c.width !== SCREEN_W || c.height !== SCREEN_H) {
+      c.width = SCREEN_W;
+      c.height = SCREEN_H;
+      ctx.imageSmoothingEnabled = false;
+      Sprites.brickPattern = null;
+      if (this.onResize) this.onResize();
+    }
+    const full = this.state === 'play' || this.state === 'curtain' || this.state === 'construct';
+    if (!full) {
+      ctx.fillStyle = COL.black;
+      ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
+      ctx.save();
+      ctx.translate(menuOX(), menuOY());
+    }
+    this.renderState(ctx);
+    if (!full) ctx.restore();
+  },
+
+  renderState(ctx) {
     switch (this.state) {
       case 'title': this.renderTitle(ctx); break;
       case 'curtain': this.renderCurtain(ctx); break;
@@ -4206,6 +4445,19 @@ const Game = {
     }
   },
 };
+
+function toggleFullscreen() {
+  const el = document.getElementById('wrap');
+  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  try {
+    if (fsEl) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else {
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      const r = req && req.call(el);
+      if (r && r.catch) r.catch(() => {});
+    }
+  } catch (e) { /* fullscreen not available here */ }
+}
 
 // =====================================================================
 //  Boot & main loop (fixed 60 Hz simulation)
@@ -4223,7 +4475,7 @@ const Game = {
 
   const toScreen = e => {
     const r = canvas.getBoundingClientRect();
-    return [(e.clientX - r.left) * SW / r.width, (e.clientY - r.top) * SH / r.height];
+    return [(e.clientX - r.left) * canvas.width / r.width, (e.clientY - r.top) * canvas.height / r.height];
   };
   canvas.addEventListener('pointerdown', e => { const [x, y] = toScreen(e); Game.pointer(x, y); });
   canvas.addEventListener('wheel', e => {
@@ -4232,21 +4484,34 @@ const Game = {
     Game.wheel(e.deltaY);
   }, { passive: false });
 
+  // SHARP scales by whole pixels; FILL uses all the space it can
   function resize() {
     const wrap = document.getElementById('wrap');
-    const w = wrap.clientWidth, h = wrap.clientHeight;
-    let s = Math.min(w / SW, h / SH);
-    if (s >= 1) s = Math.floor(s);
-    s = Math.max(0.5, s);
-    canvas.style.width = Math.round(SW * s) + 'px';
-    canvas.style.height = Math.round(SH * s) + 'px';
+    const cs = getComputedStyle(wrap);
+    const w = wrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const h = wrap.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    let s = Math.min(w / canvas.width, h / canvas.height);
+    if (s >= 1 && Config.get('scaling') === 'SHARP') s = Math.floor(s);
+    s = Math.max(0.25, s);
+    canvas.style.width = Math.round(canvas.width * s) + 'px';
+    canvas.style.height = Math.round(canvas.height * s) + 'px';
   }
-  window.addEventListener('resize', resize);
+  Game.onResize = resize;
+  const relayout = () => {
+    // outside a game, FIT field sizes follow the window shape
+    if (Game.state === 'title' || Game.state === 'settings') Game.applyLayout();
+    resize();
+  };
+  window.addEventListener('resize', relayout);
+  document.addEventListener('fullscreenchange', relayout);
+  document.addEventListener('webkitfullscreenchange', relayout);
+  canvas.addEventListener('dblclick', toggleFullscreen);
   resize();
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && Game.state === 'play' && !Game.paused && !Game.stage.over) {
       Game.paused = true;
+      Game.pauseIdx = 0;
       Sound.setEngine(0);
     }
   });
