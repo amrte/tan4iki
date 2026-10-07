@@ -171,6 +171,10 @@ const Sound = {
       case 'life':
         this.seq([76, 79, 84, 88, 0, 76, 79, 84, 88, 91], 0.055, t, { vol: 0.15, decayTo: 0.5 });
         break;
+      case 'levelUp': // promotion fanfare
+        this.seq([67, 72, 76, 79, 0, 79, 84], 0.07, t, { vol: 0.15, decayTo: 0.55 });
+        this.seq([60, 64, 67, 72, 0, 72, 76], 0.07, t, { vol: 0.08, decayTo: 0.5, wave: 'p25' });
+        break;
       case 'bonus':
         this.seq([72, 76, 79, 84, 79, 84, 88], 0.07, t, { vol: 0.15, decayTo: 0.45 });
         break;

@@ -26,6 +26,7 @@ function newPlayer(i) {
     i, score: 0, lives: Config.startLives(), level: Config.get('startStars'), ship: false, cutter: false,
     kills: [0, 0, 0, 0], out: false, extraGiven: false, extraCount: 0, mines: 0, tank: null,
     kit: null, shopShovel: false,
+    rank: Config.get('startLevel'), xp: RANKS[Config.get('startLevel') - 1].xp, stageXp: 0,   // XP level (1-10)
   };
 }
 
@@ -45,7 +46,7 @@ const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
 // Kit items (helmet, turbo, ...) take effect when your tank first appears in the next stage.
 const SHOP_ITEMS = [
   { id: 'life', name: 'EXTRA LIFE', price: 5000, icon: PU.TANK, desc: 'ONE MORE TANK' },
-  { id: 'star', name: 'STAR', price: 3000, icon: PU.STAR, desc: 'UPGRADE YOUR TANK 1 LEVEL' },
+  { id: 'star', name: 'STAR', price: 3000, icon: PU.STAR, desc: 'ONE MORE STAR, UP TO 3' },
   { id: 'gun', name: 'GUN', price: 8000, icon: PU.GUN, desc: 'MAX LEVEL + CUTS TREES' },
   { id: 'ship', name: 'SHIP', price: 3000, icon: PU.SHIP, desc: 'CROSS WATER, SOAKS A HIT' },
   { id: 'mines', name: 'MINES', price: 1500, icon: PU.MINES, desc: 'MINES FOR THE B BUTTON' },
@@ -69,7 +70,7 @@ function shopPrice(item) {
 function shopStatus(item, p) {
   switch (item.id) {
     case 'life': return Config.infiniteLives() ? { text: 'INF', max: true } : { text: 'X' + p.lives, max: p.lives >= 99 };
-    case 'star': return { text: 'LV' + p.level, max: p.level >= 3 };
+    case 'star': return { text: p.level + '/3', max: p.level >= 3 };
     case 'gun': return p.level >= 3 && p.cutter ? { text: 'OWNED', max: true } : { text: '' };
     case 'ship': return p.ship ? { text: 'OWNED', max: true } : { text: '' };
     case 'mines': return { text: 'X' + (p.mines || 0), max: (p.mines || 0) >= 99 };
@@ -194,9 +195,11 @@ const Game = {
     Font.drawRight(ctx, this.lastScores[0] ? this.lastScores[0] : '00', 88, 16, COL.white);
     Font.draw(ctx, 'HI-', 112, 16, COL.white);
     Font.drawRight(ctx, this.hi, 176, 16, COL.white);
+    // version beside the hi-score; a II-player score drops to the row below
+    Font.draw(ctx, 'V' + APP_VERSION, 192, 16, COL.lgrey);
     if (this.lastScores[1]) {
-      Font.draw(ctx, 'II-', 184, 16, COL.white);
-      Font.drawRight(ctx, this.lastScores[1], 248, 16, COL.white);
+      Font.draw(ctx, 'II-', 184, 28, COL.white);
+      Font.drawRight(ctx, this.lastScores[1], 248, 28, COL.white);
     }
     const pat = Sprites.bricks(ctx);
     Font.big(ctx, GAME_NAME, (SW - Font.bigWidth(GAME_NAME, 4)) >> 1, 58, 4, pat);
@@ -209,7 +212,6 @@ const Game = {
       const anim = (this.t >> 2) & 1;
       ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, top - 4 + this.menuIdx * step);
     }
-    Font.drawCenter(ctx, APP_TITLE, SW / 2, 192, COL.lgrey);
     Font.drawCenter(ctx, 'ENTER START  M MUTE', SW / 2, 206, COL.lgrey);
     ctx.restore();
   },
@@ -470,6 +472,7 @@ const Game = {
       ctx.drawImage(Sprites.playerIcon(Config.playerPal(i)), x + 10, 54);
       Font.drawRight(ctx, ROMAN[i], x + 8, 54, COL.red);
       Font.drawRight(ctx, p.score, x + 40, 68, COL.gold);
+      if (Config.xpOn()) Font.drawRight(ctx, 'LV' + p.rank, x + 40, 78, COL.white);
     });
     for (let row = 0; row < 4; row++) {
       const y = 92 + row * 20;
@@ -502,6 +505,12 @@ const Game = {
       Font.draw(ctx, 'II-PLAYER', 168, 56, COL.red);
       Font.drawRight(ctx, P[1].score, 240, 72, COL.gold);
     }
+    // XP level and what this stage earned
+    if (Config.xpOn()) P.forEach((p, i) => {
+      const x = i ? 168 : 16;
+      Font.draw(ctx, (p.rank >= 10 ? 'L' : 'LV') + p.rank, x, 82, COL.white);
+      if (p.stageXp) Font.drawRight(ctx, '+' + p.stageXp + 'XP', x + 80, 82, COL.lgrey);
+    });
     const shown = (p, row) => row < sc.row || sc.phase !== 'rows' ? p.kills[row] : (row === sc.row ? Math.min(sc.n, p.kills[row]) : -1);
     for (let row = 0; row < 4; row++) {
       const y = 96 + row * 22;
@@ -716,7 +725,7 @@ const Game = {
     ctx.fillStyle = COL.black;
     ctx.fillRect(0, 0, SW, SH);
     Font.drawCenter(ctx, this.shopDiscount ? 'SHOP  BOSS BONUS -25%' : 'SHOP', SW / 2, 6, COL.red);
-    ctx.drawImage(Sprites.tank('p' + p.level, (this.t >> 3) & 1, 1, Config.playerPal(p.i)), 6, 15);
+    ctx.drawImage(Sprites.rankTank('p' + p.level, (this.t >> 3) & 1, 1, Config.playerPal(p.i), Config.xpOn() ? p.rank : 1, true), 6, 15);
     Font.draw(ctx, ROMAN[p.i] + '-PLAYER', 26, 20, COL.red);
     Font.drawRight(ctx, p.score, 214, 20, COL.gold);
     Font.draw(ctx, 'PTS', 220, 20, COL.white);
@@ -904,6 +913,8 @@ const Game = {
       Sound.play('pickup');
     } else if (row.action === 'keys') {
       this.toKeys();
+    } else if (row.action === 'ranks') {
+      this.setState('ranks');
     } else if (row.action === 'fullscreen') {
       toggleFullscreen();
     } else if (row.action === 'back') {
@@ -993,9 +1004,33 @@ const Game = {
     }
   },
 
+  // ---------------------------------------------------------------- ranks and perks (from settings)
+  updateRanks() {
+    const m = Input.menu();
+    if (this.t > 5 && (m.ok || m.back || m.alt)) { Sound.play('select'); this.setState('settings'); }
+  },
+
+  renderRanks(ctx) {
+    ctx.fillStyle = COL.black;
+    ctx.fillRect(0, 0, SW, SH);
+    Font.drawCenter(ctx, 'RANKS AND PERKS', SW / 2, 4, COL.red);
+    const perks = Config.get('perks') === 'ON', pal = Config.playerPal(0);
+    RANKS.forEach((rk, i) => {
+      const y = 21 + i * 20;
+      ctx.drawImage(Sprites.rankTank('p0', (this.t >> 3) & 1, 0, pal, i + 1, true), 8, y - 2);
+      if (i === 9 && (this.t & 31) < 20) ctx.drawImage(Sprites.outline(Sprites.rankTank('p0', (this.t >> 3) & 1, 0, pal, 10, true), COL.gold), 7, y - 3);
+      Font.draw(ctx, (i + 1) + ' ' + rk.name, 32, y, COL.white);
+      Font.drawRight(ctx, rk.xp + ' XP', 250, y, COL.gold);
+      Font.draw(ctx, rk.perk, 48, y + 9, perks ? COL.lgrey : '#505050');
+    });
+    if (!Config.xpOn()) Font.drawCenter(ctx, 'XP AND LEVELS ARE OFF', SW / 2, 215, COL.orange);
+    else if (!perks) Font.drawCenter(ctx, 'PERKS OFF: LOOKS ONLY', SW / 2, 215, COL.orange);
+  },
+
   // mouse / touch on the canvas (in screen pixels)
   pointer(x, y) {
     Sound.unlock();
+    if (this.state === 'ranks') { this.setState('settings'); return; }
     if (this.state === 'title' || this.state === 'settings' || this.state === 'shop') { x -= menuOX(); y -= menuOY(); }
     if (this.state === 'shop') {
       const r = Math.floor((y - SHOP_TOP + 4) / SHOP_ROW_H), i = this.shop.scroll + r;
@@ -1042,6 +1077,7 @@ const Game = {
       case 'settings': this.updateSettings(); break;
       case 'shop': this.updateShop(); break;
       case 'keys': this.updateKeys(); break;
+      case 'ranks': this.updateRanks(); break;
     }
   },
 
@@ -1084,6 +1120,7 @@ const Game = {
       case 'settings': this.renderSettings(ctx); break;
       case 'shop': this.renderShop(ctx); break;
       case 'keys': this.renderKeys(ctx); break;
+      case 'ranks': this.renderRanks(ctx); break;
       case 'netwait': this.renderNetWait(ctx); break;
     }
   },

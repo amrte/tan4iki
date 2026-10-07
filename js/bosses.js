@@ -362,7 +362,7 @@ Object.assign(Stage.prototype, {
       bo.hp -= dmg * (bo.mode === 'dazed' ? 2 : 1);
     }
     bo.flash = 6;
-    if (by && by.isPlayer) this.lastBossHitter = by.player;
+    if (by && by.isPlayer) { this.lastBossHitter = by.player; this.addXp(by.player, 2 * dmg); }
     Sound.play('armor');
     const frac = Math.max(0, bo.hp) / bo.maxHp;
     while (this.bossDropAt.length && frac <= this.bossDropAt[0]) { this.bossDropAt.shift(); this.spawnPowerup(); }
@@ -383,6 +383,8 @@ Object.assign(Stage.prototype, {
     const pts = def.pts * (1 + this.bossLoop);
     this.addScore(p, pts);
     this.popups.push({ x: bo.x + bo.w / 2, y: bo.y + bo.h / 2, text: String(pts), t: 0, delay: 50 });
+    // XP: 200 for the final blow, 100 for everyone else still in the fight
+    for (const q of this.players) if (!q.out || q === p) this.addXp(q, (q === p ? 200 : 100) * (1 + this.bossLoop));
     // the escorts and anything left of the boss go with it
     for (const t of this.tanks) if (!t.isPlayer && t.alive) this.killEnemy(t, null, false, true);
     for (const o of this.bosses) o.alive = false;
@@ -609,14 +611,14 @@ Object.assign(Stage.prototype, {
     const b = this.mainBoss();
     // HP bar
     ctx.fillStyle = COL.black;
-    ctx.fillRect(H + 2, 20, 12, 92);
+    ctx.fillRect(H + 2, 20, 12, 90);
     const frac = b && b.alive ? Math.max(0, b.hp) / b.maxHp : 0;
-    const hgt = Math.round(88 * frac);
+    const hgt = Math.round(86 * frac);
     ctx.fillStyle = b && b.enraged && (this.frame >> 3) & 1 ? '#F87858' : '#E04030';
-    ctx.fillRect(H + 4, 22 + 88 - hgt, 8, hgt);
+    ctx.fillRect(H + 4, 22 + 86 - hgt, 8, hgt);
     // escorts still to come
-    ctx.drawImage(Sprites.enemyIcon, H, 118);
-    Font.draw(ctx, String(Math.min(99, this.queue.length)), H + 8, 118, COL.black);
+    ctx.drawImage(Sprites.enemyIcon, H, 112);
+    Font.draw(ctx, String(Math.min(99, this.queue.length)), H + 8, 112, COL.black);
   },
 });
 

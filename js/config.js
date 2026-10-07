@@ -40,6 +40,22 @@ const POWERUPS = [
   { name: 'COIN', weight: 2, isNew: true, desc: '1000 BONUS POINTS' },
 ];
 
+// XP ranks: total XP needed for each level (1-10), and the perk it unlocks (descriptions max 22 chars)
+const RANKS = [
+  { name: 'RECRUIT', xp: 0, perk: 'NO PERKS YET' },
+  { name: 'PRIVATE', xp: 100, perk: 'ENGINE +10%' },
+  { name: 'CORPORAL', xp: 250, perk: 'FASTER RELOAD' },
+  { name: 'SERGEANT', xp: 480, perk: 'SHELLS +20% FASTER' },
+  { name: 'LIEUTENANT', xp: 800, perk: 'ARMOR PLATE' },
+  { name: 'CAPTAIN', xp: 1200, perk: 'ENGINE +20%' },
+  { name: 'MAJOR', xp: 1700, perk: 'EVERY LIFE GETS A STAR' },
+  { name: 'COLONEL', xp: 2300, perk: 'RAPID RELOAD' },
+  { name: 'GENERAL', xp: 3000, perk: 'DOUBLE ARMOR PLATE' },
+  { name: 'MARSHAL', xp: 3800, perk: 'PLATES SELF-REPAIR' },
+];
+// XP for destroying a basic, fast, power and armor tank
+const XP_KILL = [10, 15, 20, 30];
+
 const pct = (...v) => v;
 const PCTS = pct(25, 50, 75, 100, 125, 150, 175, 200, 250, 300);
 const SECS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 45, 60];
@@ -65,6 +81,14 @@ const SETTINGS_DEF = [
   { key: 'spawnShield', label: 'SPAWN SHIELD', values: SECS, def: 3, fmt: fmtSec },
   { key: 'extraLife', label: 'EXTRA LIFE AT 20K', values: ['ONCE', 'EVERY', 'OFF'], def: 'ONCE' },
   { key: 'friendlyFire', label: 'FRIENDLY FIRE', values: ['FREEZE', 'OFF'], def: 'FREEZE' },
+
+  { section: 'XP AND LEVELS' },
+  { key: 'xp', label: 'XP AND LEVELS', values: ONOFF, def: 'ON' },
+  { key: 'xpRate', label: 'XP RATE', values: PCTS, def: 100, fmt: fmtPct },
+  { key: 'perks', label: 'LEVEL PERKS', values: ['ON', 'LOOKS ONLY'], def: 'ON' },
+  { key: 'startLevel', label: 'START LEVEL', values: range(1, 10), def: 1 },
+  { key: 'xpLoss', label: 'XP LOST ON DEATH', values: [0, 10, 25, 50], def: 0, fmt: fmtPct },
+  { action: 'ranks', label: 'SHOW RANKS AND PERKS' },
 
   { section: 'ENEMIES' },
   { key: 'enemyCount', label: 'TANKS PER STAGE', values: range(1, 99), def: 20 },
@@ -199,6 +223,7 @@ const Config = {
   startLives() { const v = this.values.lives; return v === 'INF' ? 2 : v - 1; },
   infiniteLives() { return this.values.lives === 'INF'; },
   frames(k) { return Math.round(this.values[k] * 60); },
+  xpOn() { return this.values.xp === 'ON'; },
   scale(k) { return this.values[k] / 100; },
   enemy(type) {
     const base = ENEMY[type];

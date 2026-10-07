@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.6</title>
+  <title>tanb4iki_v0.7</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.6';
+const APP_VERSION = '0.7';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -1643,6 +1643,7 @@ const POPUP_DIGITS = {
   '7': ['1111', '...1', '..1.', '..1.', '.1..', '.1..', '.1..'],
   '8': ['.11.', '1..1', '1..1', '.11.', '1..1', '1..1', '.11.'],
   '9': ['.11.', '1..1', '1..1', '.111', '...1', '...1', '.11.'],
+  'L': ['1...', '1...', '1...', '1...', '1...', '1...', '1111'],
 };
 
 // New (non-original) power-ups: shapes only ('X'); shading, drop shadow and the
@@ -1856,6 +1857,57 @@ function genHull(dir) {
   return gridCanvas(g, [null, '#E8F0FF', '#2C48F0']);
 }
 
+// ------------------------------------------------------------------ rank (XP level) looks
+// Extra palette entries used by the rank decorations; 1-3 stay the player's own colours.
+const RANK_INK = { 4: '#F8F8F8', 5: '#BCBCBC', 6: '#6C6C6C', 7: '#F8D030', 8: '#000000' };
+
+// Paint rank details onto a tank grid (facing up), level 1-10:
+//   2-3 white stripes on the engine deck · 4+ radio antenna · 5+ armour skirts while the plate holds
+//   6+ stripes turn gold · 7+ star on the turret · 8+ gold-trimmed skirts · 9+ second antenna
+//   10 all-gold skirts (and an animated glow, drawn in Stage.drawTank)
+function decorateTank(rows, level, plate) {
+  const g = parseGrid(rows);
+  let minX = 16, maxX = -1, minY = 16, maxY = -1;
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) if (g[y][x]) {
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+  }
+  const ink = level >= 6 ? 7 : 4, K = 8;
+  // engine-deck stripes: short bars across the back of the hull, with black gaps so they read on any colour
+  let rear = maxY;
+  while (rear > minY && !(g[rear][7] && g[rear][8])) rear--;
+  const stripes = Math.min(2, level - 1);
+  for (let s = 0; s < stripes; s++) {
+    for (let x = 6; x <= 9; x++) {
+      if (g[rear - s * 2][x]) g[rear - s * 2][x] = ink;
+      if (g[rear - s * 2 - 1][x]) g[rear - s * 2 - 1][x] = K;
+    }
+  }
+  // star on the turret: a small black-edged diamond
+  if (level >= 7) {
+    const cy = Math.round((minY + maxY) / 2) - 1;
+    ['.KK.', 'KSSK', 'KSSK', '.KK.'].forEach((r, j) => {
+      for (let i = 0; i < 4; i++) if (r[i] !== '.') g[cy + j][6 + i] = r[i] === 'K' ? K : 7;
+    });
+  }
+  // armour skirts: a riveted steel plate outside each track
+  const skirt = plate && level >= 5;
+  if (skirt) {
+    for (const x of [minX - 1, maxX + 1]) {
+      if (x < 0 || x > 15) continue;
+      for (let y = minY + 1; y <= maxY - 1; y++) {
+        const edge = y === minY + 1 || y === maxY - 1;
+        const rivet = (y - minY) % 3 === 0;
+        g[y][x] = level >= 10 ? (rivet ? 8 : 7) : level >= 8 && edge ? 7 : rivet ? 6 : 5;
+      }
+    }
+  }
+  // radio antennas at the rear corners
+  const whip = x => { g[Math.min(15, maxY)][x] = 4; if (maxY < 15) g[maxY + 1][x] = 4; };
+  if (level >= 4) whip(Math.max(0, minX - (skirt ? 1 : 0)));
+  if (level >= 9) whip(Math.min(15, maxX + (skirt ? 1 : 0)));
+  return g;
+}
+
 function genBullet(dir, color = '#C6C6C6') {
   return rotatedCanvas(['..1.', '.111', '.111', '.111'], dir, [null, color]);
 }
@@ -1893,6 +1945,36 @@ const Sprites = {
       this.cache.set(k, c);
     }
     return c;
+  },
+  // a player tank wearing its rank (XP level); plate = armour plate still intact
+  rankTank(spec, frame, dir, pal, level, plate) {
+    if (level <= 1) return this.tank(spec, frame, dir, pal);
+    const k = 'r' + spec + frame + dir + pal + level + (plate ? 'p' : '');
+    let c = this.cache.get(k);
+    if (!c) {
+      let g = decorateTank(TANK_GRIDS[spec][frame], level, plate);
+      for (let i = 0; i < dir; i++) g = rotGrid(g);
+      c = gridCanvas(g, Object.assign([], PALS[pal], RANK_INK));
+      this.cache.set(k, c);
+    }
+    return c;
+  },
+  // 1px outline around a sprite (level-10 glow)
+  outline(src, color) {
+    const k = src;
+    let c = this.outlines && this.outlines.get(k);
+    if (!this.outlines) this.outlines = new WeakMap();
+    if (c && c.color === color) return c.canvas;
+    const w = src.width, h = src.height, d = src.getContext('2d').getImageData(0, 0, w, h).data;
+    const out = makeCanvas(w + 2, h + 2), x = out.getContext('2d');
+    x.fillStyle = color;
+    const on = (i, j) => i >= 0 && j >= 0 && i < w && j < h && d[(j * w + i) * 4 + 3] > 0;
+    for (let j = -1; j <= h; j++) for (let i = -1; i <= w; i++) {
+      if (on(i, j)) continue;
+      if (on(i - 1, j) || on(i + 1, j) || on(i, j - 1) || on(i, j + 1)) x.fillRect(i + 1, j + 1, 1, 1);
+    }
+    this.outlines.set(k, { color, canvas: out });
+    return out;
   },
   // score pop-up ("100" ... "500")
   mini(text) {
@@ -1968,6 +2050,22 @@ const POWERUPS = [
   { name: 'COIN', weight: 2, isNew: true, desc: '1000 BONUS POINTS' },
 ];
 
+// XP ranks: total XP needed for each level (1-10), and the perk it unlocks (descriptions max 22 chars)
+const RANKS = [
+  { name: 'RECRUIT', xp: 0, perk: 'NO PERKS YET' },
+  { name: 'PRIVATE', xp: 100, perk: 'ENGINE +10%' },
+  { name: 'CORPORAL', xp: 250, perk: 'FASTER RELOAD' },
+  { name: 'SERGEANT', xp: 480, perk: 'SHELLS +20% FASTER' },
+  { name: 'LIEUTENANT', xp: 800, perk: 'ARMOR PLATE' },
+  { name: 'CAPTAIN', xp: 1200, perk: 'ENGINE +20%' },
+  { name: 'MAJOR', xp: 1700, perk: 'EVERY LIFE GETS A STAR' },
+  { name: 'COLONEL', xp: 2300, perk: 'RAPID RELOAD' },
+  { name: 'GENERAL', xp: 3000, perk: 'DOUBLE ARMOR PLATE' },
+  { name: 'MARSHAL', xp: 3800, perk: 'PLATES SELF-REPAIR' },
+];
+// XP for destroying a basic, fast, power and armor tank
+const XP_KILL = [10, 15, 20, 30];
+
 const pct = (...v) => v;
 const PCTS = pct(25, 50, 75, 100, 125, 150, 175, 200, 250, 300);
 const SECS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 45, 60];
@@ -1993,6 +2091,14 @@ const SETTINGS_DEF = [
   { key: 'spawnShield', label: 'SPAWN SHIELD', values: SECS, def: 3, fmt: fmtSec },
   { key: 'extraLife', label: 'EXTRA LIFE AT 20K', values: ['ONCE', 'EVERY', 'OFF'], def: 'ONCE' },
   { key: 'friendlyFire', label: 'FRIENDLY FIRE', values: ['FREEZE', 'OFF'], def: 'FREEZE' },
+
+  { section: 'XP AND LEVELS' },
+  { key: 'xp', label: 'XP AND LEVELS', values: ONOFF, def: 'ON' },
+  { key: 'xpRate', label: 'XP RATE', values: PCTS, def: 100, fmt: fmtPct },
+  { key: 'perks', label: 'LEVEL PERKS', values: ['ON', 'LOOKS ONLY'], def: 'ON' },
+  { key: 'startLevel', label: 'START LEVEL', values: range(1, 10), def: 1 },
+  { key: 'xpLoss', label: 'XP LOST ON DEATH', values: [0, 10, 25, 50], def: 0, fmt: fmtPct },
+  { action: 'ranks', label: 'SHOW RANKS AND PERKS' },
 
   { section: 'ENEMIES' },
   { key: 'enemyCount', label: 'TANKS PER STAGE', values: range(1, 99), def: 20 },
@@ -2127,6 +2233,7 @@ const Config = {
   startLives() { const v = this.values.lives; return v === 'INF' ? 2 : v - 1; },
   infiniteLives() { return this.values.lives === 'INF'; },
   frames(k) { return Math.round(this.values[k] * 60); },
+  xpOn() { return this.values.xp === 'ON'; },
   scale(k) { return this.values[k] / 100; },
   enemy(type) {
     const base = ENEMY[type];
@@ -2313,6 +2420,10 @@ const Sound = {
         break;
       case 'life':
         this.seq([76, 79, 84, 88, 0, 76, 79, 84, 88, 91], 0.055, t, { vol: 0.15, decayTo: 0.5 });
+        break;
+      case 'levelUp': // promotion fanfare
+        this.seq([67, 72, 76, 79, 0, 79, 84], 0.07, t, { vol: 0.15, decayTo: 0.55 });
+        this.seq([60, 64, 67, 72, 0, 72, 76], 0.07, t, { vol: 0.08, decayTo: 0.5, wave: 'p25' });
         break;
       case 'bonus':
         this.seq([72, 76, 79, 84, 79, 84, 88], 0.07, t, { vol: 0.15, decayTo: 0.45 });
@@ -2986,6 +3097,28 @@ function checkExtraLife(p) {
   return true;
 }
 
+// ------------------------------------------------------------ XP ranks
+// level (1-10) reached with this much XP, capped by nothing but the table
+function rankFor(xp) {
+  let r = 1;
+  while (r < RANKS.length && xp >= RANKS[r].xp) r++;
+  return r;
+}
+
+// what a rank gives (see RANKS); "LOOKS ONLY" keeps the looks but no perks
+function rankPerks(level) {
+  if (!Config.xpOn() || Config.get('perks') !== 'ON') level = 1;
+  return {
+    speed: level >= 6 ? 1.2 : level >= 2 ? 1.1 : 1,
+    reload: level >= 8 ? 8 : level >= 3 ? 11 : 14,   // frames between shots while fire is held
+    shell: level >= 4 ? 1.2 : 1,
+    plates: level >= 9 ? 2 : level >= 5 ? 1 : 0,
+    star: level >= 7 ? 1 : 0,
+    repair: level >= 10,
+  };
+}
+const PLATE_REPAIR = 1800;   // frames for a marshal's plate to grow back
+
 class Tank {
   constructor(o) {
     this.x = 0; this.y = 0; this.dir = 0; this.acc = 0; this.animTick = 0; this.anim = 0;
@@ -2995,12 +3128,16 @@ class Tank {
     this.speed = 0.75; this.bulletSpeed = 2.5; this.maxBullets = 1;
     this.boost = {};   // active timed power-ups: name -> frames left
     this.mines = 0;    // mines carried by an enemy tank
+    this.plates = 0;   // armour plates (XP perk): each one soaks a hit
+    this.repair = 0;
+    this.glow = 0;     // level-up flash
     Object.assign(this, o);
   }
   applyLevel() {
-    const p = this.player, lv = p.level;
-    this.speed = 0.75 * Config.scale('pSpeed');
-    this.bulletSpeed = (lv >= 1 ? 4.5 : 2.5) * Config.scale('pShell');
+    const p = this.player, lv = p.level, perk = rankPerks(p.rank || 1);
+    this.speed = 0.75 * Config.scale('pSpeed') * perk.speed;
+    this.bulletSpeed = (lv >= 1 ? 4.5 : 2.5) * Config.scale('pShell') * perk.shell;
+    this.reload = perk.reload;
     this.maxBullets = lv >= 2 ? 2 : 1;
     this.power = lv >= 3;
     this.cutter = p.cutter;
@@ -3045,6 +3182,7 @@ class Stage {
     this.dirty = true;
     for (const p of players) {
       p.kills = [0, 0, 0, 0];
+      if (!opts.snapshot) p.stageXp = 0;
       p.tank = null;
       if (!p.out && !opts.snapshot) this.spawnPlayer(p, 0);
       // a shovel charge bought in the shop fortifies the eagle from the start
@@ -3062,7 +3200,7 @@ class Stage {
   // Everything needed to resume this stage later (shells in flight and effects are dropped).
   snapshot() {
     const tankKeys = ['x', 'y', 'dir', 'isPlayer', 'type', 'hp', 'bonus', 'shield', 'frozen', 'ship', 'cutter', 'power',
-      'speed', 'bulletSpeed', 'maxBullets', 'boost', 'mines'];
+      'speed', 'bulletSpeed', 'maxBullets', 'boost', 'mines', 'plates', 'repair'];
     return {
       cols: COLS, rows: ROWS,
       terrain: Array.from(this.terrain).join(''),
@@ -3194,6 +3332,9 @@ class Stage {
       } else {
         const p = s.player;
         const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, player: p, shield: Config.frames('spawnShield') });
+        const perk = rankPerks(p.rank || 1);
+        p.level = Math.max(p.level, perk.star);
+        t.plates = perk.plates;
         t.applyLevel();
         p.tank = t;
         // items bought in the shop take effect on the first spawn of the stage
@@ -3231,7 +3372,8 @@ class Stage {
     for (const f of this.fx) f.tick++;
     this.fx = this.fx.filter(f => f.tick < f.frames.length * f.per); // negative tick = delayed
     for (const p of this.popups) p.t++;
-    this.popups = this.popups.filter(p => p.t < p.delay + 48);
+    this.popups = this.popups.filter(p => p.t < p.delay + (p.life || 48));
+    if (this.rankMsg && --this.rankMsg.t <= 0) this.rankMsg = null;
 
     // engine hum
     const pt = this.tanks.filter(t => t.isPlayer);
@@ -3243,6 +3385,7 @@ class Stage {
       if (this.overTimer >= 320) this.result = 'gameover';
     } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer) && !this.bossAlive()) {
       this.clearTimer++;
+      if (this.clearTimer === 1) for (const p of this.players) if (!p.out) this.addXp(p, 25);
       if (this.clearTimer >= 190) this.result = 'clear';
     }
   }
@@ -3262,6 +3405,15 @@ class Stage {
   updatePlayer(t) {
     const p = t.player;
     if (t.shield > 0) t.shield--;
+    if (t.glow > 0) t.glow--;
+    // a marshal's armour plates grow back
+    const perk = rankPerks(p.rank || 1);
+    if (perk.repair && t.plates < perk.plates && ++t.repair >= PLATE_REPAIR) {
+      t.repair = 0;
+      t.plates++;
+      Sound.play('build');
+      this.popups.push({ x: t.x + 8, y: t.y, text: 'PLATE', label: true, color: COL.lgrey, t: 0, delay: 0 });
+    }
     if (t.cool > 0) t.cool--;
     if (t.frozen > 0) { t.frozen--; t.moving = false; return; }
     if (this.over || this.freezeP > 0) { t.moving = false; t.slide = 0; return; }
@@ -3285,7 +3437,7 @@ class Stage {
     const firePressed = inp.firePressed || (!hasMines && inp.altPressed);
     const fireHeld = inp.fire || (!hasMines && inp.alt);
     if (firePressed || (fireHeld && t.cool === 0)) {
-      if (this.fire(t)) t.cool = t.boost.rapid ? 5 : 14;
+      if (this.fire(t)) t.cool = t.boost.rapid ? 5 : t.reload || 14;
     }
   }
 
@@ -3619,6 +3771,7 @@ class Stage {
     if (award && by && by.isPlayer) {
       const p = by.player, pts = ENEMY[t.type].pts;
       p.kills[t.type]++;
+      this.addXp(p, XP_KILL[t.type] + (t.bonus ? 5 : 0));
       this.addScore(p, pts);
       this.popups.push({ x: t.x + 8, y: t.y + 8, text: String(pts), t: 0, delay: 25 });
     }
@@ -3627,6 +3780,16 @@ class Stage {
   hitPlayer(t) {
     if (!t.alive || t.shield > 0) return;
     const p = t.player;
+    if (t.plates > 0) {
+      // an armour plate (XP perk) breaks instead of the tank
+      t.plates--;
+      t.repair = 0;
+      t.shield = 60;
+      this.addFx(t.x + 8, t.y + 8, [Sprites.smallExp[0]], 6);
+      Sound.play('armor');
+      Input.rumble(p.i, 0.4, 120);
+      return;
+    }
     if (t.ship) {
       // the boat soaks one hit
       t.ship = false;
@@ -3643,6 +3806,12 @@ class Stage {
     if (!Config.on('keepStars')) {
       p.level = Config.get('startStars');
       p.cutter = false;
+    }
+    // optional: lose part of the progress towards the next level (never a whole level)
+    const loss = Config.get('xpLoss');
+    if (Config.xpOn() && loss) {
+      const floor = RANKS[p.rank - 1].xp;
+      p.xp = Math.max(floor, p.xp - Math.round((p.xp - floor) * loss / 100));
     }
     p.tank = null;
     if (Config.infiniteLives()) {
@@ -3670,6 +3839,32 @@ class Stage {
   addScore(p, n) {
     p.score += n;
     if (checkExtraLife(p)) Sound.play('life');
+  }
+
+  // ------------------------------------------------------------ XP
+  addXp(p, n) {
+    if (!p || !Config.xpOn()) return;
+    n = Math.round(n * Config.scale('xpRate'));
+    if (n <= 0) return;
+    p.xp += n;
+    p.stageXp = (p.stageXp || 0) + n;
+    const r = rankFor(p.xp);
+    if (r > p.rank) this.rankUp(p, r);
+  }
+
+  rankUp(p, r) {
+    p.rank = r;
+    const perk = rankPerks(r), t = p.tank;
+    if (perk.star > p.level) p.level = perk.star;
+    if (t) {
+      t.plates = Math.max(t.plates, perk.plates);   // promotion comes with fresh plates
+      t.applyLevel();
+      t.glow = 90;
+      this.popups.push({ x: t.x + 8, y: t.y, text: 'LEVEL UP!', label: true, color: COL.gold, t: 0, delay: 0, life: 90 });
+    }
+    this.rankMsg = { p, r, t: 240 };
+    Sound.play('levelUp');
+    Input.rumble(p.i, 0.5, 200);
   }
 
   addFx(x, y, frames, per) {
@@ -3718,6 +3913,7 @@ class Stage {
       const p = t.player;
       let snd = 'pickup';
       this.addScore(p, 500);
+      this.addXp(p, 5);
       if (POWERUPS[pu.type].isNew) this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: POWERUPS[pu.type].name, label: true, color: COL.white, t: 0, delay: 0 });
       else this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: '500', t: 0, delay: 0 });
       if (TIMED_BOOSTS[pu.type]) t.boost[TIMED_BOOSTS[pu.type]] = Config.frames('newTime');
@@ -3810,7 +4006,17 @@ class Stage {
       else pal = 'silver';
     }
     if (t.boost.ghost) ctx.globalAlpha = (this.frame >> 2) & 1 ? 0.35 : 0.6;
-    ctx.drawImage(Sprites.tank(spec, t.anim, t.dir, pal), t.x, t.y);
+    if (t.isPlayer) {
+      // the tank wears its XP rank; a marshal (level 10) and a fresh promotion glow
+      const lv = Config.xpOn() ? t.player.rank || 1 : 1;
+      const img = Sprites.rankTank(spec, t.anim, t.dir, pal, lv, t.plates > 0);
+      if (t.glow > 0 ? (t.glow >> 2) & 1 : lv >= 10 && (this.frame & 31) < 20) {
+        ctx.drawImage(Sprites.outline(img, t.glow > 0 ? COL.white : COL.gold), t.x - 1, t.y - 1);
+      }
+      ctx.drawImage(img, t.x, t.y);
+    } else {
+      ctx.drawImage(Sprites.tank(spec, t.anim, t.dir, pal), t.x, t.y);
+    }
     ctx.globalAlpha = 1;
     if (t.shield > 0) ctx.drawImage(Sprites.shield[(this.frame >> 1) & 1], t.x, t.y);
   }
@@ -3877,8 +4083,36 @@ class Stage {
       Font.draw(ctx, 'OVER', FW / 2 - 15, y + 9, COL.red);
     }
     this.renderBossBanner(ctx);
+    this.renderRankMsg(ctx);
     ctx.restore();
     this.renderHud(ctx);
+  }
+
+  // promotion banner at the top of the field: "II-PLAYER LEVEL 5" / rank name / new perk
+  renderRankMsg(ctx) {
+    const m = this.rankMsg;
+    if (!m) return;
+    const rk = RANKS[m.r - 1], who = this.players.length > 1 ? ROMAN[m.p.i] + '-PLAYER ' : '';
+    const perk = Config.get('perks') === 'ON' ? rk.perk : '';
+    const lines = [[who + 'LEVEL ' + m.r, COL.gold], [rk.name, COL.white]].concat(perk ? [[perk, COL.lgrey]] : []);
+    const w = Math.min(FW, Math.max(...lines.map(l => l[0].length)) * 8 + 12), h = lines.length * 10 + 6;
+    const x = (FW - w) >> 1, y = 16 + (m.t > 225 ? (m.t - 225) * -2 : 0);
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(x, y, w, h);
+    lines.forEach(([text, c], i) => Font.drawCenter(ctx, text, FW / 2, y + 4 + i * 10, c));
+  }
+
+  // XP bar for player p: a vertical strip (x, y, height) filling upwards, in the player's colour
+  renderXpBar(ctx, p, x, y, h) {
+    const r = p.rank || 1, lo = RANKS[r - 1].xp, hi = r < RANKS.length ? RANKS[r].xp : lo;
+    const frac = r >= RANKS.length ? 1 : Math.min(1, (p.xp - lo) / (hi - lo));
+    ctx.fillStyle = '#383838';
+    ctx.fillRect(x, y, 3, h);
+    const f = Math.round((h - 2) * frac);
+    ctx.fillStyle = r >= RANKS.length && (this.frame & 16) ? COL.gold : PALS[Config.playerPal(p.i)][2];
+    ctx.fillRect(x + 1, y + h - 1 - f, 1, f);
+    ctx.fillStyle = PALS[Config.playerPal(p.i)][1];
+    ctx.fillRect(x + 2, y + h - 1 - f, 1, f);
   }
 
   renderHud(ctx) {
@@ -3888,32 +4122,43 @@ class Stage {
     // more than 20 waiting: show how many in total
     if (n && this.queue.length > 20) Font.drawCenter(ctx, String(this.queue.length), H + 8, 106, COL.black);
     const lives = p => (Config.infiniteLives() ? '~' : String(Math.min(99, p.lives)));
+    const xp = Config.xpOn();
     if (this.players.length > 2) {
       // 3-4 players: one compact row each, the tank icon in the player's colour
       this.players.forEach((p, i) => {
-        const y = 128 + i * 14;
+        const y = xp ? 121 + i * 15 : 128 + i * 14;
         ctx.drawImage(Sprites.playerIcon(Config.playerPal(i)), H, y);
         Font.draw(ctx, lives(p), H + 8, y, COL.black);
-        if (p.mines) { ctx.fillStyle = '#505050'; for (let k = 0; k < Math.min(3, p.mines); k++) ctx.fillRect(H + 1 + k * 3, y + 9, 2, 2); }
+        if (xp) {
+          ctx.drawImage(Sprites.mini('L' + (p.rank || 1)), H, y + 8);
+          this.renderXpBar(ctx, p, H + 18, y, 15);
+          ctx.fillStyle = '#505050';
+          for (let k = 0; k < Math.min(4, p.mines || 0); k++) ctx.fillRect(H + 22, y + 1 + k * 3, 2, 2);
+        } else if (p.mines) {
+          ctx.fillStyle = '#505050';
+          for (let k = 0; k < Math.min(3, p.mines); k++) ctx.fillRect(H + 1 + k * 3, y + 9, 2, 2);
+        }
       });
       ctx.drawImage(Sprites.flag, H, 184);
       Font.drawRight(ctx, String(this.num), H + 16, 200, COL.black);
       return;
     }
-    Font.draw(ctx, 'IP', H, 136, COL.black);
-    ctx.drawImage(Sprites.lifeIcon, H, 144);
-    Font.draw(ctx, lives(this.players[0]), H + 8, 144, COL.black);
-    if (this.players[1]) {
-      Font.draw(ctx, 'IIP', H, 160, COL.black);
-      ctx.drawImage(Sprites.lifeIcon, H, 168);
-      Font.draw(ctx, lives(this.players[1]), H + 8, 168, COL.black);
-    }
-    // mines carried
+    // 1-2 players: label, lives, mines carried and (with XP on) the level and XP bar
     this.players.forEach((p, i) => {
-      if (!p.mines) return;
-      const y = i === 0 ? 152 : 176;
-      ctx.drawImage(Sprites.mine[0], H, y);
-      Font.draw(ctx, String(Math.min(9, p.mines)), H + 8, y, COL.black);
+      const y = xp ? 122 + i * 30 : 136 + i * 24;
+      Font.draw(ctx, i ? 'IIP' : 'IP', H, y, COL.black);
+      ctx.drawImage(Sprites.lifeIcon, H, y + 8);
+      Font.draw(ctx, lives(p), H + 8, y + 8, COL.black);
+      if (xp) {
+        // level, XP bar beside the lives, mines as dots underneath
+        ctx.drawImage(Sprites.mini('L' + (p.rank || 1)), H, y + 17);
+        this.renderXpBar(ctx, p, H + 18, y + 8, 18);
+        ctx.fillStyle = '#505050';
+        for (let k = 0; k < Math.min(5, p.mines || 0); k++) ctx.fillRect(H + 1 + k * 3, y + 25, 2, 2);
+      } else if (p.mines) {
+        ctx.drawImage(Sprites.mine[0], H, y + 16);
+        Font.draw(ctx, String(Math.min(9, p.mines)), H + 8, y + 16, COL.black);
+      }
     });
     ctx.drawImage(Sprites.flag, H, 184);
     Font.drawRight(ctx, String(this.num), H + 16, 200, COL.black);
@@ -4286,7 +4531,7 @@ Object.assign(Stage.prototype, {
       bo.hp -= dmg * (bo.mode === 'dazed' ? 2 : 1);
     }
     bo.flash = 6;
-    if (by && by.isPlayer) this.lastBossHitter = by.player;
+    if (by && by.isPlayer) { this.lastBossHitter = by.player; this.addXp(by.player, 2 * dmg); }
     Sound.play('armor');
     const frac = Math.max(0, bo.hp) / bo.maxHp;
     while (this.bossDropAt.length && frac <= this.bossDropAt[0]) { this.bossDropAt.shift(); this.spawnPowerup(); }
@@ -4307,6 +4552,8 @@ Object.assign(Stage.prototype, {
     const pts = def.pts * (1 + this.bossLoop);
     this.addScore(p, pts);
     this.popups.push({ x: bo.x + bo.w / 2, y: bo.y + bo.h / 2, text: String(pts), t: 0, delay: 50 });
+    // XP: 200 for the final blow, 100 for everyone else still in the fight
+    for (const q of this.players) if (!q.out || q === p) this.addXp(q, (q === p ? 200 : 100) * (1 + this.bossLoop));
     // the escorts and anything left of the boss go with it
     for (const t of this.tanks) if (!t.isPlayer && t.alive) this.killEnemy(t, null, false, true);
     for (const o of this.bosses) o.alive = false;
@@ -4533,14 +4780,14 @@ Object.assign(Stage.prototype, {
     const b = this.mainBoss();
     // HP bar
     ctx.fillStyle = COL.black;
-    ctx.fillRect(H + 2, 20, 12, 92);
+    ctx.fillRect(H + 2, 20, 12, 90);
     const frac = b && b.alive ? Math.max(0, b.hp) / b.maxHp : 0;
-    const hgt = Math.round(88 * frac);
+    const hgt = Math.round(86 * frac);
     ctx.fillStyle = b && b.enraged && (this.frame >> 3) & 1 ? '#F87858' : '#E04030';
-    ctx.fillRect(H + 4, 22 + 88 - hgt, 8, hgt);
+    ctx.fillRect(H + 4, 22 + 86 - hgt, 8, hgt);
     // escorts still to come
-    ctx.drawImage(Sprites.enemyIcon, H, 118);
-    Font.draw(ctx, String(Math.min(99, this.queue.length)), H + 8, 118, COL.black);
+    ctx.drawImage(Sprites.enemyIcon, H, 112);
+    Font.draw(ctx, String(Math.min(99, this.queue.length)), H + 8, 112, COL.black);
   },
 });
 
@@ -4835,7 +5082,7 @@ Object.assign(Stage.prototype, {
 const NET_ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }];
 const NET_PREFIX = 'TANB4';
 // host settings that change how the guests' screens look
-const NET_CFG_KEYS = ['p1Color', 'p2Color', 'p3Color', 'p4Color', 'lives', 'bossRounds', 'bossEvery', 'shopPrices', 'mineCount'];
+const NET_CFG_KEYS = ['p1Color', 'p2Color', 'p3Color', 'p4Color', 'lives', 'bossRounds', 'bossEvery', 'shopPrices', 'mineCount', 'xp', 'perks'];
 // sounds are forwarded to guests only from these screens
 const NET_SOUND_STATES = new Set(['play', 'curtain', 'score', 'shop', 'bigover']);
 
@@ -5016,7 +5263,7 @@ const Net = {
     if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover'].includes(G.state)) v.s = 'wait';
     v.pl = G.players.map(p => ({
       i: p.i, score: p.score, lives: p.lives, level: p.level, mines: p.mines, kills: p.kills, out: p.out,
-      ship: p.ship, cutter: p.cutter, kit: p.kit, shopShovel: p.shopShovel,
+      ship: p.ship, cutter: p.cutter, kit: p.kit, shopShovel: p.shopShovel, xp: p.xp, rank: p.rank, stageXp: p.stageXp,
     }));
     v.snd = this.sndQueue.splice(0);
     if (G.toastT > 0) v.toast = [G.toastText, G.toastT];
@@ -5042,13 +5289,14 @@ const Net = {
       id: st.netId, num: st.num, fr: st.frame, ov: st.over, ot: st.overTimer, ba: st.baseAlive, q: st.queue.length,
       df: st.netDiff || [],
       tk: st.tanks.filter(t => t.alive).map(t => [t.x, t.y, t.dir, t.isPlayer ? 1 : 0, t.player ? t.player.i : -1, t.type, t.hp,
-        t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0]),
+        t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow]),
       bu: st.bullets.filter(b => b.alive).map(b => [r(b.x), r(b.y), b.dir, b.rocket ? 1 : 0, b.pierce ? 1 : 0]),
       fx: st.fx.map(f => [r(f.x), r(f.y), fxKind(f), f.per, f.tick]),
       pp: st.popups,
       pu: st.powerup,
       mi: st.mines.map(m => [m.x, m.y, m.t]),
       sp: st.spawns.map(s => [s.x, s.y, s.t]),
+      rm: st.rankMsg ? [st.rankMsg.p.i, st.rankMsg.r, st.rankMsg.t] : null,
     };
     st.netDiff = [];
     if (full) sv.tf = Array.from(st.terrain).join('');
@@ -5183,7 +5431,9 @@ const Net = {
     st.tanks = sv.tk.map(a => new Tank({
       x: a[0], y: a[1], dir: a[2], isPlayer: !!a[3], player: a[4] >= 0 ? G.players.find(p => p.i === a[4]) : null,
       type: a[5], hp: a[6], bonus: !!a[7], shield: a[8], frozen: a[9], ship: !!a[10], anim: a[11], boost: a[12] ? { ghost: 1 } : {},
+      plates: a[13] || 0, glow: a[14] || 0,
     }));
+    st.rankMsg = sv.rm ? { p: G.players.find(p => p.i === sv.rm[0]) || G.players[0], r: sv.rm[1], t: sv.rm[2] } : null;
     st.bullets = sv.bu.map(a => ({ x: a[0], y: a[1], dir: a[2], rocket: !!a[3], pierce: !!a[4], alive: true }));
     const FX = { s: () => Sprites.smallExp, b: () => Sprites.bigExp, B: BIG_EXPLOSION };
     st.fx = sv.fx.map(a => ({ x: a[0], y: a[1], frames: FX[a[2]](), per: a[3], tick: a[4] }));
@@ -5416,6 +5666,7 @@ function newPlayer(i) {
     i, score: 0, lives: Config.startLives(), level: Config.get('startStars'), ship: false, cutter: false,
     kills: [0, 0, 0, 0], out: false, extraGiven: false, extraCount: 0, mines: 0, tank: null,
     kit: null, shopShovel: false,
+    rank: Config.get('startLevel'), xp: RANKS[Config.get('startLevel') - 1].xp, stageXp: 0,   // XP level (1-10)
   };
 }
 
@@ -5435,7 +5686,7 @@ const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
 // Kit items (helmet, turbo, ...) take effect when your tank first appears in the next stage.
 const SHOP_ITEMS = [
   { id: 'life', name: 'EXTRA LIFE', price: 5000, icon: PU.TANK, desc: 'ONE MORE TANK' },
-  { id: 'star', name: 'STAR', price: 3000, icon: PU.STAR, desc: 'UPGRADE YOUR TANK 1 LEVEL' },
+  { id: 'star', name: 'STAR', price: 3000, icon: PU.STAR, desc: 'ONE MORE STAR, UP TO 3' },
   { id: 'gun', name: 'GUN', price: 8000, icon: PU.GUN, desc: 'MAX LEVEL + CUTS TREES' },
   { id: 'ship', name: 'SHIP', price: 3000, icon: PU.SHIP, desc: 'CROSS WATER, SOAKS A HIT' },
   { id: 'mines', name: 'MINES', price: 1500, icon: PU.MINES, desc: 'MINES FOR THE B BUTTON' },
@@ -5459,7 +5710,7 @@ function shopPrice(item) {
 function shopStatus(item, p) {
   switch (item.id) {
     case 'life': return Config.infiniteLives() ? { text: 'INF', max: true } : { text: 'X' + p.lives, max: p.lives >= 99 };
-    case 'star': return { text: 'LV' + p.level, max: p.level >= 3 };
+    case 'star': return { text: p.level + '/3', max: p.level >= 3 };
     case 'gun': return p.level >= 3 && p.cutter ? { text: 'OWNED', max: true } : { text: '' };
     case 'ship': return p.ship ? { text: 'OWNED', max: true } : { text: '' };
     case 'mines': return { text: 'X' + (p.mines || 0), max: (p.mines || 0) >= 99 };
@@ -5584,9 +5835,11 @@ const Game = {
     Font.drawRight(ctx, this.lastScores[0] ? this.lastScores[0] : '00', 88, 16, COL.white);
     Font.draw(ctx, 'HI-', 112, 16, COL.white);
     Font.drawRight(ctx, this.hi, 176, 16, COL.white);
+    // version beside the hi-score; a II-player score drops to the row below
+    Font.draw(ctx, 'V' + APP_VERSION, 192, 16, COL.lgrey);
     if (this.lastScores[1]) {
-      Font.draw(ctx, 'II-', 184, 16, COL.white);
-      Font.drawRight(ctx, this.lastScores[1], 248, 16, COL.white);
+      Font.draw(ctx, 'II-', 184, 28, COL.white);
+      Font.drawRight(ctx, this.lastScores[1], 248, 28, COL.white);
     }
     const pat = Sprites.bricks(ctx);
     Font.big(ctx, GAME_NAME, (SW - Font.bigWidth(GAME_NAME, 4)) >> 1, 58, 4, pat);
@@ -5599,7 +5852,6 @@ const Game = {
       const anim = (this.t >> 2) & 1;
       ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, top - 4 + this.menuIdx * step);
     }
-    Font.drawCenter(ctx, APP_TITLE, SW / 2, 192, COL.lgrey);
     Font.drawCenter(ctx, 'ENTER START  M MUTE', SW / 2, 206, COL.lgrey);
     ctx.restore();
   },
@@ -5860,6 +6112,7 @@ const Game = {
       ctx.drawImage(Sprites.playerIcon(Config.playerPal(i)), x + 10, 54);
       Font.drawRight(ctx, ROMAN[i], x + 8, 54, COL.red);
       Font.drawRight(ctx, p.score, x + 40, 68, COL.gold);
+      if (Config.xpOn()) Font.drawRight(ctx, 'LV' + p.rank, x + 40, 78, COL.white);
     });
     for (let row = 0; row < 4; row++) {
       const y = 92 + row * 20;
@@ -5892,6 +6145,12 @@ const Game = {
       Font.draw(ctx, 'II-PLAYER', 168, 56, COL.red);
       Font.drawRight(ctx, P[1].score, 240, 72, COL.gold);
     }
+    // XP level and what this stage earned
+    if (Config.xpOn()) P.forEach((p, i) => {
+      const x = i ? 168 : 16;
+      Font.draw(ctx, (p.rank >= 10 ? 'L' : 'LV') + p.rank, x, 82, COL.white);
+      if (p.stageXp) Font.drawRight(ctx, '+' + p.stageXp + 'XP', x + 80, 82, COL.lgrey);
+    });
     const shown = (p, row) => row < sc.row || sc.phase !== 'rows' ? p.kills[row] : (row === sc.row ? Math.min(sc.n, p.kills[row]) : -1);
     for (let row = 0; row < 4; row++) {
       const y = 96 + row * 22;
@@ -6106,7 +6365,7 @@ const Game = {
     ctx.fillStyle = COL.black;
     ctx.fillRect(0, 0, SW, SH);
     Font.drawCenter(ctx, this.shopDiscount ? 'SHOP  BOSS BONUS -25%' : 'SHOP', SW / 2, 6, COL.red);
-    ctx.drawImage(Sprites.tank('p' + p.level, (this.t >> 3) & 1, 1, Config.playerPal(p.i)), 6, 15);
+    ctx.drawImage(Sprites.rankTank('p' + p.level, (this.t >> 3) & 1, 1, Config.playerPal(p.i), Config.xpOn() ? p.rank : 1, true), 6, 15);
     Font.draw(ctx, ROMAN[p.i] + '-PLAYER', 26, 20, COL.red);
     Font.drawRight(ctx, p.score, 214, 20, COL.gold);
     Font.draw(ctx, 'PTS', 220, 20, COL.white);
@@ -6294,6 +6553,8 @@ const Game = {
       Sound.play('pickup');
     } else if (row.action === 'keys') {
       this.toKeys();
+    } else if (row.action === 'ranks') {
+      this.setState('ranks');
     } else if (row.action === 'fullscreen') {
       toggleFullscreen();
     } else if (row.action === 'back') {
@@ -6383,9 +6644,33 @@ const Game = {
     }
   },
 
+  // ---------------------------------------------------------------- ranks and perks (from settings)
+  updateRanks() {
+    const m = Input.menu();
+    if (this.t > 5 && (m.ok || m.back || m.alt)) { Sound.play('select'); this.setState('settings'); }
+  },
+
+  renderRanks(ctx) {
+    ctx.fillStyle = COL.black;
+    ctx.fillRect(0, 0, SW, SH);
+    Font.drawCenter(ctx, 'RANKS AND PERKS', SW / 2, 4, COL.red);
+    const perks = Config.get('perks') === 'ON', pal = Config.playerPal(0);
+    RANKS.forEach((rk, i) => {
+      const y = 21 + i * 20;
+      ctx.drawImage(Sprites.rankTank('p0', (this.t >> 3) & 1, 0, pal, i + 1, true), 8, y - 2);
+      if (i === 9 && (this.t & 31) < 20) ctx.drawImage(Sprites.outline(Sprites.rankTank('p0', (this.t >> 3) & 1, 0, pal, 10, true), COL.gold), 7, y - 3);
+      Font.draw(ctx, (i + 1) + ' ' + rk.name, 32, y, COL.white);
+      Font.drawRight(ctx, rk.xp + ' XP', 250, y, COL.gold);
+      Font.draw(ctx, rk.perk, 48, y + 9, perks ? COL.lgrey : '#505050');
+    });
+    if (!Config.xpOn()) Font.drawCenter(ctx, 'XP AND LEVELS ARE OFF', SW / 2, 215, COL.orange);
+    else if (!perks) Font.drawCenter(ctx, 'PERKS OFF: LOOKS ONLY', SW / 2, 215, COL.orange);
+  },
+
   // mouse / touch on the canvas (in screen pixels)
   pointer(x, y) {
     Sound.unlock();
+    if (this.state === 'ranks') { this.setState('settings'); return; }
     if (this.state === 'title' || this.state === 'settings' || this.state === 'shop') { x -= menuOX(); y -= menuOY(); }
     if (this.state === 'shop') {
       const r = Math.floor((y - SHOP_TOP + 4) / SHOP_ROW_H), i = this.shop.scroll + r;
@@ -6432,6 +6717,7 @@ const Game = {
       case 'settings': this.updateSettings(); break;
       case 'shop': this.updateShop(); break;
       case 'keys': this.updateKeys(); break;
+      case 'ranks': this.updateRanks(); break;
     }
   },
 
@@ -6474,6 +6760,7 @@ const Game = {
       case 'settings': this.renderSettings(ctx); break;
       case 'shop': this.renderShop(ctx); break;
       case 'keys': this.renderKeys(ctx); break;
+      case 'ranks': this.renderRanks(ctx); break;
       case 'netwait': this.renderNetWait(ctx); break;
     }
   },

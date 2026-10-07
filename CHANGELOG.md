@@ -3,6 +3,16 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.7
+
+- **XP and levels:** players earn XP for kills, power-ups, stage clears and boss damage, and climb 10 ranks
+  (Recruit → Marshal). Each rank adds a perk — faster engine, reload and shells, armor plates that soak hits,
+  a free star every life, self-repairing plates — and changes the tank's look: deck stripes, antennas, steel skirts,
+  gold trim, a turret star and, for a Marshal, a golden glow. Level-up fanfare and banner, level and XP bar in the side
+  panel, XP per stage on the score tally. New settings section XP AND LEVELS with a ranks-and-perks screen.
+  Levels are kept in saves and shown to online guests.
+- Title screen: the version moved to the top row next to the hi-score; the name line at the bottom is gone.
+
 ## 0.6
 
 - **Online play** (peer-to-peer, no game server): title → ONLINE: HOST / JOIN. The host builds the line-up

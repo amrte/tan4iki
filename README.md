@@ -73,6 +73,38 @@ fire buttons appear on screen.
   Press **Delete** to clear the map and **Enter** to play your map. Custom maps are saved in the browser.
 - Chiptune sound effects and engine hum, made with Web Audio.
 
+## XP and levels
+
+Every player earns XP and climbs 10 ranks during a game. Levels are never lost (stars still are, on death), and they
+are saved with the game. XP comes from:
+
+| Source | XP |
+|---|---|
+| Destroying a basic / fast / power / armor tank | 10 / 15 / 20 / 30 (+5 for a flashing tank) |
+| Picking up a power-up | 5 |
+| Clearing a stage (players still in the game) | 25 |
+| Hitting a boss | 2 per point of damage |
+| Destroying a boss | 200 for the final blow, 100 for everyone else |
+
+| Level | Rank | Total XP | Perk | Look |
+|---|---|---|---|---|
+| 1 | Recruit | 0 | — | stock tank |
+| 2 | Private | 100 | engine +10% | one white stripe on the engine deck |
+| 3 | Corporal | 250 | faster reload when holding fire | two stripes |
+| 4 | Sergeant | 480 | shells 20% faster | radio antenna |
+| 5 | Lieutenant | 800 | **armor plate**: soaks one hit, renewed every life | riveted steel skirts (they vanish when the plate breaks) |
+| 6 | Captain | 1200 | engine +20% | stripes turn gold |
+| 7 | Major | 1700 | every life starts with at least one star | gold star on the turret |
+| 8 | Colonel | 2300 | rapid reload | gold-trimmed skirts |
+| 9 | General | 3000 | double armor plate | second antenna |
+| 10 | Marshal | 3800 | a broken plate grows back after 30 s | all-gold skirts and a golden glow |
+
+A promotion plays a fanfare, flashes the tank and shows the new rank and perk at the top of the field; it also
+comes with fresh plates. The side panel shows each player's level (`L5`) with an XP bar beside the lives, and the
+score tally shows the level and the XP earned in the stage. Settings → XP AND LEVELS: on/off, XP rate, perks on or
+*looks only*, start level, XP lost on death (0% by default; only progress towards the next level, never a level)
+and *show ranks and perks*, a screen with every rank's tank.
+
 ## Online play
 
 Play with friends over the internet, peer-to-peer: the game data goes directly between your computers, with no
@@ -137,7 +169,7 @@ something takes its price off your score. In 2-player games player I shops first
 | Item | Price | Effect |
 |---|---|---|
 | Extra life | 5000 | one more tank |
-| Star | 3000 | upgrade your tank one level (up to 3) |
+| Star | 3000 | upgrade your tank one star (up to 3) |
 | Gun | 8000 | max level and tree cutting |
 | Ship | 3000 | cross water; the boat soaks one hit |
 | Mines | 1500 | adds mines (3 by default) for the B button |
@@ -171,6 +203,7 @@ in the browser, and **RESET TO DEFAULTS** restores the classic game.
 | Section | Settings (default) |
 |---|---|
 | Player | lives (3, or infinite), I-player / II-player tank color (yellow / green, 12 colors), tank speed (100%), shell speed (100%), start stars (0), keep stars on death (off), spawn shield (3 s), extra life at 20K (once / every / off), friendly fire (freeze / off) |
+| XP and levels | XP and levels (on), XP rate (100%), level perks (on / looks only), start level (1), XP lost on death (0%), *show ranks and perks* |
 | Enemies | tanks per stage (20, from 1 to 99), max on screen (4, up to 20, +2 in 2P), spawn rate, fire rate, base hunting (all 100%), flashing bonus tanks (on) |
 | Basic / fast / power / armor tank | speed (100%), shell speed (100%), hits to destroy (1 / 1 / 1 / 4) |
 | Power-ups | helmet time (10 s), clock time (10 s), shovel time (20 s), new power-up time (15 s), mines per pickup (3) |

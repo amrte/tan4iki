@@ -126,6 +126,28 @@ function checkExtraLife(p) {
   return true;
 }
 
+// ------------------------------------------------------------ XP ranks
+// level (1-10) reached with this much XP, capped by nothing but the table
+function rankFor(xp) {
+  let r = 1;
+  while (r < RANKS.length && xp >= RANKS[r].xp) r++;
+  return r;
+}
+
+// what a rank gives (see RANKS); "LOOKS ONLY" keeps the looks but no perks
+function rankPerks(level) {
+  if (!Config.xpOn() || Config.get('perks') !== 'ON') level = 1;
+  return {
+    speed: level >= 6 ? 1.2 : level >= 2 ? 1.1 : 1,
+    reload: level >= 8 ? 8 : level >= 3 ? 11 : 14,   // frames between shots while fire is held
+    shell: level >= 4 ? 1.2 : 1,
+    plates: level >= 9 ? 2 : level >= 5 ? 1 : 0,
+    star: level >= 7 ? 1 : 0,
+    repair: level >= 10,
+  };
+}
+const PLATE_REPAIR = 1800;   // frames for a marshal's plate to grow back
+
 class Tank {
   constructor(o) {
     this.x = 0; this.y = 0; this.dir = 0; this.acc = 0; this.animTick = 0; this.anim = 0;
@@ -135,12 +157,16 @@ class Tank {
     this.speed = 0.75; this.bulletSpeed = 2.5; this.maxBullets = 1;
     this.boost = {};   // active timed power-ups: name -> frames left
     this.mines = 0;    // mines carried by an enemy tank
+    this.plates = 0;   // armour plates (XP perk): each one soaks a hit
+    this.repair = 0;
+    this.glow = 0;     // level-up flash
     Object.assign(this, o);
   }
   applyLevel() {
-    const p = this.player, lv = p.level;
-    this.speed = 0.75 * Config.scale('pSpeed');
-    this.bulletSpeed = (lv >= 1 ? 4.5 : 2.5) * Config.scale('pShell');
+    const p = this.player, lv = p.level, perk = rankPerks(p.rank || 1);
+    this.speed = 0.75 * Config.scale('pSpeed') * perk.speed;
+    this.bulletSpeed = (lv >= 1 ? 4.5 : 2.5) * Config.scale('pShell') * perk.shell;
+    this.reload = perk.reload;
     this.maxBullets = lv >= 2 ? 2 : 1;
     this.power = lv >= 3;
     this.cutter = p.cutter;
@@ -185,6 +211,7 @@ class Stage {
     this.dirty = true;
     for (const p of players) {
       p.kills = [0, 0, 0, 0];
+      if (!opts.snapshot) p.stageXp = 0;
       p.tank = null;
       if (!p.out && !opts.snapshot) this.spawnPlayer(p, 0);
       // a shovel charge bought in the shop fortifies the eagle from the start
@@ -202,7 +229,7 @@ class Stage {
   // Everything needed to resume this stage later (shells in flight and effects are dropped).
   snapshot() {
     const tankKeys = ['x', 'y', 'dir', 'isPlayer', 'type', 'hp', 'bonus', 'shield', 'frozen', 'ship', 'cutter', 'power',
-      'speed', 'bulletSpeed', 'maxBullets', 'boost', 'mines'];
+      'speed', 'bulletSpeed', 'maxBullets', 'boost', 'mines', 'plates', 'repair'];
     return {
       cols: COLS, rows: ROWS,
       terrain: Array.from(this.terrain).join(''),
@@ -334,6 +361,9 @@ class Stage {
       } else {
         const p = s.player;
         const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, player: p, shield: Config.frames('spawnShield') });
+        const perk = rankPerks(p.rank || 1);
+        p.level = Math.max(p.level, perk.star);
+        t.plates = perk.plates;
         t.applyLevel();
         p.tank = t;
         // items bought in the shop take effect on the first spawn of the stage
@@ -371,7 +401,8 @@ class Stage {
     for (const f of this.fx) f.tick++;
     this.fx = this.fx.filter(f => f.tick < f.frames.length * f.per); // negative tick = delayed
     for (const p of this.popups) p.t++;
-    this.popups = this.popups.filter(p => p.t < p.delay + 48);
+    this.popups = this.popups.filter(p => p.t < p.delay + (p.life || 48));
+    if (this.rankMsg && --this.rankMsg.t <= 0) this.rankMsg = null;
 
     // engine hum
     const pt = this.tanks.filter(t => t.isPlayer);
@@ -383,6 +414,7 @@ class Stage {
       if (this.overTimer >= 320) this.result = 'gameover';
     } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer) && !this.bossAlive()) {
       this.clearTimer++;
+      if (this.clearTimer === 1) for (const p of this.players) if (!p.out) this.addXp(p, 25);
       if (this.clearTimer >= 190) this.result = 'clear';
     }
   }
@@ -402,6 +434,15 @@ class Stage {
   updatePlayer(t) {
     const p = t.player;
     if (t.shield > 0) t.shield--;
+    if (t.glow > 0) t.glow--;
+    // a marshal's armour plates grow back
+    const perk = rankPerks(p.rank || 1);
+    if (perk.repair && t.plates < perk.plates && ++t.repair >= PLATE_REPAIR) {
+      t.repair = 0;
+      t.plates++;
+      Sound.play('build');
+      this.popups.push({ x: t.x + 8, y: t.y, text: 'PLATE', label: true, color: COL.lgrey, t: 0, delay: 0 });
+    }
     if (t.cool > 0) t.cool--;
     if (t.frozen > 0) { t.frozen--; t.moving = false; return; }
     if (this.over || this.freezeP > 0) { t.moving = false; t.slide = 0; return; }
@@ -425,7 +466,7 @@ class Stage {
     const firePressed = inp.firePressed || (!hasMines && inp.altPressed);
     const fireHeld = inp.fire || (!hasMines && inp.alt);
     if (firePressed || (fireHeld && t.cool === 0)) {
-      if (this.fire(t)) t.cool = t.boost.rapid ? 5 : 14;
+      if (this.fire(t)) t.cool = t.boost.rapid ? 5 : t.reload || 14;
     }
   }
 
@@ -759,6 +800,7 @@ class Stage {
     if (award && by && by.isPlayer) {
       const p = by.player, pts = ENEMY[t.type].pts;
       p.kills[t.type]++;
+      this.addXp(p, XP_KILL[t.type] + (t.bonus ? 5 : 0));
       this.addScore(p, pts);
       this.popups.push({ x: t.x + 8, y: t.y + 8, text: String(pts), t: 0, delay: 25 });
     }
@@ -767,6 +809,16 @@ class Stage {
   hitPlayer(t) {
     if (!t.alive || t.shield > 0) return;
     const p = t.player;
+    if (t.plates > 0) {
+      // an armour plate (XP perk) breaks instead of the tank
+      t.plates--;
+      t.repair = 0;
+      t.shield = 60;
+      this.addFx(t.x + 8, t.y + 8, [Sprites.smallExp[0]], 6);
+      Sound.play('armor');
+      Input.rumble(p.i, 0.4, 120);
+      return;
+    }
     if (t.ship) {
       // the boat soaks one hit
       t.ship = false;
@@ -783,6 +835,12 @@ class Stage {
     if (!Config.on('keepStars')) {
       p.level = Config.get('startStars');
       p.cutter = false;
+    }
+    // optional: lose part of the progress towards the next level (never a whole level)
+    const loss = Config.get('xpLoss');
+    if (Config.xpOn() && loss) {
+      const floor = RANKS[p.rank - 1].xp;
+      p.xp = Math.max(floor, p.xp - Math.round((p.xp - floor) * loss / 100));
     }
     p.tank = null;
     if (Config.infiniteLives()) {
@@ -810,6 +868,32 @@ class Stage {
   addScore(p, n) {
     p.score += n;
     if (checkExtraLife(p)) Sound.play('life');
+  }
+
+  // ------------------------------------------------------------ XP
+  addXp(p, n) {
+    if (!p || !Config.xpOn()) return;
+    n = Math.round(n * Config.scale('xpRate'));
+    if (n <= 0) return;
+    p.xp += n;
+    p.stageXp = (p.stageXp || 0) + n;
+    const r = rankFor(p.xp);
+    if (r > p.rank) this.rankUp(p, r);
+  }
+
+  rankUp(p, r) {
+    p.rank = r;
+    const perk = rankPerks(r), t = p.tank;
+    if (perk.star > p.level) p.level = perk.star;
+    if (t) {
+      t.plates = Math.max(t.plates, perk.plates);   // promotion comes with fresh plates
+      t.applyLevel();
+      t.glow = 90;
+      this.popups.push({ x: t.x + 8, y: t.y, text: 'LEVEL UP!', label: true, color: COL.gold, t: 0, delay: 0, life: 90 });
+    }
+    this.rankMsg = { p, r, t: 240 };
+    Sound.play('levelUp');
+    Input.rumble(p.i, 0.5, 200);
   }
 
   addFx(x, y, frames, per) {
@@ -858,6 +942,7 @@ class Stage {
       const p = t.player;
       let snd = 'pickup';
       this.addScore(p, 500);
+      this.addXp(p, 5);
       if (POWERUPS[pu.type].isNew) this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: POWERUPS[pu.type].name, label: true, color: COL.white, t: 0, delay: 0 });
       else this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: '500', t: 0, delay: 0 });
       if (TIMED_BOOSTS[pu.type]) t.boost[TIMED_BOOSTS[pu.type]] = Config.frames('newTime');
@@ -950,7 +1035,17 @@ class Stage {
       else pal = 'silver';
     }
     if (t.boost.ghost) ctx.globalAlpha = (this.frame >> 2) & 1 ? 0.35 : 0.6;
-    ctx.drawImage(Sprites.tank(spec, t.anim, t.dir, pal), t.x, t.y);
+    if (t.isPlayer) {
+      // the tank wears its XP rank; a marshal (level 10) and a fresh promotion glow
+      const lv = Config.xpOn() ? t.player.rank || 1 : 1;
+      const img = Sprites.rankTank(spec, t.anim, t.dir, pal, lv, t.plates > 0);
+      if (t.glow > 0 ? (t.glow >> 2) & 1 : lv >= 10 && (this.frame & 31) < 20) {
+        ctx.drawImage(Sprites.outline(img, t.glow > 0 ? COL.white : COL.gold), t.x - 1, t.y - 1);
+      }
+      ctx.drawImage(img, t.x, t.y);
+    } else {
+      ctx.drawImage(Sprites.tank(spec, t.anim, t.dir, pal), t.x, t.y);
+    }
     ctx.globalAlpha = 1;
     if (t.shield > 0) ctx.drawImage(Sprites.shield[(this.frame >> 1) & 1], t.x, t.y);
   }
@@ -1017,8 +1112,36 @@ class Stage {
       Font.draw(ctx, 'OVER', FW / 2 - 15, y + 9, COL.red);
     }
     this.renderBossBanner(ctx);
+    this.renderRankMsg(ctx);
     ctx.restore();
     this.renderHud(ctx);
+  }
+
+  // promotion banner at the top of the field: "II-PLAYER LEVEL 5" / rank name / new perk
+  renderRankMsg(ctx) {
+    const m = this.rankMsg;
+    if (!m) return;
+    const rk = RANKS[m.r - 1], who = this.players.length > 1 ? ROMAN[m.p.i] + '-PLAYER ' : '';
+    const perk = Config.get('perks') === 'ON' ? rk.perk : '';
+    const lines = [[who + 'LEVEL ' + m.r, COL.gold], [rk.name, COL.white]].concat(perk ? [[perk, COL.lgrey]] : []);
+    const w = Math.min(FW, Math.max(...lines.map(l => l[0].length)) * 8 + 12), h = lines.length * 10 + 6;
+    const x = (FW - w) >> 1, y = 16 + (m.t > 225 ? (m.t - 225) * -2 : 0);
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(x, y, w, h);
+    lines.forEach(([text, c], i) => Font.drawCenter(ctx, text, FW / 2, y + 4 + i * 10, c));
+  }
+
+  // XP bar for player p: a vertical strip (x, y, height) filling upwards, in the player's colour
+  renderXpBar(ctx, p, x, y, h) {
+    const r = p.rank || 1, lo = RANKS[r - 1].xp, hi = r < RANKS.length ? RANKS[r].xp : lo;
+    const frac = r >= RANKS.length ? 1 : Math.min(1, (p.xp - lo) / (hi - lo));
+    ctx.fillStyle = '#383838';
+    ctx.fillRect(x, y, 3, h);
+    const f = Math.round((h - 2) * frac);
+    ctx.fillStyle = r >= RANKS.length && (this.frame & 16) ? COL.gold : PALS[Config.playerPal(p.i)][2];
+    ctx.fillRect(x + 1, y + h - 1 - f, 1, f);
+    ctx.fillStyle = PALS[Config.playerPal(p.i)][1];
+    ctx.fillRect(x + 2, y + h - 1 - f, 1, f);
   }
 
   renderHud(ctx) {
@@ -1028,32 +1151,43 @@ class Stage {
     // more than 20 waiting: show how many in total
     if (n && this.queue.length > 20) Font.drawCenter(ctx, String(this.queue.length), H + 8, 106, COL.black);
     const lives = p => (Config.infiniteLives() ? '~' : String(Math.min(99, p.lives)));
+    const xp = Config.xpOn();
     if (this.players.length > 2) {
       // 3-4 players: one compact row each, the tank icon in the player's colour
       this.players.forEach((p, i) => {
-        const y = 128 + i * 14;
+        const y = xp ? 121 + i * 15 : 128 + i * 14;
         ctx.drawImage(Sprites.playerIcon(Config.playerPal(i)), H, y);
         Font.draw(ctx, lives(p), H + 8, y, COL.black);
-        if (p.mines) { ctx.fillStyle = '#505050'; for (let k = 0; k < Math.min(3, p.mines); k++) ctx.fillRect(H + 1 + k * 3, y + 9, 2, 2); }
+        if (xp) {
+          ctx.drawImage(Sprites.mini('L' + (p.rank || 1)), H, y + 8);
+          this.renderXpBar(ctx, p, H + 18, y, 15);
+          ctx.fillStyle = '#505050';
+          for (let k = 0; k < Math.min(4, p.mines || 0); k++) ctx.fillRect(H + 22, y + 1 + k * 3, 2, 2);
+        } else if (p.mines) {
+          ctx.fillStyle = '#505050';
+          for (let k = 0; k < Math.min(3, p.mines); k++) ctx.fillRect(H + 1 + k * 3, y + 9, 2, 2);
+        }
       });
       ctx.drawImage(Sprites.flag, H, 184);
       Font.drawRight(ctx, String(this.num), H + 16, 200, COL.black);
       return;
     }
-    Font.draw(ctx, 'IP', H, 136, COL.black);
-    ctx.drawImage(Sprites.lifeIcon, H, 144);
-    Font.draw(ctx, lives(this.players[0]), H + 8, 144, COL.black);
-    if (this.players[1]) {
-      Font.draw(ctx, 'IIP', H, 160, COL.black);
-      ctx.drawImage(Sprites.lifeIcon, H, 168);
-      Font.draw(ctx, lives(this.players[1]), H + 8, 168, COL.black);
-    }
-    // mines carried
+    // 1-2 players: label, lives, mines carried and (with XP on) the level and XP bar
     this.players.forEach((p, i) => {
-      if (!p.mines) return;
-      const y = i === 0 ? 152 : 176;
-      ctx.drawImage(Sprites.mine[0], H, y);
-      Font.draw(ctx, String(Math.min(9, p.mines)), H + 8, y, COL.black);
+      const y = xp ? 122 + i * 30 : 136 + i * 24;
+      Font.draw(ctx, i ? 'IIP' : 'IP', H, y, COL.black);
+      ctx.drawImage(Sprites.lifeIcon, H, y + 8);
+      Font.draw(ctx, lives(p), H + 8, y + 8, COL.black);
+      if (xp) {
+        // level, XP bar beside the lives, mines as dots underneath
+        ctx.drawImage(Sprites.mini('L' + (p.rank || 1)), H, y + 17);
+        this.renderXpBar(ctx, p, H + 18, y + 8, 18);
+        ctx.fillStyle = '#505050';
+        for (let k = 0; k < Math.min(5, p.mines || 0); k++) ctx.fillRect(H + 1 + k * 3, y + 25, 2, 2);
+      } else if (p.mines) {
+        ctx.drawImage(Sprites.mine[0], H, y + 16);
+        Font.draw(ctx, String(Math.min(9, p.mines)), H + 8, y + 16, COL.black);
+      }
     });
     ctx.drawImage(Sprites.flag, H, 184);
     Font.drawRight(ctx, String(this.num), H + 16, 200, COL.black);

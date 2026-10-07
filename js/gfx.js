@@ -174,6 +174,57 @@ function genHull(dir) {
   return gridCanvas(g, [null, '#E8F0FF', '#2C48F0']);
 }
 
+// ------------------------------------------------------------------ rank (XP level) looks
+// Extra palette entries used by the rank decorations; 1-3 stay the player's own colours.
+const RANK_INK = { 4: '#F8F8F8', 5: '#BCBCBC', 6: '#6C6C6C', 7: '#F8D030', 8: '#000000' };
+
+// Paint rank details onto a tank grid (facing up), level 1-10:
+//   2-3 white stripes on the engine deck · 4+ radio antenna · 5+ armour skirts while the plate holds
+//   6+ stripes turn gold · 7+ star on the turret · 8+ gold-trimmed skirts · 9+ second antenna
+//   10 all-gold skirts (and an animated glow, drawn in Stage.drawTank)
+function decorateTank(rows, level, plate) {
+  const g = parseGrid(rows);
+  let minX = 16, maxX = -1, minY = 16, maxY = -1;
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) if (g[y][x]) {
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+  }
+  const ink = level >= 6 ? 7 : 4, K = 8;
+  // engine-deck stripes: short bars across the back of the hull, with black gaps so they read on any colour
+  let rear = maxY;
+  while (rear > minY && !(g[rear][7] && g[rear][8])) rear--;
+  const stripes = Math.min(2, level - 1);
+  for (let s = 0; s < stripes; s++) {
+    for (let x = 6; x <= 9; x++) {
+      if (g[rear - s * 2][x]) g[rear - s * 2][x] = ink;
+      if (g[rear - s * 2 - 1][x]) g[rear - s * 2 - 1][x] = K;
+    }
+  }
+  // star on the turret: a small black-edged diamond
+  if (level >= 7) {
+    const cy = Math.round((minY + maxY) / 2) - 1;
+    ['.KK.', 'KSSK', 'KSSK', '.KK.'].forEach((r, j) => {
+      for (let i = 0; i < 4; i++) if (r[i] !== '.') g[cy + j][6 + i] = r[i] === 'K' ? K : 7;
+    });
+  }
+  // armour skirts: a riveted steel plate outside each track
+  const skirt = plate && level >= 5;
+  if (skirt) {
+    for (const x of [minX - 1, maxX + 1]) {
+      if (x < 0 || x > 15) continue;
+      for (let y = minY + 1; y <= maxY - 1; y++) {
+        const edge = y === minY + 1 || y === maxY - 1;
+        const rivet = (y - minY) % 3 === 0;
+        g[y][x] = level >= 10 ? (rivet ? 8 : 7) : level >= 8 && edge ? 7 : rivet ? 6 : 5;
+      }
+    }
+  }
+  // radio antennas at the rear corners
+  const whip = x => { g[Math.min(15, maxY)][x] = 4; if (maxY < 15) g[maxY + 1][x] = 4; };
+  if (level >= 4) whip(Math.max(0, minX - (skirt ? 1 : 0)));
+  if (level >= 9) whip(Math.min(15, maxX + (skirt ? 1 : 0)));
+  return g;
+}
+
 function genBullet(dir, color = '#C6C6C6') {
   return rotatedCanvas(['..1.', '.111', '.111', '.111'], dir, [null, color]);
 }
@@ -211,6 +262,36 @@ const Sprites = {
       this.cache.set(k, c);
     }
     return c;
+  },
+  // a player tank wearing its rank (XP level); plate = armour plate still intact
+  rankTank(spec, frame, dir, pal, level, plate) {
+    if (level <= 1) return this.tank(spec, frame, dir, pal);
+    const k = 'r' + spec + frame + dir + pal + level + (plate ? 'p' : '');
+    let c = this.cache.get(k);
+    if (!c) {
+      let g = decorateTank(TANK_GRIDS[spec][frame], level, plate);
+      for (let i = 0; i < dir; i++) g = rotGrid(g);
+      c = gridCanvas(g, Object.assign([], PALS[pal], RANK_INK));
+      this.cache.set(k, c);
+    }
+    return c;
+  },
+  // 1px outline around a sprite (level-10 glow)
+  outline(src, color) {
+    const k = src;
+    let c = this.outlines && this.outlines.get(k);
+    if (!this.outlines) this.outlines = new WeakMap();
+    if (c && c.color === color) return c.canvas;
+    const w = src.width, h = src.height, d = src.getContext('2d').getImageData(0, 0, w, h).data;
+    const out = makeCanvas(w + 2, h + 2), x = out.getContext('2d');
+    x.fillStyle = color;
+    const on = (i, j) => i >= 0 && j >= 0 && i < w && j < h && d[(j * w + i) * 4 + 3] > 0;
+    for (let j = -1; j <= h; j++) for (let i = -1; i <= w; i++) {
+      if (on(i, j)) continue;
+      if (on(i - 1, j) || on(i + 1, j) || on(i, j - 1) || on(i, j + 1)) x.fillRect(i + 1, j + 1, 1, 1);
+    }
+    this.outlines.set(k, { color, canvas: out });
+    return out;
   },
   // score pop-up ("100" ... "500")
   mini(text) {
