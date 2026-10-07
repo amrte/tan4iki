@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.10</title>
+  <title>tanb4iki_v0.11</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.10';
+const APP_VERSION = '0.11';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -1822,6 +1822,33 @@ const BASE_ICON_MASKS = [
     '..X.....X...', '.XXX...XXX..', 'XXXXX.XXXXX.', '.XXX...XXX..', '..X.....X...', '.....X......', '....XXX.....', '...XXXXX....', '....XXX.....', '.....X......', '............'],
 ];
 
+// Turret: grey base plate (rotates never) and a gun in the owner's colours (rotated to aim)
+const TURRET_BASE_GRID = [
+  '................', '...3333333333...', '..322222222223..', '.32211111111223.', '.32122222222123.', '.32122222222123.',
+  '.32122233222123.', '.32122333322123.', '.32122333322123.', '.32122233222123.', '.32122222222123.', '.32122222222123.',
+  '.32211111111223.', '..322222222223..', '...3333333333...', '................',
+];
+const TURRET_GUN_GRID = [
+  '................', '.......11.......', '.......12.......', '.......12.......', '.......12.......', '.......12.......',
+  '......1223......', '.....122223.....', '.....122223.....', '.....122223.....', '.....122223.....', '......3333......',
+  '................', '................', '................', '................',
+];
+// Airstrike plane, flying right
+const PLANE_GRID = [
+  '................', '................', '.....33.........', '.....323........', '......323.......', '..3....3223.....',
+  '..33333222213...', '.32222222222111.', '..33333222213...', '..3....3223.....', '......323.......', '.....323........',
+  '.....33.........', '................', '................', '................',
+];
+// Power-up icons for the newest additions (shapes only, framed like the others)
+const EXTRA_POWERUP_MASKS = {
+  turret: ['.....XX.....', '.....XX.....', '....XXXX....', '...XXXXXX...', '...XXXXXX...', '....XXXX....',
+    '...X.XX.X...', '..X..XX..X..', '.X...XX...X.', 'X....XX....X', '............'],
+  revive: ['............', '.XXX...XXX..', 'XXXXX.XXXXX.', 'XXXXXXXXXXX.', 'XXXXXXXXXXX.', '.XXXXXXXXX..',
+    '..XXXXXXX...', '...XXXXX....', '....XXX.....', '.....X......', '............'],
+  airstrike: ['.....XX.....', '.....XX.....', '....XXXX....', 'XXXXXXXXXXXX', 'XXXXXXXXXXXX', '....XXXX....',
+    '.....XX.....', '.....XX.....', '...XXXXXX...', '...XXXXXX...', '............'],
+};
+
 </script>
   <script>
 'use strict';
@@ -2065,6 +2092,27 @@ function decorateTank(rows, level, plate) {
   return g;
 }
 
+// ------------------------------------------------------------------ Claude
+// The Claude sparkle: an orange starburst of uneven rays. frame 0/1 nudges the rays (a little walk wobble).
+const CLAUDE_INK = [null, '#F0A080', '#D97757', '#A8503A'];
+function claudeGrid(n, frame) {
+  const rays = 12, len = [1, 0.7, 0.92, 0.64, 0.97, 0.76, 1, 0.68, 0.9, 0.6, 0.95, 0.74], c = n / 2, R = n / 2 - 0.2;
+  const phase = frame ? 0.2 : 0;
+  const g = [];
+  for (let y = 0; y < n; y++) {
+    const row = [];
+    for (let x = 0; x < n; x++) {
+      const dx = x + 0.5 - c, dy = y + 0.5 - c, r = Math.hypot(dx, dy);
+      let a = Math.atan2(dy, dx) / (Math.PI * 2) * rays - phase;
+      const k = ((Math.round(a) % rays) + rays) % rays, d = (a - Math.round(a)) * (Math.PI * 2 / rays);
+      const ray = Math.abs(r * Math.sin(d)) < (n > 12 ? 0.75 : 0.62) && Math.cos(d) > 0 && r < len[k] * R;
+      row.push(r < 1.5 || ray ? (r < 1 ? 1 : 2) : 0);
+    }
+    g.push(row);
+  }
+  return g;
+}
+
 function genBullet(dir, color = '#C6C6C6') {
   return rotatedCanvas(['..1.', '.111', '.111', '.111'], dir, [null, color]);
 }
@@ -2085,6 +2133,18 @@ const Sprites = {
     this.bigExp = BIG_EXPLOSION_GRIDS.map(r => g(r, EXPLOSION_PAL));
     this.powerups = POWERUP_GRIDS.concat(NEW_POWERUP_MASKS.map(framedIcon)).map(r => g(r, POWERUP_PAL));
     this.baseIcons = BASE_ICON_MASKS.map(m => g(framedIcon(m), [null, '#FCE4A0', '#E45C10', '#7C1C00']));
+    // power-ups 16-19: turret, Claude (an orange sparkle in the usual teal frame), revive, airstrike
+    const claudeMask = claudeGrid(11, 0).map(r => '.' + r.map(v => (v ? 'X' : '.')).join('')).map(r => r.slice(0, 12));
+    const claudeIcon = parseGrid(framedIcon(claudeMask));
+    for (let y = 0; y < 11; y++) for (let x = 0; x < 12; x++) if (claudeMask[y][x] === 'X') claudeIcon[y + 3][x + 2] = claudeIcon[y + 3][x + 2] === 1 ? 5 : 4;
+    this.powerups.push(
+      g(framedIcon(EXTRA_POWERUP_MASKS.turret), POWERUP_PAL),
+      gridCanvas(claudeIcon, POWERUP_PAL.concat(['#D97757', '#F0A080'])),
+      g(framedIcon(EXTRA_POWERUP_MASKS.revive), POWERUP_PAL),
+      g(framedIcon(EXTRA_POWERUP_MASKS.airstrike), POWERUP_PAL));
+    this.claude = [0, 1].map(f => gridCanvas(claudeGrid(16, f), CLAUDE_INK));
+    this.turretBase = g(TURRET_BASE_GRID, [null, '#BCBCBC', '#7C7C7C', '#3C3C3C']);
+    this.plane = [0, 1, 2, 3].map(d => rotatedCanvas(PLANE_GRID, (d + 3) % 4, [null, '#F8F8F8', '#ADADAD', '#505050']));
     this.mine = [g(MINE_GRID, [null, '#ADADAD', '#505050', '#E04030']), g(MINE_GRID, [null, '#ADADAD', '#505050', '#600000'])];
     this.hull = [0, 1, 2, 3].map(genHull);
     this.bullet = [0, 1, 2, 3].map(d => genBullet(d));
@@ -2102,6 +2162,13 @@ const Sprites = {
       c = rotatedCanvas(TANK_GRIDS[spec][frame], dir, PALS[pal]);
       this.cache.set(k, c);
     }
+    return c;
+  },
+  // turret gun in a palette, aimed in dir
+  turretGun(dir, pal) {
+    const k = 'tg' + dir + pal;
+    let c = this.cache.get(k);
+    if (!c) { c = rotatedCanvas(TURRET_GUN_GRID, dir, PALS[pal]); this.cache.set(k, c); }
     return c;
   },
   // a player tank wearing its rank (XP level); plate = armour plate still intact
@@ -2206,6 +2273,10 @@ const POWERUPS = [
   { name: 'MINES', weight: 2, isNew: true, desc: 'DROP MINES WITH B BUTTON' },
   { name: 'GHOST', weight: 1, isNew: true, desc: 'DRIVE THROUGH BRICK+WATER' },
   { name: 'COIN', weight: 2, isNew: true, desc: '1000 BONUS POINTS' },
+  { name: 'TURRET', weight: 2, isNew: true, desc: 'DROPS A TURRET THAT SHOOTS' },
+  { name: 'CLAUDE', weight: 1, isNew: true, desc: 'CLAUDE EATS ENEMY TANKS', who: 'PLAYER' },
+  { name: 'REVIVE', weight: 1, isNew: true, desc: 'BRINGS FALLEN PLAYERS BACK' },
+  { name: 'AIRSTRIKE', weight: 1, isNew: true, desc: 'BOMBS THE BUSIEST ROW' },
 ];
 
 // XP ranks: total XP needed for each level (1-10), and the perk it unlocks (descriptions max 22 chars)
@@ -2247,6 +2318,8 @@ const SETTINGS_DEF = [
   { key: 'spawnShield', label: 'SPAWN SHIELD', values: SECS, def: 3, fmt: fmtSec },
   { key: 'extraLife', label: 'EXTRA LIFE AT 20K', values: ['ONCE', 'EVERY', 'OFF'], def: 'ONCE' },
   { key: 'friendlyFire', label: 'FRIENDLY FIRE', values: ['FREEZE', 'OFF'], def: 'FREEZE' },
+  // points a fallen player (or a teammate) pays to come back: FIRE during play, or REVIVE in the shop
+  { key: 'reviveCost', label: 'REVIVE COST', values: ['OFF', 2500, 5000, 7500, 10000], def: 7500 },
 
   { section: 'XP AND LEVELS' },
   { key: 'xp', label: 'XP AND LEVELS', values: ONOFF, def: 'ON' },
@@ -2349,7 +2422,7 @@ const SETTINGS_DEF = [
   // who may collect each power-up: ANYONE (players and enemies), PLAYER only, or OFF (never appears)
   { section: 'WHO CAN COLLECT' },
   ...POWERUPS.map((pu, i) => ({
-    key: 'pu' + i, label: pu.name + (pu.isNew ? ' *' : ''), values: ['ANYONE', 'PLAYER', 'OFF'], def: 'ANYONE', powerup: i,
+    key: 'pu' + i, label: pu.name + (pu.isNew ? ' *' : ''), values: ['ANYONE', 'PLAYER', 'OFF'], def: pu.who || 'ANYONE', powerup: i,
   })),
   { action: 'classicPU', label: 'CLASSIC POWER-UPS ONLY' },
   { action: 'allPU', label: 'ALL POWER-UPS ON' },
@@ -2652,6 +2725,22 @@ const Sound = {
         break;
       case 'split': // splitter breaks in two
         this.seq([67, 60], 0.06, t, { vol: 0.12, decayTo: 0.3 });
+        break;
+      case 'claude': { // Claude's happy chirps: a random little tune each time
+        const tunes = [[84, 88, 91], [91, 86], [79, 84, 79, 88], [88, 0, 88, 93], [76, 83, 88, 95], [93, 88, 84, 81]];
+        const tune = tunes[Math.floor(Math.random() * tunes.length)];
+        this.seq(tune, 0.05 + Math.random() * 0.03, t, { vol: 0.09, decayTo: 0.5, wave: Math.random() < 0.5 ? 'p25' : 'p12' });
+        break;
+      }
+      case 'nom': // munch munch
+        this.seq([52, 0, 52], 0.05, t, { vol: 0.16, decayTo: 0.3 });
+        this.noise(3000, t, [[0, 0.08], [0.05, 0], [0.1, 0.08], [0.15, 0]]);
+        break;
+      case 'claudeBye':
+        this.seq([88, 84, 79, 76, 72], 0.06, t, { vol: 0.09, decayTo: 0.5, wave: 'p25' });
+        break;
+      case 'plane': // a plane roars over
+        this.noise(2600, t, [[0, 0], [0.4, 0.12], [1.1, 0.12], [1.6, 0]], 7000);
         break;
       case 'levelUp': // promotion fanfare
         this.seq([67, 72, 76, 79, 0, 79, 84], 0.07, t, { vol: 0.15, decayTo: 0.55 });
@@ -3259,6 +3348,7 @@ const PU = {
   HELMET: 0, CLOCK: 1, SHOVEL: 2, STAR: 3, GRENADE: 4, TANK: 5, GUN: 6, SHIP: 7,
   // additions that were not in the original game
   TURBO: 8, RAPID: 9, SPREAD: 10, PIERCE: 11, ROCKET: 12, MINES: 13, GHOST: 14, COIN: 15,
+  TURRET: 16, CLAUDE: 17, REVIVE: 18, AIRSTRIKE: 19,   // see extras.js
 };
 // timed effects granted by the new power-ups (stored per tank in t.boost)
 const TIMED_BOOSTS = { [PU.TURBO]: 'turbo', [PU.RAPID]: 'rapid', [PU.SPREAD]: 'spread', [PU.PIERCE]: 'pierce', [PU.ROCKET]: 'rocket', [PU.GHOST]: 'ghost' };
@@ -3445,6 +3535,7 @@ class Stage {
     this.mines = [];
     this.bosses = []; this.beams = []; this.tracks = []; this.dust = [];
     this.flames = []; this.shells = []; this.heals = []; this.mark = null; this.jamList = [];   // see enemies.js
+    this.turrets = []; this.claudes = []; this.strikes = []; this.reviveWait = 0;              // see extras.js
     this.applyBase(opts.base);                 // base upgrades from the shop (base.js)
     this.origTerrain = this.terrain.slice();   // what a mason rebuilds
     this.lastBrickSound = -1;
@@ -3504,6 +3595,8 @@ class Stage {
       }),
       kills: this.players.map(p => p.kills.slice()),
       eagleArmor: this.eagleArmor,
+      turrets: this.turrets.map(tu => Object.assign({}, tu, { owner: tu.owner ? tu.owner.i : -1 })),
+      claudes: this.claudes.map(c => Object.assign({}, c, { p: c.p ? c.p.i : -1 })),
       boss: this.bossIdx === undefined ? null : {
         idx: this.bossIdx, loop: this.bossLoop, dropAt: this.bossDropAt, defeated: !!this.bossDefeated,
         bosses: this.bosses.map(b => Object.assign({}, b, { bullets: 0 })),
@@ -3516,6 +3609,8 @@ class Stage {
     this.dirty = true;
     for (const k of ['queue', 'total', 'killed', 'spawnTimer', 'spawnPos', 'spawnInterval', 'maxEnemies', 'freezeE', 'freezeP', 'shovel', 'baseAlive', 'frame', 'powerup']) this[k] = sn[k];
     if (sn.eagleArmor !== undefined) this.eagleArmor = sn.eagleArmor;
+    this.turrets = (sn.turrets || []).map(tu => Object.assign({}, tu, { owner: this.players[tu.owner] || null }));
+    this.claudes = (sn.claudes || []).map(c => Object.assign({}, c, { p: this.players[c.p] || null }));
     this.spawns = [];
     for (const p of this.players) { p.tank = null; p.kills = zeroKills().map((z, k) => (sn.kills[p.i] || [])[k] || 0); }
     this.tanks = sn.tanks.map(o => {
@@ -3637,6 +3732,7 @@ class Stage {
         if (p.kit) {
           if (p.kit.helmet) t.shield = Math.max(t.shield, Config.frames('helmetTime'));
           for (const k of ['turbo', 'rapid', 'rocket', 'pierce', 'spread', 'ghost']) if (p.kit[k]) t.boost[k] = Config.frames('newTime');
+          if (p.kit.claude) this.summonClaude(t.x, Math.max(0, t.y - 16), p);
           p.kit = null;
         }
         this.tanks.push(t);
@@ -3662,6 +3758,10 @@ class Stage {
     }
     this.updateSpecials();
     this.updateBase();
+    this.updateTurrets();
+    this.updateClaudes();
+    this.updateStrikes();
+    if (!this.over || this.reviveWait > 0) this.updateRevival();
     this.updateBosses();
     this.updateBullets();
     this.updateMines();
@@ -3730,11 +3830,12 @@ class Stage {
         if (!this.move(t, t.dir)) t.slide = 0;
       }
     }
-    // B drops a mine while you carry some; otherwise it fires like A
-    const hasMines = p.mines > 0;
-    if (hasMines && inp.altPressed) { this.dropMine(t); p.mines--; }
-    const firePressed = inp.firePressed || (!hasMines && inp.altPressed);
-    const fireHeld = inp.fire || (!hasMines && inp.alt);
+    // B places a turret / drops a mine while you carry some; otherwise it fires like A
+    const hasTur = p.turrets > 0, hasMines = p.mines > 0, hasB = hasTur || hasMines;
+    if (hasTur && inp.altPressed) { this.placeTurret(t.x, t.y, p, false); p.turrets--; }
+    else if (hasMines && inp.altPressed) { this.dropMine(t); p.mines--; }
+    const firePressed = inp.firePressed || (!hasB && inp.altPressed);
+    const fireHeld = inp.fire || (!hasB && inp.alt);
     if (firePressed || (fireHeld && t.cool === 0)) {
       if (this.fire(t)) t.cool = t.boost.rapid ? 5 : t.reload || 14;
     }
@@ -3876,6 +3977,10 @@ class Stage {
     }
     if (overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
     if (this.bosses.length && this.bossBlocksTank(t, nx, ny)) return false;
+    if (this.turrets.length) {
+      const tu = this.turretAt(nx, ny, 16, 16);
+      if (tu && !overlap(t.x, t.y, 16, 16, tu.x, tu.y, 16, 16)) return false;
+    }
     for (const o of this.tanks) {
       if (o === t || !o.alive) continue;
       if (overlap(nx, ny, 16, 16, o.x, o.y, 16, 16) && !overlap(t.x, t.y, 16, 16, o.x, o.y, 16, 16)) return false;
@@ -3947,6 +4052,7 @@ class Stage {
       return;
     }
     if (this.bulletTerrain(b)) return;
+    if (this.turrets.length && this.bulletTurret(b)) return;
     if (this.bosses.length && this.bossShell(b) === 'stop') return;
     if (overlap(b.x, b.y, 4, 4, BASE_X, BASE_Y, 16, 16)) {
       this.killBullet(b, true);
@@ -3954,7 +4060,7 @@ class Stage {
       return;
     }
     for (const t of this.tanks) {
-      if (!t.alive || t === b.owner || (b.eagle && t.isPlayer)) continue;
+      if (!t.alive || t === b.owner || ((b.eagle || b.passPlayers) && t.isPlayer)) continue;
       if (!overlap(b.x, b.y, 4, 4, t.x, t.y, 16, 16)) continue;
       if (b.pierce) {
         // piercing shells damage each tank once and keep flying
@@ -4166,7 +4272,11 @@ class Stage {
       this.spawnPlayer(p, 30);
     } else {
       p.out = true;
-      if (this.players.every(q => q.out)) this.startOver();
+      // everyone is out: a few seconds to pay for a revival, if anyone can afford it
+      if (this.players.every(q => q.out)) {
+        if (this.players.some(q => this.revivePayer(q))) this.reviveWait = REVIVE_WAIT;
+        else this.startOver();
+      }
     }
   }
 
@@ -4286,6 +4396,15 @@ class Stage {
         case PU.SHIP: p.ship = true; t.ship = true; break;
         case PU.MINES: p.mines = (p.mines || 0) + Config.get('mineCount'); break;
         case PU.COIN: this.addScore(p, 1000); snd = 'bonus'; break;
+        case PU.TURRET: this.placeTurret(pu.x, pu.y, p, false); break;
+        case PU.CLAUDE: this.summonClaude(pu.x, pu.y, p); break;
+        case PU.AIRSTRIKE: this.callAirstrike(true, gunner(p)); break;
+        case PU.REVIVE: {
+          const fallen = this.players.filter(q => q.out);
+          if (fallen.length) fallen.forEach(q => this.revive(q, null));
+          else { p.lives++; snd = 'life'; }
+          break;
+        }
       }
       Sound.play(snd);
     } else {
@@ -4304,6 +4423,16 @@ class Stage {
         case PU.COIN: // the enemy steals points
           for (const q of this.players) q.score = Math.max(0, q.score - 1000);
           this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: '-1000', label: true, color: COL.red, t: 0, delay: 0 });
+          break;
+        case PU.TURRET: this.placeTurret(pu.x, pu.y, null, true); break;
+        case PU.CLAUDE: // Claude doesn't work for them
+          this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: 'NOPE!', label: true, color: '#F0A080', t: 0, delay: 0 });
+          break;
+        case PU.AIRSTRIKE: this.callAirstrike(false, null); break;
+        case PU.REVIVE: // reinforcements
+          for (let k = 0; k < 2; k++) this.queue.push({ type: rnd(4) });
+          this.total += 2;
+          this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: '+2 TANKS', label: true, color: COL.red, t: 0, delay: 0 });
           break;
       }
       if (TIMED_BOOSTS[pu.type]) t.boost[TIMED_BOOSTS[pu.type]] = Config.frames('newTime');
@@ -4409,7 +4538,9 @@ class Stage {
     for (const m of this.mines) ctx.drawImage(Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0], m.x - 4, m.y - 4);
     this.renderBossUnder(ctx);
     this.renderSpecialsUnder(ctx);
+    this.renderTurrets(ctx);
     for (const t of this.tanks) this.drawTank(ctx, t);
+    this.renderClaudes(ctx);
     this.renderBosses(ctx);
     for (const s of this.spawns) {
       if (s.t > SPARKLE_TIME) continue;
@@ -4428,6 +4559,7 @@ class Stage {
       ctx.drawImage(Sprites.powerups[this.powerup.type], this.powerup.x, this.powerup.y);
     }
     this.renderSpecialsOver(ctx);
+    this.renderStrikes(ctx);
     for (const f of this.fx) {
       if (f.tick < 0) continue;
       const fr = f.frames[Math.min(f.frames.length - 1, Math.floor(f.tick / f.per))];
@@ -4450,6 +4582,7 @@ class Stage {
     }
     this.renderBossBanner(ctx);
     this.renderRankMsg(ctx);
+    this.renderRevival(ctx);
     ctx.restore();
     this.renderHud(ctx);
   }
@@ -4481,6 +4614,14 @@ class Stage {
     ctx.fillRect(x + 2, y + h - 1 - f, 1, f);
   }
 
+  // what a player carries for the B button, as dots: mines grey, turrets yellow
+  renderCarried(ctx, p, x, y, vertical, max, turretsOnly) {
+    const dots = [];
+    if (!turretsOnly) for (let k = 0; k < (p.mines || 0); k++) dots.push('#505050');
+    for (let k = 0; k < (p.turrets || 0); k++) dots.push('#F8B800');
+    dots.slice(0, max).forEach((c, k) => { ctx.fillStyle = c; ctx.fillRect(x + (vertical ? 0 : k * 3), y + (vertical ? k * 3 : 0), 2, 2); });
+  }
+
   renderHud(ctx) {
     const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
     if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);
@@ -4498,12 +4639,8 @@ class Stage {
         if (xp) {
           ctx.drawImage(Sprites.mini('L' + (p.rank || 1)), H, y + 8);
           this.renderXpBar(ctx, p, H + 18, y, 15);
-          ctx.fillStyle = '#505050';
-          for (let k = 0; k < Math.min(4, p.mines || 0); k++) ctx.fillRect(H + 22, y + 1 + k * 3, 2, 2);
-        } else if (p.mines) {
-          ctx.fillStyle = '#505050';
-          for (let k = 0; k < Math.min(3, p.mines); k++) ctx.fillRect(H + 1 + k * 3, y + 9, 2, 2);
-        }
+          this.renderCarried(ctx, p, H + 22, y + 1, true, 5);
+        } else this.renderCarried(ctx, p, H + 1, y + 9, false, 5);
       });
       ctx.drawImage(Sprites.flag, H, 184);
       Font.drawRight(ctx, String(this.num), H + 16, 200, COL.black);
@@ -4519,11 +4656,13 @@ class Stage {
         // level, XP bar beside the lives, mines as dots underneath
         ctx.drawImage(Sprites.mini('L' + (p.rank || 1)), H, y + 17);
         this.renderXpBar(ctx, p, H + 18, y + 8, 18);
-        ctx.fillStyle = '#505050';
-        for (let k = 0; k < Math.min(5, p.mines || 0); k++) ctx.fillRect(H + 1 + k * 3, y + 25, 2, 2);
-      } else if (p.mines) {
-        ctx.drawImage(Sprites.mine[0], H, y + 16);
-        Font.draw(ctx, String(Math.min(9, p.mines)), H + 8, y + 16, COL.black);
+        this.renderCarried(ctx, p, H + 1, y + 25, false, 5);
+      } else {
+        if (p.mines) {
+          ctx.drawImage(Sprites.mine[0], H, y + 16);
+          Font.draw(ctx, String(Math.min(9, p.mines)), H + 8, y + 16, COL.black);
+        }
+        this.renderCarried(ctx, p, H + 18, y + 9, true, 4, true);
       }
     });
     ctx.drawImage(Sprites.flag, H, 184);
@@ -5161,6 +5300,254 @@ Object.assign(Stage.prototype, {
       ctx.fillStyle = '#505050';
       for (let k = 2; k <= 4; k++) ctx.fillRect(cx - (dx ? 0 : 1) + dx * k - (dx < 0 ? 1 : 0), cy - (dy ? 0 : 1) + dy * k - (dy < 0 ? 1 : 0), dx ? 1 : 2, dy ? 1 : 2);
     }
+  },
+});
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  Turrets, Claude, airstrikes and revival
+//    TURRET    placed anywhere (B button with turrets carried, or the TURRET power-up drops one); turns towards
+//              the nearest enemy and shoots once lined up. 3 hits. An enemy that grabs the power-up gets a red one.
+//    CLAUDE    the orange Claude sparkle wanders the field for a while, chirping, and eats every enemy tank
+//              (and enemy shell) it bumps into. It nibbles bosses. It won't work for the enemy.
+//    AIRSTRIKE a plane flies along the row with the most enemies, bombing it (an enemy's plane bombs yours).
+//    REVIVE    a fallen player comes back: the REVIVE power-up, FIRE during play (costs points), or the shop.
+// =====================================================================
+
+const TURRET_RANGE = 128, TURRET_HP = 3, TURRET_MAX = 3;
+const CLAUDE_SPEED = 1, CLAUDE_EXTRA = 300;   // Claude stays for the new-power-up time + 5 s
+const REVIVE_WAIT = 300;                      // all players out: 5 s to pay for a revival before GAME OVER
+
+const reviveCost = () => (Config.get('reviveCost') === 'OFF' ? 0 : Config.get('reviveCost'));
+// who gets the points for a turret's / Claude's / a plane's kills
+const gunner = p => ({ isPlayer: !!p, player: p, bullets: 0, alive: true });
+
+Object.assign(Stage.prototype, {
+  // ------------------------------------------------------------ turrets
+  placeTurret(x, y, owner, enemy) {
+    x = Math.max(0, Math.min(FW - 16, Math.round(x / 8) * 8));
+    y = Math.max(0, Math.min(FH - 16, Math.round(y / 8) * 8));
+    // a player keeps at most 3 on the field: the oldest goes
+    const mine = this.turrets.filter(t => t.owner === owner && t.enemy === enemy);
+    if (mine.length >= TURRET_MAX) this.turrets.splice(this.turrets.indexOf(mine[0]), 1);
+    this.turrets.push({ x, y, dir: 0, want: 0, hp: TURRET_HP, owner, enemy: !!enemy, cd: 40, turn: 0 });
+    Sound.play('build');
+  },
+
+  turretAt(x, y, w, h) { return this.turrets.find(t => overlap(x, y, w, h, t.x, t.y, 16, 16)); },
+
+  updateTurrets() {
+    for (const tu of this.turrets) {
+      if (tu.cd > 0) tu.cd--;
+      if ((tu.enemy ? this.freezeE : this.freezeP) > 0) continue;
+      const cx = tu.x + 8, cy = tu.y + 8;
+      // nearest target in range
+      let best = null, bd = TURRET_RANGE;
+      for (const t of this.tanks) {
+        if (!t.alive || t.isPlayer !== tu.enemy) continue;
+        const d = Math.abs(t.x + 8 - cx) + Math.abs(t.y + 8 - cy);
+        if (d < bd) { bd = d; best = t; }
+      }
+      if (!best) continue;
+      const dx = best.x + 8 - cx, dy = best.y + 8 - cy;
+      tu.want = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0);
+      // swing round one quarter-turn at a time
+      if (tu.dir !== tu.want) {
+        if (++tu.turn >= 8) { tu.turn = 0; tu.dir = (tu.want - tu.dir + 4) % 4 === 3 ? (tu.dir + 3) % 4 : (tu.dir + 1) % 4; }
+        continue;
+      }
+      const lined = (tu.dir & 1) ? Math.abs(dy) < 6 : Math.abs(dx) < 6;
+      if (!lined || tu.cd > 0) continue;
+      // a friendly turret never shoots towards its own eagle
+      if (!tu.enemy && this.eagleInLine(cx, cy, best.x + 8, best.y + 8)) continue;
+      const [ox, oy] = DXY[tu.dir];
+      this.bullets.push({
+        x: cx - 2 + ox * 10, y: cy - 2 + oy * 10, dir: tu.dir, speed: 4, owner: tu.enemy ? { isPlayer: false, bullets: 0 } : gunner(tu.owner),
+        free: true, isPlayer: !tu.enemy, passPlayers: !tu.enemy, power: false, cutter: false, alive: true, pierce: false, rocket: false,
+      });
+      tu.cd = 50;
+      if (!tu.enemy) Sound.play('shot');
+    }
+  },
+
+  eagleInLine(x0, y0, x1, y1) {
+    const ex = BASE_X + 8, ey = BASE_Y + 8;
+    if (Math.abs(y1 - y0) < 6) return Math.abs(ey - y0) < 12 && (ex - x0) * (ex - x1) < 0;
+    return Math.abs(ex - x0) < 12 && (ey - y0) * (ey - y1) < 0;
+  },
+
+  // a shell meets a turret (returns true if it stopped there)
+  bulletTurret(b) {
+    const tu = this.turretAt(b.x, b.y, 4, 4);
+    if (!tu) return false;
+    if (b.isPlayer !== tu.enemy) return false;   // shells fly over turrets on their own side
+    this.killBullet(b, true);
+    if (--tu.hp <= 0) {
+      this.turrets.splice(this.turrets.indexOf(tu), 1);
+      this.addFx(tu.x + 8, tu.y + 8, BIG_EXPLOSION(), 4);
+      Sound.play('explode');
+    } else Sound.play('armor');
+    return true;
+  },
+
+  // ------------------------------------------------------------ Claude
+  summonClaude(x, y, p) {
+    this.claudes.push({ x: Math.round(x / 8) * 8, y: Math.round(y / 8) * 8, dir: 0, t: Config.frames('newTime') + CLAUDE_EXTRA, p, chirp: 30, nibble: 0, acc: 0 });
+    this.popups.push({ x: x + 8, y, text: 'HI!', label: true, color: '#F0A080', t: 0, delay: 0 });
+    Sound.play('claude');
+  },
+
+  updateClaudes() {
+    for (const c of this.claudes) {
+      c.t--;
+      if (--c.chirp <= 0) { c.chirp = 70 + rnd(110); Sound.play('claude'); }
+      // wander towards the nearest enemy (tank or boss); Claude floats over walls and water
+      if ((c.x & 7) === 0 && (c.y & 7) === 0) {
+        let best = null, bd = Infinity;
+        for (const t of this.tanks) {
+          if (!t.alive || t.isPlayer) continue;
+          const d = Math.abs(t.x - c.x) + Math.abs(t.y - c.y);
+          if (d < bd) { bd = d; best = [t.x, t.y]; }
+        }
+        for (const bo of this.bosses) if (bo.alive) { const d = Math.abs(bo.x - c.x) + Math.abs(bo.y - c.y); if (d < bd) { bd = d; best = [bo.x + bo.w / 2 - 8, bo.y + bo.h / 2 - 8]; } }
+        if (best && Math.random() > 0.15) {
+          const dx = best[0] - c.x, dy = best[1] - c.y;
+          c.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0);
+        } else if (Math.random() < 0.3) c.dir = rnd(4);
+      }
+      c.acc += CLAUDE_SPEED;
+      while (c.acc >= 1) {
+        c.acc--;
+        const nx = c.x + DXY[c.dir][0], ny = c.y + DXY[c.dir][1];
+        if (nx < 0 || ny < 0 || nx > FW - 16 || ny > FH - 16) { c.dir = (c.dir + 2) % 4; break; }
+        c.x = nx; c.y = ny;
+      }
+      // munch
+      for (const t of this.tanks) {
+        if (!t.alive || t.isPlayer || !overlap(t.x + 2, t.y + 2, 12, 12, c.x + 2, c.y + 2, 12, 12)) continue;
+        this.killEnemy(t, gunner(c.p), true, true);
+        this.popups.push({ x: t.x + 8, y: t.y, text: 'NOM!', label: true, color: '#F0A080', t: 0, delay: 0 });
+        Sound.play('nom');
+      }
+      for (const b of this.bullets) {
+        if (b.alive && !b.isPlayer && overlap(b.x, b.y, 4, 4, c.x + 2, c.y + 2, 12, 12)) { this.killBullet(b, false); Sound.play('nom'); }
+      }
+      if (--c.nibble <= 0) {
+        for (const bo of this.bosses) {
+          if (bo.alive && this.bossTangible(bo) && overlap(c.x, c.y, 16, 16, bo.x, bo.y, bo.w, bo.h)) {
+            this.bossHit(bo, 1, gunner(c.p), c.x + 8);
+            c.nibble = 30;
+            Sound.play('nom');
+          }
+        }
+      }
+      if (c.t <= 0) {
+        this.addFx(c.x + 8, c.y + 8, [Sprites.sparkle[3], Sprites.sparkle[2], Sprites.sparkle[1], Sprites.sparkle[0]], 4);
+        this.popups.push({ x: c.x + 8, y: c.y, text: 'BYE!', label: true, color: '#F0A080', t: 0, delay: 0 });
+        Sound.play('claudeBye');
+      }
+    }
+    this.claudes = this.claudes.filter(c => c.t > 0);
+  },
+
+  // ------------------------------------------------------------ airstrikes
+  // a plane flies along the busiest row (never the rows by the eagle), dropping bombs
+  callAirstrike(byPlayer, owner) {
+    const targets = this.tanks.filter(t => t.alive && t.isPlayer !== byPlayer);
+    let y = -1, bestN = 0, bestOff = Infinity;
+    for (let row = 0; row <= FH - 16; row += 8) {
+      if (row > BASE_Y - 40) break;
+      const hit = targets.filter(t => Math.abs(t.y - row) < 12);
+      const off = hit.reduce((a, t) => a + Math.abs(t.y - row), 0);   // ties: the row they sit on exactly
+      if (hit.length > bestN || (hit.length === bestN && hit.length && off < bestOff)) { bestN = hit.length; bestOff = off; y = row; }
+    }
+    if (y < 0) y = Math.min(BASE_Y - 48, 32 + rnd(Math.max(1, (FH >> 1) - 32)));
+    const dir = Math.random() < 0.5 ? 1 : 3;
+    this.strikes.push({ x: dir === 1 ? -24 : FW + 8, y, dir, byPlayer, owner, drop: 0 });
+    Sound.play('plane');
+  },
+
+  updateStrikes() {
+    for (const s of this.strikes) {
+      s.x += s.dir === 1 ? 3 : -3;
+      s.drop += 3;
+      if (s.drop >= 24 && s.x > 0 && s.x < FW - 16) {
+        s.drop = 0;
+        this.blast(s.x + 8, s.y + 8, 12, s.byPlayer, s.owner, false);
+      }
+      if (s.x < -32 || s.x > FW + 16) s.done = true;
+    }
+    this.strikes = this.strikes.filter(s => !s.done);
+  },
+
+  // ------------------------------------------------------------ revival
+  revive(p, payer) {
+    if (payer) payer.score -= reviveCost();
+    p.out = false;
+    p.lives = 0;
+    this.spawnPlayer(p, 0);
+    this.reviveWait = 0;
+    this.popups.push({ x: PLAYER_SPAWN[p.i][0] + 8, y: PLAYER_SPAWN[p.i][1], text: 'REVIVED!', label: true, color: COL.gold, t: 0, delay: 0, life: 90 });
+    Sound.play('life');
+  },
+
+  // someone who can pay for p (p first, then the richest teammate)
+  revivePayer(p) {
+    const cost = reviveCost();
+    if (!cost) return null;
+    if (p.score >= cost) return p;
+    const rich = this.players.filter(q => q !== p && q.score >= cost).sort((a, b) => b.score - a.score);
+    return rich[0] || null;
+  },
+
+  // fallen players press FIRE to come back
+  updateRevival() {
+    for (const p of this.players) {
+      if (!p.out) continue;
+      const payer = this.revivePayer(p);
+      if (payer && Input.player(p.i).firePressed) this.revive(p, payer);
+    }
+    if (this.reviveWait > 0 && --this.reviveWait <= 0 && this.players.every(q => q.out)) this.startOver();
+  },
+
+  // ------------------------------------------------------------ drawing
+  renderTurrets(ctx) {
+    for (const tu of this.turrets) {
+      ctx.drawImage(Sprites.turretBase, tu.x, tu.y);
+      ctx.drawImage(Sprites.turretGun(tu.dir, tu.enemy ? 'red' : Config.playerPal(tu.owner ? tu.owner.i : 0)), tu.x, tu.y);
+      for (let k = 0; k < tu.hp; k++) { ctx.fillStyle = tu.enemy ? '#F83800' : '#58D854'; ctx.fillRect(tu.x + 5 + k * 2, tu.y + 14, 1, 1); }
+    }
+  },
+
+  renderClaudes(ctx) {
+    for (const c of this.claudes) {
+      if (c.t < 60 && (c.t >> 2) & 1) continue;
+      ctx.drawImage(Sprites.claude[(c.x + c.y) >> 3 & 1], c.x, c.y);
+    }
+  },
+
+  renderStrikes(ctx) {
+    for (const s of this.strikes) {
+      ctx.globalAlpha = 0.35;
+      ctx.drawImage(Sprites.plane[s.dir], s.x + 6, s.y + 10);   // shadow
+      ctx.globalAlpha = 1;
+      ctx.drawImage(Sprites.plane[s.dir], s.x, s.y);
+    }
+  },
+
+  renderRevival(ctx) {
+    const cost = reviveCost();
+    if (!cost) return;
+    const lines = [];
+    for (const p of this.players) {
+      if (!p.out || !this.revivePayer(p)) continue;
+      lines.push((this.players.length > 1 ? ROMAN[p.i] + ': ' : '') + 'FIRE = REVIVE ' + cost);
+    }
+    if (!lines.length || !((this.frame >> 4) & 1)) return;
+    if (this.reviveWait > 0) lines.unshift('LAST CHANCE ' + Math.ceil(this.reviveWait / 60));
+    lines.forEach((l, i) => Font.drawCenter(ctx, l, FW / 2, FH - 28 - (lines.length - 1 - i) * 10, COL.gold));
   },
 });
 
@@ -6081,7 +6468,7 @@ Object.assign(Stage.prototype, {
 const NET_ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }];
 const NET_PREFIX = 'TANB4';
 // host settings that change how the guests' screens look
-const NET_CFG_KEYS = ['p1Color', 'p2Color', 'p3Color', 'p4Color', 'lives', 'bossRounds', 'bossEvery', 'shopPrices', 'mineCount', 'xp', 'perks'];
+const NET_CFG_KEYS = ['p1Color', 'p2Color', 'p3Color', 'p4Color', 'lives', 'bossRounds', 'bossEvery', 'shopPrices', 'mineCount', 'xp', 'perks', 'reviveCost'];
 // sounds are forwarded to guests only from these screens
 const NET_SOUND_STATES = new Set(['play', 'curtain', 'score', 'shop', 'bigover']);
 
@@ -6303,6 +6690,10 @@ const Net = {
       hl: st.heals.map(h => [h.x1, h.y1, h.x2, h.y2, h.t, h.build ? 1 : 0]),
       mk: st.mark ? st.mark.p.i : -1,
       ea: [st.eagleArmor, st.eagleFlash, st.gunDir, st.base ? st.base.gun : 0],
+      tu: st.turrets.map(t => [t.x, t.y, t.dir, t.hp, t.owner ? t.owner.i : -1, t.enemy ? 1 : 0]),
+      cl: st.claudes.map(c => [c.x, c.y, c.t]),
+      sk: st.strikes.map(k => [Math.round(k.x), k.y, k.dir]),
+      rw: st.reviveWait,
     };
     st.netDiff = [];
     if (full) sv.tf = Array.from(st.terrain).join('');
@@ -6441,6 +6832,10 @@ const Net = {
       plates: a[13] || 0, glow: a[14] || 0, reveal: a[15] || 0, ai: a[16] || 0, vet: a[17] || 0, stealth: a[5] === 7,
     }));
     if (sv.ea) { st.eagleArmor = sv.ea[0]; st.eagleFlash = sv.ea[1]; st.gunDir = sv.ea[2]; st.base = Object.assign(newBase(), { gun: sv.ea[3] }); }
+    st.turrets = (sv.tu || []).map(a => ({ x: a[0], y: a[1], dir: a[2], hp: a[3], owner: G.players.find(p => p.i === a[4]) || null, enemy: !!a[5] }));
+    st.claudes = (sv.cl || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
+    st.strikes = (sv.sk || []).map(a => ({ x: a[0], y: a[1], dir: a[2] }));
+    st.reviveWait = sv.rw || 0;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
     st.heals = (sv.hl || []).map(a => ({ x1: a[0], y1: a[1], x2: a[2], y2: a[3], t: a[4], build: !!a[5] }));
@@ -6677,7 +7072,7 @@ const CONSTRUCT_PATS = [
 function newPlayer(i) {
   return {
     i, score: 0, lives: Config.startLives(), level: Config.get('startStars'), ship: false, cutter: false,
-    kills: zeroKills(), out: false, extraGiven: false, extraCount: 0, mines: 0, tank: null,
+    kills: zeroKills(), out: false, extraGiven: false, extraCount: 0, mines: 0, turrets: 0, tank: null,
     kit: null, shopShovel: false,
     rank: Config.get('startLevel'), xp: RANKS[Config.get('startLevel') - 1].xp, stageXp: 0,   // XP level (1-10)
   };
@@ -6698,6 +7093,7 @@ const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
 // Between-stage shop: score buys upgrades. price is in points at 100% "SHOP PRICES".
 // Kit items (helmet, turbo, ...) take effect when your tank first appears in the next stage.
 const SHOP_ITEMS = [
+  { id: 'revive', name: 'REVIVE', icon: PU.REVIVE, desc: 'BRING A FALLEN PLAYER BACK' },
   { id: 'life', name: 'EXTRA LIFE', price: 5000, icon: PU.TANK, desc: 'ONE MORE TANK' },
   { id: 'star', name: 'STAR', price: 3000, icon: PU.STAR, desc: 'ONE MORE STAR, UP TO 3' },
   { id: 'gun', name: 'GUN', price: 8000, icon: PU.GUN, desc: 'MAX LEVEL + CUTS TREES' },
@@ -6710,6 +7106,8 @@ const SHOP_ITEMS = [
   { id: 'spread', name: 'SPREAD', price: 2000, icon: PU.SPREAD, desc: '3-WAY FIRE AT STAGE START' },
   { id: 'rocket', name: 'ROCKET', price: 3000, icon: PU.ROCKET, desc: 'ROCKETS AT STAGE START' },
   { id: 'pierce', name: 'PIERCE', price: 3000, icon: PU.PIERCE, desc: 'PIERCING SHELLS AT START' },
+  { id: 'turret', name: 'TURRET', price: 4000, icon: PU.TURRET, desc: 'PLACE IT ANYWHERE WITH B' },
+  { id: 'claude', name: 'CLAUDE', price: 6000, icon: PU.CLAUDE, desc: 'CLAUDE JOINS NEXT STAGE' },
   // base upgrades: shared by the team, 3 levels each (base.js)
   ...BASE_UPGRADES.map((u, i) => ({ id: 'base_' + u.key, base: u.key, name: u.name, prices: u.prices, descs: u.descs, bicon: i })),
   { id: 'done', name: 'START STAGE' },
@@ -6718,12 +7116,20 @@ const SHOP_ROWS = 9, SHOP_TOP = 40, SHOP_ROW_H = 16;
 
 function shopPrice(item) {
   const discount = Game.shopDiscount ? 0.75 : 1;
+  if (item.id === 'revive') return reviveCost();   // the REVIVE COST setting, as during play
   const price = item.prices ? item.prices[Math.min(2, Game.base[item.base] || 0)] : item.price;
   return Math.round((price * Config.scale('shopPrices') * discount) / 100) * 100;
 }
 
 // what the player already has; `max` means it can't be bought again
 function shopStatus(item, p) {
+  if (item.id === 'revive') {
+    if (!reviveCost()) return { text: 'OFF', max: true };
+    if (p.out) return { text: 'YOU', max: false };
+    const n = Game.players.filter(q => q.out).length;
+    return n ? { text: 'X' + n, max: false } : { text: '', max: true };
+  }
+  if (p.out && item.id !== 'done') return { text: '', max: true };   // a fallen player can only buy a revival
   if (item.base) {
     if (!Config.on('baseShop')) return { text: 'OFF', max: true };
     const lv = Game.base[item.base] || 0;
@@ -6735,6 +7141,7 @@ function shopStatus(item, p) {
     case 'gun': return p.level >= 3 && p.cutter ? { text: 'OWNED', max: true } : { text: '' };
     case 'ship': return p.ship ? { text: 'OWNED', max: true } : { text: '' };
     case 'mines': return { text: 'X' + (p.mines || 0), max: (p.mines || 0) >= 99 };
+    case 'turret': return { text: 'X' + (p.turrets || 0), max: (p.turrets || 0) >= 9 };
     case 'shovel': return p.shopShovel ? { text: 'READY', max: true } : { text: '' };
     case 'done': return { text: '' };
     default: return p.kit && p.kit[item.id] ? { text: 'READY', max: true } : { text: '' };
@@ -6742,6 +7149,13 @@ function shopStatus(item, p) {
 }
 
 function shopApply(item, p) {
+  if (item.id === 'revive') {
+    const who = p.out ? p : Game.players.find(q => q.out);
+    who.out = false;
+    who.lives = 0;
+    return;
+  }
+  if (item.id === 'turret') { p.turrets = (p.turrets || 0) + 1; return; }
   if (item.base) { Game.base[item.base] = (Game.base[item.base] || 0) + 1; return; }
   switch (item.id) {
     case 'life': p.lives++; break;
@@ -7361,7 +7775,8 @@ const Game = {
   // ---------------------------------------------------------------- shop
   toShop() {
     Sound.setEngine(0);
-    this.shop = { order: this.players.filter(p => !p.out), turn: 0, idx: 0, scroll: 0, rep: 0, msg: '', msgT: 0 };
+    // fallen players get a turn too, to buy themselves back in
+    this.shop = { order: this.players.filter(p => !p.out || reviveCost()), turn: 0, idx: 0, scroll: 0, rep: 0, msg: '', msgT: 0 };
     this.setState('shop');
   },
 
@@ -7376,13 +7791,16 @@ const Game = {
     const sh = this.shop, p = sh.order[sh.turn], item = SHOP_ITEMS[sh.idx];
     if (item.id === 'done') { this.shopNext(); return; }
     const price = shopPrice(item), st = shopStatus(item, p);
-    if (st.max) { sh.msg = 'YOU ALREADY HAVE IT'; sh.msgT = 90; Sound.play('steel'); return; }
+    if (st.max) {
+      sh.msg = item.id === 'revive' ? (reviveCost() ? 'NOBODY TO REVIVE' : 'REVIVE IS OFF') : p.out ? 'REVIVE FIRST' : 'YOU ALREADY HAVE IT';
+      sh.msgT = 90; Sound.play('steel'); return;
+    }
     if (p.score < price) { sh.msg = 'NOT ENOUGH POINTS'; sh.msgT = 90; Sound.play('steel'); return; }
     p.score -= price;
     shopApply(item, p);
     sh.msg = 'BOUGHT ' + item.name;
     sh.msgT = 60;
-    Sound.play(item.id === 'life' ? 'life' : 'pickup');
+    Sound.play(item.id === 'life' || item.id === 'revive' ? 'life' : 'pickup');
   },
 
   // next player's turn, or on to the stage

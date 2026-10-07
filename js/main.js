@@ -24,7 +24,7 @@ const CONSTRUCT_PATS = [
 function newPlayer(i) {
   return {
     i, score: 0, lives: Config.startLives(), level: Config.get('startStars'), ship: false, cutter: false,
-    kills: zeroKills(), out: false, extraGiven: false, extraCount: 0, mines: 0, tank: null,
+    kills: zeroKills(), out: false, extraGiven: false, extraCount: 0, mines: 0, turrets: 0, tank: null,
     kit: null, shopShovel: false,
     rank: Config.get('startLevel'), xp: RANKS[Config.get('startLevel') - 1].xp, stageXp: 0,   // XP level (1-10)
   };
@@ -45,6 +45,7 @@ const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
 // Between-stage shop: score buys upgrades. price is in points at 100% "SHOP PRICES".
 // Kit items (helmet, turbo, ...) take effect when your tank first appears in the next stage.
 const SHOP_ITEMS = [
+  { id: 'revive', name: 'REVIVE', icon: PU.REVIVE, desc: 'BRING A FALLEN PLAYER BACK' },
   { id: 'life', name: 'EXTRA LIFE', price: 5000, icon: PU.TANK, desc: 'ONE MORE TANK' },
   { id: 'star', name: 'STAR', price: 3000, icon: PU.STAR, desc: 'ONE MORE STAR, UP TO 3' },
   { id: 'gun', name: 'GUN', price: 8000, icon: PU.GUN, desc: 'MAX LEVEL + CUTS TREES' },
@@ -57,6 +58,8 @@ const SHOP_ITEMS = [
   { id: 'spread', name: 'SPREAD', price: 2000, icon: PU.SPREAD, desc: '3-WAY FIRE AT STAGE START' },
   { id: 'rocket', name: 'ROCKET', price: 3000, icon: PU.ROCKET, desc: 'ROCKETS AT STAGE START' },
   { id: 'pierce', name: 'PIERCE', price: 3000, icon: PU.PIERCE, desc: 'PIERCING SHELLS AT START' },
+  { id: 'turret', name: 'TURRET', price: 4000, icon: PU.TURRET, desc: 'PLACE IT ANYWHERE WITH B' },
+  { id: 'claude', name: 'CLAUDE', price: 6000, icon: PU.CLAUDE, desc: 'CLAUDE JOINS NEXT STAGE' },
   // base upgrades: shared by the team, 3 levels each (base.js)
   ...BASE_UPGRADES.map((u, i) => ({ id: 'base_' + u.key, base: u.key, name: u.name, prices: u.prices, descs: u.descs, bicon: i })),
   { id: 'done', name: 'START STAGE' },
@@ -65,12 +68,20 @@ const SHOP_ROWS = 9, SHOP_TOP = 40, SHOP_ROW_H = 16;
 
 function shopPrice(item) {
   const discount = Game.shopDiscount ? 0.75 : 1;
+  if (item.id === 'revive') return reviveCost();   // the REVIVE COST setting, as during play
   const price = item.prices ? item.prices[Math.min(2, Game.base[item.base] || 0)] : item.price;
   return Math.round((price * Config.scale('shopPrices') * discount) / 100) * 100;
 }
 
 // what the player already has; `max` means it can't be bought again
 function shopStatus(item, p) {
+  if (item.id === 'revive') {
+    if (!reviveCost()) return { text: 'OFF', max: true };
+    if (p.out) return { text: 'YOU', max: false };
+    const n = Game.players.filter(q => q.out).length;
+    return n ? { text: 'X' + n, max: false } : { text: '', max: true };
+  }
+  if (p.out && item.id !== 'done') return { text: '', max: true };   // a fallen player can only buy a revival
   if (item.base) {
     if (!Config.on('baseShop')) return { text: 'OFF', max: true };
     const lv = Game.base[item.base] || 0;
@@ -82,6 +93,7 @@ function shopStatus(item, p) {
     case 'gun': return p.level >= 3 && p.cutter ? { text: 'OWNED', max: true } : { text: '' };
     case 'ship': return p.ship ? { text: 'OWNED', max: true } : { text: '' };
     case 'mines': return { text: 'X' + (p.mines || 0), max: (p.mines || 0) >= 99 };
+    case 'turret': return { text: 'X' + (p.turrets || 0), max: (p.turrets || 0) >= 9 };
     case 'shovel': return p.shopShovel ? { text: 'READY', max: true } : { text: '' };
     case 'done': return { text: '' };
     default: return p.kit && p.kit[item.id] ? { text: 'READY', max: true } : { text: '' };
@@ -89,6 +101,13 @@ function shopStatus(item, p) {
 }
 
 function shopApply(item, p) {
+  if (item.id === 'revive') {
+    const who = p.out ? p : Game.players.find(q => q.out);
+    who.out = false;
+    who.lives = 0;
+    return;
+  }
+  if (item.id === 'turret') { p.turrets = (p.turrets || 0) + 1; return; }
   if (item.base) { Game.base[item.base] = (Game.base[item.base] || 0) + 1; return; }
   switch (item.id) {
     case 'life': p.lives++; break;
@@ -708,7 +727,8 @@ const Game = {
   // ---------------------------------------------------------------- shop
   toShop() {
     Sound.setEngine(0);
-    this.shop = { order: this.players.filter(p => !p.out), turn: 0, idx: 0, scroll: 0, rep: 0, msg: '', msgT: 0 };
+    // fallen players get a turn too, to buy themselves back in
+    this.shop = { order: this.players.filter(p => !p.out || reviveCost()), turn: 0, idx: 0, scroll: 0, rep: 0, msg: '', msgT: 0 };
     this.setState('shop');
   },
 
@@ -723,13 +743,16 @@ const Game = {
     const sh = this.shop, p = sh.order[sh.turn], item = SHOP_ITEMS[sh.idx];
     if (item.id === 'done') { this.shopNext(); return; }
     const price = shopPrice(item), st = shopStatus(item, p);
-    if (st.max) { sh.msg = 'YOU ALREADY HAVE IT'; sh.msgT = 90; Sound.play('steel'); return; }
+    if (st.max) {
+      sh.msg = item.id === 'revive' ? (reviveCost() ? 'NOBODY TO REVIVE' : 'REVIVE IS OFF') : p.out ? 'REVIVE FIRST' : 'YOU ALREADY HAVE IT';
+      sh.msgT = 90; Sound.play('steel'); return;
+    }
     if (p.score < price) { sh.msg = 'NOT ENOUGH POINTS'; sh.msgT = 90; Sound.play('steel'); return; }
     p.score -= price;
     shopApply(item, p);
     sh.msg = 'BOUGHT ' + item.name;
     sh.msgT = 60;
-    Sound.play(item.id === 'life' ? 'life' : 'pickup');
+    Sound.play(item.id === 'life' || item.id === 'revive' ? 'life' : 'pickup');
   },
 
   // next player's turn, or on to the stage

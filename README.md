@@ -216,6 +216,7 @@ something takes its price off your score. In 2-player games player I shops first
 
 | Item | Price | Effect |
 |---|---|---|
+| Revive | 7500 | bring a fallen player back with one tank (theirs or a teammate's turn) |
 | Extra life | 5000 | one more tank |
 | Star | 3000 | upgrade your tank one star (up to 3) |
 | Gun | 8000 | max level and tree cutting |
@@ -223,6 +224,8 @@ something takes its price off your score. In 2-player games player I shops first
 | Mines | 1500 | adds mines (3 by default) for the B button |
 | Shovel | 2000 | steel walls around the eagle at the start of the next stage |
 | Helmet, turbo, rapid, spread, rocket, pierce | 1000–3000 | that effect is active when your tank first appears in the next stage |
+| Turret | 4000 | one turret to place with **B** |
+| Claude | 6000 | Claude joins you at the start of the next stage |
 
 Upgrades you buy are kept until you lose a tank, as with ones picked up during play. In Settings → SHOP you can turn the shop off or
 scale all prices (25%–300%). There is no shop after a game over.
@@ -244,7 +247,7 @@ turns them off.
 
 ## New power-ups
 
-These 8 were not in the original game. They're marked with `*` in Settings and can be switched off there.
+These 12 were not in the original game. They're marked with `*` in Settings and can be switched off there.
 
 | Power-up | You get | If an enemy grabs it |
 |---|---|---|
@@ -256,6 +259,24 @@ These 8 were not in the original game. They're marked with `*` in Settings and c
 | **Mines** | 3 mines; drop one with **B**; it arms after a moment and blows up the next enemy that drives over it | that tank lays mines for you |
 | **Ghost** | drive through bricks and water for 15 s | that tank drives through walls |
 | **Coin** | 1000 bonus points | it steals 1000 points from each player |
+| **Turret** (tripod) | a turret appears where you grab it: it swings round to the nearest enemy within 8 tiles and fires once lined up; 3 hits; never fires across your eagle; its kills score for you | a red turret that shoots you |
+| **Claude** (the orange Claude sparkle) | Claude walks the field for 20 s, chirping, and eats every enemy tank (armor included) and enemy shell it bumps into; it nibbles bosses; points are yours | "NOPE!": Claude doesn't work for them (only players can collect it by default) |
+| **Revive** (heart) | every fallen teammate comes back with one tank; if nobody is down, an extra life | 2 more enemy tanks join the stage |
+| **Airstrike** (plane) | a plane flies along the row with the most enemies (never the rows by your eagle) and bombs it | the plane bombs your row |
+
+## Turrets, Claude and revival
+
+- **Turrets** can also be bought in the shop (4000 each) and carried: **B** places one where you stand (turrets come
+  before mines, mines before firing). Up to 3 of yours stand at once; a 4th replaces the oldest. They block tanks,
+  your shells fly over them, enemy shells chip them. Carried turrets show as yellow dots in the side panel (mines grey).
+- **Claude** can be bought in the shop (6000): it joins you at the start of the next stage.
+- **Revival** costs 7500 points (Settings → PLAYER → REVIVE COST: off / 2500 / 5000 / 7500 / 10000).
+  - During play, a fallen player presses **FIRE** to come back with one tank. Their own points pay, or else the richest
+    teammate's. The prompt shows at the bottom of the field.
+  - When the last tank falls and someone can afford it, there is a 5-second **LAST CHANCE** before GAME OVER (this works
+    in 1-player games too).
+  - Between stages, fallen players get a shop turn where they can buy **REVIVE** (and nothing else); a teammate can
+    buy it for them too.
 
 ## Settings
 
@@ -265,7 +286,7 @@ in the browser, and **RESET TO DEFAULTS** restores the classic game.
 
 | Section | Settings (default) |
 |---|---|
-| Player | lives (3, or infinite), I-player / II-player tank color (yellow / green, 12 colors), tank speed (100%), shell speed (100%), start stars (0), keep stars on death (off), spawn shield (3 s), extra life at 20K (once / every / off), friendly fire (freeze / off) |
+| Player | lives (3, or infinite), I-player / II-player tank color (yellow / green, 12 colors), tank speed (100%), shell speed (100%), start stars (0), keep stars on death (off), spawn shield (3 s), extra life at 20K (once / every / off), friendly fire (freeze / off), revive cost (7500) |
 | XP and levels | XP and levels (on), XP rate (100%), level perks (on / looks only), start level (1), XP lost on death (0%), *show ranks and perks* |
 | Enemies | tanks per stage (20, from 1 to 99), max on screen (4, up to 20, +2 in 2P), spawn rate, fire rate, base hunting (all 100%), flashing bonus tanks (on), AI personalities (mixed), show AI type (off), new enemy types (normal), veterans + elites (on) |
 | Rocket / shield / sapper / shade tank | speed (100%), shell speed (100%), hits to destroy (1 / 2 / 1 / 1), appears (on) |
@@ -294,6 +315,7 @@ js/stage.js       gameplay: terrain, movement, enemy types, bullets, power-ups, 
 js/ai.js          enemy personalities (wander / rush / hunt / snipe) and path finding
 js/enemies.js     abilities of the enemies from the design canvas (mason, mortar, flamer, medic, ...)
 js/base.js        base upgrades: fortress walls, eagle armor, repair crew, eagle gun, minefield
+js/extras.js      turrets, Claude, airstrikes and revival
 js/bosses.js      boss rounds: the 5 bosses, their arenas, sprites and behaviour
 js/net.js         online play: WebRTC connection, codes, host streaming, guest view, lobby panels
 js/main.js        state machine (title, settings, curtain, play, score, game over, construction) + loop

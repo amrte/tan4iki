@@ -187,6 +187,22 @@ const Sound = {
       case 'split': // splitter breaks in two
         this.seq([67, 60], 0.06, t, { vol: 0.12, decayTo: 0.3 });
         break;
+      case 'claude': { // Claude's happy chirps: a random little tune each time
+        const tunes = [[84, 88, 91], [91, 86], [79, 84, 79, 88], [88, 0, 88, 93], [76, 83, 88, 95], [93, 88, 84, 81]];
+        const tune = tunes[Math.floor(Math.random() * tunes.length)];
+        this.seq(tune, 0.05 + Math.random() * 0.03, t, { vol: 0.09, decayTo: 0.5, wave: Math.random() < 0.5 ? 'p25' : 'p12' });
+        break;
+      }
+      case 'nom': // munch munch
+        this.seq([52, 0, 52], 0.05, t, { vol: 0.16, decayTo: 0.3 });
+        this.noise(3000, t, [[0, 0.08], [0.05, 0], [0.1, 0.08], [0.15, 0]]);
+        break;
+      case 'claudeBye':
+        this.seq([88, 84, 79, 76, 72], 0.06, t, { vol: 0.09, decayTo: 0.5, wave: 'p25' });
+        break;
+      case 'plane': // a plane roars over
+        this.noise(2600, t, [[0, 0], [0.4, 0.12], [1.1, 0.12], [1.6, 0]], 7000);
+        break;
       case 'levelUp': // promotion fanfare
         this.seq([67, 72, 76, 79, 0, 79, 84], 0.07, t, { vol: 0.15, decayTo: 0.55 });
         this.seq([60, 64, 67, 72, 0, 72, 76], 0.07, t, { vol: 0.08, decayTo: 0.5, wave: 'p25' });

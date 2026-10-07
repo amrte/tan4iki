@@ -8,7 +8,7 @@
 const NET_ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }];
 const NET_PREFIX = 'TANB4';
 // host settings that change how the guests' screens look
-const NET_CFG_KEYS = ['p1Color', 'p2Color', 'p3Color', 'p4Color', 'lives', 'bossRounds', 'bossEvery', 'shopPrices', 'mineCount', 'xp', 'perks'];
+const NET_CFG_KEYS = ['p1Color', 'p2Color', 'p3Color', 'p4Color', 'lives', 'bossRounds', 'bossEvery', 'shopPrices', 'mineCount', 'xp', 'perks', 'reviveCost'];
 // sounds are forwarded to guests only from these screens
 const NET_SOUND_STATES = new Set(['play', 'curtain', 'score', 'shop', 'bigover']);
 
@@ -230,6 +230,10 @@ const Net = {
       hl: st.heals.map(h => [h.x1, h.y1, h.x2, h.y2, h.t, h.build ? 1 : 0]),
       mk: st.mark ? st.mark.p.i : -1,
       ea: [st.eagleArmor, st.eagleFlash, st.gunDir, st.base ? st.base.gun : 0],
+      tu: st.turrets.map(t => [t.x, t.y, t.dir, t.hp, t.owner ? t.owner.i : -1, t.enemy ? 1 : 0]),
+      cl: st.claudes.map(c => [c.x, c.y, c.t]),
+      sk: st.strikes.map(k => [Math.round(k.x), k.y, k.dir]),
+      rw: st.reviveWait,
     };
     st.netDiff = [];
     if (full) sv.tf = Array.from(st.terrain).join('');
@@ -368,6 +372,10 @@ const Net = {
       plates: a[13] || 0, glow: a[14] || 0, reveal: a[15] || 0, ai: a[16] || 0, vet: a[17] || 0, stealth: a[5] === 7,
     }));
     if (sv.ea) { st.eagleArmor = sv.ea[0]; st.eagleFlash = sv.ea[1]; st.gunDir = sv.ea[2]; st.base = Object.assign(newBase(), { gun: sv.ea[3] }); }
+    st.turrets = (sv.tu || []).map(a => ({ x: a[0], y: a[1], dir: a[2], hp: a[3], owner: G.players.find(p => p.i === a[4]) || null, enemy: !!a[5] }));
+    st.claudes = (sv.cl || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
+    st.strikes = (sv.sk || []).map(a => ({ x: a[0], y: a[1], dir: a[2] }));
+    st.reviveWait = sv.rw || 0;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
     st.heals = (sv.hl || []).map(a => ({ x1: a[0], y1: a[1], x2: a[2], y2: a[3], t: a[4], build: !!a[5] }));

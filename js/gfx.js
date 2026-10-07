@@ -239,6 +239,27 @@ function decorateTank(rows, level, plate) {
   return g;
 }
 
+// ------------------------------------------------------------------ Claude
+// The Claude sparkle: an orange starburst of uneven rays. frame 0/1 nudges the rays (a little walk wobble).
+const CLAUDE_INK = [null, '#F0A080', '#D97757', '#A8503A'];
+function claudeGrid(n, frame) {
+  const rays = 12, len = [1, 0.7, 0.92, 0.64, 0.97, 0.76, 1, 0.68, 0.9, 0.6, 0.95, 0.74], c = n / 2, R = n / 2 - 0.2;
+  const phase = frame ? 0.2 : 0;
+  const g = [];
+  for (let y = 0; y < n; y++) {
+    const row = [];
+    for (let x = 0; x < n; x++) {
+      const dx = x + 0.5 - c, dy = y + 0.5 - c, r = Math.hypot(dx, dy);
+      let a = Math.atan2(dy, dx) / (Math.PI * 2) * rays - phase;
+      const k = ((Math.round(a) % rays) + rays) % rays, d = (a - Math.round(a)) * (Math.PI * 2 / rays);
+      const ray = Math.abs(r * Math.sin(d)) < (n > 12 ? 0.75 : 0.62) && Math.cos(d) > 0 && r < len[k] * R;
+      row.push(r < 1.5 || ray ? (r < 1 ? 1 : 2) : 0);
+    }
+    g.push(row);
+  }
+  return g;
+}
+
 function genBullet(dir, color = '#C6C6C6') {
   return rotatedCanvas(['..1.', '.111', '.111', '.111'], dir, [null, color]);
 }
@@ -259,6 +280,18 @@ const Sprites = {
     this.bigExp = BIG_EXPLOSION_GRIDS.map(r => g(r, EXPLOSION_PAL));
     this.powerups = POWERUP_GRIDS.concat(NEW_POWERUP_MASKS.map(framedIcon)).map(r => g(r, POWERUP_PAL));
     this.baseIcons = BASE_ICON_MASKS.map(m => g(framedIcon(m), [null, '#FCE4A0', '#E45C10', '#7C1C00']));
+    // power-ups 16-19: turret, Claude (an orange sparkle in the usual teal frame), revive, airstrike
+    const claudeMask = claudeGrid(11, 0).map(r => '.' + r.map(v => (v ? 'X' : '.')).join('')).map(r => r.slice(0, 12));
+    const claudeIcon = parseGrid(framedIcon(claudeMask));
+    for (let y = 0; y < 11; y++) for (let x = 0; x < 12; x++) if (claudeMask[y][x] === 'X') claudeIcon[y + 3][x + 2] = claudeIcon[y + 3][x + 2] === 1 ? 5 : 4;
+    this.powerups.push(
+      g(framedIcon(EXTRA_POWERUP_MASKS.turret), POWERUP_PAL),
+      gridCanvas(claudeIcon, POWERUP_PAL.concat(['#D97757', '#F0A080'])),
+      g(framedIcon(EXTRA_POWERUP_MASKS.revive), POWERUP_PAL),
+      g(framedIcon(EXTRA_POWERUP_MASKS.airstrike), POWERUP_PAL));
+    this.claude = [0, 1].map(f => gridCanvas(claudeGrid(16, f), CLAUDE_INK));
+    this.turretBase = g(TURRET_BASE_GRID, [null, '#BCBCBC', '#7C7C7C', '#3C3C3C']);
+    this.plane = [0, 1, 2, 3].map(d => rotatedCanvas(PLANE_GRID, (d + 3) % 4, [null, '#F8F8F8', '#ADADAD', '#505050']));
     this.mine = [g(MINE_GRID, [null, '#ADADAD', '#505050', '#E04030']), g(MINE_GRID, [null, '#ADADAD', '#505050', '#600000'])];
     this.hull = [0, 1, 2, 3].map(genHull);
     this.bullet = [0, 1, 2, 3].map(d => genBullet(d));
@@ -276,6 +309,13 @@ const Sprites = {
       c = rotatedCanvas(TANK_GRIDS[spec][frame], dir, PALS[pal]);
       this.cache.set(k, c);
     }
+    return c;
+  },
+  // turret gun in a palette, aimed in dir
+  turretGun(dir, pal) {
+    const k = 'tg' + dir + pal;
+    let c = this.cache.get(k);
+    if (!c) { c = rotatedCanvas(TURRET_GUN_GRID, dir, PALS[pal]); this.cache.set(k, c); }
     return c;
   },
   // a player tank wearing its rank (XP level); plate = armour plate still intact

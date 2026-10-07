@@ -3,6 +3,18 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.11
+
+- **Revival:** a fallen player presses FIRE to come back for 7500 points (theirs, or a teammate's); when the last tank
+  falls there's a 5-second LAST CHANCE before GAME OVER; between stages fallen players get a shop turn to buy REVIVE.
+  Setting: REVIVE COST.
+- **Turrets:** bought in the shop and placed anywhere with B, or dropped by the new TURRET power-up. They turn towards
+  the nearest enemy and shoot; enemies who grab the power-up get a red turret.
+- **Claude:** the orange Claude sparkle (power-up, or 6000 in the shop) wanders the field for 20 s, chirping, and eats
+  enemy tanks and shells it bumps into.
+- **New power-ups:** TURRET, CLAUDE, REVIVE (fallen players back, or an extra life) and AIRSTRIKE (a plane bombs the
+  busiest row).
+
 ## 0.10
 
 - **Base upgrades** in the between-stage shop, shared by the team and kept until game over: Base walls (extra brick

@@ -38,6 +38,10 @@ const POWERUPS = [
   { name: 'MINES', weight: 2, isNew: true, desc: 'DROP MINES WITH B BUTTON' },
   { name: 'GHOST', weight: 1, isNew: true, desc: 'DRIVE THROUGH BRICK+WATER' },
   { name: 'COIN', weight: 2, isNew: true, desc: '1000 BONUS POINTS' },
+  { name: 'TURRET', weight: 2, isNew: true, desc: 'DROPS A TURRET THAT SHOOTS' },
+  { name: 'CLAUDE', weight: 1, isNew: true, desc: 'CLAUDE EATS ENEMY TANKS', who: 'PLAYER' },
+  { name: 'REVIVE', weight: 1, isNew: true, desc: 'BRINGS FALLEN PLAYERS BACK' },
+  { name: 'AIRSTRIKE', weight: 1, isNew: true, desc: 'BOMBS THE BUSIEST ROW' },
 ];
 
 // XP ranks: total XP needed for each level (1-10), and the perk it unlocks (descriptions max 22 chars)
@@ -79,6 +83,8 @@ const SETTINGS_DEF = [
   { key: 'spawnShield', label: 'SPAWN SHIELD', values: SECS, def: 3, fmt: fmtSec },
   { key: 'extraLife', label: 'EXTRA LIFE AT 20K', values: ['ONCE', 'EVERY', 'OFF'], def: 'ONCE' },
   { key: 'friendlyFire', label: 'FRIENDLY FIRE', values: ['FREEZE', 'OFF'], def: 'FREEZE' },
+  // points a fallen player (or a teammate) pays to come back: FIRE during play, or REVIVE in the shop
+  { key: 'reviveCost', label: 'REVIVE COST', values: ['OFF', 2500, 5000, 7500, 10000], def: 7500 },
 
   { section: 'XP AND LEVELS' },
   { key: 'xp', label: 'XP AND LEVELS', values: ONOFF, def: 'ON' },
@@ -181,7 +187,7 @@ const SETTINGS_DEF = [
   // who may collect each power-up: ANYONE (players and enemies), PLAYER only, or OFF (never appears)
   { section: 'WHO CAN COLLECT' },
   ...POWERUPS.map((pu, i) => ({
-    key: 'pu' + i, label: pu.name + (pu.isNew ? ' *' : ''), values: ['ANYONE', 'PLAYER', 'OFF'], def: 'ANYONE', powerup: i,
+    key: 'pu' + i, label: pu.name + (pu.isNew ? ' *' : ''), values: ['ANYONE', 'PLAYER', 'OFF'], def: pu.who || 'ANYONE', powerup: i,
   })),
   { action: 'classicPU', label: 'CLASSIC POWER-UPS ONLY' },
   { action: 'allPU', label: 'ALL POWER-UPS ON' },

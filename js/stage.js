@@ -56,6 +56,7 @@ const PU = {
   HELMET: 0, CLOCK: 1, SHOVEL: 2, STAR: 3, GRENADE: 4, TANK: 5, GUN: 6, SHIP: 7,
   // additions that were not in the original game
   TURBO: 8, RAPID: 9, SPREAD: 10, PIERCE: 11, ROCKET: 12, MINES: 13, GHOST: 14, COIN: 15,
+  TURRET: 16, CLAUDE: 17, REVIVE: 18, AIRSTRIKE: 19,   // see extras.js
 };
 // timed effects granted by the new power-ups (stored per tank in t.boost)
 const TIMED_BOOSTS = { [PU.TURBO]: 'turbo', [PU.RAPID]: 'rapid', [PU.SPREAD]: 'spread', [PU.PIERCE]: 'pierce', [PU.ROCKET]: 'rocket', [PU.GHOST]: 'ghost' };
@@ -242,6 +243,7 @@ class Stage {
     this.mines = [];
     this.bosses = []; this.beams = []; this.tracks = []; this.dust = [];
     this.flames = []; this.shells = []; this.heals = []; this.mark = null; this.jamList = [];   // see enemies.js
+    this.turrets = []; this.claudes = []; this.strikes = []; this.reviveWait = 0;              // see extras.js
     this.applyBase(opts.base);                 // base upgrades from the shop (base.js)
     this.origTerrain = this.terrain.slice();   // what a mason rebuilds
     this.lastBrickSound = -1;
@@ -301,6 +303,8 @@ class Stage {
       }),
       kills: this.players.map(p => p.kills.slice()),
       eagleArmor: this.eagleArmor,
+      turrets: this.turrets.map(tu => Object.assign({}, tu, { owner: tu.owner ? tu.owner.i : -1 })),
+      claudes: this.claudes.map(c => Object.assign({}, c, { p: c.p ? c.p.i : -1 })),
       boss: this.bossIdx === undefined ? null : {
         idx: this.bossIdx, loop: this.bossLoop, dropAt: this.bossDropAt, defeated: !!this.bossDefeated,
         bosses: this.bosses.map(b => Object.assign({}, b, { bullets: 0 })),
@@ -313,6 +317,8 @@ class Stage {
     this.dirty = true;
     for (const k of ['queue', 'total', 'killed', 'spawnTimer', 'spawnPos', 'spawnInterval', 'maxEnemies', 'freezeE', 'freezeP', 'shovel', 'baseAlive', 'frame', 'powerup']) this[k] = sn[k];
     if (sn.eagleArmor !== undefined) this.eagleArmor = sn.eagleArmor;
+    this.turrets = (sn.turrets || []).map(tu => Object.assign({}, tu, { owner: this.players[tu.owner] || null }));
+    this.claudes = (sn.claudes || []).map(c => Object.assign({}, c, { p: this.players[c.p] || null }));
     this.spawns = [];
     for (const p of this.players) { p.tank = null; p.kills = zeroKills().map((z, k) => (sn.kills[p.i] || [])[k] || 0); }
     this.tanks = sn.tanks.map(o => {
@@ -434,6 +440,7 @@ class Stage {
         if (p.kit) {
           if (p.kit.helmet) t.shield = Math.max(t.shield, Config.frames('helmetTime'));
           for (const k of ['turbo', 'rapid', 'rocket', 'pierce', 'spread', 'ghost']) if (p.kit[k]) t.boost[k] = Config.frames('newTime');
+          if (p.kit.claude) this.summonClaude(t.x, Math.max(0, t.y - 16), p);
           p.kit = null;
         }
         this.tanks.push(t);
@@ -459,6 +466,10 @@ class Stage {
     }
     this.updateSpecials();
     this.updateBase();
+    this.updateTurrets();
+    this.updateClaudes();
+    this.updateStrikes();
+    if (!this.over || this.reviveWait > 0) this.updateRevival();
     this.updateBosses();
     this.updateBullets();
     this.updateMines();
@@ -527,11 +538,12 @@ class Stage {
         if (!this.move(t, t.dir)) t.slide = 0;
       }
     }
-    // B drops a mine while you carry some; otherwise it fires like A
-    const hasMines = p.mines > 0;
-    if (hasMines && inp.altPressed) { this.dropMine(t); p.mines--; }
-    const firePressed = inp.firePressed || (!hasMines && inp.altPressed);
-    const fireHeld = inp.fire || (!hasMines && inp.alt);
+    // B places a turret / drops a mine while you carry some; otherwise it fires like A
+    const hasTur = p.turrets > 0, hasMines = p.mines > 0, hasB = hasTur || hasMines;
+    if (hasTur && inp.altPressed) { this.placeTurret(t.x, t.y, p, false); p.turrets--; }
+    else if (hasMines && inp.altPressed) { this.dropMine(t); p.mines--; }
+    const firePressed = inp.firePressed || (!hasB && inp.altPressed);
+    const fireHeld = inp.fire || (!hasB && inp.alt);
     if (firePressed || (fireHeld && t.cool === 0)) {
       if (this.fire(t)) t.cool = t.boost.rapid ? 5 : t.reload || 14;
     }
@@ -673,6 +685,10 @@ class Stage {
     }
     if (overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
     if (this.bosses.length && this.bossBlocksTank(t, nx, ny)) return false;
+    if (this.turrets.length) {
+      const tu = this.turretAt(nx, ny, 16, 16);
+      if (tu && !overlap(t.x, t.y, 16, 16, tu.x, tu.y, 16, 16)) return false;
+    }
     for (const o of this.tanks) {
       if (o === t || !o.alive) continue;
       if (overlap(nx, ny, 16, 16, o.x, o.y, 16, 16) && !overlap(t.x, t.y, 16, 16, o.x, o.y, 16, 16)) return false;
@@ -744,6 +760,7 @@ class Stage {
       return;
     }
     if (this.bulletTerrain(b)) return;
+    if (this.turrets.length && this.bulletTurret(b)) return;
     if (this.bosses.length && this.bossShell(b) === 'stop') return;
     if (overlap(b.x, b.y, 4, 4, BASE_X, BASE_Y, 16, 16)) {
       this.killBullet(b, true);
@@ -751,7 +768,7 @@ class Stage {
       return;
     }
     for (const t of this.tanks) {
-      if (!t.alive || t === b.owner || (b.eagle && t.isPlayer)) continue;
+      if (!t.alive || t === b.owner || ((b.eagle || b.passPlayers) && t.isPlayer)) continue;
       if (!overlap(b.x, b.y, 4, 4, t.x, t.y, 16, 16)) continue;
       if (b.pierce) {
         // piercing shells damage each tank once and keep flying
@@ -963,7 +980,11 @@ class Stage {
       this.spawnPlayer(p, 30);
     } else {
       p.out = true;
-      if (this.players.every(q => q.out)) this.startOver();
+      // everyone is out: a few seconds to pay for a revival, if anyone can afford it
+      if (this.players.every(q => q.out)) {
+        if (this.players.some(q => this.revivePayer(q))) this.reviveWait = REVIVE_WAIT;
+        else this.startOver();
+      }
     }
   }
 
@@ -1083,6 +1104,15 @@ class Stage {
         case PU.SHIP: p.ship = true; t.ship = true; break;
         case PU.MINES: p.mines = (p.mines || 0) + Config.get('mineCount'); break;
         case PU.COIN: this.addScore(p, 1000); snd = 'bonus'; break;
+        case PU.TURRET: this.placeTurret(pu.x, pu.y, p, false); break;
+        case PU.CLAUDE: this.summonClaude(pu.x, pu.y, p); break;
+        case PU.AIRSTRIKE: this.callAirstrike(true, gunner(p)); break;
+        case PU.REVIVE: {
+          const fallen = this.players.filter(q => q.out);
+          if (fallen.length) fallen.forEach(q => this.revive(q, null));
+          else { p.lives++; snd = 'life'; }
+          break;
+        }
       }
       Sound.play(snd);
     } else {
@@ -1101,6 +1131,16 @@ class Stage {
         case PU.COIN: // the enemy steals points
           for (const q of this.players) q.score = Math.max(0, q.score - 1000);
           this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: '-1000', label: true, color: COL.red, t: 0, delay: 0 });
+          break;
+        case PU.TURRET: this.placeTurret(pu.x, pu.y, null, true); break;
+        case PU.CLAUDE: // Claude doesn't work for them
+          this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: 'NOPE!', label: true, color: '#F0A080', t: 0, delay: 0 });
+          break;
+        case PU.AIRSTRIKE: this.callAirstrike(false, null); break;
+        case PU.REVIVE: // reinforcements
+          for (let k = 0; k < 2; k++) this.queue.push({ type: rnd(4) });
+          this.total += 2;
+          this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: '+2 TANKS', label: true, color: COL.red, t: 0, delay: 0 });
           break;
       }
       if (TIMED_BOOSTS[pu.type]) t.boost[TIMED_BOOSTS[pu.type]] = Config.frames('newTime');
@@ -1206,7 +1246,9 @@ class Stage {
     for (const m of this.mines) ctx.drawImage(Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0], m.x - 4, m.y - 4);
     this.renderBossUnder(ctx);
     this.renderSpecialsUnder(ctx);
+    this.renderTurrets(ctx);
     for (const t of this.tanks) this.drawTank(ctx, t);
+    this.renderClaudes(ctx);
     this.renderBosses(ctx);
     for (const s of this.spawns) {
       if (s.t > SPARKLE_TIME) continue;
@@ -1225,6 +1267,7 @@ class Stage {
       ctx.drawImage(Sprites.powerups[this.powerup.type], this.powerup.x, this.powerup.y);
     }
     this.renderSpecialsOver(ctx);
+    this.renderStrikes(ctx);
     for (const f of this.fx) {
       if (f.tick < 0) continue;
       const fr = f.frames[Math.min(f.frames.length - 1, Math.floor(f.tick / f.per))];
@@ -1247,6 +1290,7 @@ class Stage {
     }
     this.renderBossBanner(ctx);
     this.renderRankMsg(ctx);
+    this.renderRevival(ctx);
     ctx.restore();
     this.renderHud(ctx);
   }
@@ -1278,6 +1322,14 @@ class Stage {
     ctx.fillRect(x + 2, y + h - 1 - f, 1, f);
   }
 
+  // what a player carries for the B button, as dots: mines grey, turrets yellow
+  renderCarried(ctx, p, x, y, vertical, max, turretsOnly) {
+    const dots = [];
+    if (!turretsOnly) for (let k = 0; k < (p.mines || 0); k++) dots.push('#505050');
+    for (let k = 0; k < (p.turrets || 0); k++) dots.push('#F8B800');
+    dots.slice(0, max).forEach((c, k) => { ctx.fillStyle = c; ctx.fillRect(x + (vertical ? 0 : k * 3), y + (vertical ? k * 3 : 0), 2, 2); });
+  }
+
   renderHud(ctx) {
     const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
     if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);
@@ -1295,12 +1347,8 @@ class Stage {
         if (xp) {
           ctx.drawImage(Sprites.mini('L' + (p.rank || 1)), H, y + 8);
           this.renderXpBar(ctx, p, H + 18, y, 15);
-          ctx.fillStyle = '#505050';
-          for (let k = 0; k < Math.min(4, p.mines || 0); k++) ctx.fillRect(H + 22, y + 1 + k * 3, 2, 2);
-        } else if (p.mines) {
-          ctx.fillStyle = '#505050';
-          for (let k = 0; k < Math.min(3, p.mines); k++) ctx.fillRect(H + 1 + k * 3, y + 9, 2, 2);
-        }
+          this.renderCarried(ctx, p, H + 22, y + 1, true, 5);
+        } else this.renderCarried(ctx, p, H + 1, y + 9, false, 5);
       });
       ctx.drawImage(Sprites.flag, H, 184);
       Font.drawRight(ctx, String(this.num), H + 16, 200, COL.black);
@@ -1316,11 +1364,13 @@ class Stage {
         // level, XP bar beside the lives, mines as dots underneath
         ctx.drawImage(Sprites.mini('L' + (p.rank || 1)), H, y + 17);
         this.renderXpBar(ctx, p, H + 18, y + 8, 18);
-        ctx.fillStyle = '#505050';
-        for (let k = 0; k < Math.min(5, p.mines || 0); k++) ctx.fillRect(H + 1 + k * 3, y + 25, 2, 2);
-      } else if (p.mines) {
-        ctx.drawImage(Sprites.mine[0], H, y + 16);
-        Font.draw(ctx, String(Math.min(9, p.mines)), H + 8, y + 16, COL.black);
+        this.renderCarried(ctx, p, H + 1, y + 25, false, 5);
+      } else {
+        if (p.mines) {
+          ctx.drawImage(Sprites.mine[0], H, y + 16);
+          Font.draw(ctx, String(Math.min(9, p.mines)), H + 8, y + 16, COL.black);
+        }
+        this.renderCarried(ctx, p, H + 18, y + 9, true, 4, true);
       }
     });
     ctx.drawImage(Sprites.flag, H, 184);
