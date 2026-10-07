@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.19</title>
+  <title>tanb4iki_v0.20</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.19';
+const APP_VERSION = '0.20';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -3527,6 +3527,9 @@ const PU = {
 // timed effects granted by the new power-ups (stored per tank in t.boost)
 const TIMED_BOOSTS = { [PU.TURBO]: 'turbo', [PU.RAPID]: 'rapid', [PU.SPREAD]: 'spread', [PU.PIERCE]: 'pierce', [PU.ROCKET]: 'rocket', [PU.GHOST]: 'ghost', [PU.SMOKE]: 'smoke' };
 const TURBO_MULT = 1.75;
+// small points for wrecking things: per shell that breaks bricks, per steel block, per tree, per enemy turret,
+// per enemy shell shot down
+const OBJ_PTS = { brick: 10, steel: 50, tree: 20, turret: 300, shell: 20 };
 const ROCKET_RADIUS = 14, MINE_RADIUS = 18, MINE_ARM_TIME = 40, MAX_MINES = 16;
 let BASE_X = 96, BASE_Y = 192;
 let ENEMY_SPAWN_X = [96, 192, 0];
@@ -3756,7 +3759,7 @@ class Stage {
     if (opts.timeAttack) this.spawnInterval = Math.round(this.spawnInterval / 2);
     for (const p of players) {
       p.kills = zeroKills();
-      if (!opts.snapshot) p.stageXp = 0;
+      if (!opts.snapshot) { p.stageXp = 0; p.late = []; p.carryNext = null; }
       p.tank = null;
       if (!p.out && !opts.snapshot) this.spawnPlayer(p, 0);
       // a shovel charge bought in the shop fortifies the eagle from the start
@@ -3768,6 +3771,7 @@ class Stage {
     }
     if (opts.boss) this.initBoss(opts.boss);
     if (opts.snapshot) this.restore(opts.snapshot);
+    else if (this.claudeLevel() >= 5 && !this.vs) this.claudeAtStart();   // CLAUDE LEVEL 5 (extras.js)
   }
 
   // ------------------------------------------------------------ save / load
@@ -3947,6 +3951,7 @@ class Stage {
           if (p.kit.decoy) this.placeDecoy();
           p.kit = null;
         }
+        if (p.carry) this.applyCarry(p, t);   // power-ups from the end of the last stage, twice as long
         this.tanks.push(t);
       }
       s.done = true;
@@ -4009,8 +4014,9 @@ class Stage {
         for (const p of this.players) if (!p.out) this.addXp(p, 25);
         if (this.big) this.bigMapBonus();
         AutoSkill.event('clear');
+        this.carryOnClear();
       }
-      if (this.clearTimer >= 190) this.result = 'clear';
+      if (this.clearTimer >= 190) { this.result = 'clear'; this.carryToNext(); }
     }
   }
 
@@ -4255,9 +4261,11 @@ class Stage {
           const c = bs[j];
           if (!c.alive || a.isPlayer === c.isPlayer) continue;
           if (overlap(a.x, a.y, 4, 4, c.x, c.y, 4, 4)) {
-            // piercing shells plough through ordinary ones
+            // piercing shells plough through ordinary ones; shooting down an enemy shell pays a little
+            const mine = a.isPlayer ? a : c, theirs = a.isPlayer ? c : a;
             if (!a.pierce || c.pierce) this.killBullet(a, a.rocket);
             if (!c.pierce || a.pierce) this.killBullet(c, c.rocket);
+            if (!theirs.alive && !this.vs && mine.owner && mine.owner.player) this.addScore(mine.owner.player, OBJ_PTS.shell);
             if (!a.alive) break;
           }
         }
@@ -4366,12 +4374,14 @@ class Stage {
       if (!blocked) {
         const lo = vert ? Math.floor((b.x + 2 - 8) / 4) : Math.floor((b.y + 2 - 8) / 4);
         const hi = vert ? Math.floor((b.x + 2 + 7.99) / 4) : Math.floor((b.y + 2 + 7.99) / 4);
+        const n = { brick: 0, steel: 0, tree: 0 };
         for (let k = lo; k <= hi; k++) {
           const cx = vert ? k : hitCol, cy = vert ? hitRow : k, t = this.get(cx, cy);
-          if (t === T_BRICK) this.set(cx, cy, T_EMPTY);
-          else if (t === T_STEEL) this.clearGroup(cx, cy, T_STEEL);
-          else if (t === T_FOREST && b.cutter) this.clearGroup(cx, cy, T_FOREST);
+          if (t === T_BRICK) { this.set(cx, cy, T_EMPTY); n.brick++; }
+          else if (t === T_STEEL) { this.clearGroup(cx, cy, T_STEEL); n.steel++; }
+          else if (t === T_FOREST && b.cutter) { this.clearGroup(cx, cy, T_FOREST); n.tree++; }
         }
+        if (b.isPlayer) this.wreckPoints(b.owner, n, b.x + 2, b.y + 2);
         if (b.isPlayer && this.lastBrickSound < this.frame - 3) { Sound.play('brick'); this.lastBrickSound = this.frame; }
         return false;
       }
@@ -4381,11 +4391,12 @@ class Stage {
     const depth = b.power ? 2 : 1;
     const step = (b.dir === 0 || b.dir === 3) ? -1 : 1;
     let broke = false;
+    const n = { brick: 0, steel: 0, tree: 0 };
     const hitCell = (cx, cy) => {
       const t = this.get(cx, cy);
-      if (t === T_BRICK) { this.set(cx, cy, T_EMPTY); broke = true; }
-      else if (t === T_STEEL && b.power) { this.clearGroup(cx, cy, T_STEEL); broke = true; }
-      else if (t === T_FOREST && b.cutter) { this.clearGroup(cx, cy, T_FOREST); broke = true; }
+      if (t === T_BRICK) { this.set(cx, cy, T_EMPTY); broke = true; n.brick++; }
+      else if (t === T_STEEL && b.power) { this.clearGroup(cx, cy, T_STEEL); broke = true; n.steel++; }
+      else if (t === T_FOREST && b.cutter) { this.clearGroup(cx, cy, T_FOREST); broke = true; n.tree++; }
     };
     if (vert) {
       const mx = b.x + 2, c0 = Math.floor((mx - 8) / 4), c1 = Math.floor((mx + 7.99) / 4);
@@ -4395,21 +4406,34 @@ class Stage {
       for (let k = 0; k < depth; k++) for (let r = r0; r <= r1; r++) hitCell(hitCol + k * step, r);
     }
     this.killBullet(b, true);
-    if (b.isPlayer) Sound.play(broke ? 'brick' : 'steel');
+    if (b.isPlayer) { Sound.play(broke ? 'brick' : 'steel'); this.wreckPoints(b.owner, n, b.x + 2, b.y + 2); }
     return true;
+  }
+
+  // points for what one shell or blast wrecked (n: counts of brick cells, steel blocks, trees); bricks pay once per
+  // shot however many cells went, the rest per block. Shown when it's more than the brick bonus.
+  wreckPoints(owner, n, x, y) {
+    const p = owner && owner.player;
+    if (!p || this.vs) return;
+    const pts = (n.brick ? OBJ_PTS.brick : 0) + n.steel * OBJ_PTS.steel + (n.tree || 0) * OBJ_PTS.tree;
+    if (!pts) return;
+    this.addScore(p, pts);
+    if (pts > OBJ_PTS.brick) this.popups.push({ x, y, text: String(pts), t: 0, delay: 0 });
   }
 
   // ------------------------------------------------------------ blasts and mines
   // explosion that breaks bricks (steel with power) and damages the other side's tanks
   blast(cx, cy, r, byPlayer, owner, power, exclude, excludeBoss) {
+    const wrecked = { brick: 0, steel: 0 };
     for (let y = Math.floor((cy - r) / 4); y <= Math.floor((cy + r) / 4); y++) {
       for (let x = Math.floor((cx - r) / 4); x <= Math.floor((cx + r) / 4); x++) {
         if (Math.hypot(x * 4 + 2 - cx, y * 4 + 2 - cy) > r) continue;
         const t = this.get(x, y);
-        if (t === T_BRICK) this.set(x, y, T_EMPTY);
-        else if (t === T_STEEL && power) this.clearGroup(x, y, T_STEEL);
+        if (t === T_BRICK) { this.set(x, y, T_EMPTY); wrecked.brick++; }
+        else if (t === T_STEEL && power) { this.clearGroup(x, y, T_STEEL); wrecked.steel++; }
       }
     }
+    if (byPlayer) this.wreckPoints(owner, wrecked, cx, cy);
     const reaches = (x, y, w, h) => Math.hypot(Math.max(x, Math.min(cx, x + w)) - cx, Math.max(y, Math.min(cy, y + h)) - cy) < r - 2;
     for (const t of this.tanks) {
       if (!t.alive || t === exclude || !reaches(t.x, t.y, 16, 16)) continue;
@@ -4639,6 +4663,7 @@ class Stage {
       if (POWERUPS[pu.type].isNew) this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: POWERUPS[pu.type].name, label: true, color: COL.white, t: 0, delay: 0 });
       else this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: '500', t: 0, delay: 0 });
       if (TIMED_BOOSTS[pu.type]) t.boost[TIMED_BOOSTS[pu.type]] = Config.frames('newTime');
+      this.noteTimedPickup(p, pu.type, pu.x + 8, pu.y);   // late ones carry over (extras.js)
       switch (pu.type) {
         case PU.HELMET: t.shield = Config.frames('helmetTime'); break;
         case PU.CLOCK: this.freezeE = Config.frames('clockTime'); snd = 'freeze'; break;
@@ -5794,11 +5819,23 @@ Object.assign(Stage.prototype, {
 //              the nearest enemy and shoots once lined up. 3 hits. An enemy that grabs the power-up gets a red one.
 //    CLAUDE    the orange Claude sparkle wanders the field for a while, chirping, and eats every enemy tank
 //              (and enemy shell) it bumps into. It nibbles bosses. It won't work for the enemy.
+//              CLAUDE LEVEL in the shop (team-wide, kept like the base upgrades) makes every Claude better:
+//              1 stays 50% longer · 2 moves 50% faster · 3 bigger bites (wider reach, double damage to bosses)
+//              4 spits sparks at enemy tanks lined up with it · 5 comes to every stage by itself
 //    AIRSTRIKE a plane flies along the row with the most enemies, bombing it (an enemy's plane bombs yours).
 //    REVIVE    a fallen player comes back: the REVIVE power-up, FIRE during play (costs points), or the shop.
+//    CARRY     a timed power-up (helmet, clock, shovel, turbo, rapid, ...) picked up in the last 10 seconds before a
+//              stage is cleared isn't wasted: it comes with you to the next stage, lasting twice as long.
 // =====================================================================
 
 const TURRET_RANGE = 128, TURRET_HP = 3, TURRET_MAX = 3;
+const CLAUDE_UPGRADE = {
+  name: 'CLAUDE LEVEL', prices: [4000, 6000, 8000, 11000, 14000],
+  descs: ['STAYS 50% LONGER', 'MOVES 50% FASTER', 'BIGGER BITES, BOSSES TOO', 'SPITS SPARKS AT TANKS', 'COMES TO EVERY STAGE'],
+};
+const CLAUDE_SPARK_RANGE = 112, CLAUDE_SPARK_EVERY = 50;
+const CARRY_WINDOW = 600;   // frames before the stage is cleared in which a timed power-up carries over
+const carryable = type => type === PU.HELMET || type === PU.CLOCK || type === PU.SHOVEL || !!TIMED_BOOSTS[type];
 const CLAUDE_SPEED = 1, CLAUDE_EXTRA = 300;   // Claude stays for the new-power-up time + 5 s
 const REVIVE_WAIT = 300;                      // all players out: 5 s to pay for a revival before GAME OVER
 
@@ -5868,6 +5905,11 @@ Object.assign(Stage.prototype, {
     this.killBullet(b, true);
     if (--tu.hp <= 0) {
       this.turrets.splice(this.turrets.indexOf(tu), 1);
+      // wrecking an enemy turret pays
+      if (tu.enemy && b.owner && b.owner.player && !this.vs) {
+        this.addScore(b.owner.player, OBJ_PTS.turret);
+        this.popups.push({ x: tu.x + 8, y: tu.y + 8, text: String(OBJ_PTS.turret), t: 0, delay: 0 });
+      }
       this.addFx(tu.x + 8, tu.y + 8, BIG_EXPLOSION(), 4);
       Sound.play('explode');
     } else Sound.play('armor');
@@ -5875,8 +5917,11 @@ Object.assign(Stage.prototype, {
   },
 
   // ------------------------------------------------------------ Claude
+  claudeLevel() { return (this.base && this.base.claude) || 0; },
+
   summonClaude(x, y, p) {
-    this.claudes.push({ x: Math.round(x / 8) * 8, y: Math.round(y / 8) * 8, dir: 0, t: Config.frames('newTime') + CLAUDE_EXTRA, p, chirp: 30, nibble: 0, acc: 0 });
+    const lv = this.claudeLevel(), t = Math.round((Config.frames('newTime') + CLAUDE_EXTRA) * (lv >= 1 ? 1.5 : 1));
+    this.claudes.push({ x: Math.round(x / 8) * 8, y: Math.round(y / 8) * 8, dir: 0, t, p, chirp: 30, nibble: 0, acc: 0, lv, spark: CLAUDE_SPARK_EVERY });
     this.popups.push({ x: x + 8, y, text: 'HI!', label: true, color: '#F0A080', t: 0, delay: 0 });
     Sound.play('claude');
   },
@@ -5899,32 +5944,34 @@ Object.assign(Stage.prototype, {
           c.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0);
         } else if (Math.random() < 0.3) c.dir = rnd(4);
       }
-      c.acc += CLAUDE_SPEED;
+      c.acc += CLAUDE_SPEED * (c.lv >= 2 ? 1.5 : 1);
       while (c.acc >= 1) {
         c.acc--;
         const nx = c.x + DXY[c.dir][0], ny = c.y + DXY[c.dir][1];
         if (nx < 0 || ny < 0 || nx > FW - 16 || ny > FH - 16) { c.dir = (c.dir + 2) % 4; break; }
         c.x = nx; c.y = ny;
       }
-      // munch
+      // munch (bigger bites from level 3: a wider reach)
+      const [mx, my, mw] = c.lv >= 3 ? [c.x - 6, c.y - 6, 28] : [c.x + 2, c.y + 2, 12];
       for (const t of this.tanks) {
-        if (!t.alive || t.isPlayer || !overlap(t.x + 2, t.y + 2, 12, 12, c.x + 2, c.y + 2, 12, 12)) continue;
+        if (!t.alive || t.isPlayer || !overlap(t.x + 2, t.y + 2, 12, 12, mx, my, mw, mw)) continue;
         this.killEnemy(t, gunner(c.p), true, true);
         this.popups.push({ x: t.x + 8, y: t.y, text: 'NOM!', label: true, color: '#F0A080', t: 0, delay: 0 });
         Sound.play('nom');
       }
       for (const b of this.bullets) {
-        if (b.alive && !b.isPlayer && overlap(b.x, b.y, 4, 4, c.x + 2, c.y + 2, 12, 12)) { this.killBullet(b, false); Sound.play('nom'); }
+        if (b.alive && !b.isPlayer && overlap(b.x, b.y, 4, 4, mx, my, mw, mw)) { this.killBullet(b, false); Sound.play('nom'); }
       }
       if (--c.nibble <= 0) {
         for (const bo of this.bosses) {
           if (bo.alive && this.bossTangible(bo) && overlap(c.x, c.y, 16, 16, bo.x, bo.y, bo.w, bo.h)) {
-            this.bossHit(bo, 1, gunner(c.p), c.x + 8);
-            c.nibble = 30;
+            this.bossHit(bo, c.lv >= 3 ? 2 : 1, gunner(c.p), c.x + 8);
+            c.nibble = c.lv >= 3 ? 20 : 30;
             Sound.play('nom');
           }
         }
       }
+      if (c.lv >= 4 && --c.spark <= 0) this.claudeSpark(c);
       if (c.t <= 0) {
         this.addFx(c.x + 8, c.y + 8, [Sprites.sparkle[3], Sprites.sparkle[2], Sprites.sparkle[1], Sprites.sparkle[0]], 4);
         this.popups.push({ x: c.x + 8, y: c.y, text: 'BYE!', label: true, color: '#F0A080', t: 0, delay: 0 });
@@ -5932,6 +5979,75 @@ Object.assign(Stage.prototype, {
       }
     }
     this.claudes = this.claudes.filter(c => c.t > 0);
+  },
+
+  // level 4: a spark (a player's shell) at the nearest enemy tank lined up with Claude
+  claudeSpark(c) {
+    const cx = c.x + 8, cy = c.y + 8;
+    let best = null, bd = CLAUDE_SPARK_RANGE;
+    for (const t of this.tanks) {
+      if (!t.alive || t.isPlayer) continue;
+      const dx = t.x + 8 - cx, dy = t.y + 8 - cy, d = Math.abs(dx) + Math.abs(dy);
+      if ((Math.abs(dx) < 6 || Math.abs(dy) < 6) && d < bd && d > 12) { bd = d; best = [dx, dy]; }
+    }
+    if (!best) { c.spark = 8; return; }
+    const [dx, dy] = best, dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0);
+    if (!this.noBase && this.eagleInLine(cx, cy, cx + dx, cy + dy)) { c.spark = 8; return; }
+    const [ox, oy] = DXY[dir];
+    this.bullets.push({
+      x: cx - 2 + ox * 8, y: cy - 2 + oy * 8, dir, speed: 4, owner: gunner(c.p), spark: true,
+      free: true, isPlayer: true, passPlayers: true, power: false, cutter: false, alive: true, pierce: false, rocket: false,
+    });
+    c.spark = CLAUDE_SPARK_EVERY;
+    Sound.play('claude');
+  },
+
+  // ------------------------------------------------------------ late power-ups carry over
+  // a timed power-up was picked up: remember when (once the stage is being cleared, it carries over right away)
+  noteTimedPickup(p, type, x, y) {
+    if (!carryable(type)) return;
+    (p.late || (p.late = [])).push({ type, at: this.frame });
+    if (this.clearTimer > 0) this.keepForNext(p, type, x, y);
+  },
+
+  keepForNext(p, type, x, y) {
+    p.carryNext = p.carryNext || [];
+    if (p.carryNext.includes(type)) return;
+    p.carryNext.push(type);
+    this.popups.push({ x, y: y - 8, text: POWERUPS[type].name + ' x2 NEXT STAGE', label: true, color: COL.gold, t: 0, delay: 20, life: 120 });
+  },
+
+  // the last enemy is gone: what was picked up in the last seconds is kept
+  carryOnClear() {
+    for (const p of this.players) {
+      const t = p.tank || { x: PLAYER_SPAWN[p.i][0], y: PLAYER_SPAWN[p.i][1] };
+      for (const e of p.late || []) if (e.at >= this.frame - CARRY_WINDOW) this.keepForNext(p, e.type, t.x + 8, t.y);
+    }
+  },
+
+  // the stage is over (cleared): hand the kept power-ups on
+  carryToNext() {
+    for (const p of this.players) { p.carry = p.carryNext && p.carryNext.length ? p.carryNext : null; p.carryNext = null; p.late = []; }
+  },
+
+  // first spawn of the next stage: the carried power-ups, twice as long
+  applyCarry(p, t) {
+    for (const type of p.carry) {
+      if (type === PU.HELMET) t.shield = Math.max(t.shield, 2 * Config.frames('helmetTime'));
+      else if (type === PU.CLOCK) this.freezeE = Math.max(this.freezeE, 2 * Config.frames('clockTime'));
+      else if (type === PU.SHOVEL) { if (!this.noBase) { this.shovel = 2 * Config.frames('shovelTime'); this.setBaseWalls(T_STEEL); } }
+      else if (TIMED_BOOSTS[type]) t.boost[TIMED_BOOSTS[type]] = 2 * Config.frames('newTime');
+    }
+    this.popups.push({ x: t.x + 8, y: t.y - 4, text: p.carry.map(k => POWERUPS[k].name).join(' ') + ' x2', label: true, color: COL.gold, t: 0, delay: 0, life: 120 });
+    p.carry = null;
+  },
+
+  // level 5: Claude turns up at the start of every stage
+  claudeAtStart() {
+    const p = this.players.find(q => !q.out);
+    if (!p) return;
+    const [x, y] = PLAYER_SPAWN[p.i];
+    this.summonClaude(x, Math.max(0, y - 32), p);
   },
 
   // ------------------------------------------------------------ airstrikes
@@ -6006,7 +6122,12 @@ Object.assign(Stage.prototype, {
   renderClaudes(ctx) {
     for (const c of this.claudes) {
       if (c.t < 60 && (c.t >> 2) & 1) continue;
-      ctx.drawImage(Sprites.claude[(c.x + c.y) >> 3 & 1], c.x, c.y);
+      const spr = Sprites.claude[(c.x + c.y) >> 3 & 1], lv = c.lv || 0;
+      // upgraded: a golden glow from level 3, and one pip per level underneath
+      if (lv >= 3) ctx.drawImage(Sprites.outline(spr, lv >= 5 ? '#FCE0A8' : '#F8B800'), c.x - 1, c.y - 1);
+      ctx.drawImage(spr, c.x, c.y);
+      ctx.fillStyle = '#F8B800';
+      for (let k = 0; k < lv; k++) ctx.fillRect(c.x + 8 - lv + k * 2, c.y + 17, 1, 1);
     }
   },
 
@@ -6898,11 +7019,56 @@ Object.assign(Stage.prototype, {
 //  CORRIDOR mode: the usual width, endless height. Climb as far as you can.
 //  The world is three map sections stacked (13 tiles high each). When the whole team has climbed out of the bottom
 //  section it is dropped, everything moves down one section, and a fresh section is added on top, so the climb
-//  never ends. Enemies keep arriving just above the screen and get tougher the higher you get; ones left far
+//  never ends. Enemies keep arriving just above the screen; the higher you get, the more kinds join in (slowly, one
+//  at a time) and the tougher they get; ones left far
 //  behind drop out. No eagle: it's over when everyone is out of tanks. Every 5 sections: a tank for everyone.
 // =====================================================================
 
 const CORRIDOR_SECTIONS = 3, CORRIDOR_SECTION = 13;
+
+// How the enemy grows as you climb (heights in tiles climbed). The four classic tanks join first, then the newer
+// types one by one, in the order they reach the normal stages; each starts rare and takes 40 tiles to reach its
+// full share. Veterans and then elites creep in higher up.
+const CORRIDOR_CLASSIC = [[0, 4], [10, 3], [26, 2.5], [45, 2]];   // [joins at, weight] for basic, fast, power, armor
+const CORRIDOR_NEW_AT = 52, CORRIDOR_NEW_STEP = 20, CORRIDOR_RAMP = 40;
+
+// which types are in the mix at height h, with their weights ([type, weight] pairs)
+function corridorMix(h) {
+  const sk = Config.skill(), mult = ({ OFF: 0, FEW: 0.5, NORMAL: 1, MANY: 1.8 }[Config.get('newEnemies')] || 0) * sk.newMult;
+  const ramp = at => 0.25 + 0.75 * Math.min(1, (h - at) / CORRIDOR_RAMP);
+  const mix = [];
+  CORRIDOR_CLASSIC.forEach(([at, w], type) => {
+    if (h < at) return;
+    // the basic tank thins out as the climb goes on
+    mix.push([type, (type === 0 ? Math.max(1, w - h / 60) : w) * ramp(at)]);
+  });
+  if (!mult) return mix;
+  const order = NEW_TYPES.slice().sort((a, b) => ENEMY[a].from - ENEMY[b].from);
+  order.forEach((type, k) => {
+    const at = corridorUnlock(k);
+    if (h < at || Config.get('e' + type + 'On') === 'OFF') return;
+    mix.push([type, 1.5 * mult * (ENEMY[type].kind === 'snake' ? 0.4 : 1) * ramp(at)]);
+  });
+  return mix;
+}
+
+// height the k-th newer type joins at (easier skills bring them later)
+function corridorUnlock(k) { return CORRIDOR_NEW_AT + k * CORRIDOR_NEW_STEP + Math.max(0, Config.skill().newShift) * 4; }
+
+// one enemy for height h: a type from the mix, maybe a veteran or an elite
+function corridorEnemy(h) {
+  const mix = corridorMix(h), total = mix.reduce((a, m) => a + m[1], 0);
+  let r = Math.random() * total, type = 0;
+  for (const [t, w] of mix) { if (r < w) { type = t; break; } r -= w; }
+  let rank = 0;
+  if (Config.on('enemyGrowth')) {
+    const v = h + Config.skill().vet * 6;
+    const vet = Math.min(0.45, Math.max(0, (v - 100) / 600)), elite = Math.min(0.35, Math.max(0, (v - 230) / 700));
+    const x = Math.random();
+    rank = x < elite ? 2 : x < elite + vet ? 1 : 0;
+  }
+  return { type, rank };
+}
 
 // one section's block rows, as wide as the field (a classic 26-block map, mirrored outwards when wider)
 function corridorSection(map) {
@@ -6922,7 +7088,7 @@ function corridorBlocks(n) {
 
 Object.assign(Stage.prototype, {
   setupCorridor() {
-    this.corridor = { shifts: 0, climbed: 0, startY: PLAYER_SPAWN[0][1], spawnCd: 120, spawned: 0, lifeAt: 5 };
+    this.corridor = { shifts: 0, climbed: 0, startY: PLAYER_SPAWN[0][1], spawnCd: 120, spawned: 0, lifeAt: 5, kinds: [] };
     this.noBase = true;
     this.queue = [];
     this.total = 0;
@@ -6972,7 +7138,7 @@ Object.assign(Stage.prototype, {
             if (v === T_STEEL || v === T_WATER || v === T_BRICK) { solid = true; break; }
           }
           if (solid) continue;
-          const q = buildQueue(lvl, 1)[0];
+          const q = corridorEnemy(this.corridorClimb());
           q.ai = [AI.HUNT, AI.HUNT, AI.SNIPE, AI.WANDER][Math.floor(Math.random() * 4)];
           q.bonus = Config.on('bonusTanks') && c.spawned % 7 === 3;
           c.spawned++;
@@ -6981,6 +7147,13 @@ Object.assign(Stage.prototype, {
           break;
         }
       }
+    }
+    // a new kind of enemy joins the climb
+    const kinds = corridorMix(this.corridorClimb()).map(m => m[0]);
+    for (const k of kinds) {
+      if (c.kinds.includes(k)) continue;
+      c.kinds.push(k);
+      if (c.kinds.length > 1) this.popups.push({ x: FW / 2, y: cam + 56, text: ENEMY[k].name + ' AHEAD!', label: true, color: COL.gold, t: 0, delay: 0, life: 120 });
     }
     // enemies left far behind drop out
     for (const t of this.tanks) if (!t.isPlayer && t.y > cam + VIEW_H + 96) t.alive = false;
@@ -8252,7 +8425,7 @@ const Net = {
       mk: st.mark ? st.mark.p.i : -1,
       ea: [st.eagleArmor, st.eagleFlash, st.gunDir, st.base ? st.base.gun : 0, st.teslaT, st.zaps],
       tu: st.turrets.map(t => [t.x, t.y, t.dir, t.hp, t.owner ? t.owner.i : -1, t.enemy ? 1 : 0]),
-      cl: st.claudes.map(c => [c.x, c.y, c.t]),
+      cl: st.claudes.map(c => [c.x, c.y, c.t, c.lv || 0]),
       sk: st.strikes.map(k => [Math.round(k.x), k.y, k.dir]),
       rw: st.reviveWait,
       dc: st.decoy,
@@ -8409,7 +8582,7 @@ const Net = {
     }));
     if (sv.ea) { st.eagleArmor = sv.ea[0]; st.eagleFlash = sv.ea[1]; st.gunDir = sv.ea[2]; st.teslaT = sv.ea[4]; st.zaps = sv.ea[5] || []; st.base = Object.assign(newBase(), G.base || {}); }
     st.turrets = (sv.tu || []).map(a => ({ x: a[0], y: a[1], dir: a[2], hp: a[3], owner: G.players.find(p => p.i === a[4]) || null, enemy: !!a[5] }));
-    st.claudes = (sv.cl || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
+    st.claudes = (sv.cl || []).map(a => ({ x: a[0], y: a[1], t: a[2], lv: a[3] || 0 }));
     st.strikes = (sv.sk || []).map(a => ({ x: a[0], y: a[1], dir: a[2] }));
     st.reviveWait = sv.rw || 0;
     st.decoy = sv.dc || null;
@@ -8701,6 +8874,8 @@ const SHOP_ITEMS = [
   { id: 'pierce', name: 'PIERCE', price: 3000, icon: PU.PIERCE, desc: 'PIERCING SHELLS AT START' },
   { id: 'turret', name: 'TURRET', price: 4000, icon: PU.TURRET, desc: 'PLACE IT ANYWHERE WITH B' },
   { id: 'claude', name: 'CLAUDE', price: 6000, icon: PU.CLAUDE, desc: 'CLAUDE JOINS NEXT STAGE' },
+  // makes every Claude better (team-wide, kept between stages like the base upgrades; extras.js)
+  { id: 'claudeUp', up: 'claude', name: CLAUDE_UPGRADE.name, prices: CLAUDE_UPGRADE.prices, descs: CLAUDE_UPGRADE.descs, icon: PU.CLAUDE },
   { id: 'wingman', name: 'WINGMAN', price: 5000, icon: PU.TANK, desc: 'AN AI TANK FIGHTS BESIDE YOU' },
   { id: 'decoy', name: 'DECOY EAGLE', price: 3000, icon: PU.SHOVEL, desc: 'FAKE EAGLE LURES RUSHERS' },
   { id: 'smoke', name: 'SMOKE', price: 1500, icon: PU.SMOKE, desc: 'SMOKE SCREEN AT STAGE START' },
@@ -8757,7 +8932,7 @@ function dailyToday(when = new Date()) {
 function shopPrice(item) {
   const discount = Game.shopDiscount ? 0.75 : 1;
   if (item.id === 'revive') return reviveCost();   // the REVIVE COST setting, as during play
-  const price = item.prices ? item.prices[Math.min(item.prices.length - 1, Game.base[item.base] || 0)] : item.price;
+  const price = item.prices ? item.prices[Math.min(item.prices.length - 1, Game.base[item.base || item.up] || 0)] : item.price;
   return Math.round((price * Config.scale('shopPrices') * discount) / 100) * 100;
 }
 
@@ -8770,6 +8945,10 @@ function shopStatus(item, p) {
     return n ? { text: 'X' + n, max: false } : { text: '', max: true };
   }
   if (p.out && item.id !== 'done') return { text: '', max: true };   // a fallen player can only buy a revival
+  if (item.up) {
+    const lv = Game.base[item.up] || 0, top = item.prices.length;
+    return { text: lv >= top ? 'MAX' : 'L' + lv + '/' + top, max: lv >= top };
+  }
   if (item.base) {
     if (!Config.on('baseShop')) return { text: 'OFF', max: true };
     const lv = Game.base[item.base] || 0, top = item.prices.length;
@@ -8798,7 +8977,7 @@ function shopApply(item, p) {
   }
   if (item.id === 'turret') { p.turrets = (p.turrets || 0) + 1; return; }
   if (item.id === 'bridge') { p.bridges = (p.bridges || 0) + 2; return; }
-  if (item.base) { Game.base[item.base] = (Game.base[item.base] || 0) + 1; return; }
+  if (item.base || item.up) { const k = item.base || item.up; Game.base[k] = (Game.base[k] || 0) + 1; return; }
   switch (item.id) {
     case 'life': p.lives++; break;
     case 'star': p.level++; break;
@@ -9187,7 +9366,8 @@ const Game = {
     // time attack: the clock, in the border above the field
     if (this.mode === 'timeattack') Font.drawCenter(ctx, fmtTime(this.taFrames) + '  STAGE ' + (this.taCleared + 1) + '/' + TA_STAGES, SCREEN_W / 2, 0, COL.black);
     if (this.paused) {
-      const w = 112, h = 70, x = FX + ((FW - w) >> 1), y = FY + ((FH - h) >> 1);
+      // centred on the window onto the field (big maps and the corridor are bigger than the screen)
+      const w = 112, h = 70, x = FX + ((VIEW_W - w) >> 1), y = FY + ((VIEW_H - h) >> 1);
       ctx.fillStyle = COL.black;
       ctx.fillRect(x, y, w, h);
       ctx.fillStyle = COL.lgrey;
@@ -9749,6 +9929,9 @@ const Game = {
     else if (item.base) {
       const lv = Game.base[item.base] || 0;
       Font.drawCenter(ctx, Config.on('baseShop') ? (lv >= item.prices.length ? 'FULLY UPGRADED' : 'BASE: ' + item.descs[lv]) : 'BASE UPGRADES ARE OFF', SW / 2, 192, COL.gold);
+    } else if (item.up) {
+      const lv = Game.base[item.up] || 0;
+      Font.drawCenter(ctx, lv >= item.prices.length ? 'FULLY UPGRADED' : 'L' + (lv + 1) + ': ' + item.descs[lv], SW / 2, 192, COL.gold);
     } else if (item.desc) {
       const desc = item.id === 'mines' ? '+' + Config.get('mineCount') + ' ' + item.desc : item.desc;
       Font.drawCenter(ctx, desc, SW / 2, 192, COL.white);

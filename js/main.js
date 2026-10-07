@@ -63,6 +63,8 @@ const SHOP_ITEMS = [
   { id: 'pierce', name: 'PIERCE', price: 3000, icon: PU.PIERCE, desc: 'PIERCING SHELLS AT START' },
   { id: 'turret', name: 'TURRET', price: 4000, icon: PU.TURRET, desc: 'PLACE IT ANYWHERE WITH B' },
   { id: 'claude', name: 'CLAUDE', price: 6000, icon: PU.CLAUDE, desc: 'CLAUDE JOINS NEXT STAGE' },
+  // makes every Claude better (team-wide, kept between stages like the base upgrades; extras.js)
+  { id: 'claudeUp', up: 'claude', name: CLAUDE_UPGRADE.name, prices: CLAUDE_UPGRADE.prices, descs: CLAUDE_UPGRADE.descs, icon: PU.CLAUDE },
   { id: 'wingman', name: 'WINGMAN', price: 5000, icon: PU.TANK, desc: 'AN AI TANK FIGHTS BESIDE YOU' },
   { id: 'decoy', name: 'DECOY EAGLE', price: 3000, icon: PU.SHOVEL, desc: 'FAKE EAGLE LURES RUSHERS' },
   { id: 'smoke', name: 'SMOKE', price: 1500, icon: PU.SMOKE, desc: 'SMOKE SCREEN AT STAGE START' },
@@ -119,7 +121,7 @@ function dailyToday(when = new Date()) {
 function shopPrice(item) {
   const discount = Game.shopDiscount ? 0.75 : 1;
   if (item.id === 'revive') return reviveCost();   // the REVIVE COST setting, as during play
-  const price = item.prices ? item.prices[Math.min(item.prices.length - 1, Game.base[item.base] || 0)] : item.price;
+  const price = item.prices ? item.prices[Math.min(item.prices.length - 1, Game.base[item.base || item.up] || 0)] : item.price;
   return Math.round((price * Config.scale('shopPrices') * discount) / 100) * 100;
 }
 
@@ -132,6 +134,10 @@ function shopStatus(item, p) {
     return n ? { text: 'X' + n, max: false } : { text: '', max: true };
   }
   if (p.out && item.id !== 'done') return { text: '', max: true };   // a fallen player can only buy a revival
+  if (item.up) {
+    const lv = Game.base[item.up] || 0, top = item.prices.length;
+    return { text: lv >= top ? 'MAX' : 'L' + lv + '/' + top, max: lv >= top };
+  }
   if (item.base) {
     if (!Config.on('baseShop')) return { text: 'OFF', max: true };
     const lv = Game.base[item.base] || 0, top = item.prices.length;
@@ -160,7 +166,7 @@ function shopApply(item, p) {
   }
   if (item.id === 'turret') { p.turrets = (p.turrets || 0) + 1; return; }
   if (item.id === 'bridge') { p.bridges = (p.bridges || 0) + 2; return; }
-  if (item.base) { Game.base[item.base] = (Game.base[item.base] || 0) + 1; return; }
+  if (item.base || item.up) { const k = item.base || item.up; Game.base[k] = (Game.base[k] || 0) + 1; return; }
   switch (item.id) {
     case 'life': p.lives++; break;
     case 'star': p.level++; break;
@@ -549,7 +555,8 @@ const Game = {
     // time attack: the clock, in the border above the field
     if (this.mode === 'timeattack') Font.drawCenter(ctx, fmtTime(this.taFrames) + '  STAGE ' + (this.taCleared + 1) + '/' + TA_STAGES, SCREEN_W / 2, 0, COL.black);
     if (this.paused) {
-      const w = 112, h = 70, x = FX + ((FW - w) >> 1), y = FY + ((FH - h) >> 1);
+      // centred on the window onto the field (big maps and the corridor are bigger than the screen)
+      const w = 112, h = 70, x = FX + ((VIEW_W - w) >> 1), y = FY + ((VIEW_H - h) >> 1);
       ctx.fillStyle = COL.black;
       ctx.fillRect(x, y, w, h);
       ctx.fillStyle = COL.lgrey;
@@ -1111,6 +1118,9 @@ const Game = {
     else if (item.base) {
       const lv = Game.base[item.base] || 0;
       Font.drawCenter(ctx, Config.on('baseShop') ? (lv >= item.prices.length ? 'FULLY UPGRADED' : 'BASE: ' + item.descs[lv]) : 'BASE UPGRADES ARE OFF', SW / 2, 192, COL.gold);
+    } else if (item.up) {
+      const lv = Game.base[item.up] || 0;
+      Font.drawCenter(ctx, lv >= item.prices.length ? 'FULLY UPGRADED' : 'L' + (lv + 1) + ': ' + item.descs[lv], SW / 2, 192, COL.gold);
     } else if (item.desc) {
       const desc = item.id === 'mines' ? '+' + Config.get('mineCount') + ' ' + item.desc : item.desc;
       Font.drawCenter(ctx, desc, SW / 2, 192, COL.white);

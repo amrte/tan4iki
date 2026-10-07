@@ -66,6 +66,9 @@ const PU = {
 // timed effects granted by the new power-ups (stored per tank in t.boost)
 const TIMED_BOOSTS = { [PU.TURBO]: 'turbo', [PU.RAPID]: 'rapid', [PU.SPREAD]: 'spread', [PU.PIERCE]: 'pierce', [PU.ROCKET]: 'rocket', [PU.GHOST]: 'ghost', [PU.SMOKE]: 'smoke' };
 const TURBO_MULT = 1.75;
+// small points for wrecking things: per shell that breaks bricks, per steel block, per tree, per enemy turret,
+// per enemy shell shot down
+const OBJ_PTS = { brick: 10, steel: 50, tree: 20, turret: 300, shell: 20 };
 const ROCKET_RADIUS = 14, MINE_RADIUS = 18, MINE_ARM_TIME = 40, MAX_MINES = 16;
 let BASE_X = 96, BASE_Y = 192;
 let ENEMY_SPAWN_X = [96, 192, 0];
@@ -295,7 +298,7 @@ class Stage {
     if (opts.timeAttack) this.spawnInterval = Math.round(this.spawnInterval / 2);
     for (const p of players) {
       p.kills = zeroKills();
-      if (!opts.snapshot) p.stageXp = 0;
+      if (!opts.snapshot) { p.stageXp = 0; p.late = []; p.carryNext = null; }
       p.tank = null;
       if (!p.out && !opts.snapshot) this.spawnPlayer(p, 0);
       // a shovel charge bought in the shop fortifies the eagle from the start
@@ -307,6 +310,7 @@ class Stage {
     }
     if (opts.boss) this.initBoss(opts.boss);
     if (opts.snapshot) this.restore(opts.snapshot);
+    else if (this.claudeLevel() >= 5 && !this.vs) this.claudeAtStart();   // CLAUDE LEVEL 5 (extras.js)
   }
 
   // ------------------------------------------------------------ save / load
@@ -486,6 +490,7 @@ class Stage {
           if (p.kit.decoy) this.placeDecoy();
           p.kit = null;
         }
+        if (p.carry) this.applyCarry(p, t);   // power-ups from the end of the last stage, twice as long
         this.tanks.push(t);
       }
       s.done = true;
@@ -548,8 +553,9 @@ class Stage {
         for (const p of this.players) if (!p.out) this.addXp(p, 25);
         if (this.big) this.bigMapBonus();
         AutoSkill.event('clear');
+        this.carryOnClear();
       }
-      if (this.clearTimer >= 190) this.result = 'clear';
+      if (this.clearTimer >= 190) { this.result = 'clear'; this.carryToNext(); }
     }
   }
 
@@ -794,9 +800,11 @@ class Stage {
           const c = bs[j];
           if (!c.alive || a.isPlayer === c.isPlayer) continue;
           if (overlap(a.x, a.y, 4, 4, c.x, c.y, 4, 4)) {
-            // piercing shells plough through ordinary ones
+            // piercing shells plough through ordinary ones; shooting down an enemy shell pays a little
+            const mine = a.isPlayer ? a : c, theirs = a.isPlayer ? c : a;
             if (!a.pierce || c.pierce) this.killBullet(a, a.rocket);
             if (!c.pierce || a.pierce) this.killBullet(c, c.rocket);
+            if (!theirs.alive && !this.vs && mine.owner && mine.owner.player) this.addScore(mine.owner.player, OBJ_PTS.shell);
             if (!a.alive) break;
           }
         }
@@ -905,12 +913,14 @@ class Stage {
       if (!blocked) {
         const lo = vert ? Math.floor((b.x + 2 - 8) / 4) : Math.floor((b.y + 2 - 8) / 4);
         const hi = vert ? Math.floor((b.x + 2 + 7.99) / 4) : Math.floor((b.y + 2 + 7.99) / 4);
+        const n = { brick: 0, steel: 0, tree: 0 };
         for (let k = lo; k <= hi; k++) {
           const cx = vert ? k : hitCol, cy = vert ? hitRow : k, t = this.get(cx, cy);
-          if (t === T_BRICK) this.set(cx, cy, T_EMPTY);
-          else if (t === T_STEEL) this.clearGroup(cx, cy, T_STEEL);
-          else if (t === T_FOREST && b.cutter) this.clearGroup(cx, cy, T_FOREST);
+          if (t === T_BRICK) { this.set(cx, cy, T_EMPTY); n.brick++; }
+          else if (t === T_STEEL) { this.clearGroup(cx, cy, T_STEEL); n.steel++; }
+          else if (t === T_FOREST && b.cutter) { this.clearGroup(cx, cy, T_FOREST); n.tree++; }
         }
+        if (b.isPlayer) this.wreckPoints(b.owner, n, b.x + 2, b.y + 2);
         if (b.isPlayer && this.lastBrickSound < this.frame - 3) { Sound.play('brick'); this.lastBrickSound = this.frame; }
         return false;
       }
@@ -920,11 +930,12 @@ class Stage {
     const depth = b.power ? 2 : 1;
     const step = (b.dir === 0 || b.dir === 3) ? -1 : 1;
     let broke = false;
+    const n = { brick: 0, steel: 0, tree: 0 };
     const hitCell = (cx, cy) => {
       const t = this.get(cx, cy);
-      if (t === T_BRICK) { this.set(cx, cy, T_EMPTY); broke = true; }
-      else if (t === T_STEEL && b.power) { this.clearGroup(cx, cy, T_STEEL); broke = true; }
-      else if (t === T_FOREST && b.cutter) { this.clearGroup(cx, cy, T_FOREST); broke = true; }
+      if (t === T_BRICK) { this.set(cx, cy, T_EMPTY); broke = true; n.brick++; }
+      else if (t === T_STEEL && b.power) { this.clearGroup(cx, cy, T_STEEL); broke = true; n.steel++; }
+      else if (t === T_FOREST && b.cutter) { this.clearGroup(cx, cy, T_FOREST); broke = true; n.tree++; }
     };
     if (vert) {
       const mx = b.x + 2, c0 = Math.floor((mx - 8) / 4), c1 = Math.floor((mx + 7.99) / 4);
@@ -934,21 +945,34 @@ class Stage {
       for (let k = 0; k < depth; k++) for (let r = r0; r <= r1; r++) hitCell(hitCol + k * step, r);
     }
     this.killBullet(b, true);
-    if (b.isPlayer) Sound.play(broke ? 'brick' : 'steel');
+    if (b.isPlayer) { Sound.play(broke ? 'brick' : 'steel'); this.wreckPoints(b.owner, n, b.x + 2, b.y + 2); }
     return true;
+  }
+
+  // points for what one shell or blast wrecked (n: counts of brick cells, steel blocks, trees); bricks pay once per
+  // shot however many cells went, the rest per block. Shown when it's more than the brick bonus.
+  wreckPoints(owner, n, x, y) {
+    const p = owner && owner.player;
+    if (!p || this.vs) return;
+    const pts = (n.brick ? OBJ_PTS.brick : 0) + n.steel * OBJ_PTS.steel + (n.tree || 0) * OBJ_PTS.tree;
+    if (!pts) return;
+    this.addScore(p, pts);
+    if (pts > OBJ_PTS.brick) this.popups.push({ x, y, text: String(pts), t: 0, delay: 0 });
   }
 
   // ------------------------------------------------------------ blasts and mines
   // explosion that breaks bricks (steel with power) and damages the other side's tanks
   blast(cx, cy, r, byPlayer, owner, power, exclude, excludeBoss) {
+    const wrecked = { brick: 0, steel: 0 };
     for (let y = Math.floor((cy - r) / 4); y <= Math.floor((cy + r) / 4); y++) {
       for (let x = Math.floor((cx - r) / 4); x <= Math.floor((cx + r) / 4); x++) {
         if (Math.hypot(x * 4 + 2 - cx, y * 4 + 2 - cy) > r) continue;
         const t = this.get(x, y);
-        if (t === T_BRICK) this.set(x, y, T_EMPTY);
-        else if (t === T_STEEL && power) this.clearGroup(x, y, T_STEEL);
+        if (t === T_BRICK) { this.set(x, y, T_EMPTY); wrecked.brick++; }
+        else if (t === T_STEEL && power) { this.clearGroup(x, y, T_STEEL); wrecked.steel++; }
       }
     }
+    if (byPlayer) this.wreckPoints(owner, wrecked, cx, cy);
     const reaches = (x, y, w, h) => Math.hypot(Math.max(x, Math.min(cx, x + w)) - cx, Math.max(y, Math.min(cy, y + h)) - cy) < r - 2;
     for (const t of this.tanks) {
       if (!t.alive || t === exclude || !reaches(t.x, t.y, 16, 16)) continue;
@@ -1178,6 +1202,7 @@ class Stage {
       if (POWERUPS[pu.type].isNew) this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: POWERUPS[pu.type].name, label: true, color: COL.white, t: 0, delay: 0 });
       else this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: '500', t: 0, delay: 0 });
       if (TIMED_BOOSTS[pu.type]) t.boost[TIMED_BOOSTS[pu.type]] = Config.frames('newTime');
+      this.noteTimedPickup(p, pu.type, pu.x + 8, pu.y);   // late ones carry over (extras.js)
       switch (pu.type) {
         case PU.HELMET: t.shield = Config.frames('helmetTime'); break;
         case PU.CLOCK: this.freezeE = Config.frames('clockTime'); snd = 'freeze'; break;

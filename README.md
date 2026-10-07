@@ -116,7 +116,7 @@ saving outside Classic.
 | **Classic** | 1-4 | the game as always |
 | **Survival** | 1-4 | endless waves on one map; wave *n* brings 6 + 2*n* tanks and later waves bring the newer, tougher enemies. After each wave a 4-second breather, the fortress walls are patched, and every 5 waves everyone gets a tank. The side panel's flag shows the wave. Ends when the eagle falls or everyone is out; best wave and score are kept |
 | **Big maps** | 1-4 | every stage is a big scrolling map (see below); shop and saves work as in Classic |
-| **Corridor** | 1-4 | the usual width, endless height: no eagle, just climb. The world is three map sections stacked (random classic maps, mirrored outwards on wider fields); once the whole team has climbed out of the bottom section it drops away and a fresh section appears on top, so the climb never ends and nobody gets left behind. Enemies keep arriving just above the screen, faster and tougher the higher you get (the flag shows the level: one per section climbed); ones left far below drop out. A destroyed tank comes back at the bottom of the screen; every 5 sections everyone gets a tank. The border above the field shows how far you've climbed (in tiles) and your best; ends when everyone is out |
+| **Corridor** | 1-4 | the usual width, endless height: no eagle, just climb. The world is three map sections stacked (random classic maps, mirrored outwards on wider fields); once the whole team has climbed out of the bottom section it drops away and a fresh section appears on top, so the climb never ends and nobody gets left behind. Enemies keep arriving just above the screen, faster and tougher the higher you get (the flag shows the level: one per section climbed). The enemy grows slowly with the climb: only basic tanks at first, then fast (10 tiles), power (26) and armor (45), then the newer types one at a time every 20 tiles from 52 (rocket first), each starting rare and taking 40 tiles to reach its full share; veterans from about 100 tiles and elites from 230. A gold *NAME AHEAD!* tells you when a new kind joins; ones left far below drop out. A destroyed tank comes back at the bottom of the screen; every 5 sections everyone gets a tank. The border above the field shows how far you've climbed (in tiles) and your best; ends when everyone is out |
 | **Time attack** | 1-4 | clear stages 1-5 as fast as you can; enemies arrive twice as fast, no tally between stages, the clock runs in the border above the field; best time is kept |
 | **VS eagles** | 2-4 | everyone has an eagle and a fortress (I bottom, II top, III left, IV right). Your shells, rockets and mines now destroy other players; you respawn while your eagle stands, and your own shells can't hurt it. Lose your eagle and you're out; the last eagle standing wins the round. Best of 3 |
 | **Deathmatch** | 2-4 | no eagles; players start in the corners and respawn; first to 10 kills, or the most kills after 3 minutes (the clock is in the side panel) |
@@ -384,12 +384,27 @@ The first time you meet each enemy, boss and power-up, a one-line card slides do
 queue up and show one after another. What you've met is remembered between games. Settings → GAME → FIRST-MEET CARDS
 turns them off, and SHOW ALL CARDS AGAIN brings them all back. Online, guests see the host's cards.
 
+## Points for wrecking things
+
+Besides tanks, you score a little for what you destroy: 10 for a shell that breaks bricks (however many), 50 per steel
+block (power shells), 20 per tree (with the GUN), 300 for an enemy turret and 20 for shooting down an enemy shell.
+
+## Late power-ups carry over
+
+A timed power-up (helmet, clock, shovel, turbo, rapid, spread, pierce, rocket, ghost, smoke) picked up in the last 10
+seconds before a stage is cleared, or while it is being cleared, isn't wasted: "TURBO x2 NEXT STAGE" pops up, and you
+start the next stage with it for twice as long. Not after a game over.
+
 ## Turrets, Claude and revival
 
 - **Turrets** can also be bought in the shop (4000 each) and carried: **B** places one where you stand (turrets come
   before mines, mines before firing). Up to 3 of yours stand at once; a 4th replaces the oldest. They block tanks,
   your shells fly over them, enemy shells chip them. Carried turrets show as yellow dots in the side panel (mines grey).
 - **Claude** can be bought in the shop (6000): it joins you at the start of the next stage.
+- **CLAUDE LEVEL** (shop, 4000 / 6000 / 8000 / 11000 / 14000) makes every Claude better, for the whole team, and is kept
+  like the base upgrades: **1** stays 50% longer · **2** moves 50% faster · **3** bigger bites (a wider reach that also
+  catches enemy shells, double damage to bosses) · **4** spits sparks at enemy tanks lined up with it · **5** comes to
+  every stage by itself. An upgraded Claude has a pip per level underneath, and a golden glow from level 3.
 - **Revival** costs 7500 points (Settings → PLAYER → REVIVE COST: off / 2500 / 5000 / 7500 / 10000).
   - During play, a fallen player presses **FIRE** to come back with one tank. Their own points pay, or else the richest
     teammate's (revival spends points like the shop: your score stays). The prompt shows at the bottom of the field.

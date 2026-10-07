@@ -3,6 +3,20 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.20
+
+- **Claude upgrades:** CLAUDE LEVEL in the shop (5 levels, team-wide, kept between stages and in saves): stays
+  longer, moves faster, bigger bites, spits sparks at lined-up tanks, and at level 5 comes to every stage by itself.
+  Upgraded Claudes show level pips and a golden glow.
+- **Corridor:** enemy variety now grows slowly with the climb: basic tanks first, the classic four by 45 tiles, then the
+  newer types one at a time every 20 tiles, each starting rare; veterans and elites higher up. "NAME AHEAD!" announces
+  each newcomer. (Before, every enemy in a section was the same type and the newer types never appeared.)
+- **Points for wrecking things:** bricks (10 a shot), steel (50 a block), trees (20), enemy turrets (300) and enemy
+  shells shot down (20).
+- **Late power-ups carry over:** timed power-ups picked up in the last 10 seconds of a stage come with you to the next
+  one, twice as long.
+- **Fix:** the ESC pause menu was drawn off screen in corridor and big-map stages.
+
 ## 0.19
 
 - **First-meet cards:** the first time each enemy, boss or power-up appears, a one-line card slides down at the top of

@@ -3,11 +3,56 @@
 //  CORRIDOR mode: the usual width, endless height. Climb as far as you can.
 //  The world is three map sections stacked (13 tiles high each). When the whole team has climbed out of the bottom
 //  section it is dropped, everything moves down one section, and a fresh section is added on top, so the climb
-//  never ends. Enemies keep arriving just above the screen and get tougher the higher you get; ones left far
+//  never ends. Enemies keep arriving just above the screen; the higher you get, the more kinds join in (slowly, one
+//  at a time) and the tougher they get; ones left far
 //  behind drop out. No eagle: it's over when everyone is out of tanks. Every 5 sections: a tank for everyone.
 // =====================================================================
 
 const CORRIDOR_SECTIONS = 3, CORRIDOR_SECTION = 13;
+
+// How the enemy grows as you climb (heights in tiles climbed). The four classic tanks join first, then the newer
+// types one by one, in the order they reach the normal stages; each starts rare and takes 40 tiles to reach its
+// full share. Veterans and then elites creep in higher up.
+const CORRIDOR_CLASSIC = [[0, 4], [10, 3], [26, 2.5], [45, 2]];   // [joins at, weight] for basic, fast, power, armor
+const CORRIDOR_NEW_AT = 52, CORRIDOR_NEW_STEP = 20, CORRIDOR_RAMP = 40;
+
+// which types are in the mix at height h, with their weights ([type, weight] pairs)
+function corridorMix(h) {
+  const sk = Config.skill(), mult = ({ OFF: 0, FEW: 0.5, NORMAL: 1, MANY: 1.8 }[Config.get('newEnemies')] || 0) * sk.newMult;
+  const ramp = at => 0.25 + 0.75 * Math.min(1, (h - at) / CORRIDOR_RAMP);
+  const mix = [];
+  CORRIDOR_CLASSIC.forEach(([at, w], type) => {
+    if (h < at) return;
+    // the basic tank thins out as the climb goes on
+    mix.push([type, (type === 0 ? Math.max(1, w - h / 60) : w) * ramp(at)]);
+  });
+  if (!mult) return mix;
+  const order = NEW_TYPES.slice().sort((a, b) => ENEMY[a].from - ENEMY[b].from);
+  order.forEach((type, k) => {
+    const at = corridorUnlock(k);
+    if (h < at || Config.get('e' + type + 'On') === 'OFF') return;
+    mix.push([type, 1.5 * mult * (ENEMY[type].kind === 'snake' ? 0.4 : 1) * ramp(at)]);
+  });
+  return mix;
+}
+
+// height the k-th newer type joins at (easier skills bring them later)
+function corridorUnlock(k) { return CORRIDOR_NEW_AT + k * CORRIDOR_NEW_STEP + Math.max(0, Config.skill().newShift) * 4; }
+
+// one enemy for height h: a type from the mix, maybe a veteran or an elite
+function corridorEnemy(h) {
+  const mix = corridorMix(h), total = mix.reduce((a, m) => a + m[1], 0);
+  let r = Math.random() * total, type = 0;
+  for (const [t, w] of mix) { if (r < w) { type = t; break; } r -= w; }
+  let rank = 0;
+  if (Config.on('enemyGrowth')) {
+    const v = h + Config.skill().vet * 6;
+    const vet = Math.min(0.45, Math.max(0, (v - 100) / 600)), elite = Math.min(0.35, Math.max(0, (v - 230) / 700));
+    const x = Math.random();
+    rank = x < elite ? 2 : x < elite + vet ? 1 : 0;
+  }
+  return { type, rank };
+}
 
 // one section's block rows, as wide as the field (a classic 26-block map, mirrored outwards when wider)
 function corridorSection(map) {
@@ -27,7 +72,7 @@ function corridorBlocks(n) {
 
 Object.assign(Stage.prototype, {
   setupCorridor() {
-    this.corridor = { shifts: 0, climbed: 0, startY: PLAYER_SPAWN[0][1], spawnCd: 120, spawned: 0, lifeAt: 5 };
+    this.corridor = { shifts: 0, climbed: 0, startY: PLAYER_SPAWN[0][1], spawnCd: 120, spawned: 0, lifeAt: 5, kinds: [] };
     this.noBase = true;
     this.queue = [];
     this.total = 0;
@@ -77,7 +122,7 @@ Object.assign(Stage.prototype, {
             if (v === T_STEEL || v === T_WATER || v === T_BRICK) { solid = true; break; }
           }
           if (solid) continue;
-          const q = buildQueue(lvl, 1)[0];
+          const q = corridorEnemy(this.corridorClimb());
           q.ai = [AI.HUNT, AI.HUNT, AI.SNIPE, AI.WANDER][Math.floor(Math.random() * 4)];
           q.bonus = Config.on('bonusTanks') && c.spawned % 7 === 3;
           c.spawned++;
@@ -86,6 +131,13 @@ Object.assign(Stage.prototype, {
           break;
         }
       }
+    }
+    // a new kind of enemy joins the climb
+    const kinds = corridorMix(this.corridorClimb()).map(m => m[0]);
+    for (const k of kinds) {
+      if (c.kinds.includes(k)) continue;
+      c.kinds.push(k);
+      if (c.kinds.length > 1) this.popups.push({ x: FW / 2, y: cam + 56, text: ENEMY[k].name + ' AHEAD!', label: true, color: COL.gold, t: 0, delay: 0, life: 120 });
     }
     // enemies left far behind drop out
     for (const t of this.tanks) if (!t.isPlayer && t.y > cam + VIEW_H + 96) t.alive = false;

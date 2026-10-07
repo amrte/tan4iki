@@ -237,7 +237,7 @@ const Net = {
       mk: st.mark ? st.mark.p.i : -1,
       ea: [st.eagleArmor, st.eagleFlash, st.gunDir, st.base ? st.base.gun : 0, st.teslaT, st.zaps],
       tu: st.turrets.map(t => [t.x, t.y, t.dir, t.hp, t.owner ? t.owner.i : -1, t.enemy ? 1 : 0]),
-      cl: st.claudes.map(c => [c.x, c.y, c.t]),
+      cl: st.claudes.map(c => [c.x, c.y, c.t, c.lv || 0]),
       sk: st.strikes.map(k => [Math.round(k.x), k.y, k.dir]),
       rw: st.reviveWait,
       dc: st.decoy,
@@ -394,7 +394,7 @@ const Net = {
     }));
     if (sv.ea) { st.eagleArmor = sv.ea[0]; st.eagleFlash = sv.ea[1]; st.gunDir = sv.ea[2]; st.teslaT = sv.ea[4]; st.zaps = sv.ea[5] || []; st.base = Object.assign(newBase(), G.base || {}); }
     st.turrets = (sv.tu || []).map(a => ({ x: a[0], y: a[1], dir: a[2], hp: a[3], owner: G.players.find(p => p.i === a[4]) || null, enemy: !!a[5] }));
-    st.claudes = (sv.cl || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
+    st.claudes = (sv.cl || []).map(a => ({ x: a[0], y: a[1], t: a[2], lv: a[3] || 0 }));
     st.strikes = (sv.sk || []).map(a => ({ x: a[0], y: a[1], dir: a[2] }));
     st.reviveWait = sv.rw || 0;
     st.decoy = sv.dc || null;

@@ -5,11 +5,23 @@
 //              the nearest enemy and shoots once lined up. 3 hits. An enemy that grabs the power-up gets a red one.
 //    CLAUDE    the orange Claude sparkle wanders the field for a while, chirping, and eats every enemy tank
 //              (and enemy shell) it bumps into. It nibbles bosses. It won't work for the enemy.
+//              CLAUDE LEVEL in the shop (team-wide, kept like the base upgrades) makes every Claude better:
+//              1 stays 50% longer · 2 moves 50% faster · 3 bigger bites (wider reach, double damage to bosses)
+//              4 spits sparks at enemy tanks lined up with it · 5 comes to every stage by itself
 //    AIRSTRIKE a plane flies along the row with the most enemies, bombing it (an enemy's plane bombs yours).
 //    REVIVE    a fallen player comes back: the REVIVE power-up, FIRE during play (costs points), or the shop.
+//    CARRY     a timed power-up (helmet, clock, shovel, turbo, rapid, ...) picked up in the last 10 seconds before a
+//              stage is cleared isn't wasted: it comes with you to the next stage, lasting twice as long.
 // =====================================================================
 
 const TURRET_RANGE = 128, TURRET_HP = 3, TURRET_MAX = 3;
+const CLAUDE_UPGRADE = {
+  name: 'CLAUDE LEVEL', prices: [4000, 6000, 8000, 11000, 14000],
+  descs: ['STAYS 50% LONGER', 'MOVES 50% FASTER', 'BIGGER BITES, BOSSES TOO', 'SPITS SPARKS AT TANKS', 'COMES TO EVERY STAGE'],
+};
+const CLAUDE_SPARK_RANGE = 112, CLAUDE_SPARK_EVERY = 50;
+const CARRY_WINDOW = 600;   // frames before the stage is cleared in which a timed power-up carries over
+const carryable = type => type === PU.HELMET || type === PU.CLOCK || type === PU.SHOVEL || !!TIMED_BOOSTS[type];
 const CLAUDE_SPEED = 1, CLAUDE_EXTRA = 300;   // Claude stays for the new-power-up time + 5 s
 const REVIVE_WAIT = 300;                      // all players out: 5 s to pay for a revival before GAME OVER
 
@@ -79,6 +91,11 @@ Object.assign(Stage.prototype, {
     this.killBullet(b, true);
     if (--tu.hp <= 0) {
       this.turrets.splice(this.turrets.indexOf(tu), 1);
+      // wrecking an enemy turret pays
+      if (tu.enemy && b.owner && b.owner.player && !this.vs) {
+        this.addScore(b.owner.player, OBJ_PTS.turret);
+        this.popups.push({ x: tu.x + 8, y: tu.y + 8, text: String(OBJ_PTS.turret), t: 0, delay: 0 });
+      }
       this.addFx(tu.x + 8, tu.y + 8, BIG_EXPLOSION(), 4);
       Sound.play('explode');
     } else Sound.play('armor');
@@ -86,8 +103,11 @@ Object.assign(Stage.prototype, {
   },
 
   // ------------------------------------------------------------ Claude
+  claudeLevel() { return (this.base && this.base.claude) || 0; },
+
   summonClaude(x, y, p) {
-    this.claudes.push({ x: Math.round(x / 8) * 8, y: Math.round(y / 8) * 8, dir: 0, t: Config.frames('newTime') + CLAUDE_EXTRA, p, chirp: 30, nibble: 0, acc: 0 });
+    const lv = this.claudeLevel(), t = Math.round((Config.frames('newTime') + CLAUDE_EXTRA) * (lv >= 1 ? 1.5 : 1));
+    this.claudes.push({ x: Math.round(x / 8) * 8, y: Math.round(y / 8) * 8, dir: 0, t, p, chirp: 30, nibble: 0, acc: 0, lv, spark: CLAUDE_SPARK_EVERY });
     this.popups.push({ x: x + 8, y, text: 'HI!', label: true, color: '#F0A080', t: 0, delay: 0 });
     Sound.play('claude');
   },
@@ -110,32 +130,34 @@ Object.assign(Stage.prototype, {
           c.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0);
         } else if (Math.random() < 0.3) c.dir = rnd(4);
       }
-      c.acc += CLAUDE_SPEED;
+      c.acc += CLAUDE_SPEED * (c.lv >= 2 ? 1.5 : 1);
       while (c.acc >= 1) {
         c.acc--;
         const nx = c.x + DXY[c.dir][0], ny = c.y + DXY[c.dir][1];
         if (nx < 0 || ny < 0 || nx > FW - 16 || ny > FH - 16) { c.dir = (c.dir + 2) % 4; break; }
         c.x = nx; c.y = ny;
       }
-      // munch
+      // munch (bigger bites from level 3: a wider reach)
+      const [mx, my, mw] = c.lv >= 3 ? [c.x - 6, c.y - 6, 28] : [c.x + 2, c.y + 2, 12];
       for (const t of this.tanks) {
-        if (!t.alive || t.isPlayer || !overlap(t.x + 2, t.y + 2, 12, 12, c.x + 2, c.y + 2, 12, 12)) continue;
+        if (!t.alive || t.isPlayer || !overlap(t.x + 2, t.y + 2, 12, 12, mx, my, mw, mw)) continue;
         this.killEnemy(t, gunner(c.p), true, true);
         this.popups.push({ x: t.x + 8, y: t.y, text: 'NOM!', label: true, color: '#F0A080', t: 0, delay: 0 });
         Sound.play('nom');
       }
       for (const b of this.bullets) {
-        if (b.alive && !b.isPlayer && overlap(b.x, b.y, 4, 4, c.x + 2, c.y + 2, 12, 12)) { this.killBullet(b, false); Sound.play('nom'); }
+        if (b.alive && !b.isPlayer && overlap(b.x, b.y, 4, 4, mx, my, mw, mw)) { this.killBullet(b, false); Sound.play('nom'); }
       }
       if (--c.nibble <= 0) {
         for (const bo of this.bosses) {
           if (bo.alive && this.bossTangible(bo) && overlap(c.x, c.y, 16, 16, bo.x, bo.y, bo.w, bo.h)) {
-            this.bossHit(bo, 1, gunner(c.p), c.x + 8);
-            c.nibble = 30;
+            this.bossHit(bo, c.lv >= 3 ? 2 : 1, gunner(c.p), c.x + 8);
+            c.nibble = c.lv >= 3 ? 20 : 30;
             Sound.play('nom');
           }
         }
       }
+      if (c.lv >= 4 && --c.spark <= 0) this.claudeSpark(c);
       if (c.t <= 0) {
         this.addFx(c.x + 8, c.y + 8, [Sprites.sparkle[3], Sprites.sparkle[2], Sprites.sparkle[1], Sprites.sparkle[0]], 4);
         this.popups.push({ x: c.x + 8, y: c.y, text: 'BYE!', label: true, color: '#F0A080', t: 0, delay: 0 });
@@ -143,6 +165,75 @@ Object.assign(Stage.prototype, {
       }
     }
     this.claudes = this.claudes.filter(c => c.t > 0);
+  },
+
+  // level 4: a spark (a player's shell) at the nearest enemy tank lined up with Claude
+  claudeSpark(c) {
+    const cx = c.x + 8, cy = c.y + 8;
+    let best = null, bd = CLAUDE_SPARK_RANGE;
+    for (const t of this.tanks) {
+      if (!t.alive || t.isPlayer) continue;
+      const dx = t.x + 8 - cx, dy = t.y + 8 - cy, d = Math.abs(dx) + Math.abs(dy);
+      if ((Math.abs(dx) < 6 || Math.abs(dy) < 6) && d < bd && d > 12) { bd = d; best = [dx, dy]; }
+    }
+    if (!best) { c.spark = 8; return; }
+    const [dx, dy] = best, dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0);
+    if (!this.noBase && this.eagleInLine(cx, cy, cx + dx, cy + dy)) { c.spark = 8; return; }
+    const [ox, oy] = DXY[dir];
+    this.bullets.push({
+      x: cx - 2 + ox * 8, y: cy - 2 + oy * 8, dir, speed: 4, owner: gunner(c.p), spark: true,
+      free: true, isPlayer: true, passPlayers: true, power: false, cutter: false, alive: true, pierce: false, rocket: false,
+    });
+    c.spark = CLAUDE_SPARK_EVERY;
+    Sound.play('claude');
+  },
+
+  // ------------------------------------------------------------ late power-ups carry over
+  // a timed power-up was picked up: remember when (once the stage is being cleared, it carries over right away)
+  noteTimedPickup(p, type, x, y) {
+    if (!carryable(type)) return;
+    (p.late || (p.late = [])).push({ type, at: this.frame });
+    if (this.clearTimer > 0) this.keepForNext(p, type, x, y);
+  },
+
+  keepForNext(p, type, x, y) {
+    p.carryNext = p.carryNext || [];
+    if (p.carryNext.includes(type)) return;
+    p.carryNext.push(type);
+    this.popups.push({ x, y: y - 8, text: POWERUPS[type].name + ' x2 NEXT STAGE', label: true, color: COL.gold, t: 0, delay: 20, life: 120 });
+  },
+
+  // the last enemy is gone: what was picked up in the last seconds is kept
+  carryOnClear() {
+    for (const p of this.players) {
+      const t = p.tank || { x: PLAYER_SPAWN[p.i][0], y: PLAYER_SPAWN[p.i][1] };
+      for (const e of p.late || []) if (e.at >= this.frame - CARRY_WINDOW) this.keepForNext(p, e.type, t.x + 8, t.y);
+    }
+  },
+
+  // the stage is over (cleared): hand the kept power-ups on
+  carryToNext() {
+    for (const p of this.players) { p.carry = p.carryNext && p.carryNext.length ? p.carryNext : null; p.carryNext = null; p.late = []; }
+  },
+
+  // first spawn of the next stage: the carried power-ups, twice as long
+  applyCarry(p, t) {
+    for (const type of p.carry) {
+      if (type === PU.HELMET) t.shield = Math.max(t.shield, 2 * Config.frames('helmetTime'));
+      else if (type === PU.CLOCK) this.freezeE = Math.max(this.freezeE, 2 * Config.frames('clockTime'));
+      else if (type === PU.SHOVEL) { if (!this.noBase) { this.shovel = 2 * Config.frames('shovelTime'); this.setBaseWalls(T_STEEL); } }
+      else if (TIMED_BOOSTS[type]) t.boost[TIMED_BOOSTS[type]] = 2 * Config.frames('newTime');
+    }
+    this.popups.push({ x: t.x + 8, y: t.y - 4, text: p.carry.map(k => POWERUPS[k].name).join(' ') + ' x2', label: true, color: COL.gold, t: 0, delay: 0, life: 120 });
+    p.carry = null;
+  },
+
+  // level 5: Claude turns up at the start of every stage
+  claudeAtStart() {
+    const p = this.players.find(q => !q.out);
+    if (!p) return;
+    const [x, y] = PLAYER_SPAWN[p.i];
+    this.summonClaude(x, Math.max(0, y - 32), p);
   },
 
   // ------------------------------------------------------------ airstrikes
@@ -217,7 +308,12 @@ Object.assign(Stage.prototype, {
   renderClaudes(ctx) {
     for (const c of this.claudes) {
       if (c.t < 60 && (c.t >> 2) & 1) continue;
-      ctx.drawImage(Sprites.claude[(c.x + c.y) >> 3 & 1], c.x, c.y);
+      const spr = Sprites.claude[(c.x + c.y) >> 3 & 1], lv = c.lv || 0;
+      // upgraded: a golden glow from level 3, and one pip per level underneath
+      if (lv >= 3) ctx.drawImage(Sprites.outline(spr, lv >= 5 ? '#FCE0A8' : '#F8B800'), c.x - 1, c.y - 1);
+      ctx.drawImage(spr, c.x, c.y);
+      ctx.fillStyle = '#F8B800';
+      for (let k = 0; k < lv; k++) ctx.fillRect(c.x + 8 - lv + k * 2, c.y + 17, 1, 1);
     }
   },
 
