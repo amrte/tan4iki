@@ -241,6 +241,9 @@ const SETTINGS_DEF = [
 
   { section: 'GAME' },
   { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!'][v] },
+  { key: 'terrainExtras', label: 'MUD, BELTS, PADS', values: ONOFF, def: 'ON' },
+  { key: 'darkStages', label: 'NIGHT AND FOG', values: ['SOME', 'OFF', 'ALWAYS NIGHT', 'ALWAYS FOG'], def: 'SOME',
+    fmt: v => (v === 'ALWAYS NIGHT' ? 'ALL NIGHT' : v === 'ALWAYS FOG' ? 'ALL FOG' : v) },
   { key: 'gameSpeed', label: 'GAME SPEED', values: [50, 75, 100, 125, 150, 200], def: 100, fmt: fmtPct },
   { key: 'volume', label: 'VOLUME', values: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 100, fmt: fmtPct },
   { key: 'engineSound', label: 'ENGINE SOUND', values: ONOFF, def: 'ON' },

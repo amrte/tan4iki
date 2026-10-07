@@ -303,13 +303,28 @@ These 14 were not in the original game. They're marked with `*` in Settings and 
   stays for the stage and anyone can use it. Carried kits show as brown dots in the side panel. An enemy that grabs
   the power-up can cross water.
 
+## Terrain: mud, conveyor belts, teleporters; night and fog
+
+- **Mud** (brown, lumpy): any tank on it moves at half speed; shells pass over it; hovering skimmers glide across.
+- **Conveyor belts** (grey with moving stripes): carry any tank along the belt, even one standing still.
+- **Teleporter pads** (coloured squares, in linked pairs of the same colour): drive onto one and you come out of its
+  twin; shells that enter a pad leave its twin too (once each).
+- They appear in the normal stages, placed the same way every time a stage is played: mud from stage 3,
+  teleporters in most stages from 5, conveyor belts in some from 8, never next to the eagle or on entry points.
+  Bigger fields get more. Settings → GAME → MUD, BELTS, PADS turns them off. In CONSTRUCTION they are the last
+  patterns of the palette (pads pair up in the order you place them).
+- **Night stages** (every 6th stage from 6) are dark except around your tanks, the eagle, shells, explosions, spawns
+  and pads; an enemy shows only in your light or when it fires (enemies fire a bit less at night too).
+  **Fog stages** (every 6th from 9) are the same in grey with a wider view. Never on boss stages. The stage curtain
+  says NIGHT or FOG. Settings → GAME → NIGHT AND FOG: some (default), off, all night, all fog.
+
 ## Daily challenge
 
 DAILY CHALLENGE on the title screen: the same 3 stages and 2 twists for everyone on a given day (the starting stage and
 the twists come from the date), 1 player, no shop and no saves. The title shows today's twists and your best score;
 after the run (3 stages or game over) you see your score and today's best. Twists: double trouble, glass cannon,
-speed demons, no power-ups, new breed, rocket party, iron hides, wide open, night shift, easy rider, turbo tank and
-boss rush. Your own settings come back afterwards.
+speed demons, no power-ups, new breed, rocket party, iron hides, wide open, night shift, easy rider, turbo tank,
+boss rush, lights out (all night) and pea soup (all fog). Your own settings come back afterwards.
 
 ## Turrets, Claude and revival
 
@@ -345,7 +360,7 @@ in the browser, and **RESET TO DEFAULTS** restores the classic game.
 | Players | III / IV-PLAYER COLOR (blue / pink), gamepad rumble (on), key and pad setup |
 | Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
 | Screen | field width (13), field height (13), FIT, scaling (sharp / fill), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
-| Game | skill (hurt me plenty), game speed (100%), volume (100%), engine sound (on) |
+| Game | skill (hurt me plenty), mud, belts, pads (on), night and fog (some), game speed (100%), volume (100%), engine sound (on) |
 
 ## Code layout
 
@@ -362,7 +377,8 @@ js/stage.js       gameplay: terrain, movement, enemy types, bullets, power-ups, 
 js/ai.js          enemy personalities (wander / rush / hunt / snipe) and path finding
 js/enemies.js     abilities of the enemies from the design canvas (mason, mortar, flamer, medic, ...)
 js/base.js        base upgrades: fortress walls, eagle armor, repair crew, eagle gun, minefield
-js/extras.js      turrets, Claude, airstrikes and revival
+js/extras.js      turrets, Claude, airstrikes, revival, wingman, decoy eagle, smoke, bridges
+js/terrain.js     mud, conveyor belts, teleporter pads, night and fog stages
 js/bosses.js      boss rounds: the 5 bosses, their arenas, sprites and behaviour
 js/net.js         online play: WebRTC connection, codes, host streaming, guest view, lobby panels
 js/main.js        state machine (title, settings, curtain, play, score, game over, construction) + loop

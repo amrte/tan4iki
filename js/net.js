@@ -236,6 +236,7 @@ const Net = {
       sk: st.strikes.map(k => [Math.round(k.x), k.y, k.dir]),
       rw: st.reviveWait,
       dc: st.decoy,
+      pd: st.pads, wx: st.weather,
     };
     st.netDiff = [];
     if (full) sv.tf = Array.from(st.terrain).join('');
@@ -380,6 +381,8 @@ const Net = {
     st.strikes = (sv.sk || []).map(a => ({ x: a[0], y: a[1], dir: a[2] }));
     st.reviveWait = sv.rw || 0;
     st.decoy = sv.dc || null;
+    st.pads = sv.pd || [];
+    st.weather = sv.wx || null;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
     st.heals = (sv.hl || []).map(a => ({ x1: a[0], y1: a[1], x2: a[2], y2: a[3], t: a[4], build: !!a[5] }));

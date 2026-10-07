@@ -307,6 +307,8 @@ const Sprites = {
       g(framedIcon(EXTRA_POWERUP_MASKS.bridge), POWERUP_PAL),
       g(framedIcon(EXTRA_POWERUP_MASKS.smoke), POWERUP_PAL));
     // wooden planks laid over water (8px pattern, drawn in 4px cells like the other terrain)
+    this.mudTex = paintRows(['22122322', '21222232', '22232212', '32222122', '22122223', '22322122', '12222322', '22212232'],
+      { 1: '#9C7038', 2: '#6C4818', 3: '#4C3008' });
     this.bridgeTex = paintRows(['33333333', '11111111', '22222222', '22222222', '33333333', '11111111', '22222222', '22222222'],
       { 1: '#E8A048', 2: '#B76506', 3: '#5C2C00' });
     this.claude = [0, 1].map(f => gridCanvas(claudeGrid(16, f), CLAUDE_INK));

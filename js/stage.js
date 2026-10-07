@@ -9,8 +9,10 @@ let COLS = 13, ROWS = 13;
 let FW = 208, FH = 208;                            // field size in pixels
 let GW = 52, GH = 52;                              // terrain grid (4px cells)
 let SCREEN_W = 256, SCREEN_H = 224, HUD_X = 232;   // whole play screen and the side panel
-const T_EMPTY = 0, T_BRICK = 1, T_STEEL = 2, T_WATER = 3, T_FOREST = 4, T_ICE = 5, T_BRIDGE = 6;
-const BLOCK_TYPE = { '.': T_EMPTY, '#': T_BRICK, '@': T_STEEL, '~': T_WATER, '%': T_FOREST, '_': T_ICE };
+const T_EMPTY = 0, T_BRICK = 1, T_STEEL = 2, T_WATER = 3, T_FOREST = 4, T_ICE = 5, T_BRIDGE = 6, T_MUD = 7;
+const T_BELT = 8;   // 8-11: conveyor belts pushing up / right / down / left (terrain.js)
+const BLOCK_TYPE = { '.': T_EMPTY, '#': T_BRICK, '@': T_STEEL, '~': T_WATER, '%': T_FOREST, '_': T_ICE,
+  m: T_MUD, '^': T_BELT, '>': T_BELT + 1, v: T_BELT + 2, '<': T_BELT + 3, T: T_EMPTY };   // T: teleporter pad
 const DXY = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
 // basic, fast, power, armor, then the new types (not in the original):
@@ -237,6 +239,9 @@ class Stage {
     this.terrain = new Uint8Array(GW * GH);
     const classic = COLS === 13 && ROWS === 13;
     this.load(expandBlocks(mapToBlocks(map)), !opts.custom || !classic);
+    // mud, teleporters and belts in the normal stages; night and fog on some (terrain.js)
+    if (!opts.boss && !opts.custom && !opts.snapshot && Config.on('terrainExtras')) this.addTerrainExtras(num);
+    this.weather = stageWeather(opts.custom ? 1 : num, !!opts.boss);
     this.tanks = [];
     this.bullets = [];
     this.fx = [];
@@ -309,6 +314,7 @@ class Stage {
       kills: this.players.map(p => p.kills.slice()),
       eagleArmor: this.eagleArmor,
       decoy: this.decoy,
+      pads: this.pads, weather: this.weather,
       turrets: this.turrets.map(tu => Object.assign({}, tu, { owner: tu.owner ? tu.owner.i : -1 })),
       claudes: this.claudes.map(c => Object.assign({}, c, { p: c.p ? c.p.i : -1 })),
       boss: this.bossIdx === undefined ? null : {
@@ -324,6 +330,8 @@ class Stage {
     for (const k of ['queue', 'total', 'killed', 'spawnTimer', 'spawnPos', 'spawnInterval', 'maxEnemies', 'freezeE', 'freezeP', 'shovel', 'baseAlive', 'frame', 'powerup']) this[k] = sn[k];
     if (sn.eagleArmor !== undefined) this.eagleArmor = sn.eagleArmor;
     this.decoy = sn.decoy || null;
+    if (sn.pads) this.pads = sn.pads;
+    if (sn.weather !== undefined) this.weather = sn.weather;
     this.turrets = (sn.turrets || []).map(tu => Object.assign({}, tu, { owner: this.players[tu.owner] || null }));
     this.claudes = (sn.claudes || []).map(c => Object.assign({}, c, { p: this.players[c.p] || null }));
     this.spawns = [];
@@ -349,6 +357,7 @@ class Stage {
 
   // ------------------------------------------------------------ terrain
   load(blocks, forceBase) {
+    this.pads = padsFromBlocks(blocks);
     for (let by = 0; by < ROWS * 2; by++) {
       for (let bx = 0; bx < COLS * 2; bx++) {
         this.setBlock(bx, by, BLOCK_TYPE[blocks[by][bx]] || T_EMPTY);
@@ -477,6 +486,7 @@ class Stage {
       if (!(t.isPlayer && this.jamList.length && this.jammed(t.x + 8, t.y + 8))) for (const k in t.boost) if (--t.boost[k] <= 0) delete t.boost[k];
       if (t.ally) this.updateAlly(t); else if (t.isPlayer) this.updatePlayer(t); else this.updateEnemy(t);
     }
+    this.updateTerrainFx();
     this.updateSpecials();
     this.updateBase();
     this.updateTurrets();
@@ -604,7 +614,7 @@ class Stage {
       else if (smart && !ok && this.brickAhead(t)) chance = 0.2;
       chance *= Config.scale('enemyFire') * (t.boost.rapid ? 3 : 1) * (t.vet ? ENEMY_RANKS[t.vet].fire : 1) * (ENEMY[t.type].fire || 1);
       if (this.mark) chance *= 1.5;   // a spotter's mark: everyone shoots more
-      chance *= Config.skill().fire;
+      chance *= Config.skill().fire * (this.weather === 'night' ? 0.8 : 1);   // they can't see well at night either
       if (Math.random() < chance) { this.fire(t); t.cool = t.rocketGun ? 50 : 16; }
     }
   }
@@ -652,7 +662,7 @@ class Stage {
   }
 
   move(t, d) {
-    t.acc += t.speed * (t.boost.turbo ? TURBO_MULT : 1) * (t.isPlayer ? 1 : this.trapFactor(t));
+    t.acc += t.speed * (t.boost.turbo ? TURBO_MULT : 1) * (t.isPlayer ? 1 : this.trapFactor(t)) * this.mudFactor(t);
     let ok = true;
     while (t.acc >= 1) {
       t.acc -= 1;
@@ -769,6 +779,7 @@ class Stage {
     if (b.isPlayer && this.jamList.length && this.jammed(b.x + 2, b.y + 2)) dist *= 0.5;   // jammer field
     b.x += DXY[b.dir][0] * dist;
     b.y += DXY[b.dir][1] * dist;
+    this.bulletPad(b);
     if (b.x < 0 || b.y < 0 || b.x > FW - 4 || b.y > FH - 4) {
       b.x = Math.max(0, Math.min(FW - 4, b.x));
       b.y = Math.max(0, Math.min(FH - 4, b.y));
@@ -1189,6 +1200,7 @@ class Stage {
     bg.clearRect(0, 0, FW, FH);
     fo.clearRect(0, 0, FW, FH);
     this.waterCells = [];
+    this.beltCells = [];
     for (let cy = 0; cy < GH; cy++) {
       for (let cx = 0; cx < GW; cx++) {
         const t = this.terrain[cy * GW + cx];
@@ -1198,6 +1210,8 @@ class Stage {
         else if (t === T_STEEL) bg.drawImage(tex.steel, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_ICE) bg.drawImage(tex.ice, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_BRIDGE) bg.drawImage(Sprites.bridgeTex, sx, sy, 4, 4, dx, dy, 4, 4);
+        else if (t === T_MUD) bg.drawImage(Sprites.mudTex, sx, sy, 4, 4, dx, dy, 4, 4);
+        else if (isBelt(t)) this.beltCells.push(cy * GW + cx);   // drawn every frame (they move)
         else if (t === T_FOREST) fo.drawImage(tex.forest, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_WATER) this.waterCells.push(cy * GW + cx);
       }
@@ -1283,6 +1297,8 @@ class Stage {
       const cx = i % GW, cy = (i / GW) | 0;
       ctx.drawImage(wt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
     }
+    this.renderBelts(ctx);
+    this.renderPads(ctx);
     this.renderEagle(ctx);
     this.renderDecoy(ctx);
 
@@ -1323,6 +1339,7 @@ class Stage {
       const fr = f.frames[Math.min(f.frames.length - 1, Math.floor(f.tick / f.per))];
       ctx.drawImage(fr, Math.round(f.x - fr.width / 2), Math.round(f.y - fr.height / 2));
     }
+    this.renderDarkness(ctx);
     for (const p of this.popups) {
       if (p.t < p.delay) continue;
       if (p.label) {

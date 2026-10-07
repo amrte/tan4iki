@@ -74,6 +74,7 @@ Object.assign(Stage.prototype, {
         const t = this.get(cx, cy);
         if (t === T_STEEL || (t === T_WATER && mode !== 'hover')) { cost = -1; break; }
         if (t === T_BRICK && mode !== 'slither') cost += 0.6;
+        if (t === T_MUD && mode !== 'hover') cost += 0.25;
       }
       if (overlap(bx * 8, by * 8, 16, 16, BASE_X, BASE_Y, 16, 16)) cost = -1;
       c[by * NX + bx] = cost;

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.13</title>
+  <title>tanb4iki_v0.14</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.13';
+const APP_VERSION = '0.14';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -279,6 +279,7 @@ const FONT_SRC = {
   '?': ['.XXX.', 'X...X', '....X', '..XX.', '..X..', '.....', '..X..'],
   '/': ['....X', '...X.', '...X.', '..X..', '.X...', '.X...', 'X....'],
   '<': ['.....', '..X..', '.X...', 'XXXXX', '.X...', '..X..', '.....'],
+  '^': ['..X..', '.XXX.', 'X.X.X', '..X..', '..X..', '..X..', '.....'],
   '>': ['.....', '..X..', '...X.', 'XXXXX', '...X.', '..X..', '.....'],
   ',': ['.....', '.....', '.....', '.....', '..X..', '..X..', '.X...'],
   "'": ['..X..', '..X..', '.X...', '.....', '.....', '.....', '.....'],
@@ -2184,6 +2185,8 @@ const Sprites = {
       g(framedIcon(EXTRA_POWERUP_MASKS.bridge), POWERUP_PAL),
       g(framedIcon(EXTRA_POWERUP_MASKS.smoke), POWERUP_PAL));
     // wooden planks laid over water (8px pattern, drawn in 4px cells like the other terrain)
+    this.mudTex = paintRows(['22122322', '21222232', '22232212', '32222122', '22122223', '22322122', '12222322', '22212232'],
+      { 1: '#9C7038', 2: '#6C4818', 3: '#4C3008' });
     this.bridgeTex = paintRows(['33333333', '11111111', '22222222', '22222222', '33333333', '11111111', '22222222', '22222222'],
       { 1: '#E8A048', 2: '#B76506', 3: '#5C2C00' });
     this.claude = [0, 1].map(f => gridCanvas(claudeGrid(16, f), CLAUDE_INK));
@@ -2522,6 +2525,9 @@ const SETTINGS_DEF = [
 
   { section: 'GAME' },
   { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!'][v] },
+  { key: 'terrainExtras', label: 'MUD, BELTS, PADS', values: ONOFF, def: 'ON' },
+  { key: 'darkStages', label: 'NIGHT AND FOG', values: ['SOME', 'OFF', 'ALWAYS NIGHT', 'ALWAYS FOG'], def: 'SOME',
+    fmt: v => (v === 'ALWAYS NIGHT' ? 'ALL NIGHT' : v === 'ALWAYS FOG' ? 'ALL FOG' : v) },
   { key: 'gameSpeed', label: 'GAME SPEED', values: [50, 75, 100, 125, 150, 200], def: 100, fmt: fmtPct },
   { key: 'volume', label: 'VOLUME', values: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 100, fmt: fmtPct },
   { key: 'engineSound', label: 'ENGINE SOUND', values: ONOFF, def: 'ON' },
@@ -3384,8 +3390,10 @@ let COLS = 13, ROWS = 13;
 let FW = 208, FH = 208;                            // field size in pixels
 let GW = 52, GH = 52;                              // terrain grid (4px cells)
 let SCREEN_W = 256, SCREEN_H = 224, HUD_X = 232;   // whole play screen and the side panel
-const T_EMPTY = 0, T_BRICK = 1, T_STEEL = 2, T_WATER = 3, T_FOREST = 4, T_ICE = 5, T_BRIDGE = 6;
-const BLOCK_TYPE = { '.': T_EMPTY, '#': T_BRICK, '@': T_STEEL, '~': T_WATER, '%': T_FOREST, '_': T_ICE };
+const T_EMPTY = 0, T_BRICK = 1, T_STEEL = 2, T_WATER = 3, T_FOREST = 4, T_ICE = 5, T_BRIDGE = 6, T_MUD = 7;
+const T_BELT = 8;   // 8-11: conveyor belts pushing up / right / down / left (terrain.js)
+const BLOCK_TYPE = { '.': T_EMPTY, '#': T_BRICK, '@': T_STEEL, '~': T_WATER, '%': T_FOREST, '_': T_ICE,
+  m: T_MUD, '^': T_BELT, '>': T_BELT + 1, v: T_BELT + 2, '<': T_BELT + 3, T: T_EMPTY };   // T: teleporter pad
 const DXY = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
 // basic, fast, power, armor, then the new types (not in the original):
@@ -3612,6 +3620,9 @@ class Stage {
     this.terrain = new Uint8Array(GW * GH);
     const classic = COLS === 13 && ROWS === 13;
     this.load(expandBlocks(mapToBlocks(map)), !opts.custom || !classic);
+    // mud, teleporters and belts in the normal stages; night and fog on some (terrain.js)
+    if (!opts.boss && !opts.custom && !opts.snapshot && Config.on('terrainExtras')) this.addTerrainExtras(num);
+    this.weather = stageWeather(opts.custom ? 1 : num, !!opts.boss);
     this.tanks = [];
     this.bullets = [];
     this.fx = [];
@@ -3684,6 +3695,7 @@ class Stage {
       kills: this.players.map(p => p.kills.slice()),
       eagleArmor: this.eagleArmor,
       decoy: this.decoy,
+      pads: this.pads, weather: this.weather,
       turrets: this.turrets.map(tu => Object.assign({}, tu, { owner: tu.owner ? tu.owner.i : -1 })),
       claudes: this.claudes.map(c => Object.assign({}, c, { p: c.p ? c.p.i : -1 })),
       boss: this.bossIdx === undefined ? null : {
@@ -3699,6 +3711,8 @@ class Stage {
     for (const k of ['queue', 'total', 'killed', 'spawnTimer', 'spawnPos', 'spawnInterval', 'maxEnemies', 'freezeE', 'freezeP', 'shovel', 'baseAlive', 'frame', 'powerup']) this[k] = sn[k];
     if (sn.eagleArmor !== undefined) this.eagleArmor = sn.eagleArmor;
     this.decoy = sn.decoy || null;
+    if (sn.pads) this.pads = sn.pads;
+    if (sn.weather !== undefined) this.weather = sn.weather;
     this.turrets = (sn.turrets || []).map(tu => Object.assign({}, tu, { owner: this.players[tu.owner] || null }));
     this.claudes = (sn.claudes || []).map(c => Object.assign({}, c, { p: this.players[c.p] || null }));
     this.spawns = [];
@@ -3724,6 +3738,7 @@ class Stage {
 
   // ------------------------------------------------------------ terrain
   load(blocks, forceBase) {
+    this.pads = padsFromBlocks(blocks);
     for (let by = 0; by < ROWS * 2; by++) {
       for (let bx = 0; bx < COLS * 2; bx++) {
         this.setBlock(bx, by, BLOCK_TYPE[blocks[by][bx]] || T_EMPTY);
@@ -3852,6 +3867,7 @@ class Stage {
       if (!(t.isPlayer && this.jamList.length && this.jammed(t.x + 8, t.y + 8))) for (const k in t.boost) if (--t.boost[k] <= 0) delete t.boost[k];
       if (t.ally) this.updateAlly(t); else if (t.isPlayer) this.updatePlayer(t); else this.updateEnemy(t);
     }
+    this.updateTerrainFx();
     this.updateSpecials();
     this.updateBase();
     this.updateTurrets();
@@ -3979,7 +3995,7 @@ class Stage {
       else if (smart && !ok && this.brickAhead(t)) chance = 0.2;
       chance *= Config.scale('enemyFire') * (t.boost.rapid ? 3 : 1) * (t.vet ? ENEMY_RANKS[t.vet].fire : 1) * (ENEMY[t.type].fire || 1);
       if (this.mark) chance *= 1.5;   // a spotter's mark: everyone shoots more
-      chance *= Config.skill().fire;
+      chance *= Config.skill().fire * (this.weather === 'night' ? 0.8 : 1);   // they can't see well at night either
       if (Math.random() < chance) { this.fire(t); t.cool = t.rocketGun ? 50 : 16; }
     }
   }
@@ -4027,7 +4043,7 @@ class Stage {
   }
 
   move(t, d) {
-    t.acc += t.speed * (t.boost.turbo ? TURBO_MULT : 1) * (t.isPlayer ? 1 : this.trapFactor(t));
+    t.acc += t.speed * (t.boost.turbo ? TURBO_MULT : 1) * (t.isPlayer ? 1 : this.trapFactor(t)) * this.mudFactor(t);
     let ok = true;
     while (t.acc >= 1) {
       t.acc -= 1;
@@ -4144,6 +4160,7 @@ class Stage {
     if (b.isPlayer && this.jamList.length && this.jammed(b.x + 2, b.y + 2)) dist *= 0.5;   // jammer field
     b.x += DXY[b.dir][0] * dist;
     b.y += DXY[b.dir][1] * dist;
+    this.bulletPad(b);
     if (b.x < 0 || b.y < 0 || b.x > FW - 4 || b.y > FH - 4) {
       b.x = Math.max(0, Math.min(FW - 4, b.x));
       b.y = Math.max(0, Math.min(FH - 4, b.y));
@@ -4564,6 +4581,7 @@ class Stage {
     bg.clearRect(0, 0, FW, FH);
     fo.clearRect(0, 0, FW, FH);
     this.waterCells = [];
+    this.beltCells = [];
     for (let cy = 0; cy < GH; cy++) {
       for (let cx = 0; cx < GW; cx++) {
         const t = this.terrain[cy * GW + cx];
@@ -4573,6 +4591,8 @@ class Stage {
         else if (t === T_STEEL) bg.drawImage(tex.steel, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_ICE) bg.drawImage(tex.ice, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_BRIDGE) bg.drawImage(Sprites.bridgeTex, sx, sy, 4, 4, dx, dy, 4, 4);
+        else if (t === T_MUD) bg.drawImage(Sprites.mudTex, sx, sy, 4, 4, dx, dy, 4, 4);
+        else if (isBelt(t)) this.beltCells.push(cy * GW + cx);   // drawn every frame (they move)
         else if (t === T_FOREST) fo.drawImage(tex.forest, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_WATER) this.waterCells.push(cy * GW + cx);
       }
@@ -4658,6 +4678,8 @@ class Stage {
       const cx = i % GW, cy = (i / GW) | 0;
       ctx.drawImage(wt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
     }
+    this.renderBelts(ctx);
+    this.renderPads(ctx);
     this.renderEagle(ctx);
     this.renderDecoy(ctx);
 
@@ -4698,6 +4720,7 @@ class Stage {
       const fr = f.frames[Math.min(f.frames.length - 1, Math.floor(f.tick / f.per))];
       ctx.drawImage(fr, Math.round(f.x - fr.width / 2), Math.round(f.y - fr.height / 2));
     }
+    this.renderDarkness(ctx);
     for (const p of this.popups) {
       if (p.t < p.delay) continue;
       if (p.label) {
@@ -4882,6 +4905,7 @@ Object.assign(Stage.prototype, {
         const t = this.get(cx, cy);
         if (t === T_STEEL || (t === T_WATER && mode !== 'hover')) { cost = -1; break; }
         if (t === T_BRICK && mode !== 'slither') cost += 0.6;
+        if (t === T_MUD && mode !== 'hover') cost += 0.25;
       }
       if (overlap(bx * 8, by * 8, 16, 16, BASE_X, BASE_Y, 16, 16)) cost = -1;
       c[by * NX + bx] = cost;
@@ -6014,6 +6038,232 @@ Object.assign(Stage.prototype, {
       const x = t.x + 8 + Math.cos(a) * r, y = t.y + 8 + Math.sin(a) * r;
       ctx.fillRect(Math.round(x) - 3, Math.round(y) - 3, 6, 6);
     }
+  },
+});
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  More terrain, and dark stages
+//    MUD        tanks crawl at half speed (shells pass over it)
+//    BELTS      conveyor belts push any tank along their arrow
+//    PADS       teleporter pads in linked pairs: a tank or shell entering one comes out of its twin
+//    NIGHT/FOG  some stages are dark: you see only what your tanks, the eagle, shots and explosions light up
+//  They appear in the normal stages (mud from stage 3, teleporters from 5, belts from 8), placed the same way each
+//  time a stage is played, and can be painted in CONSTRUCTION.
+// =====================================================================
+
+const PAD_COLORS = ['#3CBCFC', '#F878F8', '#58D854', '#F8B800'];
+const BELT_SPEED = 0.6, MUD_SLOW = 0.5;
+const isBelt = t => t >= T_BELT && t < T_BELT + 4;
+
+// teleporter pads painted in construction ('T' in a 26x26 block map: the top-left block of each 2x2 tile)
+function padsFromBlocks(blocks) {
+  const pads = [];
+  for (let by = 0; by < blocks.length; by += 2) for (let bx = 0; bx < blocks[by].length; bx += 2) {
+    if (blocks[by][bx] === 'T') pads.push({ x: bx * 8, y: by * 8 });
+  }
+  pads.forEach((p, i) => { p.pair = i ^ 1; p.color = PAD_COLORS[(i >> 1) % PAD_COLORS.length]; });
+  if (pads.length & 1) pads.pop();   // an odd pad out has no twin
+  return pads;
+}
+
+// night, fog or neither for a stage number
+function stageWeather(num, boss) {
+  const mode = Config.get('darkStages');
+  if (mode === 'OFF' || boss) return null;
+  if (mode === 'ALWAYS NIGHT') return 'night';
+  if (mode === 'ALWAYS FOG') return 'fog';
+  if (num >= 6 && num % 6 === 0) return 'night';
+  if (num >= 9 && num % 6 === 3) return 'fog';
+  return null;
+}
+
+Object.assign(Stage.prototype, {
+  // ------------------------------------------------------------ generated features for the normal stages
+  addTerrainExtras(num) {
+    const r = seeded(num * 131 + 7), area = (COLS * ROWS) / 169;
+    const tileFree = (tx, ty) => {
+      const x = tx * 16, y = ty * 16;
+      if (y < 32 || y > FH - 48) return false;   // keep the entry rows and the bottom row clear
+      if (Math.hypot(x + 8 - BASE_X - 8, y + 8 - BASE_Y - 8) < 56) return false;
+      if (PLAYER_SPAWN.some(([sx, sy]) => overlap(x, y, 16, 16, sx - 8, sy - 8, 32, 32))) return false;
+      for (let cy = ty * 4; cy < ty * 4 + 4; cy++) for (let cx = tx * 4; cx < tx * 4 + 4; cx++) if (this.get(cx, cy) !== T_EMPTY) return false;
+      return true;
+    };
+    const pickFree = () => {
+      for (let k = 0; k < 80; k++) {
+        const tx = Math.floor(r() * COLS), ty = Math.floor(r() * ROWS);
+        if (tileFree(tx, ty)) return [tx, ty];
+      }
+      return null;
+    };
+    // mud: a few round patches
+    if (num >= 3) {
+      const n = Math.round((2 + (num > 10 ? 1 : 0)) * area);
+      for (let k = 0; k < n; k++) {
+        const t = pickFree();
+        if (!t) break;
+        const cx = t[0] * 4 + 2, cy = t[1] * 4 + 2, rad = 3 + r() * 2;
+        for (let y = Math.floor(cy - rad); y <= cy + rad; y++) for (let x = Math.floor(cx - rad); x <= cx + rad; x++) {
+          if (Math.hypot(x + 0.5 - cx, y + 0.5 - cy) > rad || this.get(x, y) !== T_EMPTY) continue;
+          if (Math.hypot(x * 4 - BASE_X - 8, y * 4 - BASE_Y - 8) < 40 || y < 8) continue;
+          this.set(x, y, T_MUD);
+        }
+      }
+    }
+    // a teleporter pair: one pad on each side of the field
+    if (num >= 5 && r() < 0.65) {
+      const pairs = area > 2 ? 2 : 1;
+      for (let k = 0; k < pairs; k++) {
+        let a = null, b = null;
+        for (let i = 0; i < 80 && !(a && b); i++) {
+          const tx = Math.floor(r() * COLS), ty = Math.floor(r() * ROWS);
+          if (!tileFree(tx, ty)) continue;
+          if (!a && tx < COLS / 2 - 1) a = [tx, ty];
+          else if (!b && tx > COLS / 2) b = [tx, ty];
+        }
+        if (a && b) {
+          const i = this.pads.length;
+          this.pads.push({ x: a[0] * 16, y: a[1] * 16, pair: i + 1, color: PAD_COLORS[(i >> 1) % 4] },
+            { x: b[0] * 16, y: b[1] * 16, pair: i, color: PAD_COLORS[(i >> 1) % 4] });
+        }
+      }
+    }
+    // a conveyor belt: a straight run of free tiles, horizontal or vertical
+    if (num >= 8 && r() < 0.6) {
+      const n = Math.max(1, Math.round(area));
+      for (let k = 0; k < n; k++) {
+        const vertical = r() < 0.35, len = 4 + Math.floor(r() * 4);
+        for (let tries = 0; tries < 60; tries++) {
+          const tx = Math.floor(r() * COLS), ty = Math.floor(r() * ROWS);
+          const tiles = [];
+          for (let i = 0; i < len; i++) tiles.push(vertical ? [tx, ty + i] : [tx + i, ty]);
+          if (!tiles.every(([x, y]) => x < COLS && y < ROWS && tileFree(x, y) && !this.pads.some(p => p.x === x * 16 && p.y === y * 16))) continue;
+          const dir = vertical ? (r() < 0.5 ? 0 : 2) : (r() < 0.5 ? 1 : 3);
+          for (const [x, y] of tiles) for (let cy = y * 4; cy < y * 4 + 4; cy++) for (let cx = x * 4; cx < x * 4 + 4; cx++) this.set(cx, cy, T_BELT + dir);
+          break;
+        }
+      }
+    }
+  },
+
+  // ------------------------------------------------------------ every frame
+  cellUnder(t) { return this.get((t.x + 8) >> 2, (t.y + 8) >> 2); },
+
+  mudFactor(t) { return this.cellUnder(t) === T_MUD && !t.hover && !t.boost.ghost ? MUD_SLOW : 1; },
+
+  updateTerrainFx() {
+    for (const t of this.tanks) {
+      if (!t.alive) continue;
+      // conveyor belts carry tanks along (frozen ones too)
+      const c = this.cellUnder(t);
+      if (isBelt(c) && !t.hover) {
+        const d = c - T_BELT;
+        t.beltAcc = (t.beltAcc || 0) + BELT_SPEED;
+        while (t.beltAcc >= 1) {
+          t.beltAcc--;
+          if (!this.canStep(t, d)) { t.beltAcc = 0; break; }
+          t.x += DXY[d][0]; t.y += DXY[d][1];
+          if (t.trail) t.trail.unshift([t.x + 8, t.y + 8]);
+        }
+      } else t.beltAcc = 0;
+      // teleporter pads
+      if (t.tpCool > 0) { t.tpCool--; continue; }
+      for (const p of this.pads) {
+        if (Math.abs(t.x - p.x) > 2 || Math.abs(t.y - p.y) > 2) continue;
+        const q = this.pads[p.pair];
+        if (!q || this.tanks.some(o => o !== t && o.alive && overlap(o.x, o.y, 16, 16, q.x, q.y, 16, 16))) break;
+        this.addFx(t.x + 8, t.y + 8, [Sprites.sparkle[3], Sprites.sparkle[2], Sprites.sparkle[1]], 3);
+        t.x = q.x; t.y = q.y; t.acc = 0;
+        if (t.trail) t.trail.length = 0;
+        t.tpCool = 90;
+        this.addFx(t.x + 8, t.y + 8, [Sprites.sparkle[1], Sprites.sparkle[2], Sprites.sparkle[3]], 3);
+        Sound.play('teleport');
+        break;
+      }
+    }
+  },
+
+  // a shell entering a pad comes out of its twin, once
+  bulletPad(b) {
+    if (b.tp || !this.pads.length) return;
+    for (const p of this.pads) {
+      if (!overlap(b.x, b.y, 4, 4, p.x + 4, p.y + 4, 8, 8)) continue;
+      const q = this.pads[p.pair];
+      if (!q) return;
+      b.x = q.x + 6 + DXY[b.dir][0] * 6; b.y = q.y + 6 + DXY[b.dir][1] * 6;
+      b.tp = true;
+      return;
+    }
+  },
+
+  // ------------------------------------------------------------ drawing
+  renderBelts(ctx) {
+    if (!this.beltCells || !this.beltCells.length) return;
+    const ph = (this.frame >> 2) & 3;
+    for (const i of this.beltCells) {
+      const cx = i % GW, cy = (i / GW) | 0, d = this.terrain[i] - T_BELT, x = cx * 4, y = cy * 4;
+      ctx.fillStyle = '#383838';
+      ctx.fillRect(x, y, 4, 4);
+      ctx.fillStyle = '#9C9C9C';
+      // a moving stripe across each cell, travelling with the belt
+      const along = d & 1 ? cx : cy, sign = d === 1 || d === 2 ? 1 : -1;
+      const k = (((ph * sign) - along * 4) % 4 + 4) % 4;
+      if (d & 1) ctx.fillRect(x + (sign > 0 ? k : 3 - k), y, 1, 4);
+      else ctx.fillRect(x, y + (sign > 0 ? k : 3 - k), 4, 1);
+    }
+  },
+
+  renderPads(ctx) {
+    for (const p of this.pads) {
+      const pulse = (this.frame >> 3) & 1;
+      ctx.fillStyle = '#202020';
+      ctx.fillRect(p.x + 1, p.y + 1, 14, 14);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x + 2, p.y + 2, 12, 1); ctx.fillRect(p.x + 2, p.y + 13, 12, 1);
+      ctx.fillRect(p.x + 2, p.y + 2, 1, 12); ctx.fillRect(p.x + 13, p.y + 2, 1, 12);
+      ctx.fillRect(p.x + 6 - pulse, p.y + 6 - pulse, 4 + pulse * 2, 4 + pulse * 2);
+    }
+  },
+
+  // night and fog: a dark layer with holes where something gives light
+  renderDarkness(ctx) {
+    const w = this.weather;
+    if (!w) return;
+    if (!this.darkLayer || this.darkLayer.width !== FW || this.darkLayer.height !== FH) this.darkLayer = makeCanvas(FW, FH);
+    const d = this.darkLayer.getContext('2d'), k = w === 'fog' ? 1.4 : 1;
+    d.globalCompositeOperation = 'source-over';
+    d.clearRect(0, 0, FW, FH);
+    d.fillStyle = w === 'fog' ? 'rgba(150,150,160,0.86)' : 'rgba(0,0,14,0.95)';
+    d.fillRect(0, 0, FW, FH);
+    d.globalCompositeOperation = 'destination-out';
+    const light = (x, y, r) => {
+      r *= k;
+      const g = d.createRadialGradient(x, y, r * 0.35, x, y, r);
+      g.addColorStop(0, 'rgba(0,0,0,1)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      d.fillStyle = g;
+      d.fillRect(x - r, y - r, r * 2, r * 2);
+    };
+    for (const t of this.tanks) {
+      if (!t.alive) continue;
+      if (t.isPlayer) light(t.x + 8, t.y + 8, t.ally ? 40 : 56);
+      else if (t.reveal > 0) light(t.x + 8, t.y + 8, 18);   // a muzzle flash gives an enemy away
+    }
+    if (this.baseAlive) light(BASE_X + 8, BASE_Y + 8, 30);
+    for (const b of this.bullets) light(b.x + 2, b.y + 2, 12);
+    for (const f of this.fx) if (f.tick >= 0) light(f.x, f.y, 28);
+    for (const f of this.flames) light(f.x + f.w / 2, f.y + f.h / 2, 30);
+    for (const s of this.spawns) light(s.x + 8, s.y + 8, 16);
+    for (const p of this.pads) light(p.x + 8, p.y + 8, 12);
+    for (const tu of this.turrets) if (!tu.enemy) light(tu.x + 8, tu.y + 8, 24);
+    for (const c of this.claudes) light(c.x + 8, c.y + 8, 36);
+    for (const s of this.strikes) light(s.x + 8, s.y + 8, 22);
+    if (this.powerup && (this.frame >> 4) & 1) light(this.powerup.x + 8, this.powerup.y + 8, 16);
+    d.globalCompositeOperation = 'source-over';
+    ctx.drawImage(this.darkLayer, 0, 0);
   },
 });
 
@@ -7162,6 +7412,7 @@ const Net = {
       sk: st.strikes.map(k => [Math.round(k.x), k.y, k.dir]),
       rw: st.reviveWait,
       dc: st.decoy,
+      pd: st.pads, wx: st.weather,
     };
     st.netDiff = [];
     if (full) sv.tf = Array.from(st.terrain).join('');
@@ -7306,6 +7557,8 @@ const Net = {
     st.strikes = (sv.sk || []).map(a => ({ x: a[0], y: a[1], dir: a[2] }));
     st.reviveWait = sv.rw || 0;
     st.decoy = sv.dc || null;
+    st.pads = sv.pd || [];
+    st.weather = sv.wx || null;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
     st.heals = (sv.hl || []).map(a => ({ x1: a[0], y1: a[1], x2: a[2], y2: a[3], t: a[4], build: !!a[5] }));
@@ -7536,7 +7789,10 @@ const STORE = {
 const CONSTRUCT_PATS = [
   ['.#', '.#'], ['..', '##'], ['#.', '#.'], ['##', '..'], ['##', '##'],
   ['.@', '.@'], ['..', '@@'], ['@.', '@.'], ['@@', '..'], ['@@', '@@'],
-  ['~~', '~~'], ['%%', '%%'], ['__', '__'], ['..', '..'],
+  ['~~', '~~'], ['%%', '%%'], ['__', '__'],
+  // additions: mud, conveyor belts (up, right, down, left) and a teleporter pad (pads pair up in the order placed)
+  ['mm', 'mm'], ['^^', '^^'], ['>>', '>>'], ['vv', 'vv'], ['<<', '<<'], ['TT', 'TT'],
+  ['..', '..'],
 ];
 
 function newPlayer(i) {
@@ -7604,6 +7860,8 @@ const DAILY_MODS = [
   { name: 'EASY RIDER', set: v => { v.skill = 1; v.lives = 5; } },
   { name: 'TURBO TANK', set: v => { v.pSpeed = 175; } },
   { name: 'BOSS RUSH', set: v => { v.bossEvery = 5; } },
+  { name: 'LIGHTS OUT', set: v => { v.darkStages = 'ALWAYS NIGHT'; } },
+  { name: 'PEA SOUP', set: v => { v.darkStages = 'ALWAYS FOG'; } },
 ];
 
 function dailyToday() {
@@ -7916,6 +8174,8 @@ const Game = {
       Font.drawRight(ctx, this.stageNum, cx + 32, cy - 8, COL.black);
       const boss = bossForStage(this.stageNum);
       if (boss) Font.drawCenter(ctx, 'BOSS: ' + BOSSES[boss.idx].name, cx, cy + 10, '#A00000');
+      const wx = !this.customPending && stageWeather(this.stageNum, !!boss);
+      if (wx) Font.drawCenter(ctx, wx === 'night' ? 'NIGHT' : 'FOG', cx, cy + (boss ? 34 : c.selectable ? 24 : 10), wx === 'night' ? '#00006C' : '#ADADAD');
       if (Config.get('skill') !== 2) Font.drawCenter(ctx, Config.skill().name, cx, cy - 24, '#3C3C3C');
       if (c.selectable && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + (boss ? 24 : 12), '#3C3C3C');
     }
@@ -8277,6 +8537,7 @@ const Game = {
       this.ed.stage.setBlock(bx, by, BLOCK_TYPE[p[y][x]]);
     }
     this.custom = rows.map(r => r.join(''));
+    this.ed.stage.pads = padsFromBlocks(this.custom);
     STORE.set('tank1990_custom', this.custom);
     Sound.play('build');
   },
@@ -8326,6 +8587,9 @@ const Game = {
       const cx = i % GW, cy = (i / GW) | 0;
       ctx.drawImage(Sprites.tex.water0, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
     }
+    st.frame = this.t;
+    st.renderBelts(ctx);
+    st.renderPads(ctx);
     ctx.drawImage(Sprites.eagle, BASE_X, BASE_Y);
     ctx.drawImage(st.forestLayer, 0, 0);
     if (((this.t >> 3) & 1) === 0) ctx.drawImage(Sprites.tank('p0', 0, 0, Config.playerPal(0)), this.ed.tx * 16, this.ed.ty * 16);
@@ -8338,9 +8602,13 @@ const Game = {
       const p = CONSTRUCT_PATS[this.ed.pat];
       const tex = { '#': 'brick', '@': 'steel', '~': 'water0', '%': 'forest', '_': 'ice' };
       for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
-        const k = tex[p[y][x]];
+        const c = p[y][x], k = tex[c];
         if (k) ctx.drawImage(Sprites.tex[k], 232 + x * 8, 27 + y * 8);
+        else if (c === 'm') ctx.drawImage(Sprites.mudTex, 232 + x * 8, 27 + y * 8);
       }
+      const arrow = { '^': '^', '>': '>', v: 'V', '<': '<' }[p[0][0]];
+      if (arrow) { ctx.fillStyle = '#383838'; ctx.fillRect(232, 27, 16, 16); Font.draw(ctx, arrow, 236, 31, '#9C9C9C'); }
+      if (p[0][0] === 'T') { ctx.strokeStyle = PAD_COLORS[0]; ctx.strokeRect(234.5, 29.5, 11, 11); ctx.fillStyle = PAD_COLORS[0]; ctx.fillRect(238, 33, 4, 4); }
     }
     Font.draw(ctx, 'A', 228, 60, COL.black); Font.draw(ctx, '+', 236, 60, COL.black);
     Font.draw(ctx, 'B', 228, 72, COL.black); Font.draw(ctx, '-', 236, 72, COL.black);

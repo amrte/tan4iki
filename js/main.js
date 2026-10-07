@@ -18,7 +18,10 @@ const STORE = {
 const CONSTRUCT_PATS = [
   ['.#', '.#'], ['..', '##'], ['#.', '#.'], ['##', '..'], ['##', '##'],
   ['.@', '.@'], ['..', '@@'], ['@.', '@.'], ['@@', '..'], ['@@', '@@'],
-  ['~~', '~~'], ['%%', '%%'], ['__', '__'], ['..', '..'],
+  ['~~', '~~'], ['%%', '%%'], ['__', '__'],
+  // additions: mud, conveyor belts (up, right, down, left) and a teleporter pad (pads pair up in the order placed)
+  ['mm', 'mm'], ['^^', '^^'], ['>>', '>>'], ['vv', 'vv'], ['<<', '<<'], ['TT', 'TT'],
+  ['..', '..'],
 ];
 
 function newPlayer(i) {
@@ -86,6 +89,8 @@ const DAILY_MODS = [
   { name: 'EASY RIDER', set: v => { v.skill = 1; v.lives = 5; } },
   { name: 'TURBO TANK', set: v => { v.pSpeed = 175; } },
   { name: 'BOSS RUSH', set: v => { v.bossEvery = 5; } },
+  { name: 'LIGHTS OUT', set: v => { v.darkStages = 'ALWAYS NIGHT'; } },
+  { name: 'PEA SOUP', set: v => { v.darkStages = 'ALWAYS FOG'; } },
 ];
 
 function dailyToday() {
@@ -398,6 +403,8 @@ const Game = {
       Font.drawRight(ctx, this.stageNum, cx + 32, cy - 8, COL.black);
       const boss = bossForStage(this.stageNum);
       if (boss) Font.drawCenter(ctx, 'BOSS: ' + BOSSES[boss.idx].name, cx, cy + 10, '#A00000');
+      const wx = !this.customPending && stageWeather(this.stageNum, !!boss);
+      if (wx) Font.drawCenter(ctx, wx === 'night' ? 'NIGHT' : 'FOG', cx, cy + (boss ? 34 : c.selectable ? 24 : 10), wx === 'night' ? '#00006C' : '#ADADAD');
       if (Config.get('skill') !== 2) Font.drawCenter(ctx, Config.skill().name, cx, cy - 24, '#3C3C3C');
       if (c.selectable && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + (boss ? 24 : 12), '#3C3C3C');
     }
@@ -759,6 +766,7 @@ const Game = {
       this.ed.stage.setBlock(bx, by, BLOCK_TYPE[p[y][x]]);
     }
     this.custom = rows.map(r => r.join(''));
+    this.ed.stage.pads = padsFromBlocks(this.custom);
     STORE.set('tank1990_custom', this.custom);
     Sound.play('build');
   },
@@ -808,6 +816,9 @@ const Game = {
       const cx = i % GW, cy = (i / GW) | 0;
       ctx.drawImage(Sprites.tex.water0, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
     }
+    st.frame = this.t;
+    st.renderBelts(ctx);
+    st.renderPads(ctx);
     ctx.drawImage(Sprites.eagle, BASE_X, BASE_Y);
     ctx.drawImage(st.forestLayer, 0, 0);
     if (((this.t >> 3) & 1) === 0) ctx.drawImage(Sprites.tank('p0', 0, 0, Config.playerPal(0)), this.ed.tx * 16, this.ed.ty * 16);
@@ -820,9 +831,13 @@ const Game = {
       const p = CONSTRUCT_PATS[this.ed.pat];
       const tex = { '#': 'brick', '@': 'steel', '~': 'water0', '%': 'forest', '_': 'ice' };
       for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
-        const k = tex[p[y][x]];
+        const c = p[y][x], k = tex[c];
         if (k) ctx.drawImage(Sprites.tex[k], 232 + x * 8, 27 + y * 8);
+        else if (c === 'm') ctx.drawImage(Sprites.mudTex, 232 + x * 8, 27 + y * 8);
       }
+      const arrow = { '^': '^', '>': '>', v: 'V', '<': '<' }[p[0][0]];
+      if (arrow) { ctx.fillStyle = '#383838'; ctx.fillRect(232, 27, 16, 16); Font.draw(ctx, arrow, 236, 31, '#9C9C9C'); }
+      if (p[0][0] === 'T') { ctx.strokeStyle = PAD_COLORS[0]; ctx.strokeRect(234.5, 29.5, 11, 11); ctx.fillStyle = PAD_COLORS[0]; ctx.fillRect(238, 33, 4, 4); }
     }
     Font.draw(ctx, 'A', 228, 60, COL.black); Font.draw(ctx, '+', 236, 60, COL.black);
     Font.draw(ctx, 'B', 228, 72, COL.black); Font.draw(ctx, '-', 236, 72, COL.black);

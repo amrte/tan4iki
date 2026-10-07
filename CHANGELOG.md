@@ -3,6 +3,15 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.14
+
+- **New terrain:** mud (half speed), conveyor belts (carry tanks along) and teleporter pads (linked pairs; tanks and
+  shells come out of the twin). They appear in the normal stages (mud from 3, teleporters from 5, belts from 8), placed
+  the same way each time, and can be painted in CONSTRUCTION. Setting: MUD, BELTS, PADS.
+- **Night and fog stages:** every 6th stage from 6 is a night stage, lit only around your tanks, the eagle, shots and
+  explosions; every 6th from 9 is foggy. Setting: NIGHT AND FOG (some / off / all night / all fog). New daily twists:
+  LIGHTS OUT and PEA SOUP.
+
 ## 0.13
 
 - **Easier easy skills:** I'M TOO YOUNG TO DIE now gives 3 extra tanks, a free armour plate every life, 2 free eagle
