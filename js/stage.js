@@ -670,9 +670,10 @@ class Stage {
     } else {
       spec = 'e' + t.type;
       if (t.bonus && ((this.frame >> 3) & 1)) pal = 'red';
+      // armor tanks start green and fade to silver as they take hits
       else if (t.hp >= 4) pal = 'green';
       else if (t.hp === 3) pal = 'gold';
-      else if (t.hp === 2) pal = 'steel';
+      else if (t.hp === 2) pal = (this.frame >> 2) & 1 ? 'gold' : 'silver';
       else pal = 'silver';
     }
     ctx.drawImage(Sprites.tank(spec, t.anim, t.dir, pal), t.x, t.y);
@@ -720,7 +721,7 @@ class Stage {
     for (const p of this.popups) {
       if (p.t < p.delay) continue;
       const c = Sprites.mini(p.text);
-      ctx.drawImage(c, Math.round(p.x - c.width / 2), Math.round(p.y - 2));
+      ctx.drawImage(c, Math.round(p.x - c.width / 2), Math.round(p.y - 3));
     }
     if (this.over) {
       const y = Math.max(96, FS - this.overTimer * 1.3);

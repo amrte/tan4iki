@@ -56,20 +56,6 @@ const FONT_SRC = {
   '_': ['.....', '.....', '.....', '.....', '.....', '.....', 'XXXXX'],
 };
 
-// tiny digits for score pop-ups (3x5)
-const MINI_DIGITS = {
-  '0': ['XXX', 'X.X', 'X.X', 'X.X', 'XXX'],
-  '1': ['.X.', 'XX.', '.X.', '.X.', 'XXX'],
-  '2': ['XXX', '..X', 'XXX', 'X..', 'XXX'],
-  '3': ['XXX', '..X', '.XX', '..X', 'XXX'],
-  '4': ['X.X', 'X.X', 'XXX', '..X', '..X'],
-  '5': ['XXX', 'X..', 'XXX', '..X', 'XXX'],
-  '6': ['XXX', 'X..', 'XXX', 'X.X', 'XXX'],
-  '7': ['XXX', '..X', '.X.', '.X.', '.X.'],
-  '8': ['XXX', 'X.X', 'XXX', 'X.X', 'XXX'],
-  '9': ['XXX', 'X.X', 'XXX', '..X', 'XXX'],
-};
-
 // 8x8 terrain textures. Each 4x4 terrain cell uses one quadrant.
 const TEX_SRC = {
   brick: {

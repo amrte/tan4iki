@@ -171,8 +171,7 @@ const Game = {
     const m = Input.menu();
     if ((m.start || (m.back && !this.paused)) && !this.stage.over) {
       this.paused = !this.paused;
-      Sound.play('pause');
-      if (this.paused) Sound.setEngine(0);
+      if (this.paused) { Sound.play('pause'); Sound.setEngine(0); }
     } else if (m.back && this.paused) {
       // Esc while paused quits to the title screen
       this.saveHi();

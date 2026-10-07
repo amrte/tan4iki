@@ -1,8 +1,9 @@
 # Tank 1990 — browser replica
 
 A from-scratch browser remake of **Tank 1990**, the NES/Famicom variant of Battle City.
-It's plain HTML5 Canvas and JavaScript with no dependencies and no build step. All pixel art
-and sound are generated in code to look and sound like the NES original.
+It's plain HTML5 Canvas and JavaScript with no dependencies and no build step. Sprites are
+stored as 16×16 palette bitmaps in code, matching the NES originals. Sound comes from a small 2A03-style synth
+(pulse waves and 1-bit LFSR noise), tuned against the original effects for pitch, timing and noise rate.
 
 ## Play
 
@@ -54,8 +55,9 @@ fire buttons appear on screen.
 index.html        page shell + touch controls
 css/style.css     layout, pixel-perfect scaling
 js/data.js        font, terrain textures, 35 stage maps, enemy line-ups
-js/gfx.js         procedural sprite generation (tanks, eagle, power-ups, effects)
-js/audio.js       Web Audio synth (SFX, jingles, engine)
+js/sprites.js     sprite bitmaps (tanks, power-ups, eagle, effects, HUD icons)
+js/gfx.js         palettes, font, sprite rendering and caching
+js/audio.js       NES-style Web Audio synth (SFX, jingles, engine)
 js/input.js       keyboard / gamepad / touch
 js/stage.js       gameplay: terrain, movement, AI, bullets, power-ups, rendering
 js/main.js        state machine (title, curtain, play, score, game over, construction) + loop

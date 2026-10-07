@@ -1,15 +1,21 @@
 'use strict';
 // =====================================================================
-//  Sound: tiny chiptune synth on Web Audio (square / triangle / noise)
+//  Sound: NES-style synth on Web Audio.
+//  Pulse channels are band-limited square waves, the noise channel is
+//  1-bit sample-and-hold noise clocked at different rates (like the
+//  2A03's noise period register). Timings and pitches follow the
+//  original Battle City / Tank 1990 effects.
 // =====================================================================
 
 const Sound = {
   ctx: null,
   master: null,
-  noiseBuf: null,
   muted: false,
+  noiseCache: {},
+  waves: {},
   engine: null,
   engineState: 0,
+  engineHoldUntil: 0,
 
   unlock() {
     if (!this.ctx) {
@@ -17,14 +23,11 @@ const Sound = {
       if (!AC) return;
       this.ctx = new AC();
       this.master = this.ctx.createGain();
-      this.master.gain.value = this.muted ? 0 : 0.28;
+      this.master.gain.value = this.muted ? 0 : 0.3;
       this.master.connect(this.ctx.destination);
-      const len = this.ctx.sampleRate;
-      this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
-      const d = this.noiseBuf.getChannelData(0);
-      // NES-ish noise: sample-and-hold random values
-      let v = 0;
-      for (let i = 0; i < len; i++) { if (i % 6 === 0) v = Math.random() * 2 - 1; d[i] = v; }
+      this.waves.p50 = this.pulseWave(0.5);
+      this.waves.p25 = this.pulseWave(0.25);
+      this.waves.p12 = this.pulseWave(0.125);
       this.initEngine();
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
@@ -32,150 +35,238 @@ const Sound = {
 
   toggleMute() {
     this.muted = !this.muted;
-    if (this.master) this.master.gain.value = this.muted ? 0 : 0.28;
+    if (this.master) this.master.gain.value = this.muted ? 0 : 0.3;
     return this.muted;
   },
 
   midi(n) { return 440 * Math.pow(2, (n - 69) / 12); },
 
-  tone(freq, start, dur, type = 'square', vol = 0.3, slideTo = null) {
+  pulseWave(duty) {
+    const n = 64, re = new Float32Array(n), im = new Float32Array(n);
+    for (let k = 1; k < n; k++) re[k] = (2 / (k * Math.PI)) * Math.sin(k * Math.PI * duty);
+    return this.ctx.createPeriodicWave(re, im);
+  },
+
+  // 1-bit noise held for sampleRate/rate samples (NES noise channel look-alike)
+  noiseBuffer(rate) {
+    const key = Math.round(rate);
+    if (this.noiseCache[key]) return this.noiseCache[key];
+    const sr = this.ctx.sampleRate, len = sr;
+    const buf = this.ctx.createBuffer(1, len, sr), d = buf.getChannelData(0);
+    const hold = Math.max(1, sr / rate);
+    let reg = 1, v = 1, acc = 0;
+    for (let i = 0; i < len; i++) {
+      acc += 1;
+      if (acc >= hold) {
+        acc -= hold;
+        const bit = (reg ^ (reg >> 1)) & 1; // 15-bit LFSR, as on the 2A03
+        reg = (reg >> 1) | (bit << 14);
+        v = (reg & 1) ? 1 : -1;
+      }
+      d[i] = v;
+    }
+    this.noiseCache[key] = buf;
+    return buf;
+  },
+
+  // pulse note with NES-like volume decay
+  note(midi, start, dur, opts = {}) {
     const c = this.ctx, o = c.createOscillator(), g = c.createGain();
-    o.type = type;
-    o.frequency.setValueAtTime(freq, start);
-    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, start + dur);
+    const vol = opts.vol ?? 0.2, wave = opts.wave || 'p50';
+    if (wave === 'tri') o.type = 'triangle'; else o.setPeriodicWave(this.waves[wave]);
+    o.frequency.setValueAtTime(typeof midi === 'number' && midi < 200 ? this.midi(midi) : midi, start);
+    if (opts.slideTo) o.frequency.exponentialRampToValueAtTime(opts.slideTo, start + dur);
+    const end = start + dur;
     g.gain.setValueAtTime(vol, start);
-    g.gain.setValueAtTime(vol, start + dur * 0.7);
-    g.gain.linearRampToValueAtTime(0.0001, start + dur);
+    if (opts.flat) g.gain.setValueAtTime(vol, end - 0.008);
+    else g.gain.exponentialRampToValueAtTime(Math.max(0.0005, vol * (opts.decayTo ?? 0.2)), end - 0.004);
+    g.gain.linearRampToValueAtTime(0, end);
     o.connect(g); g.connect(this.master);
-    o.start(start); o.stop(start + dur + 0.02);
+    o.start(start); o.stop(end + 0.01);
   },
 
-  noise(start, dur, vol = 0.4, freq = 3000, endFreq = null, q = 0.7) {
-    const c = this.ctx, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
-    s.buffer = this.noiseBuf;
+  // burst of noise; env: [[time, gain], ...] relative to start
+  noise(rate, start, env, rateEnd) {
+    const c = this.ctx, s = c.createBufferSource(), g = c.createGain();
+    s.buffer = this.noiseBuffer(rate);
     s.loop = true;
-    f.type = 'lowpass';
-    f.frequency.setValueAtTime(freq, start);
-    if (endFreq) f.frequency.exponentialRampToValueAtTime(endFreq, start + dur);
-    f.Q.value = q;
-    g.gain.setValueAtTime(vol, start);
-    g.gain.exponentialRampToValueAtTime(0.001, start + dur);
-    s.connect(f); f.connect(g); g.connect(this.master);
-    s.start(start, Math.random() * 0.5); s.stop(start + dur + 0.02);
+    if (rateEnd) {
+      const dur = env[env.length - 1][0];
+      s.playbackRate.setValueAtTime(1, start);
+      s.playbackRate.exponentialRampToValueAtTime(rateEnd / rate, start + dur);
+    }
+    g.gain.setValueAtTime(env[0][1], start);
+    for (let i = 1; i < env.length; i++) g.gain.linearRampToValueAtTime(env[i][1], start + env[i][0]);
+    s.connect(g); g.connect(this.master);
+    const end = start + env[env.length - 1][0];
+    s.start(start, Math.random() * 0.5);
+    s.stop(end + 0.01);
   },
 
-  seq(notes, step, type, vol, t0) {
+  seq(notes, step, t0, opts) {
     let t = t0;
-    for (const [n, len] of notes) {
-      if (n > 0) this.tone(this.midi(n), t, step * len * 0.95, type, vol);
-      t += step * len;
+    for (const n of notes) {
+      if (n) this.note(n, t, step, opts);
+      t += step;
     }
     return t;
   },
 
   play(name) {
     if (!this.ctx || this.muted) return;
-    const t = this.ctx.currentTime + 0.01;
+    const t = this.ctx.currentTime + 0.005;
     switch (name) {
-      case 'start': {
-        const step = 0.095;
-        this.seq([[67, 1], [72, 1], [76, 1], [79, 2], [76, 1], [79, 3], [77, 1], [81, 1], [84, 1], [86, 2], [84, 1], [88, 4]], step, 'square', 0.18, t);
-        this.seq([[64, 1], [67, 1], [72, 1], [76, 2], [72, 1], [76, 3], [74, 1], [77, 1], [81, 1], [83, 2], [79, 1], [84, 4]], step, 'square', 0.1, t);
-        this.seq([[48, 3], [55, 3], [52, 3], [53, 3], [55, 3], [48, 4]], step, 'triangle', 0.35, t);
+      case 'start': this.stageStart(t); break;
+      case 'gameover': this.gameOver(t); break;
+
+      case 'shot': // short flat low noise thump
+        this.noise(6800, t, [[0, 0.5], [0.085, 0.45], [0.1, 0]]);
         break;
-      }
-      case 'shot':
-        this.tone(1400, t, 0.06, 'square', 0.18, 300);
-        this.noise(t, 0.08, 0.15, 6000, 1500);
+      case 'brick': // deep crunch
+        this.noise(1500, t, [[0, 0.55], [0.06, 0.45], [0.075, 0]]);
         break;
-      case 'brick':
-        this.noise(t, 0.12, 0.45, 2200, 400);
+      case 'steel': // shell bounces off steel / the field edge: C6 -> C7 ting
+        this.note(84, t, 0.04, { vol: 0.09, flat: true });
+        this.note(96, t + 0.04, 0.045, { vol: 0.09, decayTo: 0.4 });
         break;
-      case 'steel':
-        this.tone(1800, t, 0.05, 'square', 0.15, 1500);
-        this.tone(900, t + 0.02, 0.05, 'triangle', 0.25);
+      case 'armor': // armored enemy absorbs a hit
+        this.note(84, t, 0.035, { vol: 0.1, flat: true, wave: 'p25' });
+        this.note(91, t + 0.035, 0.05, { vol: 0.1, decayTo: 0.3, wave: 'p25' });
+        this.noise(9000, t, [[0, 0.15], [0.05, 0]]);
         break;
-      case 'armor':
-        this.tone(500, t, 0.08, 'square', 0.2, 180);
-        this.noise(t, 0.08, 0.2, 5000, 2000);
-        break;
-      case 'explode':
-        this.noise(t, 0.6, 0.65, 1800, 120, 1);
-        this.tone(140, t, 0.3, 'triangle', 0.4, 40);
+      case 'explode': // enemy tank
+        this.noise(1150, t, [[0, 0.55], [0.26, 0.45], [0.3, 0]]);
         break;
       case 'playerDie':
-        this.noise(t, 1.0, 0.75, 2500, 80, 1);
-        this.tone(220, t, 0.5, 'square', 0.15, 50);
+      case 'baseDie': // big explosion
+        this.noise(3400, t, [[0, 0.6], [0.12, 0.6], [0.45, 0.35], [0.52, 0]], 1800);
         break;
-      case 'baseDie':
-        this.noise(t, 1.4, 0.8, 1500, 60, 1);
-        this.tone(110, t, 1.0, 'triangle', 0.5, 30);
-        break;
-      case 'puAppear':
-        this.seq([[84, 1], [88, 1], [91, 1], [96, 1], [91, 1], [96, 2]], 0.045, 'triangle', 0.4, t);
-        break;
-      case 'pickup':
-        this.seq([[72, 1], [76, 1], [79, 1], [84, 1], [76, 1], [79, 1], [84, 1], [88, 2]], 0.04, 'square', 0.17, t);
-        break;
-      case 'enemyPickup':
-        this.seq([[79, 1], [75, 1], [72, 1], [67, 1], [63, 2]], 0.05, 'square', 0.17, t);
-        break;
-      case 'life':
-        this.seq([[76, 1], [79, 1], [84, 1], [88, 2], [0, 1], [76, 1], [79, 1], [84, 1], [88, 3]], 0.06, 'square', 0.18, t);
+      case 'tick': // score tally click
+        this.noise(13000, t, [[0, 0.5], [0.02, 0.15], [0.04, 0]]);
         break;
       case 'pause':
-        this.seq([[84, 1], [79, 1], [84, 1], [79, 1], [84, 2]], 0.06, 'square', 0.16, t);
+        this.seq([72, 74, 76, 84, 86, 88], 0.064, t, { vol: 0.16, decayTo: 0.55 });
+        this.note(79, t + 0.384, 0.2, { vol: 0.16, decayTo: 0.12 });
         break;
-      case 'tick':
-        this.tone(1320, t, 0.035, 'square', 0.15);
-        break;
-      case 'bonus':
-        this.seq([[72, 1], [76, 1], [79, 1], [84, 2], [79, 1], [84, 3]], 0.07, 'square', 0.18, t);
-        break;
-      case 'gameover': {
-        const step = 0.16;
-        this.seq([[72, 1], [71, 1], [69, 1], [67, 2], [64, 1], [62, 1], [60, 4]], step, 'square', 0.18, t);
-        this.seq([[48, 3], [43, 3], [36, 5]], step, 'triangle', 0.4, t);
+      case 'puAppear': {
+        // quick warbling run, then A4 B4 C5
+        const run = [64, 63, 63, 68, 67, 68, 83, 80, 69, 71, 66, 67, 67, 68];
+        run.forEach((n, i) => this.note(n, t + i * 0.016, 0.016, { vol: 0.12, flat: true, wave: 'p25' }));
+        this.seq([69, 71, 72], 0.064, t + 0.27, { vol: 0.16, decayTo: 0.15 });
         break;
       }
-      case 'skid':
-        this.noise(t, 0.25, 0.12, 7000, 3000, 3);
+      case 'pickup':
+        this.seq([67, 72, 76, 79, 66, 71, 75, 78, 72, 76, 79, 84, 88], 0.05, t, { vol: 0.15, decayTo: 0.45 });
         break;
-      case 'freeze':
-        this.seq([[96, 1], [91, 1], [96, 1], [91, 1]], 0.04, 'triangle', 0.3, t);
+      case 'enemyPickup':
+        this.seq([79, 75, 72, 67, 63], 0.05, t, { vol: 0.14, decayTo: 0.45, wave: 'p25' });
+        break;
+      case 'life':
+        this.seq([76, 79, 84, 88, 0, 76, 79, 84, 88, 91], 0.055, t, { vol: 0.15, decayTo: 0.5 });
+        break;
+      case 'bonus':
+        this.seq([72, 76, 79, 84, 79, 84, 88], 0.07, t, { vol: 0.15, decayTo: 0.45 });
+        break;
+      case 'skid': // sliding on ice
+        this.noise(16000, t, [[0, 0.1], [0.2, 0.06], [0.24, 0]]);
         break;
       case 'select':
-        this.tone(880, t, 0.04, 'square', 0.14);
+        this.noise(13000, t, [[0, 0.35], [0.03, 0]]);
         break;
       case 'build':
-        this.noise(t, 0.05, 0.3, 4000, 1000);
+        this.noise(4000, t, [[0, 0.35], [0.04, 0]]);
         break;
     }
   },
 
+  // Stage start fanfare: triplet runs climbing through Cm, Eb, F, Ab-Bb, ending on C major.
+  stageStart(t0) {
+    const G = 0.4, S = G / 3;
+    const lead = [[72, 74, 75], [72, 74, 75], [75, 77, 79], [75, 77, 79], [77, 79, 81], [77, 79, 81], [80, 82, 84], [80, 82, 84]];
+    const chords = [[55, 48], [55, 48], [58, 51], [58, 51], [60, 53], [60, 53], [63, 56], [65, 58]];
+    const fullHarmony = [false, true, false, true, false, true, true, true];
+    for (let g = 0; g < 8; g++) {
+      for (let k = 0; k < 3; k++) {
+        const t = t0 + g * G + k * S;
+        this.note(lead[g][k], t, S * 0.95, { vol: 0.22, decayTo: 0.25 });
+        if (k === 0 || fullHarmony[g]) {
+          this.note(chords[g][0], t, S * 0.95, { vol: 0.1, decayTo: 0.2 });
+          this.note(chords[g][1], t, S * 0.95, { vol: 0.3, wave: 'tri', flat: true });
+        }
+      }
+    }
+    const end = t0 + 8 * G;
+    this.note(84, end, 0.16, { vol: 0.17, decayTo: 0.15 });
+    this.note(64, end, 0.16, { vol: 0.1, decayTo: 0.2 });
+    this.note(55, end, 0.16, { vol: 0.3, wave: 'tri', flat: true });
+    [0.4, 0.54, 0.67, 0.8].forEach((dt, i) => {
+      const len = i === 3 ? 0.16 : 0.12;
+      this.note(84, end + dt, len, { vol: 0.17, decayTo: 0.15 });
+      this.note(64, end + dt, len, { vol: 0.1, decayTo: 0.2 });
+      this.note(55, end + dt, len, { vol: 0.3, wave: 'tri', flat: true });
+    });
+    // the engine stays quiet while the fanfare plays, as in the original
+    this.engineHoldUntil = t0 + 4.3;
+    this.applyEngine();
+  },
+
+  gameOver(t0) {
+    const stab = (t, top, len, decay) => {
+      this.note(top, t, len, { vol: 0.15, decayTo: decay });
+      this.note(67, t, len, { vol: 0.1, decayTo: decay });
+      this.note(63, t, len, { vol: 0.15, wave: 'tri', decayTo: 0.5 });
+    };
+    stab(t0 + 0.04, 72, 0.1, 0.4);
+    stab(t0 + 0.14, 70, 0.12, 0.4);
+    stab(t0 + 0.26, 72, 0.2, 0.3);
+    const run = [[0.64, 63, 79, 0.14], [0.78, 62, 77, 0.12], [0.9, 61, 76, 0.05], [0.95, 59, 75, 0.13]];
+    for (const [dt, lo, hi, len] of run) {
+      this.note(lo, t0 + dt, len, { vol: 0.2, wave: 'p25', decayTo: 0.4 });
+      this.note(hi, t0 + dt, len, { vol: 0.08, decayTo: 0.4 });
+    }
+    [1.08, 1.2, 1.33, 1.47].forEach((dt, i) => {
+      const len = i === 3 ? 0.2 : 0.12;
+      this.note(60, t0 + dt, len, { vol: 0.22, wave: 'p25', decayTo: i === 3 ? 0.05 : 0.35 });
+      this.note(72, t0 + dt, len, { vol: 0.06, decayTo: 0.3 });
+      this.note(54, t0 + dt, len, { vol: 0.2, wave: 'tri', flat: true });
+    });
+  },
+
+  // ---------------------------------------------------------------- engine
+  // Two-tone pulse rumble: a slow low throb when idle, a faster higher buzz when moving.
   initEngine() {
     const c = this.ctx;
     const o = c.createOscillator(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain();
-    o.type = 'square';
+    o.setPeriodicWave(this.waves.p25);
     o.frequency.value = 55;
     lfo.type = 'square';
-    lfo.frequency.value = 14;
+    lfo.frequency.value = 15;
     lg.gain.value = 6;
     lfo.connect(lg); lg.connect(o.frequency);
     g.gain.value = 0;
     o.connect(g); g.connect(this.master);
     o.start(); lfo.start();
-    this.engine = { o, g, lfo };
+    this.engine = { o, g, lfo, lg };
   },
 
   // 0 = off, 1 = idle, 2 = moving
   setEngine(state) {
-    if (!this.engine || state === this.engineState) return;
+    if (state === this.engineState) return;
     this.engineState = state;
-    const t = this.ctx.currentTime, e = this.engine;
+    this.applyEngine();
+  },
+
+  applyEngine() {
+    if (!this.engine) return;
+    const t = this.ctx.currentTime, e = this.engine, state = this.engineState;
     e.g.gain.cancelScheduledValues(t);
-    e.g.gain.setTargetAtTime(state === 0 ? 0 : (state === 1 ? 0.035 : 0.05), t, 0.02);
-    e.o.frequency.setTargetAtTime(state === 2 ? 82 : 52, t, 0.02);
-    e.lfo.frequency.setTargetAtTime(state === 2 ? 22 : 12, t, 0.02);
+    if (state === 0) { e.g.gain.setTargetAtTime(0, t, 0.01); return; }
+    const vol = state === 1 ? 0.06 : 0.07;
+    const from = Math.max(t, this.engineHoldUntil);
+    if (from > t) e.g.gain.setTargetAtTime(0, t, 0.01);
+    e.g.gain.setTargetAtTime(vol, from, 0.01);
+    e.o.frequency.setTargetAtTime(state === 2 ? 98 : 49, t, 0.01);
+    e.lg.gain.setTargetAtTime(state === 2 ? 10 : 7, t, 0.01);
+    e.lfo.frequency.setTargetAtTime(state === 2 ? 30 : 15, t, 0.01);
   },
 };
