@@ -248,6 +248,7 @@ const Net = {
       fg: st.flags ? st.flags.map(f => [f.i, f.hx, f.hy, f.x, f.y, f.carrier ? 1 : 0]) : null,
       cr: st.corridor ? [st.corridor.shifts, st.corridor.climbed, st.corridor.startY] : null,
       cd: st.card || null,
+      cp: st.cpu || null,
     };
     st.netDiff = [];
     // the corridor moved down a section: the whole terrain goes again
@@ -406,6 +407,7 @@ const Net = {
     st.flags = sv.fg ? sv.fg.map(a => ({ i: a[0], hx: a[1], hy: a[2], x: a[3], y: a[4], carrier: a[5] ? {} : null })) : null;
     st.weather = sv.wx || null;
     st.card = sv.cd || null;
+    st.cpu = sv.cp || null;
     if (sv.cr) {
       // the host's world moved down: so does this screen's window
       if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();

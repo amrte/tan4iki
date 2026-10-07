@@ -208,7 +208,7 @@ const Game = {
   setState(s) { this.state = s; this.t = 0; },
 
   saveHi() {
-    for (const p of this.players) if (p.score > this.hi) this.hi = p.score;
+    for (const p of this.players) if (p.score > this.hi && !p.bot) this.hi = p.score;   // bots don't set high scores
     STORE.set('tank1990_hi', this.hi);
   },
 
@@ -309,10 +309,12 @@ const Game = {
     const cur = menu[this.menuIdx];
     if (cur && cur.mode && this.titleY === 0) {
       const mi = modeInfo(Config.get('gameMode')), rec = STORE.get(MODE_KEY, {});
-      Font.drawCenter(ctx, mi.desc + (mi.vs ? ' (2-4 P)' : ''), SW / 2, 203, COL.gold);
+      Font.drawCenter(ctx, mi.desc + (mi.cpu ? '' : mi.vs ? ' (2-4 P)' : ''), SW / 2, 203, COL.gold);
       const best = mi.key === 'survival' && rec.survival ? 'BEST WAVE ' + rec.survival.wave + '  ' + rec.survival.score
         : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack)
-        : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score : '< > CHANGE MODE';
+        : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score
+        : mi.key === 'eagles' ? '1P: VS CPU' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '') + '  2-4P: VS'
+        : mi.key === 'dm' ? '1P: VS ' + DM_BOTS + ' BOTS  2-4P: VS EACH OTHER' : '< > CHANGE MODE';
       Font.drawCenter(ctx, best, SW / 2, 213, COL.lgrey);
     } else if (cur && cur.daily && this.titleY === 0) {
       const d = dailyToday(), best = STORE.get(DAILY_KEY, {});
@@ -402,10 +404,13 @@ const Game = {
     this.customPending = custom;
     // game mode (modes.js); versus needs at least two players
     this.mode = custom || this.daily ? 'classic' : Config.get('gameMode');
-    if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
+    // VS EAGLES alone: against the computer (cpuvs.js); other versus modes need at least two players
+    if (this.mode === 'eagles' && n < 2) this.mode = 'cpu';
+    else if (this.mode === 'dm' && n < 2) for (let i = 1; i <= DM_BOTS; i++) this.players.push(Object.assign(newPlayer(i), { bot: true }));   // bots.js
+    else if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
     this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
-    if (this.mode === 'timeattack' || this.mode === 'corridor') this.stageNum = 1;
+    if (this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu') this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
   },
 
@@ -443,8 +448,15 @@ const Game = {
     ctx.fillRect(0, SCREEN_H - c.h, SCREEN_W, c.h);
     if (c.phase === 'show') {
       const cx = SCREEN_W / 2, cy = SCREEN_H / 2;
-      Font.draw(ctx, 'STAGE', cx - 32, cy - 8, COL.black);
+      Font.draw(ctx, this.mode === 'cpu' ? 'ROUND' : 'STAGE', cx - 32, cy - 8, COL.black);
       Font.drawRight(ctx, this.stageNum, cx + 32, cy - 8, COL.black);
+      // against the computer: what their HQ got for this round
+      if (this.mode === 'cpu') {
+        const news = cpuNews(this.stageNum);
+        if (news.length) Font.drawCenter(ctx, 'ENEMY HQ UPGRADED', cx, cy + 14, '#A00000');
+        news.forEach((t, i) => Font.drawCenter(ctx, t, cx, cy + 26 + i * 10, '#3C3C3C'));
+        if (this.stageNum === 1) Font.drawCenter(ctx, 'DESTROY THE ENEMY HQ', cx, cy + 14, '#A00000');
+      }
       const boss = bossForStage(this.stageNum);
       if (boss) Font.drawCenter(ctx, 'BOSS: ' + BOSSES[boss.idx].name, cx, cy + 10, '#A00000');
       const wx = !this.customPending && stageWeather(this.stageNum, !!boss);
@@ -481,7 +493,7 @@ const Game = {
       objective = Math.floor(this.stageNum / (this.mode === 'bigmaps' ? 1 : 4)) % 2 ? 'outposts' : 'factories';
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
-      custom, boss, base: vs || corridor ? newBase() : this.base, corridor, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
+      custom, boss, base: vs || corridor ? newBase() : this.base, corridor, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
       blocks, big: objective,
     });
     this.paused = false;
@@ -523,7 +535,7 @@ const Game = {
     if (r === 'vsRound') { this.vsRoundEnd(); return; }
     if (r && this.mode === 'timeattack' && r === 'clear') { this.saveHi(); this.taNext(); return; }
     if (r === 'gameover') AutoSkill.event('gameOver');
-    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor')) { this.saveHi(); this.toModeResult(false); return; }
+    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu')) { this.saveHi(); this.toModeResult(false); return; }
     if (this.stage.result) {
       // beating a boss earns 25% off in the next shop
       this.shopDiscount = this.stage.result === 'clear' && this.stage.bossIdx !== undefined;
@@ -732,7 +744,8 @@ const Game = {
 
   // ---------------------------------------------------------------- game modes
   startGame(n) {
-    if (modeInfo(Config.get('gameMode')).vs && n < 2) { this.toast('VERSUS NEEDS 2-4 PLAYERS'); Sound.play('steel'); return; }
+    const mi = modeInfo(Config.get('gameMode'));
+    if (mi.vs && !mi.cpu && n < 2) { this.toast('VERSUS NEEDS 2-4 PLAYERS'); Sound.play('steel'); return; }
     this.newGame(n, false);
   },
 
@@ -752,6 +765,11 @@ const Game = {
       const b = rec.survival;
       if (!b || res.wave > b.wave || (res.wave === b.wave && score > b.score)) { rec.survival = { wave: res.wave, score }; res.newBest = true; }
       res.best = rec.survival;
+    } else if (this.mode === 'cpu') {
+      res.rounds = this.stageNum - 1;
+      const b = rec.cpu;
+      if (!b || res.rounds > b.rounds || (res.rounds === b.rounds && score > b.score)) { rec.cpu = { rounds: res.rounds, score }; res.newBest = true; }
+      res.best = rec.cpu;
     } else if (this.mode === 'corridor') {
       res.dist = this.stage.corridorClimb();
       const b = rec.corridor;
@@ -777,7 +795,7 @@ const Game = {
     const final = this.mode !== 'eagles' || this.vsWins.some(n => n >= VS_ROUNDS);
     this.vsRes = {
       mode: this.mode, winner: w, final, round: this.round,
-      rows: this.players.map(p => ({ i: p.i, kills: p.vsKills || 0, caps: p.caps || 0, wins: this.vsWins[p.i] || 0 })),
+      rows: this.players.map(p => ({ i: p.i, bot: !!p.bot, kills: p.vsKills || 0, caps: p.caps || 0, wins: this.vsWins[p.i] || 0 })),
     };
     Sound.setEngine(0);
     this.setState('vsResult');
@@ -797,14 +815,14 @@ const Game = {
     ctx.fillStyle = COL.black;
     ctx.fillRect(0, 0, SW, SH);
     Font.drawCenter(ctx, modeInfo(r.mode).name + (r.mode === 'eagles' ? '  ROUND ' + r.round : ''), SW / 2, 30, COL.red);
-    const msg = r.winner >= 0 ? ROMAN[r.winner] + '-PLAYER ' + (r.final ? 'WINS THE MATCH!' : 'WINS THE ROUND') : 'DRAW!';
+    const msg = r.winner >= 0 ? playerName(r.rows.find(row => row.i === r.winner)) + ' ' + (r.final ? 'WINS THE MATCH!' : 'WINS THE ROUND') : 'DRAW!';
     if ((this.t >> 4) & 1 || this.t > 90) Font.drawCenter(ctx, msg, SW / 2, 60, COL.gold);
     const head = r.mode === 'eagles' ? 'ROUNDS' : r.mode === 'dm' ? 'KILLS' : 'FLAGS';
     Font.draw(ctx, head, 136, 92, COL.lgrey);
     r.rows.forEach((row, k) => {
       const y = 110 + k * 18;
       ctx.drawImage(Sprites.playerIcon(Config.playerPal(row.i)), 64, y);
-      Font.draw(ctx, ROMAN[row.i] + '-PLAYER', 76, y, COL.white);
+      Font.draw(ctx, playerName(row), 76, y, COL.white);
       Font.drawRight(ctx, r.mode === 'eagles' ? row.wins : r.mode === 'dm' ? row.kills : row.caps, 184, y, COL.white);
     });
     if (this.t > 90) Font.drawCenter(ctx, r.final ? 'PRESS ENTER' : 'PRESS ENTER: NEXT ROUND', SW / 2, 200, COL.lgrey);
@@ -823,6 +841,10 @@ const Game = {
       Font.drawCenter(ctx, 'YOU HELD OUT TO WAVE ' + r.wave, SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
       Font.drawCenter(ctx, 'BEST: WAVE ' + r.best.wave + '  ' + r.best.score, SW / 2, 124, COL.lgrey);
+    } else if (r.mode === 'cpu') {
+      Font.drawCenter(ctx, r.rounds === 1 ? 'YOU WON 1 ROUND' : 'YOU WON ' + r.rounds + ' ROUNDS', SW / 2, 80, COL.white);
+      Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
+      Font.drawCenter(ctx, 'BEST: ' + r.best.rounds + ' ROUNDS  ' + r.best.score, SW / 2, 124, COL.lgrey);
     } else if (r.mode === 'corridor') {
       Font.drawCenter(ctx, 'YOU CLIMBED ' + r.dist + ' M', SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);

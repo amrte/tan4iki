@@ -16,9 +16,11 @@ const MODES = [
   { key: 'timeattack', name: 'TIME ATTACK', desc: 'CLEAR 5 STAGES FAST' },
   { key: 'bigmaps', name: 'BIG MAPS', desc: 'HUGE SCROLLING BATTLEFIELDS' },
   { key: 'corridor', name: 'CORRIDOR', desc: 'ENDLESS CLIMB, HOW FAR?' },
-  { key: 'eagles', name: 'VS EAGLES', vs: true, desc: 'GUARD YOURS, HIT THEIRS' },
-  { key: 'dm', name: 'DEATHMATCH', vs: true, desc: 'FIRST TO 10 KILLS' },
+  { key: 'eagles', name: 'VS EAGLES', vs: true, cpu: true, desc: 'GUARD YOURS, HIT THEIRS' },   // cpu: 1 player plays the computer
+  { key: 'dm', name: 'DEATHMATCH', vs: true, cpu: true, desc: 'FIRST TO 10 KILLS' },   // 1 player: against bots
   { key: 'ctf', name: 'FLAGS', vs: true, desc: 'BRING THEIR FLAG HOME' },
+  // not on the MODE row: VS EAGLES with one player becomes this (cpuvs.js)
+  { key: 'cpu', name: 'VS CPU', desc: 'DESTROY THE ENEMY HQ' },
 ];
 const modeInfo = key => MODES.find(m => m.key === key) || MODES[0];
 const TA_STAGES = 5, VS_ROUNDS = 2, DM_FRAGS = 10, DM_TIME = 3 * 60 * 60, CTF_CAPS = 3;
@@ -241,7 +243,7 @@ Object.assign(Stage.prototype, {
     }
     if (this.vs && this.vsEnd > 0) {
       const w = this.vsWinner;
-      Font.drawCenter(ctx, w >= 0 ? ROMAN[w] + '-PLAYER WINS!' : 'DRAW!', VIEW_W / 2, VIEW_H / 2 - 4, COL.gold);
+      Font.drawCenter(ctx, w >= 0 ? playerName(this.players.find(p => p.i === w)) + ' WINS!' : 'DRAW!', VIEW_W / 2, VIEW_H / 2 - 4, COL.gold);
     }
   },
 });

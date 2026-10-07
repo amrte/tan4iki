@@ -295,6 +295,7 @@ class Stage {
     if (opts.vs) this.setupVersus(opts.vs);
     if (opts.survival) this.setupSurvival();
     if (opts.corridor) this.setupCorridor();   // corridor.js
+    if (opts.cpu) this.setupCpu(opts.cpu);      // VS EAGLES against the computer (cpuvs.js)
     if (opts.timeAttack) this.spawnInterval = Math.round(this.spawnInterval / 2);
     for (const p of players) {
       p.kills = zeroKills();
@@ -441,8 +442,9 @@ class Stage {
     if (onField >= this.maxEnemies) return;
     // pick the next entry point that no boss is sitting on
     let x = -1;
-    for (let k = 0; k < ENEMY_SPAWN_X.length && x < 0; k++) {
-      const cand = ENEMY_SPAWN_X[this.spawnPos++ % ENEMY_SPAWN_X.length];
+    const xs = this.spawnXs || ENEMY_SPAWN_X;
+    for (let k = 0; k < xs.length && x < 0; k++) {
+      const cand = xs[this.spawnPos++ % xs.length];
       if (!this.bossBlocksSpawn(cand)) x = cand;
     }
     if (x < 0) return;
@@ -516,6 +518,7 @@ class Stage {
     this.updateTerrainFx();
     this.updateSpecials();
     this.updateBase();
+    if (this.cpu) this.updateCpu();
     this.updateTurrets();
     this.updateClaudes();
     this.updateStrikes();
@@ -544,6 +547,8 @@ class Stage {
       this.updateVersus();
     } else if (this.corridor) {
       this.updateCorridor();
+    } else if (this.cpu && this.cpu.alive) {
+      // against the computer the round goes on until their HQ falls
     } else if (this.big && this.factoriesAlive()) {
       this.updateBigMap();
     } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer) && !this.bossAlive()) {
@@ -586,7 +591,7 @@ class Stage {
     if (t.cool > 0) t.cool--;
     if (t.frozen > 0) { t.frozen--; t.moving = false; return; }
     if (this.over || this.freezeP > 0) { t.moving = false; t.slide = 0; return; }
-    const inp = Input.player(p.i);
+    const inp = p.bot ? this.botInput(t) : Input.player(p.i);   // deathmatch bots (bots.js)
     if (inp.dir >= 0) {
       this.turn(t, inp.dir);
       // a bridge kit lays a bridge when you drive into water
@@ -701,7 +706,7 @@ class Stage {
   }
 
   move(t, d) {
-    t.acc += t.speed * (t.boost.turbo ? TURBO_MULT : 1) * (t.isPlayer ? 1 : this.trapFactor(t)) * this.mudFactor(t);
+    t.acc += t.speed * (t.boost.turbo ? TURBO_MULT : 1) * (t.isPlayer ? (this.cpu ? this.cpuTrap(t) : 1) : this.trapFactor(t)) * this.mudFactor(t);
     let ok = true;
     while (t.acc >= 1) {
       t.acc -= 1;
@@ -750,6 +755,7 @@ class Stage {
     }
     if (!this.noBase && overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
     if (this.vsEagles && this.vsEagles.some(e => overlap(nx, ny, 16, 16, e.x, e.y, 16, 16))) return false;
+    if (this.cpu && this.cpu.alive && overlap(nx, ny, 16, 16, this.cpu.x, this.cpu.y, 16, 16)) return false;
     if (this.big) {
       if (this.outposts.some(o => o.alive && overlap(nx, ny, 16, 16, o.x, o.y, 16, 16))) return false;
       if (this.factories.some(f => f.hp > 0 && overlap(nx, ny, 16, 16, f.x, f.y, 32, 32) && !overlap(t.x, t.y, 16, 16, f.x, f.y, 32, 32))) return false;
@@ -843,6 +849,7 @@ class Stage {
       return;
     }
     if (this.vsEagles && this.vsBulletEagle(b)) return;
+    if (this.cpu && this.cpuBullet(b)) return;
     if (this.big && this.bulletBigMap(b)) return;
     if (!this.noBase && overlap(b.x, b.y, 4, 4, BASE_X, BASE_Y, 16, 16)) {
       this.killBullet(b, true);
@@ -985,6 +992,7 @@ class Stage {
       if (e.alive && reaches(e.x, e.y, 16, 16) && (!owner || !owner.player || owner.player.i !== e.i)) this.vsEagleDown(e);
     }
     for (const o of this.outposts) if (!byPlayer && o.alive && reaches(o.x, o.y, 16, 16)) this.outpostDown(o);
+    if (byPlayer && this.cpu && this.cpu.alive && reaches(this.cpu.x, this.cpu.y, 16, 16)) this.cpuHit(owner);
     for (const f of this.factories) if (byPlayer && f.hp > 0 && reaches(f.x, f.y, 32, 32)) this.hitFactory(f, 2, owner);
     if (!byPlayer && this.decoy && reaches(this.decoy.x, this.decoy.y, 16, 16)) this.hitDecoy();
     if (byPlayer) {
@@ -1125,7 +1133,7 @@ class Stage {
 
   // ------------------------------------------------------------ XP
   addXp(p, n) {
-    if (!p || !Config.xpOn()) return;
+    if (!p || p.bot || !Config.xpOn()) return;   // bots stay as they are
     n = Math.round(n * Config.scale('xpRate'));
     if (n <= 0) return;
     p.xp += n;
@@ -1388,7 +1396,12 @@ class Stage {
     this.renderVs(ctx);
     this.renderDecoy(ctx);
 
-    for (const m of this.mines) ctx.drawImage(Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0], m.x - 4, m.y - 4);
+    // a black edge keeps mines visible on light ground (ice, bridges)
+    for (const m of this.mines) {
+      const spr = Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0];
+      ctx.drawImage(Sprites.outline(spr, COL.black), m.x - 5, m.y - 5);
+      ctx.drawImage(spr, m.x - 4, m.y - 4);
+    }
     this.renderBossUnder(ctx);
     this.renderSpecialsUnder(ctx);
     this.renderBaseZones(ctx);
@@ -1437,6 +1450,7 @@ class Stage {
       ctx.drawImage(c, Math.round(p.x - c.width / 2), Math.round(p.y - 3));
     }
     this.renderBigMap(ctx);
+    this.renderCpu(ctx);
     ctx.restore();   // back to screen positions inside the field window
     this.renderObjectiveArrows(ctx, camX, camY);
     if (this.over) {
@@ -1491,7 +1505,7 @@ class Stage {
 
   renderHud(ctx) {
     if (this.vs) { this.renderVsHud(ctx, HUD_X); return; }
-    if (this.corridor) this.renderCorridorLine(ctx); else this.renderObjectiveLine(ctx);
+    if (this.corridor) this.renderCorridorLine(ctx); else if (this.cpu) this.renderCpuLine(ctx); else this.renderObjectiveLine(ctx);
     const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
     if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);

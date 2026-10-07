@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.20</title>
+  <title>tanb4iki_v0.21</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.20';
+const APP_VERSION = '0.21';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -3756,6 +3756,7 @@ class Stage {
     if (opts.vs) this.setupVersus(opts.vs);
     if (opts.survival) this.setupSurvival();
     if (opts.corridor) this.setupCorridor();   // corridor.js
+    if (opts.cpu) this.setupCpu(opts.cpu);      // VS EAGLES against the computer (cpuvs.js)
     if (opts.timeAttack) this.spawnInterval = Math.round(this.spawnInterval / 2);
     for (const p of players) {
       p.kills = zeroKills();
@@ -3902,8 +3903,9 @@ class Stage {
     if (onField >= this.maxEnemies) return;
     // pick the next entry point that no boss is sitting on
     let x = -1;
-    for (let k = 0; k < ENEMY_SPAWN_X.length && x < 0; k++) {
-      const cand = ENEMY_SPAWN_X[this.spawnPos++ % ENEMY_SPAWN_X.length];
+    const xs = this.spawnXs || ENEMY_SPAWN_X;
+    for (let k = 0; k < xs.length && x < 0; k++) {
+      const cand = xs[this.spawnPos++ % xs.length];
       if (!this.bossBlocksSpawn(cand)) x = cand;
     }
     if (x < 0) return;
@@ -3977,6 +3979,7 @@ class Stage {
     this.updateTerrainFx();
     this.updateSpecials();
     this.updateBase();
+    if (this.cpu) this.updateCpu();
     this.updateTurrets();
     this.updateClaudes();
     this.updateStrikes();
@@ -4005,6 +4008,8 @@ class Stage {
       this.updateVersus();
     } else if (this.corridor) {
       this.updateCorridor();
+    } else if (this.cpu && this.cpu.alive) {
+      // against the computer the round goes on until their HQ falls
     } else if (this.big && this.factoriesAlive()) {
       this.updateBigMap();
     } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer) && !this.bossAlive()) {
@@ -4047,7 +4052,7 @@ class Stage {
     if (t.cool > 0) t.cool--;
     if (t.frozen > 0) { t.frozen--; t.moving = false; return; }
     if (this.over || this.freezeP > 0) { t.moving = false; t.slide = 0; return; }
-    const inp = Input.player(p.i);
+    const inp = p.bot ? this.botInput(t) : Input.player(p.i);   // deathmatch bots (bots.js)
     if (inp.dir >= 0) {
       this.turn(t, inp.dir);
       // a bridge kit lays a bridge when you drive into water
@@ -4162,7 +4167,7 @@ class Stage {
   }
 
   move(t, d) {
-    t.acc += t.speed * (t.boost.turbo ? TURBO_MULT : 1) * (t.isPlayer ? 1 : this.trapFactor(t)) * this.mudFactor(t);
+    t.acc += t.speed * (t.boost.turbo ? TURBO_MULT : 1) * (t.isPlayer ? (this.cpu ? this.cpuTrap(t) : 1) : this.trapFactor(t)) * this.mudFactor(t);
     let ok = true;
     while (t.acc >= 1) {
       t.acc -= 1;
@@ -4211,6 +4216,7 @@ class Stage {
     }
     if (!this.noBase && overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
     if (this.vsEagles && this.vsEagles.some(e => overlap(nx, ny, 16, 16, e.x, e.y, 16, 16))) return false;
+    if (this.cpu && this.cpu.alive && overlap(nx, ny, 16, 16, this.cpu.x, this.cpu.y, 16, 16)) return false;
     if (this.big) {
       if (this.outposts.some(o => o.alive && overlap(nx, ny, 16, 16, o.x, o.y, 16, 16))) return false;
       if (this.factories.some(f => f.hp > 0 && overlap(nx, ny, 16, 16, f.x, f.y, 32, 32) && !overlap(t.x, t.y, 16, 16, f.x, f.y, 32, 32))) return false;
@@ -4304,6 +4310,7 @@ class Stage {
       return;
     }
     if (this.vsEagles && this.vsBulletEagle(b)) return;
+    if (this.cpu && this.cpuBullet(b)) return;
     if (this.big && this.bulletBigMap(b)) return;
     if (!this.noBase && overlap(b.x, b.y, 4, 4, BASE_X, BASE_Y, 16, 16)) {
       this.killBullet(b, true);
@@ -4446,6 +4453,7 @@ class Stage {
       if (e.alive && reaches(e.x, e.y, 16, 16) && (!owner || !owner.player || owner.player.i !== e.i)) this.vsEagleDown(e);
     }
     for (const o of this.outposts) if (!byPlayer && o.alive && reaches(o.x, o.y, 16, 16)) this.outpostDown(o);
+    if (byPlayer && this.cpu && this.cpu.alive && reaches(this.cpu.x, this.cpu.y, 16, 16)) this.cpuHit(owner);
     for (const f of this.factories) if (byPlayer && f.hp > 0 && reaches(f.x, f.y, 32, 32)) this.hitFactory(f, 2, owner);
     if (!byPlayer && this.decoy && reaches(this.decoy.x, this.decoy.y, 16, 16)) this.hitDecoy();
     if (byPlayer) {
@@ -4586,7 +4594,7 @@ class Stage {
 
   // ------------------------------------------------------------ XP
   addXp(p, n) {
-    if (!p || !Config.xpOn()) return;
+    if (!p || p.bot || !Config.xpOn()) return;   // bots stay as they are
     n = Math.round(n * Config.scale('xpRate'));
     if (n <= 0) return;
     p.xp += n;
@@ -4849,7 +4857,12 @@ class Stage {
     this.renderVs(ctx);
     this.renderDecoy(ctx);
 
-    for (const m of this.mines) ctx.drawImage(Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0], m.x - 4, m.y - 4);
+    // a black edge keeps mines visible on light ground (ice, bridges)
+    for (const m of this.mines) {
+      const spr = Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0];
+      ctx.drawImage(Sprites.outline(spr, COL.black), m.x - 5, m.y - 5);
+      ctx.drawImage(spr, m.x - 4, m.y - 4);
+    }
     this.renderBossUnder(ctx);
     this.renderSpecialsUnder(ctx);
     this.renderBaseZones(ctx);
@@ -4898,6 +4911,7 @@ class Stage {
       ctx.drawImage(c, Math.round(p.x - c.width / 2), Math.round(p.y - 3));
     }
     this.renderBigMap(ctx);
+    this.renderCpu(ctx);
     ctx.restore();   // back to screen positions inside the field window
     this.renderObjectiveArrows(ctx, camX, camY);
     if (this.over) {
@@ -4952,7 +4966,7 @@ class Stage {
 
   renderHud(ctx) {
     if (this.vs) { this.renderVsHud(ctx, HUD_X); return; }
-    if (this.corridor) this.renderCorridorLine(ctx); else this.renderObjectiveLine(ctx);
+    if (this.corridor) this.renderCorridorLine(ctx); else if (this.cpu) this.renderCpuLine(ctx); else this.renderObjectiveLine(ctx);
     const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
     if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);
@@ -6565,9 +6579,11 @@ const MODES = [
   { key: 'timeattack', name: 'TIME ATTACK', desc: 'CLEAR 5 STAGES FAST' },
   { key: 'bigmaps', name: 'BIG MAPS', desc: 'HUGE SCROLLING BATTLEFIELDS' },
   { key: 'corridor', name: 'CORRIDOR', desc: 'ENDLESS CLIMB, HOW FAR?' },
-  { key: 'eagles', name: 'VS EAGLES', vs: true, desc: 'GUARD YOURS, HIT THEIRS' },
-  { key: 'dm', name: 'DEATHMATCH', vs: true, desc: 'FIRST TO 10 KILLS' },
+  { key: 'eagles', name: 'VS EAGLES', vs: true, cpu: true, desc: 'GUARD YOURS, HIT THEIRS' },   // cpu: 1 player plays the computer
+  { key: 'dm', name: 'DEATHMATCH', vs: true, cpu: true, desc: 'FIRST TO 10 KILLS' },   // 1 player: against bots
   { key: 'ctf', name: 'FLAGS', vs: true, desc: 'BRING THEIR FLAG HOME' },
+  // not on the MODE row: VS EAGLES with one player becomes this (cpuvs.js)
+  { key: 'cpu', name: 'VS CPU', desc: 'DESTROY THE ENEMY HQ' },
 ];
 const modeInfo = key => MODES.find(m => m.key === key) || MODES[0];
 const TA_STAGES = 5, VS_ROUNDS = 2, DM_FRAGS = 10, DM_TIME = 3 * 60 * 60, CTF_CAPS = 3;
@@ -6790,7 +6806,7 @@ Object.assign(Stage.prototype, {
     }
     if (this.vs && this.vsEnd > 0) {
       const w = this.vsWinner;
-      Font.drawCenter(ctx, w >= 0 ? ROMAN[w] + '-PLAYER WINS!' : 'DRAW!', VIEW_W / 2, VIEW_H / 2 - 4, COL.gold);
+      Font.drawCenter(ctx, w >= 0 ? playerName(this.players.find(p => p.i === w)) + ' WINS!' : 'DRAW!', VIEW_W / 2, VIEW_H / 2 - 4, COL.gold);
     }
   },
 });
@@ -7277,6 +7293,321 @@ Object.assign(Stage.prototype, {
     ctx.restore();
   },
 });
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  VS EAGLES against the computer (VS EAGLES with 1 player)
+//  The enemy has a headquarters too: an eagle in a fortress at the top centre. Its tanks keep coming and go for your
+//  eagle (or you); destroy their eagle to win the round. Then the usual tally and shop, and on to the next round on a
+//  new map, where the enemy HQ is a little stronger: one upgrade after another, the way you build up your own base.
+//    round 2 repair crew · 3 walls, armor · 4 eagle gun · 5 minefield · 6 tesla coil · 7 tank traps, then each grows
+//  The straight way in from below always stays brick, so plain shells can always get through.
+// =====================================================================
+
+const CPU_UPGRADES = [
+  ['walls', 'WALLS'], ['repair', 'REPAIR CREW'], ['armor', 'ARMOR'], ['gun', 'EAGLE GUN'],
+  ['field', 'MINEFIELD'], ['tesla', 'TESLA COIL'], ['traps', 'TANK TRAPS'],
+];
+const CPU_HQ_PTS = 2000, CPU_HQ_ROUND_PTS = 500;
+
+// the enemy HQ's upgrade levels (0-5) in round r
+function cpuBase(r) {
+  const c = (v, from) => (r >= from ? Math.max(1, Math.min(5, v)) : 0);
+  return {
+    walls: c(Math.floor((r - 1) / 2), 3),
+    repair: c(Math.floor(r / 2), 2),
+    armor: c(Math.floor((r - 1) / 2), 3),
+    gun: c(Math.floor((r - 2) / 2), 4),
+    field: c(r - 4, 5),
+    tesla: c(Math.floor((r - 4) / 2), 6),
+    traps: c(r - 6, 7),
+  };
+}
+
+// what's new in round r: ["EAGLE GUN L1", "ARMOR L2", ...]
+function cpuNews(r) {
+  if (r <= 1) return [];
+  const a = cpuBase(r - 1), b = cpuBase(r);
+  return CPU_UPGRADES.filter(([k]) => b[k] > a[k]).map(([k, name]) => name + ' L' + b[k]);
+}
+
+Object.assign(Stage.prototype, {
+  setupCpu(round) {
+    const base = cpuBase(round);
+    this.cpu = {
+      round, x: BASE_X, y: 0, alive: true, base, armor: base.armor, inv: 0, flash: 0,
+      repairT: 0, gunT: 120, gunDir: 2, teslaT: 120, zaps: [],
+    };
+    // their tanks come in at the other entry points (the middle one is the HQ now)
+    this.spawnXs = ENEMY_SPAWN_X.filter(x => Math.abs(x - BASE_X) >= 48);
+    if (!this.spawnXs.length) this.spawnXs = [0, FW - 16];
+    this.clearArea(BASE_X - 24, 0, 64, 40);
+    // no teleporter pair with a pad inside the HQ (pads come in pairs: i and i ^ 1)
+    const inHq = p => overlap(p.x, p.y, 16, 16, BASE_X - 24, 0, 64, 40);
+    const keep = [];
+    for (let i = 0; i + 1 < this.pads.length; i += 2) if (!inHq(this.pads[i]) && !inHq(this.pads[i + 1])) keep.push(this.pads[i], this.pads[i + 1]);
+    keep.forEach((p, i) => { p.pair = i ^ 1; });
+    this.pads = keep;
+    for (const [x, y, t] of this.cpuWalls()) this.setBlock(x, y, t);
+    // a minefield below their fortress (enemy mines: they go off under you)
+    let n = base.field * 2;
+    for (const dy of [56, 80]) for (const dx of [0, -24, 24, -48, 48, -72, 72]) {
+      const x = BASE_X + 8 + dx, y = 8 + dy;
+      if (n <= 0 || x < 8 || x > FW - 8) continue;
+      const t = this.get(x >> 2, y >> 2);
+      if (t !== T_EMPTY && t !== T_FOREST) continue;
+      this.mines.push({ x, y, byPlayer: false, owner: null, t: MINE_ARM_TIME });
+      n--;
+    }
+    this.navBaseF = {};
+  },
+
+  // the HQ fortress: an inner ring of 8 blocks round the eagle, an outer ring of 12 from WALLS 1; [bx, by, type]
+  cpuWalls() {
+    const w = this.cpu.base.walls, bx = BASE_X / 8, out = [];
+    const door = x => x === bx || x === bx + 1;   // the way in from below always stays brick
+    for (let y = 0; y <= 2; y++) for (let x = bx - 1; x <= bx + 2; x++) {
+      if (!(x === bx - 1 || x === bx + 2 || y === 2)) continue;
+      const corner = y === 2 && !door(x);
+      out.push([x, y, (corner && w >= 2) || (!door(x) && w >= 3) ? T_STEEL : T_BRICK]);
+    }
+    if (w >= 1) {
+      for (let y = 0; y <= 3; y++) for (let x = bx - 2; x <= bx + 3; x++) {
+        if (!(x === bx - 2 || x === bx + 3 || y === 3) || x < 0 || x >= COLS * 2) continue;
+        const corner = y === 3 && (x === bx - 2 || x === bx + 3);
+        out.push([x, y, (corner && w >= 4) || (!door(x) && w >= 5) ? T_STEEL : T_BRICK]);
+      }
+    }
+    return out;
+  },
+
+  // every frame while the HQ stands
+  updateCpu() {
+    const c = this.cpu;
+    if (!c.alive || this.over) return;
+    // the enemy never runs out of tanks while its HQ stands
+    if (this.queue.length < 3) {
+      const more = buildQueue(this.num, 20).sort(() => Math.random() - 0.5).slice(0, 4);
+      this.queue.push(...more);
+      this.total += more.length;
+    }
+    if (c.inv > 0) c.inv--;
+    if (c.flash > 0) c.flash--;
+    const b = c.base;
+    if (b.repair && ++c.repairT >= REPAIR_EVERY[b.repair]) { c.repairT = 0; this.cpuRepair(); }
+    if (b.gun && this.freezeE <= 0 && --c.gunT <= 0) this.cpuShoot(b.gun);
+    if (b.tesla && this.freezeE <= 0 && --c.teslaT <= 0) this.cpuZap(b.tesla);
+    for (const z of c.zaps) z.t--;
+    c.zaps = c.zaps.filter(z => z.t > 0);
+  },
+
+  cpuRepair() {
+    for (const [x, y, type] of this.cpuWalls()) {
+      let missing = false;
+      for (let k = 0; k < 4; k++) if (this.get(x * 2 + (k & 1), y * 2 + (k >> 1)) === T_EMPTY) missing = true;
+      if (!missing || this.tanks.some(o => o.alive && overlap(o.x, o.y, 16, 16, x * 8, y * 8, 8, 8))) continue;
+      for (let k = 0; k < 4; k++) {
+        const cx = x * 2 + (k & 1), cy = y * 2 + (k >> 1);
+        if (this.get(cx, cy) === T_EMPTY) this.set(cx, cy, type);
+      }
+      this.addFx(x * 8 + 4, y * 8 + 4, [Sprites.sparkle[0], Sprites.sparkle[1]], 4);
+      return;
+    }
+  },
+
+  // their eagle shoots at you when you line up with it (down, left or right)
+  cpuShoot(g) {
+    const c = this.cpu, ex = c.x + 8, ey = c.y + 8;
+    c.gunT = 12;
+    let best = null, bd = GUN_RANGE[g];
+    for (const t of this.tanks) {
+      if (!t.alive || !t.isPlayer || t.boost.smoke) continue;
+      const dx = t.x + 8 - ex, dy = t.y + 8 - ey;
+      let dir = -1;
+      if (Math.abs(dx) < 8 && dy > 0) dir = 2;
+      else if (Math.abs(dy) < 8) dir = dx > 0 ? 1 : 3;
+      const d = Math.abs(dx) + Math.abs(dy);
+      if (dir >= 0 && d < bd) { bd = d; best = dir; }
+    }
+    if (best === null) return;
+    // the shell starts outside the fortress so it never breaks its own walls
+    const off = 8 + (c.base.walls >= 1 ? 16 : 8) + 2;
+    this.bullets.push({
+      x: ex - 2 + DXY[best][0] * off, y: ey - 2 + DXY[best][1] * off, dir: best, speed: 3.5, free: true,
+      owner: { isPlayer: false, bullets: 0 }, isPlayer: false, power: g >= 4, cutter: false, alive: true, pierce: false, rocket: g >= 5,
+    });
+    c.gunDir = best;
+    c.gunT = GUN_EVERY[g];
+    Sound.play('shot');
+  },
+
+  cpuZap(z) {
+    const c = this.cpu, ex = c.x + 8, ey = c.y + 8;
+    c.teslaT = 20;
+    const hit = this.tanks.filter(t => t.alive && t.isPlayer && !t.ally && Math.hypot(t.x + 8 - ex, t.y + 8 - ey) < TESLA_RANGE[z] + 8);
+    if (!hit.length) return;
+    for (const t of hit) { c.zaps.push({ x: t.x + 8, y: t.y + 8, t: 10 }); this.hitPlayer(t); }
+    c.teslaT = TESLA_EVERY[z];
+    Sound.play('zap');
+  },
+
+  // their tank traps slow you near their HQ
+  cpuTrap(t) {
+    const c = this.cpu, lv = c && c.alive ? c.base.traps : 0;
+    if (!lv) return 1;
+    return Math.hypot(t.x - c.x, t.y - c.y) < TRAP_RANGE[lv] ? TRAP_SLOW[lv] : 1;
+  },
+
+  // a shell meets their eagle (true if it stopped there); their own shells can't hurt it
+  cpuBullet(b) {
+    const c = this.cpu;
+    if (!c.alive || !overlap(b.x, b.y, 4, 4, c.x, c.y, 16, 16)) return false;
+    this.killBullet(b, true);
+    if (b.isPlayer) this.cpuHit(b.owner);
+    return true;
+  },
+
+  cpuHit(by) {
+    const c = this.cpu;
+    if (!c.alive || c.inv > 0) return;
+    if (c.armor > 0) {
+      c.armor--; c.inv = 40; c.flash = 30;
+      this.addFx(c.x + 8, c.y + 8, Sprites.smallExp, 3);
+      Sound.play('armor');
+      return;
+    }
+    this.cpuDown(by);
+  },
+
+  // their HQ falls: the round is won, and every tank of theirs goes up with it
+  cpuDown(by) {
+    const c = this.cpu;
+    c.alive = false;
+    this.addFx(c.x + 8, c.y + 8, BIG_EXPLOSION(), 6);
+    Sound.play('baseDie');
+    const p = by && by.player, pts = CPU_HQ_PTS + CPU_HQ_ROUND_PTS * c.round;
+    if (p) { this.addScore(p, pts); this.addXp(p, 50); }
+    else for (const q of this.players) if (!q.out) this.addScore(q, Math.round(pts / this.players.length));
+    this.popups.push({ x: c.x + 8, y: c.y + 24, text: 'ENEMY HQ DOWN +' + pts, label: true, color: COL.gold, t: 0, delay: 0, life: 150 });
+    this.queue = [];
+    this.spawns = this.spawns.filter(s => !s.enemy);
+    for (const t of this.tanks) if (t.alive && !t.isPlayer) this.killEnemy(t, null, false, true);
+    for (const m of this.mines) if (!m.byPlayer) m.done = true;
+    this.mines = this.mines.filter(m => !m.done);
+  },
+
+  renderCpu(ctx) {
+    const c = this.cpu;
+    if (!c) return;
+    const b = c.base, ex = c.x + 8, ey = c.y + 8;
+    if (c.alive && b.traps) {
+      ctx.fillStyle = '#7C5800';
+      const r = TRAP_RANGE[b.traps];
+      for (let a = 0; a < 28; a++) { const ang = (a / 27) * Math.PI; ctx.fillRect(Math.round(ex + Math.cos(ang) * r), Math.round(ey + Math.sin(ang) * r), 1, 1); }
+    }
+    for (const z of c.zaps) {
+      ctx.fillStyle = (z.t >> 1) & 1 ? '#F8F8F8' : '#F83800';
+      for (let i = 0; i <= 8; i++) {
+        const j = i === 0 || i === 8 ? 0 : ((i * 7 + z.t) % 5) - 2;
+        ctx.fillRect(Math.round(ex + (z.x - ex) * i / 8) + j, Math.round(ey + 6 + (z.y - ey - 6) * i / 8) - j, 2, 2);
+      }
+    }
+    if (!c.alive) { ctx.drawImage(Sprites.eagleDead, c.x, c.y); return; }
+    // the enemy's eagle glows red (white when hit); armour pips underneath
+    ctx.drawImage(Sprites.outline(Sprites.eagle, c.flash > 0 && (c.flash >> 2) & 1 ? COL.white : '#F83800'), c.x - 1, c.y - 1);
+    ctx.drawImage(Sprites.eagle, c.x, c.y);
+    ctx.fillStyle = COL.gold;
+    for (let k = 0; k < c.armor; k++) ctx.fillRect(c.x + 8 - c.armor + k * 2, c.y + 17, 1, 1);
+    if (b.tesla) {
+      ctx.fillStyle = '#B87000'; ctx.fillRect(c.x + 13, c.y + 1, 2, 6);
+      ctx.fillStyle = c.teslaT < 12 ? '#F8F8F8' : '#F83800'; ctx.fillRect(c.x + 12, c.y + 6, 4, 3);
+    }
+    if (b.gun) {
+      const cx = c.x + 8, cy = c.y + 11;
+      ctx.fillStyle = '#505050';
+      ctx.fillRect(cx - 2, cy - 2, 4, 4);
+      ctx.fillStyle = b.gun >= 5 ? '#F87830' : b.gun >= 4 ? COL.gold : '#ADADAD';
+      ctx.fillRect(cx - 1, cy - 1, 2, 2);
+      const [dx, dy] = DXY[c.gunDir || 2];
+      ctx.fillStyle = '#505050';
+      for (let k = 2; k <= 4; k++) ctx.fillRect(cx - (dx ? 0 : 1) + dx * k - (dx < 0 ? 1 : 0), cy - (dy ? 0 : 1) + dy * k - (dy < 0 ? 1 : 0), dx ? 1 : 2, dy ? 1 : 2);
+    }
+  },
+
+  // the border above the field: round and what's left of their armour
+  renderCpuLine(ctx) {
+    const c = this.cpu;
+    Font.drawCenter(ctx, 'ROUND ' + c.round + (c.alive && c.armor ? '  HQ ARMOR ' + c.armor : ''), FX + VIEW_W / 2, 0, COL.black);
+  },
+});
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  Computer bots for DEATHMATCH with one player: players II-IV are driven by the computer instead of a keyboard.
+//  A bot heads for the nearest rival along the route field, lines up and fires once it has had a moment to aim
+//  (quicker on harder skills), grabs a power-up when one lands close by, shoots bricks in its way, and backs out of
+//  dead ends. Bots play the same rules as you: same tanks, frags, power-ups and respawns.
+// =====================================================================
+
+const DM_BOTS = 3, BOT_RANGE = 176, BOT_PU_RANGE = 80;
+
+Object.assign(Stage.prototype, {
+  // what a bot "presses" this frame (same shape as Input.player)
+  botInput(t) {
+    const b = t.botAi || (t.botAi = { dir: rnd(4), stuck: 0, lx: t.x, ly: t.y, wander: 0, aim: 0 });
+    const idle = { dir: -1, fire: false, firePressed: false, alt: false, altPressed: false };
+    // stuck against something: drive off somewhere else for a bit
+    if (t.x === b.lx && t.y === b.ly) b.stuck++; else { b.stuck = 0; b.lx = t.x; b.ly = t.y; }
+    if (b.stuck > 24) { b.wander = 30 + rnd(30); b.dir = rnd(4); b.stuck = 0; }
+    // the nearest rival you can see (smoke hides you from bots too)
+    let tgt = null, bd = Infinity;
+    for (const o of this.tanks) {
+      if (!o.alive || !o.isPlayer || o.ally || o === t || o.player === t.player || o.boost.smoke) continue;
+      const d = Math.abs(o.x - t.x) + Math.abs(o.y - t.y);
+      if (d < bd) { bd = d; tgt = o; }
+    }
+    let fire = false, aimDir = -1;
+    if (tgt) {
+      const dx = tgt.x - t.x, dy = tgt.y - t.y;
+      const lined = (Math.abs(dx) < 6 || Math.abs(dy) < 6) && bd < BOT_RANGE && this.clearLine(t.x + 8, t.y + 8, tgt.x + 8, tgt.y + 8);
+      if (lined) {
+        // take aim, then fire
+        const want = Math.abs(dx) < 6 ? (dy > 0 ? 2 : 0) : (dx > 0 ? 1 : 3);
+        if (++b.aim > Math.round(24 / Math.max(0.3, Config.skill().aggr))) { aimDir = want; fire = t.dir === want; }
+      } else b.aim = 0;
+    }
+    // where to: a power-up close by, else the rival
+    const pu = this.powerup;
+    const goal = pu && Math.abs(pu.x - t.x) + Math.abs(pu.y - t.y) < BOT_PU_RANGE ? { x: pu.x, y: pu.y, pu: true } : tgt;
+    if (b.wander > 0) b.wander--;
+    else if (goal && (t.x & 7) === 0 && (t.y & 7) === 0) {
+      const NX = COLS * 2 - 1, node = (x, y) => Math.max(0, Math.min(ROWS * 2 - 2, Math.round(y / 8))) * NX + Math.max(0, Math.min(NX - 1, Math.round(x / 8)));
+      const dist = goal.pu ? this.navField([node(goal.x, goal.y)]) : this.navPlayer(goal);
+      const bx = t.x >> 3, by = t.y >> 3;
+      let best = -1, bv = Infinity;
+      for (let d = 0; d < 4; d++) {
+        const ux = bx + DXY[d][0], uy = by + DXY[d][1];
+        if (ux < 0 || uy < 0 || ux >= NX || uy * NX >= dist.length) continue;
+        const v = dist[uy * NX + ux] + (d === b.dir ? -0.01 : 0);
+        if (v < bv) { bv = v; best = d; }
+      }
+      if (best >= 0 && bv < Infinity) b.dir = best;
+      else if (Math.random() < 0.1) b.dir = rnd(4);
+    }
+    // lined up: face the rival and shoot (and keep coming)
+    if (aimDir >= 0) { b.dir = aimDir; return Object.assign(idle, { dir: aimDir, fire }); }
+    // bricks in the way: shoot through
+    if (t.dir === b.dir && this.brickAhead(t) && Math.random() < 0.1) fire = true;
+    return Object.assign(idle, { dir: b.dir, fire });
+  },
+});
+
+// "II-PLAYER" or "BOT II"
+function playerName(p) { return p && p.bot ? 'BOT ' + ROMAN[p.i] : ROMAN[p ? p.i : 0] + '-PLAYER'; }
 
 </script>
   <script>
@@ -8436,6 +8767,7 @@ const Net = {
       fg: st.flags ? st.flags.map(f => [f.i, f.hx, f.hy, f.x, f.y, f.carrier ? 1 : 0]) : null,
       cr: st.corridor ? [st.corridor.shifts, st.corridor.climbed, st.corridor.startY] : null,
       cd: st.card || null,
+      cp: st.cpu || null,
     };
     st.netDiff = [];
     // the corridor moved down a section: the whole terrain goes again
@@ -8594,6 +8926,7 @@ const Net = {
     st.flags = sv.fg ? sv.fg.map(a => ({ i: a[0], hx: a[1], hy: a[2], x: a[3], y: a[4], carrier: a[5] ? {} : null })) : null;
     st.weather = sv.wx || null;
     st.card = sv.cd || null;
+    st.cpu = sv.cp || null;
     if (sv.cr) {
       // the host's world moved down: so does this screen's window
       if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();
@@ -9019,7 +9352,7 @@ const Game = {
   setState(s) { this.state = s; this.t = 0; },
 
   saveHi() {
-    for (const p of this.players) if (p.score > this.hi) this.hi = p.score;
+    for (const p of this.players) if (p.score > this.hi && !p.bot) this.hi = p.score;   // bots don't set high scores
     STORE.set('tank1990_hi', this.hi);
   },
 
@@ -9120,10 +9453,12 @@ const Game = {
     const cur = menu[this.menuIdx];
     if (cur && cur.mode && this.titleY === 0) {
       const mi = modeInfo(Config.get('gameMode')), rec = STORE.get(MODE_KEY, {});
-      Font.drawCenter(ctx, mi.desc + (mi.vs ? ' (2-4 P)' : ''), SW / 2, 203, COL.gold);
+      Font.drawCenter(ctx, mi.desc + (mi.cpu ? '' : mi.vs ? ' (2-4 P)' : ''), SW / 2, 203, COL.gold);
       const best = mi.key === 'survival' && rec.survival ? 'BEST WAVE ' + rec.survival.wave + '  ' + rec.survival.score
         : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack)
-        : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score : '< > CHANGE MODE';
+        : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score
+        : mi.key === 'eagles' ? '1P: VS CPU' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '') + '  2-4P: VS'
+        : mi.key === 'dm' ? '1P: VS ' + DM_BOTS + ' BOTS  2-4P: VS EACH OTHER' : '< > CHANGE MODE';
       Font.drawCenter(ctx, best, SW / 2, 213, COL.lgrey);
     } else if (cur && cur.daily && this.titleY === 0) {
       const d = dailyToday(), best = STORE.get(DAILY_KEY, {});
@@ -9213,10 +9548,13 @@ const Game = {
     this.customPending = custom;
     // game mode (modes.js); versus needs at least two players
     this.mode = custom || this.daily ? 'classic' : Config.get('gameMode');
-    if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
+    // VS EAGLES alone: against the computer (cpuvs.js); other versus modes need at least two players
+    if (this.mode === 'eagles' && n < 2) this.mode = 'cpu';
+    else if (this.mode === 'dm' && n < 2) for (let i = 1; i <= DM_BOTS; i++) this.players.push(Object.assign(newPlayer(i), { bot: true }));   // bots.js
+    else if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
     this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
-    if (this.mode === 'timeattack' || this.mode === 'corridor') this.stageNum = 1;
+    if (this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu') this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
   },
 
@@ -9254,8 +9592,15 @@ const Game = {
     ctx.fillRect(0, SCREEN_H - c.h, SCREEN_W, c.h);
     if (c.phase === 'show') {
       const cx = SCREEN_W / 2, cy = SCREEN_H / 2;
-      Font.draw(ctx, 'STAGE', cx - 32, cy - 8, COL.black);
+      Font.draw(ctx, this.mode === 'cpu' ? 'ROUND' : 'STAGE', cx - 32, cy - 8, COL.black);
       Font.drawRight(ctx, this.stageNum, cx + 32, cy - 8, COL.black);
+      // against the computer: what their HQ got for this round
+      if (this.mode === 'cpu') {
+        const news = cpuNews(this.stageNum);
+        if (news.length) Font.drawCenter(ctx, 'ENEMY HQ UPGRADED', cx, cy + 14, '#A00000');
+        news.forEach((t, i) => Font.drawCenter(ctx, t, cx, cy + 26 + i * 10, '#3C3C3C'));
+        if (this.stageNum === 1) Font.drawCenter(ctx, 'DESTROY THE ENEMY HQ', cx, cy + 14, '#A00000');
+      }
       const boss = bossForStage(this.stageNum);
       if (boss) Font.drawCenter(ctx, 'BOSS: ' + BOSSES[boss.idx].name, cx, cy + 10, '#A00000');
       const wx = !this.customPending && stageWeather(this.stageNum, !!boss);
@@ -9292,7 +9637,7 @@ const Game = {
       objective = Math.floor(this.stageNum / (this.mode === 'bigmaps' ? 1 : 4)) % 2 ? 'outposts' : 'factories';
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
-      custom, boss, base: vs || corridor ? newBase() : this.base, corridor, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
+      custom, boss, base: vs || corridor ? newBase() : this.base, corridor, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
       blocks, big: objective,
     });
     this.paused = false;
@@ -9334,7 +9679,7 @@ const Game = {
     if (r === 'vsRound') { this.vsRoundEnd(); return; }
     if (r && this.mode === 'timeattack' && r === 'clear') { this.saveHi(); this.taNext(); return; }
     if (r === 'gameover') AutoSkill.event('gameOver');
-    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor')) { this.saveHi(); this.toModeResult(false); return; }
+    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu')) { this.saveHi(); this.toModeResult(false); return; }
     if (this.stage.result) {
       // beating a boss earns 25% off in the next shop
       this.shopDiscount = this.stage.result === 'clear' && this.stage.bossIdx !== undefined;
@@ -9543,7 +9888,8 @@ const Game = {
 
   // ---------------------------------------------------------------- game modes
   startGame(n) {
-    if (modeInfo(Config.get('gameMode')).vs && n < 2) { this.toast('VERSUS NEEDS 2-4 PLAYERS'); Sound.play('steel'); return; }
+    const mi = modeInfo(Config.get('gameMode'));
+    if (mi.vs && !mi.cpu && n < 2) { this.toast('VERSUS NEEDS 2-4 PLAYERS'); Sound.play('steel'); return; }
     this.newGame(n, false);
   },
 
@@ -9563,6 +9909,11 @@ const Game = {
       const b = rec.survival;
       if (!b || res.wave > b.wave || (res.wave === b.wave && score > b.score)) { rec.survival = { wave: res.wave, score }; res.newBest = true; }
       res.best = rec.survival;
+    } else if (this.mode === 'cpu') {
+      res.rounds = this.stageNum - 1;
+      const b = rec.cpu;
+      if (!b || res.rounds > b.rounds || (res.rounds === b.rounds && score > b.score)) { rec.cpu = { rounds: res.rounds, score }; res.newBest = true; }
+      res.best = rec.cpu;
     } else if (this.mode === 'corridor') {
       res.dist = this.stage.corridorClimb();
       const b = rec.corridor;
@@ -9588,7 +9939,7 @@ const Game = {
     const final = this.mode !== 'eagles' || this.vsWins.some(n => n >= VS_ROUNDS);
     this.vsRes = {
       mode: this.mode, winner: w, final, round: this.round,
-      rows: this.players.map(p => ({ i: p.i, kills: p.vsKills || 0, caps: p.caps || 0, wins: this.vsWins[p.i] || 0 })),
+      rows: this.players.map(p => ({ i: p.i, bot: !!p.bot, kills: p.vsKills || 0, caps: p.caps || 0, wins: this.vsWins[p.i] || 0 })),
     };
     Sound.setEngine(0);
     this.setState('vsResult');
@@ -9608,14 +9959,14 @@ const Game = {
     ctx.fillStyle = COL.black;
     ctx.fillRect(0, 0, SW, SH);
     Font.drawCenter(ctx, modeInfo(r.mode).name + (r.mode === 'eagles' ? '  ROUND ' + r.round : ''), SW / 2, 30, COL.red);
-    const msg = r.winner >= 0 ? ROMAN[r.winner] + '-PLAYER ' + (r.final ? 'WINS THE MATCH!' : 'WINS THE ROUND') : 'DRAW!';
+    const msg = r.winner >= 0 ? playerName(r.rows.find(row => row.i === r.winner)) + ' ' + (r.final ? 'WINS THE MATCH!' : 'WINS THE ROUND') : 'DRAW!';
     if ((this.t >> 4) & 1 || this.t > 90) Font.drawCenter(ctx, msg, SW / 2, 60, COL.gold);
     const head = r.mode === 'eagles' ? 'ROUNDS' : r.mode === 'dm' ? 'KILLS' : 'FLAGS';
     Font.draw(ctx, head, 136, 92, COL.lgrey);
     r.rows.forEach((row, k) => {
       const y = 110 + k * 18;
       ctx.drawImage(Sprites.playerIcon(Config.playerPal(row.i)), 64, y);
-      Font.draw(ctx, ROMAN[row.i] + '-PLAYER', 76, y, COL.white);
+      Font.draw(ctx, playerName(row), 76, y, COL.white);
       Font.drawRight(ctx, r.mode === 'eagles' ? row.wins : r.mode === 'dm' ? row.kills : row.caps, 184, y, COL.white);
     });
     if (this.t > 90) Font.drawCenter(ctx, r.final ? 'PRESS ENTER' : 'PRESS ENTER: NEXT ROUND', SW / 2, 200, COL.lgrey);
@@ -9634,6 +9985,10 @@ const Game = {
       Font.drawCenter(ctx, 'YOU HELD OUT TO WAVE ' + r.wave, SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
       Font.drawCenter(ctx, 'BEST: WAVE ' + r.best.wave + '  ' + r.best.score, SW / 2, 124, COL.lgrey);
+    } else if (r.mode === 'cpu') {
+      Font.drawCenter(ctx, r.rounds === 1 ? 'YOU WON 1 ROUND' : 'YOU WON ' + r.rounds + ' ROUNDS', SW / 2, 80, COL.white);
+      Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
+      Font.drawCenter(ctx, 'BEST: ' + r.best.rounds + ' ROUNDS  ' + r.best.score, SW / 2, 124, COL.lgrey);
     } else if (r.mode === 'corridor') {
       Font.drawCenter(ctx, 'YOU CLIMBED ' + r.dist + ' M', SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);

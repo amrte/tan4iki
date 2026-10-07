@@ -3,6 +3,16 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.21
+
+- **VS EAGLES against the computer:** start VS EAGLES with 1 player to play VS CPU. Their HQ is at the top, its tanks
+  keep coming until you destroy it; that wins the round (tally, shop, next round on a new map). The enemy HQ upgrades a
+  little every round: repair crew, walls, armor, eagle gun, minefield, tesla coil, tank traps, each up to level 5,
+  listed on the round curtain. Best rounds won is kept.
+- **Deathmatch against bots:** start DEATHMATCH with 1 player to fight 3 computer bots that path-find, aim, grab
+  power-ups and fight each other too.
+- **Fix:** mines were nearly invisible on ice (their grey spikes matched the ice); they now have a black edge.
+
 ## 0.20
 
 - **Claude upgrades:** CLAUDE LEVEL in the shop (5 levels, team-wide, kept between stages and in saves): stays
