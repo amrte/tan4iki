@@ -25,6 +25,7 @@ const MARK_TIME = 300, SPOT_RANGE = 176;
 Object.assign(Stage.prototype, {
   // ------------------------------------------------------------ spawning and splitting
   enemySpawned(t) {
+    this.encounter('e' + t.type);   // cards.js
     t.maxHp = t.hp;
     t.cd = 60 + rnd(90);
     // a medic shields tanks that appear near it

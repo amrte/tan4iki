@@ -194,7 +194,7 @@ const Net = {
     v.pl = G.players.map(p => ({
       i: p.i, score: p.score, lives: p.lives, level: p.level, mines: p.mines, kills: p.kills, out: p.out,
       ship: p.ship, cutter: p.cutter, kit: p.kit, shopShovel: p.shopShovel, xp: p.xp, rank: p.rank, stageXp: p.stageXp,
-      vsKills: p.vsKills, caps: p.caps,
+      vsKills: p.vsKills, caps: p.caps, spent: p.spent,
     }));
     v.base = G.base;
     v.snd = this.sndQueue.splice(0);
@@ -247,6 +247,7 @@ const Net = {
       bg: st.big ? [st.big, st.outposts, st.factories.map(f => [f.x, f.y, f.hp, f.flash])] : null,
       fg: st.flags ? st.flags.map(f => [f.i, f.hx, f.hy, f.x, f.y, f.carrier ? 1 : 0]) : null,
       cr: st.corridor ? [st.corridor.shifts, st.corridor.climbed, st.corridor.startY] : null,
+      cd: st.card || null,
     };
     st.netDiff = [];
     // the corridor moved down a section: the whole terrain goes again
@@ -404,6 +405,7 @@ const Net = {
     else { st.big = null; st.outposts = []; st.factories = []; }
     st.flags = sv.fg ? sv.fg.map(a => ({ i: a[0], hx: a[1], hy: a[2], x: a[3], y: a[4], carrier: a[5] ? {} : null })) : null;
     st.weather = sv.wx || null;
+    st.card = sv.cd || null;
     if (sv.cr) {
       // the host's world moved down: so does this screen's window
       if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();

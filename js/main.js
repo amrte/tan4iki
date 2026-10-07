@@ -28,7 +28,7 @@ function newPlayer(i) {
   return {
     i, score: 0, lives: Config.startLives(), level: Config.get('startStars'), ship: false, cutter: false,
     kills: zeroKills(), out: false, extraGiven: false, extraCount: 0, mines: 0, turrets: 0, bridges: 0, tank: null,
-    kit: null, shopShovel: false,
+    kit: null, shopShovel: false, spent: 0,   // spent: points paid out in the shop (score keeps everything earned)
     rank: Config.get('startLevel'), xp: RANKS[Config.get('startLevel') - 1].xp, stageXp: 0,   // XP level (1-10)
   };
 }
@@ -90,17 +90,30 @@ const DAILY_MODS = [
   { name: 'NIGHT SHIFT', set: v => { v.skill = 4; } },
   { name: 'EASY RIDER', set: v => { v.skill = 1; v.lives = 5; } },
   { name: 'TURBO TANK', set: v => { v.pSpeed = 175; } },
-  { name: 'BOSS RUSH', set: v => { v.bossEvery = 5; } },
+  { name: 'BOSS RUSH', set: v => { v.bossRounds = 'ON'; v.bossEvery = 5; }, boss: true },
   { name: 'LIGHTS OUT', set: v => { v.darkStages = 'ALWAYS NIGHT'; } },
   { name: 'PEA SOUP', set: v => { v.darkStages = 'ALWAYS FOG'; } },
 ];
 
-function dailyToday() {
-  const d = new Date(), date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+// two twists clash when both set the same setting to different values (NIGHT SHIFT and EASY RIDER both pick the
+// skill, LIGHTS OUT and PEA SOUP the dark stages, ...): one would silently undo the other
+function dailyClash(a, b) {
+  const va = {}, vb = {};
+  DAILY_MODS[a].set(va); DAILY_MODS[b].set(vb);
+  return Object.keys(va).some(k => k in vb && vb[k] !== va[k]);
+}
+
+function dailyToday(when = new Date()) {
+  const d = when, date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const r = seeded(+date.replace(/-/g, '') * 2654435761);
   const a = Math.floor(r() * DAILY_MODS.length);
-  let b = Math.floor(r() * (DAILY_MODS.length - 1)); if (b >= a) b++;
-  return { date, stage: 1 + Math.floor(r() * 30), mods: [a, b] };
+  const ok = [];
+  for (let i = 0; i < DAILY_MODS.length; i++) if (i !== a && !dailyClash(a, i)) ok.push(i);
+  const b = ok[Math.floor(r() * ok.length)];
+  let stage = 1 + Math.floor(r() * 30);
+  // BOSS RUSH: start one stage before a boss stage (bosses every 5), so the 3-stage run always meets one
+  if (DAILY_MODS[a].boss || DAILY_MODS[b].boss) stage = Math.max(1, Math.round((stage + 1) / 5)) * 5 - 1;
+  return { date, stage, mods: [a, b] };
 }
 
 function shopPrice(item) {
@@ -1028,8 +1041,8 @@ const Game = {
       sh.msg = item.id === 'revive' ? (reviveCost() ? 'NOBODY TO REVIVE' : 'REVIVE IS OFF') : p.out ? 'REVIVE FIRST' : 'YOU ALREADY HAVE IT';
       sh.msgT = 90; Sound.play('steel'); return;
     }
-    if (p.score < price) { sh.msg = 'NOT ENOUGH POINTS'; sh.msgT = 90; Sound.play('steel'); return; }
-    p.score -= price;
+    if (wallet(p) < price) { sh.msg = 'NOT ENOUGH POINTS'; sh.msgT = 90; Sound.play('steel'); return; }
+    spend(p, price);
     shopApply(item, p);
     sh.msg = 'BOUGHT ' + item.name;
     sh.msgT = 60;
@@ -1073,7 +1086,7 @@ const Game = {
     Font.drawCenter(ctx, this.shopDiscount ? 'SHOP  BOSS BONUS -25%' : 'SHOP', SW / 2, 6, COL.red);
     ctx.drawImage(Sprites.rankTank('p' + p.level, (this.t >> 3) & 1, 1, Config.playerPal(p.i), Config.xpOn() ? p.rank : 1, true), 6, 15);
     Font.draw(ctx, ROMAN[p.i] + '-PLAYER', 26, 20, COL.red);
-    Font.drawRight(ctx, p.score, 214, 20, COL.gold);
+    Font.drawRight(ctx, wallet(p), 214, 20, COL.gold);
     Font.draw(ctx, 'PTS', 220, 20, COL.white);
     for (let r = 0; r < SHOP_ROWS; r++) {
       const i = sh.scroll + r, item = SHOP_ITEMS[i];
@@ -1087,7 +1100,7 @@ const Game = {
       ctx.drawImage(item.base ? Sprites.baseIcons[item.bicon] : Sprites.powerups[item.icon], 12, y - 4);
       const price = shopPrice(item), st = shopStatus(item, p);
       Font.draw(ctx, item.name, 34, y, st.max ? COL.lgrey : COL.white);
-      if (!st.max) Font.drawRight(ctx, price, 190, y, p.score >= price ? COL.gold : '#7C3C3C');
+      if (!st.max) Font.drawRight(ctx, price, 190, y, wallet(p) >= price ? COL.gold : '#7C3C3C');
       Font.drawRight(ctx, st.text, 250, y, COL.lgrey);
     }
     ctx.fillStyle = COL.lgrey;
@@ -1243,6 +1256,10 @@ const Game = {
       Sound.play('select');
     } else if (row.action === 'reset') {
       Config.reset();
+      Sound.play('pickup');
+    } else if (row.action === 'resetCards') {
+      Seen.reset();
+      this.toast('CARDS WILL SHOW AGAIN');
       Sound.play('pickup');
     } else if (row.action === 'classicPU') {
       Config.setPowerups(pu => (pu.isNew ? 'OFF' : 'ANYONE'));

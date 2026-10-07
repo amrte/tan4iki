@@ -273,8 +273,9 @@ FIT width, FILL scaling and fullscreen. On a 16:10 MacBook screen in fullscreen 
 
 ## Shop
 
-After each cleared stage, once the score tally finishes, the shop opens. Your score is your money: buying
-something takes its price off your score. In 2-player games player I shops first, then player II. Use up/down to pick,
+After each cleared stage, once the score tally finishes, the shop opens. The points you've earned are your money,
+but spending them never lowers your score: the shop shows what you have left to spend, while your score (and the
+high score) keeps every point you earned. In 2-player games player I shops first, then player II. Use up/down to pick,
 **A** (fire/Enter) to buy, and **Esc** when you're done.
 
 | Item | Price | Effect |
@@ -371,7 +372,17 @@ DAILY CHALLENGE on the title screen: the same 3 stages and 2 twists for everyone
 the twists come from the date), 1 player, no shop and no saves. The title shows today's twists and your best score;
 after the run (3 stages or game over) you see your score and today's best. Twists: double trouble, glass cannon,
 speed demons, no power-ups, new breed, rocket party, iron hides, wide open, night shift, easy rider, turbo tank,
-boss rush, lights out (all night) and pea soup (all fog). Your own settings come back afterwards.
+boss rush, lights out (all night) and pea soup (all fog). Two twists that set the same thing differently (night
+shift and easy rider both pick the skill; lights out and pea soup; glass cannon and easy rider pick the lives) are
+never drawn together. A boss rush day starts one stage before a boss stage, so the run always meets a boss. Your own
+settings come back afterwards.
+
+## First-meet cards
+
+The first time you meet each enemy, boss and power-up, a one-line card slides down at the top of the field, such as
+**NEW: JAMMER - SLOWS YOUR SHELLS NEARBY** (a line too long for the field scrolls along once). Several new things
+queue up and show one after another. What you've met is remembered between games. Settings → GAME → FIRST-MEET CARDS
+turns them off, and SHOW ALL CARDS AGAIN brings them all back. Online, guests see the host's cards.
 
 ## Turrets, Claude and revival
 
@@ -381,7 +392,7 @@ boss rush, lights out (all night) and pea soup (all fog). Your own settings come
 - **Claude** can be bought in the shop (6000): it joins you at the start of the next stage.
 - **Revival** costs 7500 points (Settings → PLAYER → REVIVE COST: off / 2500 / 5000 / 7500 / 10000).
   - During play, a fallen player presses **FIRE** to come back with one tank. Their own points pay, or else the richest
-    teammate's. The prompt shows at the bottom of the field.
+    teammate's (revival spends points like the shop: your score stays). The prompt shows at the bottom of the field.
   - When the last tank falls and someone can afford it, there is a 5-second **LAST CHANCE** before GAME OVER (this works
     in 1-player games too).
   - Between stages, fallen players get a shop turn where they can buy **REVIVE** (and nothing else); a teammate can
@@ -407,7 +418,7 @@ in the browser, and **RESET TO DEFAULTS** restores the classic game.
 | Players | III / IV-PLAYER COLOR (blue / pink), gamepad rumble (on), key and pad setup |
 | Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
 | Screen | field width (13), field height (13), FIT, scaling (sharp / fill), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
-| Game | game mode (classic), skill (hurt me plenty), mud, belts, pads (on), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on) |
+| Game | game mode (classic), skill (hurt me plenty), mud, belts, pads (on), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on), first-meet cards (on), *show all cards again* |
 
 ## Code layout
 
@@ -429,6 +440,7 @@ js/terrain.js     mud, conveyor belts, teleporter pads, night and fog stages
 js/modes.js       game modes: survival waves, time attack, versus eagles, deathmatch, capture the flag
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go
+js/cards.js       first-meet cards for new enemies, bosses and power-ups
 js/bosses.js      boss rounds: the 5 bosses, their arenas, sprites and behaviour
 js/net.js         online play: WebRTC connection, codes, host streaming, guest view, lobby panels
 js/main.js        state machine (title, settings, curtain, play, score, game over, construction) + loop

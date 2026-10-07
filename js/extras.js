@@ -177,7 +177,7 @@ Object.assign(Stage.prototype, {
 
   // ------------------------------------------------------------ revival
   revive(p, payer) {
-    if (payer) payer.score -= reviveCost();
+    if (payer) spend(payer, reviveCost());
     p.out = false;
     p.lives = 0;
     this.spawnPlayer(p, 0);
@@ -190,8 +190,8 @@ Object.assign(Stage.prototype, {
   revivePayer(p) {
     const cost = reviveCost();
     if (!cost) return null;
-    if (p.score >= cost) return p;
-    const rich = this.players.filter(q => q !== p && q.score >= cost).sort((a, b) => b.score - a.score);
+    if (wallet(p) >= cost) return p;
+    const rich = this.players.filter(q => q !== p && wallet(q) >= cost).sort((a, b) => wallet(b) - wallet(a));
     return rich[0] || null;
   },
 

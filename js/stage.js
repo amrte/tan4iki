@@ -23,10 +23,10 @@ const DXY = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 //   shade  - almost invisible; shows itself when it fires, gets hit or comes close to you
 // `ai` = chance of each personality [wander, rush (the eagle), hunt (players), snipe (from a distance)]
 const ENEMY = [
-  { name: 'BASIC', speed: 0.5, bullet: 2.5, hp: 1, pts: 100, xp: 10, ai: [4, 3, 2, 1] },
-  { name: 'FAST', speed: 1.25, bullet: 2.5, hp: 1, pts: 200, xp: 15, ai: [2, 4, 4, 0] },
-  { name: 'POWER', speed: 0.75, bullet: 4.5, hp: 1, pts: 300, xp: 20, ai: [2, 2, 2, 4] },
-  { name: 'ARMOR', speed: 0.5, bullet: 2.5, hp: 4, pts: 400, xp: 30, ai: [2, 5, 2, 1] },
+  { name: 'BASIC', speed: 0.5, bullet: 2.5, hp: 1, pts: 100, xp: 10, ai: [4, 3, 2, 1], desc: 'SLOW, ONE HIT' },
+  { name: 'FAST', speed: 1.25, bullet: 2.5, hp: 1, pts: 200, xp: 15, ai: [2, 4, 4, 0], desc: 'QUICK ON ITS TRACKS' },
+  { name: 'POWER', speed: 0.75, bullet: 4.5, hp: 1, pts: 300, xp: 20, ai: [2, 2, 2, 4], desc: 'FAST SHELLS' },
+  { name: 'ARMOR', speed: 0.5, bullet: 2.5, hp: 4, pts: 400, xp: 30, ai: [2, 5, 2, 1], desc: 'TAKES 4 HITS' },
   { name: 'ROCKET', speed: 0.5, bullet: 2, hp: 1, pts: 500, xp: 25, ai: [1, 1, 1, 7], pal: 'rocket', from: 4, desc: 'ROCKETS BLAST AN AREA' },
   { name: 'SHIELD', speed: 0.5, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [1, 6, 3, 0], pal: 'shieldE', from: 11, desc: 'FRONT PLATE STOPS SHELLS' },
   { name: 'SAPPER', speed: 0.9, bullet: 2.5, hp: 1, pts: 400, xp: 20, ai: [1, 7, 2, 0], pal: 'sapper', from: 7, desc: 'CRUSHES BRICKS, LAYS MINES' },
@@ -41,7 +41,7 @@ const ENEMY = [
   { name: 'JAMMER', kind: 'jammer', speed: 0.5, bullet: 2.5, hp: 1, pts: 400, xp: 25, ai: [4, 1, 1, 4], pal: 'jammer', from: 21, fire: 0.3, desc: 'SLOWS YOUR SHELLS NEARBY' },
   { name: 'SPOTTER', kind: 'spotter', speed: 1.1, bullet: 2.5, hp: 1, pts: 500, xp: 30, ai: [1, 0, 1, 8], pal: 'spotter', from: 23, fire: 0.4, desc: 'MARKS YOU FOR ALL ENEMIES' },
   // half of a destroyed splitter (never in a line-up)
-  { name: 'MINI', kind: 'mini', speed: 1.4, bullet: 2.5, hp: 1, pts: 100, xp: 5, ai: [0, 1, 0, 0], pal: 'splitter', mini: true },
+  { name: 'MINI', kind: 'mini', speed: 1.4, bullet: 2.5, hp: 1, pts: 100, xp: 5, ai: [0, 1, 0, 0], pal: 'splitter', mini: true, desc: 'HALF A SPLITTER, VERY FAST' },
   // a long snake: fast, never shoots, 10 hits (head only), eats your tank and grows
   { name: 'SNAKE', kind: 'snake', speed: 1.4, bullet: 2.5, hp: 10, pts: 800, xp: 50, ai: [0, 0, 1, 0], pal: 'snake', from: 13, desc: 'FAST, 10 HITS, EATS TANKS' },
 ];
@@ -167,6 +167,11 @@ function buildQueue(stageNum, count) {
   }
   return out;
 }
+
+// points to spend: everything earned minus what the shop (and revivals) took. Spending never lowers the score,
+// so it never costs you the high score
+function wallet(p) { return Math.max(0, p.score - (p.spent || 0)); }
+function spend(p, n) { p.spent = (p.spent || 0) + n; }
 
 // extra lives for crossing 20,000 points (once, or every 20,000)
 function checkExtraLife(p) {
@@ -494,6 +499,7 @@ class Stage {
     if (this.freezeE > 0) this.freezeE--;
     if (this.freezeP > 0) this.freezeP--;
     this.updateShovel();
+    this.updateCards();
     if (!this.over) this.updateSpawning();
     this.updateSpawns();
     for (const t of this.tanks) {
@@ -1134,6 +1140,8 @@ class Stage {
     let x = 0, y = 0;
     for (let tries = 0; tries < 60; tries++) {
       x = rnd((FW - 16) / 8 + 1) * 8; y = rnd((FH - 16) / 8 + 1) * 8;
+      // the corridor: somewhere on screen, not sections away
+      if (this.corridor && this.camY !== undefined) y = Math.min(FH - 16, Math.round(this.camY / 8) * 8 + rnd((VIEW_H - 16) / 8 + 1) * 8);
       if (overlap(x, y, 16, 16, BASE_X - 16, BASE_Y - 16, 48, 32)) continue;
       let bad = 0;
       for (let cy = y >> 2; cy < (y + 16) >> 2; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
@@ -1144,6 +1152,7 @@ class Stage {
     }
     this.powerup = { type, x, y, t: 0 };
     Sound.play('puAppear');
+    this.encounter('p' + type);   // cards.js
   }
 
   checkPickups() {
@@ -1414,6 +1423,7 @@ class Stage {
     this.renderRankMsg(ctx);
     this.renderRevival(ctx);
     this.renderModeBanner(ctx);
+    this.renderCard(ctx);
     ctx.restore();
     this.renderHud(ctx);
   }

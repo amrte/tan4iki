@@ -7,11 +7,11 @@
 // hp: base hit points (before the BOSS HP setting, +50% in 2P, +50% per loop)
 // escorts: enemy types (0 basic, 1 fast, 2 power, 3 armor) cycled to fill the escort count
 const BOSSES = [
-  { kind: 'bear', name: 'IRON BEAR', hp: 40, pts: 5000, w: 32, h: 32, escorts: [0, 0, 1, 0, 0, 1, 0, 1] },
-  { kind: 'mole', name: 'MOLE', hp: 30, pts: 6000, w: 32, h: 32, escorts: [1, 1, 0, 1, 1, 0, 1, 1] },
-  { kind: 'hydra', name: 'HYDRA', turretHp: 12, coreHp: 24, pts: 7000, w: 48, h: 32, escorts: [2, 0, 2, 1, 2, 0, 2, 1] },
-  { kind: 'phantom', name: 'PHANTOM', hp: 30, pts: 8000, w: 32, h: 32, escorts: [1, 2, 1, 2, 1, 2, 1, 2] },
-  { kind: 'dread', name: 'DREADNOUGHT', hp: 100, pts: 10000, w: 48, h: 48, escorts: [3, 2, 3, 2, 3, 2, 3, 3] },
+  { kind: 'bear', name: 'IRON BEAR', hp: 40, pts: 5000, w: 32, h: 32, escorts: [0, 0, 1, 0, 0, 1, 0, 1], desc: 'CHARGES, CRUSHING WALLS' },
+  { kind: 'mole', name: 'MOLE', hp: 30, pts: 6000, w: 32, h: 32, escorts: [1, 1, 0, 1, 1, 0, 1, 1], desc: 'DIGS UNDER, POPS UP TO FIRE' },
+  { kind: 'hydra', name: 'HYDRA', turretHp: 12, coreHp: 24, pts: 7000, w: 48, h: 32, escorts: [2, 0, 2, 1, 2, 0, 2, 1], desc: 'BREAK 3 TURRETS, THEN THE CORE' },
+  { kind: 'phantom', name: 'PHANTOM', hp: 30, pts: 8000, w: 32, h: 32, escorts: [1, 2, 1, 2, 1, 2, 1, 2], desc: 'INVISIBLE, LEAVES DECOYS' },
+  { kind: 'dread', name: 'DREADNOUGHT', hp: 100, pts: 10000, w: 48, h: 48, escorts: [3, 2, 3, 2, 3, 2, 3, 3], desc: '3 PHASES, AN ARMY INSIDE' },
 ];
 
 // Arenas (13x13 tile codes, same legend as LEVELS). The eagle fortress is added by the loader.
@@ -265,6 +265,7 @@ Object.assign(Stage.prototype, {
     this.bossLoop = info.loop;
     this.bossDropAt = [0.75, 0.5, 0.25];
     this.bossBanner = 180;
+    this.encounter('b' + info.idx);   // cards.js
     const b = new Boss({ kind: def.kind, w: def.w, h: def.h, x: Math.round((FW - def.w) / 16) * 8, y: 0, speedMul: 1 + 0.15 * info.loop });
     if (def.kind === 'hydra') {
       b.y = 16;

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.18</title>
+  <title>tanb4iki_v0.19</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.18';
+const APP_VERSION = '0.19';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2608,6 +2608,9 @@ const SETTINGS_DEF = [
   { key: 'gameSpeed', label: 'GAME SPEED', values: [50, 75, 100, 125, 150, 200], def: 100, fmt: fmtPct },
   { key: 'volume', label: 'VOLUME', values: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 100, fmt: fmtPct },
   { key: 'engineSound', label: 'ENGINE SOUND', values: ONOFF, def: 'ON' },
+  // a one-line card the first time you meet each enemy, boss and power-up (cards.js)
+  { key: 'newCards', label: 'FIRST-MEET CARDS', values: ONOFF, def: 'ON' },
+  { action: 'resetCards', label: 'SHOW ALL CARDS AGAIN' },
 
   { action: 'reset', label: 'RESET TO DEFAULTS' },
   { action: 'back', label: 'BACK' },
@@ -3481,10 +3484,10 @@ const DXY = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 //   shade  - almost invisible; shows itself when it fires, gets hit or comes close to you
 // `ai` = chance of each personality [wander, rush (the eagle), hunt (players), snipe (from a distance)]
 const ENEMY = [
-  { name: 'BASIC', speed: 0.5, bullet: 2.5, hp: 1, pts: 100, xp: 10, ai: [4, 3, 2, 1] },
-  { name: 'FAST', speed: 1.25, bullet: 2.5, hp: 1, pts: 200, xp: 15, ai: [2, 4, 4, 0] },
-  { name: 'POWER', speed: 0.75, bullet: 4.5, hp: 1, pts: 300, xp: 20, ai: [2, 2, 2, 4] },
-  { name: 'ARMOR', speed: 0.5, bullet: 2.5, hp: 4, pts: 400, xp: 30, ai: [2, 5, 2, 1] },
+  { name: 'BASIC', speed: 0.5, bullet: 2.5, hp: 1, pts: 100, xp: 10, ai: [4, 3, 2, 1], desc: 'SLOW, ONE HIT' },
+  { name: 'FAST', speed: 1.25, bullet: 2.5, hp: 1, pts: 200, xp: 15, ai: [2, 4, 4, 0], desc: 'QUICK ON ITS TRACKS' },
+  { name: 'POWER', speed: 0.75, bullet: 4.5, hp: 1, pts: 300, xp: 20, ai: [2, 2, 2, 4], desc: 'FAST SHELLS' },
+  { name: 'ARMOR', speed: 0.5, bullet: 2.5, hp: 4, pts: 400, xp: 30, ai: [2, 5, 2, 1], desc: 'TAKES 4 HITS' },
   { name: 'ROCKET', speed: 0.5, bullet: 2, hp: 1, pts: 500, xp: 25, ai: [1, 1, 1, 7], pal: 'rocket', from: 4, desc: 'ROCKETS BLAST AN AREA' },
   { name: 'SHIELD', speed: 0.5, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [1, 6, 3, 0], pal: 'shieldE', from: 11, desc: 'FRONT PLATE STOPS SHELLS' },
   { name: 'SAPPER', speed: 0.9, bullet: 2.5, hp: 1, pts: 400, xp: 20, ai: [1, 7, 2, 0], pal: 'sapper', from: 7, desc: 'CRUSHES BRICKS, LAYS MINES' },
@@ -3499,7 +3502,7 @@ const ENEMY = [
   { name: 'JAMMER', kind: 'jammer', speed: 0.5, bullet: 2.5, hp: 1, pts: 400, xp: 25, ai: [4, 1, 1, 4], pal: 'jammer', from: 21, fire: 0.3, desc: 'SLOWS YOUR SHELLS NEARBY' },
   { name: 'SPOTTER', kind: 'spotter', speed: 1.1, bullet: 2.5, hp: 1, pts: 500, xp: 30, ai: [1, 0, 1, 8], pal: 'spotter', from: 23, fire: 0.4, desc: 'MARKS YOU FOR ALL ENEMIES' },
   // half of a destroyed splitter (never in a line-up)
-  { name: 'MINI', kind: 'mini', speed: 1.4, bullet: 2.5, hp: 1, pts: 100, xp: 5, ai: [0, 1, 0, 0], pal: 'splitter', mini: true },
+  { name: 'MINI', kind: 'mini', speed: 1.4, bullet: 2.5, hp: 1, pts: 100, xp: 5, ai: [0, 1, 0, 0], pal: 'splitter', mini: true, desc: 'HALF A SPLITTER, VERY FAST' },
   // a long snake: fast, never shoots, 10 hits (head only), eats your tank and grows
   { name: 'SNAKE', kind: 'snake', speed: 1.4, bullet: 2.5, hp: 10, pts: 800, xp: 50, ai: [0, 0, 1, 0], pal: 'snake', from: 13, desc: 'FAST, 10 HITS, EATS TANKS' },
 ];
@@ -3625,6 +3628,11 @@ function buildQueue(stageNum, count) {
   }
   return out;
 }
+
+// points to spend: everything earned minus what the shop (and revivals) took. Spending never lowers the score,
+// so it never costs you the high score
+function wallet(p) { return Math.max(0, p.score - (p.spent || 0)); }
+function spend(p, n) { p.spent = (p.spent || 0) + n; }
 
 // extra lives for crossing 20,000 points (once, or every 20,000)
 function checkExtraLife(p) {
@@ -3952,6 +3960,7 @@ class Stage {
     if (this.freezeE > 0) this.freezeE--;
     if (this.freezeP > 0) this.freezeP--;
     this.updateShovel();
+    this.updateCards();
     if (!this.over) this.updateSpawning();
     this.updateSpawns();
     for (const t of this.tanks) {
@@ -4592,6 +4601,8 @@ class Stage {
     let x = 0, y = 0;
     for (let tries = 0; tries < 60; tries++) {
       x = rnd((FW - 16) / 8 + 1) * 8; y = rnd((FH - 16) / 8 + 1) * 8;
+      // the corridor: somewhere on screen, not sections away
+      if (this.corridor && this.camY !== undefined) y = Math.min(FH - 16, Math.round(this.camY / 8) * 8 + rnd((VIEW_H - 16) / 8 + 1) * 8);
       if (overlap(x, y, 16, 16, BASE_X - 16, BASE_Y - 16, 48, 32)) continue;
       let bad = 0;
       for (let cy = y >> 2; cy < (y + 16) >> 2; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
@@ -4602,6 +4613,7 @@ class Stage {
     }
     this.powerup = { type, x, y, t: 0 };
     Sound.play('puAppear');
+    this.encounter('p' + type);   // cards.js
   }
 
   checkPickups() {
@@ -4872,6 +4884,7 @@ class Stage {
     this.renderRankMsg(ctx);
     this.renderRevival(ctx);
     this.renderModeBanner(ctx);
+    this.renderCard(ctx);
     ctx.restore();
     this.renderHud(ctx);
   }
@@ -5214,6 +5227,7 @@ const MARK_TIME = 300, SPOT_RANGE = 176;
 Object.assign(Stage.prototype, {
   // ------------------------------------------------------------ spawning and splitting
   enemySpawned(t) {
+    this.encounter('e' + t.type);   // cards.js
     t.maxHp = t.hp;
     t.cd = 60 + rnd(90);
     // a medic shields tanks that appear near it
@@ -5952,7 +5966,7 @@ Object.assign(Stage.prototype, {
 
   // ------------------------------------------------------------ revival
   revive(p, payer) {
-    if (payer) payer.score -= reviveCost();
+    if (payer) spend(payer, reviveCost());
     p.out = false;
     p.lives = 0;
     this.spawnPlayer(p, 0);
@@ -5965,8 +5979,8 @@ Object.assign(Stage.prototype, {
   revivePayer(p) {
     const cost = reviveCost();
     if (!cost) return null;
-    if (p.score >= cost) return p;
-    const rich = this.players.filter(q => q !== p && q.score >= cost).sort((a, b) => b.score - a.score);
+    if (wallet(p) >= cost) return p;
+    const rich = this.players.filter(q => q !== p && wallet(q) >= cost).sort((a, b) => wallet(b) - wallet(a));
     return rich[0] || null;
   },
 
@@ -7022,6 +7036,79 @@ Object.assign(Stage.prototype, {
   <script>
 'use strict';
 // =====================================================================
+//  First-meet cards: the first time you meet each enemy, boss and power-up, a one-line card slides up at the
+//  top of the field: "NEW: JAMMER - SLOWS YOUR SHELLS NEARBY". What you have met is remembered between games
+//  (Settings -> FIRST-MEET CARDS turns them off; SHOW ALL CARDS AGAIN forgets). A line too long for the field
+//  scrolls along once.
+// =====================================================================
+
+const SEEN_KEY = 'tank1990_seen', CARD_HOLD = 240, CARD_LEAD = 50, CARD_TAIL = 80, CARD_SPEED = 1.5;
+
+const Seen = {
+  keys: null,
+  load() { if (!this.keys) this.keys = new Set(STORE.get(SEEN_KEY, [])); return this.keys; },
+  has(k) { return this.load().has(k); },
+  add(k) { this.load().add(k); STORE.set(SEEN_KEY, [...this.keys]); },
+  reset() { this.keys = new Set(); STORE.set(SEEN_KEY, []); },
+};
+
+// "NEW: <name> - <what it does>" for e<type>, b<boss>, p<power-up>
+function cardText(key) {
+  const i = +key.slice(1);
+  const src = key[0] === 'e' ? ENEMY[i] : key[0] === 'b' ? BOSSES[i] : POWERUPS[i];
+  if (!src) return null;
+  const name = key[0] === 'e' && i < 4 ? src.name + ' TANK' : key[0] === 'b' ? 'BOSS ' + src.name : src.name;
+  return 'NEW: ' + name + (src.desc ? ' - ' + src.desc : '');
+}
+
+// frames a card stays up: a short one holds still, a long one waits, scrolls to its end and waits again
+function cardLife(text) {
+  const over = text.length * 8 - (VIEW_W - 12);
+  return over <= 0 ? CARD_HOLD : CARD_LEAD + Math.ceil(over / CARD_SPEED) + CARD_TAIL;
+}
+
+Object.assign(Stage.prototype, {
+  // something appeared: a card for it, if it's the first time ever (the online host decides)
+  encounter(key) {
+    if (Net.role === 'client' || !Config.on('newCards') || Seen.has(key)) return;
+    const text = cardText(key);
+    if (!text) return;
+    Seen.add(key);
+    (this.cardQueue || (this.cardQueue = [])).push(text);
+  },
+
+  updateCards() {
+    if (this.card && ++this.card.t >= this.card.life) this.card = null;
+    if (!this.card && this.cardQueue && this.cardQueue.length) {
+      const text = this.cardQueue.shift();
+      this.card = { text, t: 0, life: cardLife(text) };
+    }
+  },
+
+  // a dark strip sliding down from the top of the field window (screen coordinates); the eagle stays in view
+  renderCard(ctx) {
+    const c = this.card;
+    if (!c) return;
+    const h = 12, rise = Math.min(1, c.t / 8, (c.life - c.t) / 8), y = Math.round(h * rise) - h + 2;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(0, y - 2, VIEW_W, h + 2);
+    ctx.beginPath();
+    ctx.rect(4, y - 2, VIEW_W - 8, h + 2);
+    ctx.clip();
+    const w = c.text.length * 8, over = w - (VIEW_W - 12);
+    const x = over <= 0 ? Math.round((VIEW_W - w) / 2) : 6 - Math.round(Math.min(over, Math.max(0, c.t - CARD_LEAD) * CARD_SPEED));
+    // "NEW:" in gold, the rest in white
+    Font.draw(ctx, 'NEW:', x, y, COL.gold);
+    Font.draw(ctx, c.text.slice(4), x + 32, y, COL.white);
+    ctx.restore();
+  },
+});
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
 //  Boss rounds: every Nth stage (default 10) is a boss stage with escorts.
 //  Boss order: IRON BEAR, MOLE, HYDRA, PHANTOM, DREADNOUGHT, then repeat tougher.
 // =====================================================================
@@ -7029,11 +7116,11 @@ Object.assign(Stage.prototype, {
 // hp: base hit points (before the BOSS HP setting, +50% in 2P, +50% per loop)
 // escorts: enemy types (0 basic, 1 fast, 2 power, 3 armor) cycled to fill the escort count
 const BOSSES = [
-  { kind: 'bear', name: 'IRON BEAR', hp: 40, pts: 5000, w: 32, h: 32, escorts: [0, 0, 1, 0, 0, 1, 0, 1] },
-  { kind: 'mole', name: 'MOLE', hp: 30, pts: 6000, w: 32, h: 32, escorts: [1, 1, 0, 1, 1, 0, 1, 1] },
-  { kind: 'hydra', name: 'HYDRA', turretHp: 12, coreHp: 24, pts: 7000, w: 48, h: 32, escorts: [2, 0, 2, 1, 2, 0, 2, 1] },
-  { kind: 'phantom', name: 'PHANTOM', hp: 30, pts: 8000, w: 32, h: 32, escorts: [1, 2, 1, 2, 1, 2, 1, 2] },
-  { kind: 'dread', name: 'DREADNOUGHT', hp: 100, pts: 10000, w: 48, h: 48, escorts: [3, 2, 3, 2, 3, 2, 3, 3] },
+  { kind: 'bear', name: 'IRON BEAR', hp: 40, pts: 5000, w: 32, h: 32, escorts: [0, 0, 1, 0, 0, 1, 0, 1], desc: 'CHARGES, CRUSHING WALLS' },
+  { kind: 'mole', name: 'MOLE', hp: 30, pts: 6000, w: 32, h: 32, escorts: [1, 1, 0, 1, 1, 0, 1, 1], desc: 'DIGS UNDER, POPS UP TO FIRE' },
+  { kind: 'hydra', name: 'HYDRA', turretHp: 12, coreHp: 24, pts: 7000, w: 48, h: 32, escorts: [2, 0, 2, 1, 2, 0, 2, 1], desc: 'BREAK 3 TURRETS, THEN THE CORE' },
+  { kind: 'phantom', name: 'PHANTOM', hp: 30, pts: 8000, w: 32, h: 32, escorts: [1, 2, 1, 2, 1, 2, 1, 2], desc: 'INVISIBLE, LEAVES DECOYS' },
+  { kind: 'dread', name: 'DREADNOUGHT', hp: 100, pts: 10000, w: 48, h: 48, escorts: [3, 2, 3, 2, 3, 2, 3, 3], desc: '3 PHASES, AN ARMY INSIDE' },
 ];
 
 // Arenas (13x13 tile codes, same legend as LEVELS). The eagle fortress is added by the loader.
@@ -7287,6 +7374,7 @@ Object.assign(Stage.prototype, {
     this.bossLoop = info.loop;
     this.bossDropAt = [0.75, 0.5, 0.25];
     this.bossBanner = 180;
+    this.encounter('b' + info.idx);   // cards.js
     const b = new Boss({ kind: def.kind, w: def.w, h: def.h, x: Math.round((FW - def.w) / 16) * 8, y: 0, speedMul: 1 + 0.15 * info.loop });
     if (def.kind === 'hydra') {
       b.y = 16;
@@ -8121,7 +8209,7 @@ const Net = {
     v.pl = G.players.map(p => ({
       i: p.i, score: p.score, lives: p.lives, level: p.level, mines: p.mines, kills: p.kills, out: p.out,
       ship: p.ship, cutter: p.cutter, kit: p.kit, shopShovel: p.shopShovel, xp: p.xp, rank: p.rank, stageXp: p.stageXp,
-      vsKills: p.vsKills, caps: p.caps,
+      vsKills: p.vsKills, caps: p.caps, spent: p.spent,
     }));
     v.base = G.base;
     v.snd = this.sndQueue.splice(0);
@@ -8174,6 +8262,7 @@ const Net = {
       bg: st.big ? [st.big, st.outposts, st.factories.map(f => [f.x, f.y, f.hp, f.flash])] : null,
       fg: st.flags ? st.flags.map(f => [f.i, f.hx, f.hy, f.x, f.y, f.carrier ? 1 : 0]) : null,
       cr: st.corridor ? [st.corridor.shifts, st.corridor.climbed, st.corridor.startY] : null,
+      cd: st.card || null,
     };
     st.netDiff = [];
     // the corridor moved down a section: the whole terrain goes again
@@ -8331,6 +8420,7 @@ const Net = {
     else { st.big = null; st.outposts = []; st.factories = []; }
     st.flags = sv.fg ? sv.fg.map(a => ({ i: a[0], hx: a[1], hy: a[2], x: a[3], y: a[4], carrier: a[5] ? {} : null })) : null;
     st.weather = sv.wx || null;
+    st.card = sv.cd || null;
     if (sv.cr) {
       // the host's world moved down: so does this screen's window
       if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();
@@ -8576,7 +8666,7 @@ function newPlayer(i) {
   return {
     i, score: 0, lives: Config.startLives(), level: Config.get('startStars'), ship: false, cutter: false,
     kills: zeroKills(), out: false, extraGiven: false, extraCount: 0, mines: 0, turrets: 0, bridges: 0, tank: null,
-    kit: null, shopShovel: false,
+    kit: null, shopShovel: false, spent: 0,   // spent: points paid out in the shop (score keeps everything earned)
     rank: Config.get('startLevel'), xp: RANKS[Config.get('startLevel') - 1].xp, stageXp: 0,   // XP level (1-10)
   };
 }
@@ -8638,17 +8728,30 @@ const DAILY_MODS = [
   { name: 'NIGHT SHIFT', set: v => { v.skill = 4; } },
   { name: 'EASY RIDER', set: v => { v.skill = 1; v.lives = 5; } },
   { name: 'TURBO TANK', set: v => { v.pSpeed = 175; } },
-  { name: 'BOSS RUSH', set: v => { v.bossEvery = 5; } },
+  { name: 'BOSS RUSH', set: v => { v.bossRounds = 'ON'; v.bossEvery = 5; }, boss: true },
   { name: 'LIGHTS OUT', set: v => { v.darkStages = 'ALWAYS NIGHT'; } },
   { name: 'PEA SOUP', set: v => { v.darkStages = 'ALWAYS FOG'; } },
 ];
 
-function dailyToday() {
-  const d = new Date(), date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+// two twists clash when both set the same setting to different values (NIGHT SHIFT and EASY RIDER both pick the
+// skill, LIGHTS OUT and PEA SOUP the dark stages, ...): one would silently undo the other
+function dailyClash(a, b) {
+  const va = {}, vb = {};
+  DAILY_MODS[a].set(va); DAILY_MODS[b].set(vb);
+  return Object.keys(va).some(k => k in vb && vb[k] !== va[k]);
+}
+
+function dailyToday(when = new Date()) {
+  const d = when, date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const r = seeded(+date.replace(/-/g, '') * 2654435761);
   const a = Math.floor(r() * DAILY_MODS.length);
-  let b = Math.floor(r() * (DAILY_MODS.length - 1)); if (b >= a) b++;
-  return { date, stage: 1 + Math.floor(r() * 30), mods: [a, b] };
+  const ok = [];
+  for (let i = 0; i < DAILY_MODS.length; i++) if (i !== a && !dailyClash(a, i)) ok.push(i);
+  const b = ok[Math.floor(r() * ok.length)];
+  let stage = 1 + Math.floor(r() * 30);
+  // BOSS RUSH: start one stage before a boss stage (bosses every 5), so the 3-stage run always meets one
+  if (DAILY_MODS[a].boss || DAILY_MODS[b].boss) stage = Math.max(1, Math.round((stage + 1) / 5)) * 5 - 1;
+  return { date, stage, mods: [a, b] };
 }
 
 function shopPrice(item) {
@@ -9576,8 +9679,8 @@ const Game = {
       sh.msg = item.id === 'revive' ? (reviveCost() ? 'NOBODY TO REVIVE' : 'REVIVE IS OFF') : p.out ? 'REVIVE FIRST' : 'YOU ALREADY HAVE IT';
       sh.msgT = 90; Sound.play('steel'); return;
     }
-    if (p.score < price) { sh.msg = 'NOT ENOUGH POINTS'; sh.msgT = 90; Sound.play('steel'); return; }
-    p.score -= price;
+    if (wallet(p) < price) { sh.msg = 'NOT ENOUGH POINTS'; sh.msgT = 90; Sound.play('steel'); return; }
+    spend(p, price);
     shopApply(item, p);
     sh.msg = 'BOUGHT ' + item.name;
     sh.msgT = 60;
@@ -9621,7 +9724,7 @@ const Game = {
     Font.drawCenter(ctx, this.shopDiscount ? 'SHOP  BOSS BONUS -25%' : 'SHOP', SW / 2, 6, COL.red);
     ctx.drawImage(Sprites.rankTank('p' + p.level, (this.t >> 3) & 1, 1, Config.playerPal(p.i), Config.xpOn() ? p.rank : 1, true), 6, 15);
     Font.draw(ctx, ROMAN[p.i] + '-PLAYER', 26, 20, COL.red);
-    Font.drawRight(ctx, p.score, 214, 20, COL.gold);
+    Font.drawRight(ctx, wallet(p), 214, 20, COL.gold);
     Font.draw(ctx, 'PTS', 220, 20, COL.white);
     for (let r = 0; r < SHOP_ROWS; r++) {
       const i = sh.scroll + r, item = SHOP_ITEMS[i];
@@ -9635,7 +9738,7 @@ const Game = {
       ctx.drawImage(item.base ? Sprites.baseIcons[item.bicon] : Sprites.powerups[item.icon], 12, y - 4);
       const price = shopPrice(item), st = shopStatus(item, p);
       Font.draw(ctx, item.name, 34, y, st.max ? COL.lgrey : COL.white);
-      if (!st.max) Font.drawRight(ctx, price, 190, y, p.score >= price ? COL.gold : '#7C3C3C');
+      if (!st.max) Font.drawRight(ctx, price, 190, y, wallet(p) >= price ? COL.gold : '#7C3C3C');
       Font.drawRight(ctx, st.text, 250, y, COL.lgrey);
     }
     ctx.fillStyle = COL.lgrey;
@@ -9791,6 +9894,10 @@ const Game = {
       Sound.play('select');
     } else if (row.action === 'reset') {
       Config.reset();
+      Sound.play('pickup');
+    } else if (row.action === 'resetCards') {
+      Seen.reset();
+      this.toast('CARDS WILL SHOW AGAIN');
       Sound.play('pickup');
     } else if (row.action === 'classicPU') {
       Config.setPowerups(pu => (pu.isNew ? 'OFF' : 'ANYONE'));

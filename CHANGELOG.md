@@ -3,6 +3,20 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.19
+
+- **First-meet cards:** the first time each enemy, boss or power-up appears, a one-line card slides down at the top of
+  the field ("NEW: JAMMER - SLOWS YOUR SHELLS NEARBY"); long lines scroll. Remembered between games; can be turned off
+  or reset in Settings → GAME; online guests see them too.
+- **Fix: shopping lowered your high score.** Spending in the shop (and paying for revivals) now comes out of a separate
+  "points to spend" amount; your score keeps every point earned, so buying a wingman no longer costs you the high
+  score. Older saves load fine.
+- **Fix: BOSS RUSH often did nothing.** A boss rush daily now starts one stage before a boss stage, so its 3 stages
+  always include a boss.
+- **Fix: daily twists cancelling out.** Twists that set the same thing differently (NIGHT SHIFT / EASY RIDER, LIGHTS
+  OUT / PEA SOUP, GLASS CANNON / EASY RIDER) are no longer drawn together.
+- Corridor: power-ups appear on screen instead of anywhere in the stacked world.
+
 ## 0.18
 
 - **Corridor mode:** the usual width, endless height. Climb as far as you can while enemies keep arriving from above,
