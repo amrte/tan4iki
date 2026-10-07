@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#000000">
+  <title>Tank 1990</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main id="wrap">
+    <canvas id="screen" width="256" height="224" aria-label="Tank 1990 game screen"></canvas>
+  </main>
+
+  <aside id="help">
+    <b>1P</b> Arrows/WASD move · Space/Z/J fire &nbsp;|&nbsp;
+    <b>2P</b> P1 WASD + Space/F · P2 Arrows + Right Ctrl/Numpad0/L &nbsp;|&nbsp;
+    <b>Enter</b> start/pause · <b>M</b> mute · Gamepads supported
+  </aside>
+
+  <div id="touch" aria-hidden="true">
+    <div id="dpad" data-dir="-1"><span class="u"></span><span class="r"></span><span class="d"></span><span class="l"></span></div>
+    <div class="btns">
+      <button data-code="TStart" class="small">START</button>
+      <button data-code="TFire2" class="fire b">B</button>
+      <button data-code="TFire" class="fire">A</button>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/gfx.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/stage.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
