@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>Tank 1990</title>
+  <title>tan4iki_v0.2</title>
   <style>
 :root {
   --bg: #000;
@@ -157,6 +157,16 @@ body.touch #touch {
     </div>
   </div>
 
+  <script>
+'use strict';
+// App name and version: the single source of truth.
+// Shown on the title screen and in the browser tab; tools/build.js names the download after it.
+// Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
+const APP_NAME = 'tan4iki';
+const APP_VERSION = '0.2';
+const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
+
+</script>
   <script>
 'use strict';
 // =====================================================================
@@ -1954,6 +1964,10 @@ const SETTINGS_DEF = [
   { action: 'classicPU', label: 'CLASSIC POWER-UPS ONLY' },
   { action: 'allPU', label: 'ALL POWER-UPS ON' },
 
+  { section: 'SHOP' },
+  { key: 'shop', label: 'SHOP AFTER STAGES', values: ONOFF, def: 'ON' },
+  { key: 'shopPrices', label: 'SHOP PRICES', values: PCTS, def: 100, fmt: fmtPct },
+
   { section: 'GAME' },
   { key: 'gameSpeed', label: 'GAME SPEED', values: [50, 75, 100, 125, 150, 200], def: 100, fmt: fmtPct },
   { key: 'volume', label: 'VOLUME', values: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 100, fmt: fmtPct },
@@ -2675,6 +2689,12 @@ class Stage {
       p.kills = [0, 0, 0, 0];
       p.tank = null;
       if (!p.out) this.spawnPlayer(p, 0);
+      // a shovel charge bought in the shop fortifies the eagle from the start
+      if (p.shopShovel) {
+        p.shopShovel = false;
+        this.shovel = Config.frames('shovelTime');
+        this.setBaseWalls(T_STEEL);
+      }
     }
   }
 
@@ -2755,6 +2775,12 @@ class Stage {
         const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, player: p, shield: Config.frames('spawnShield') });
         t.applyLevel();
         p.tank = t;
+        // items bought in the shop take effect on the first spawn of the stage
+        if (p.kit) {
+          if (p.kit.helmet) t.shield = Math.max(t.shield, Config.frames('helmetTime'));
+          for (const k of ['turbo', 'rapid', 'rocket', 'pierce', 'spread', 'ghost']) if (p.kit[k]) t.boost[k] = Config.frames('newTime');
+          p.kit = null;
+        }
         this.tanks.push(t);
       }
       s.done = true;
@@ -3461,6 +3487,7 @@ function newPlayer(i) {
   return {
     i, score: 0, lives: Config.startLives(), level: Config.get('startStars'), ship: false, cutter: false,
     kills: [0, 0, 0, 0], out: false, extraGiven: false, extraCount: 0, mines: 0, tank: null,
+    kit: null, shopShovel: false,
   };
 }
 
@@ -3474,6 +3501,55 @@ function defaultCustomMap() {
 const TITLE_MENU = ['1 PLAYER', '2 PLAYERS', 'CONSTRUCTION', 'SETTINGS'];
 const TITLE_MENU_Y = 126;
 const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
+
+// Between-stage shop: score buys upgrades. price is in points at 100% "SHOP PRICES".
+// Kit items (helmet, turbo, ...) take effect when your tank first appears in the next stage.
+const SHOP_ITEMS = [
+  { id: 'life', name: 'EXTRA LIFE', price: 5000, icon: PU.TANK, desc: 'ONE MORE TANK' },
+  { id: 'star', name: 'STAR', price: 3000, icon: PU.STAR, desc: 'UPGRADE YOUR TANK 1 LEVEL' },
+  { id: 'gun', name: 'GUN', price: 8000, icon: PU.GUN, desc: 'MAX LEVEL + CUTS TREES' },
+  { id: 'ship', name: 'SHIP', price: 3000, icon: PU.SHIP, desc: 'CROSS WATER, SOAKS A HIT' },
+  { id: 'mines', name: 'MINES', price: 1500, icon: PU.MINES, desc: 'MINES FOR THE B BUTTON' },
+  { id: 'shovel', name: 'SHOVEL', price: 2000, icon: PU.SHOVEL, desc: 'STEEL EAGLE WALLS AT START' },
+  { id: 'helmet', name: 'HELMET', price: 1000, icon: PU.HELMET, desc: 'SHIELD AT STAGE START' },
+  { id: 'turbo', name: 'TURBO', price: 1500, icon: PU.TURBO, desc: 'FAST TANK AT STAGE START' },
+  { id: 'rapid', name: 'RAPID', price: 2000, icon: PU.RAPID, desc: 'RAPID FIRE AT STAGE START' },
+  { id: 'spread', name: 'SPREAD', price: 2000, icon: PU.SPREAD, desc: '3-WAY FIRE AT STAGE START' },
+  { id: 'rocket', name: 'ROCKET', price: 3000, icon: PU.ROCKET, desc: 'ROCKETS AT STAGE START' },
+  { id: 'pierce', name: 'PIERCE', price: 3000, icon: PU.PIERCE, desc: 'PIERCING SHELLS AT START' },
+  { id: 'done', name: 'START STAGE' },
+];
+const SHOP_ROWS = 9, SHOP_TOP = 40, SHOP_ROW_H = 16;
+
+function shopPrice(item) {
+  return Math.round((item.price * Config.scale('shopPrices')) / 100) * 100;
+}
+
+// what the player already has; `max` means it can't be bought again
+function shopStatus(item, p) {
+  switch (item.id) {
+    case 'life': return Config.infiniteLives() ? { text: 'INF', max: true } : { text: 'X' + p.lives, max: p.lives >= 99 };
+    case 'star': return { text: 'LV' + p.level, max: p.level >= 3 };
+    case 'gun': return p.level >= 3 && p.cutter ? { text: 'OWNED', max: true } : { text: '' };
+    case 'ship': return p.ship ? { text: 'OWNED', max: true } : { text: '' };
+    case 'mines': return { text: 'X' + (p.mines || 0), max: (p.mines || 0) >= 99 };
+    case 'shovel': return p.shopShovel ? { text: 'READY', max: true } : { text: '' };
+    case 'done': return { text: '' };
+    default: return p.kit && p.kit[item.id] ? { text: 'READY', max: true } : { text: '' };
+  }
+}
+
+function shopApply(item, p) {
+  switch (item.id) {
+    case 'life': p.lives++; break;
+    case 'star': p.level++; break;
+    case 'gun': p.level = 3; p.cutter = true; break;
+    case 'ship': p.ship = true; break;
+    case 'mines': p.mines = (p.mines || 0) + Config.get('mineCount'); break;
+    case 'shovel': p.shopShovel = true; break;
+    default: p.kit = p.kit || {}; p.kit[item.id] = true;
+  }
+}
 
 const Game = {
   state: 'title',
@@ -3550,7 +3626,7 @@ const Game = {
       const anim = (this.t >> 2) & 1;
       ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, TITLE_MENU_Y - 4 + this.menuIdx * 14);
     }
-    Font.drawCenter(ctx, 'NES TANK 1990 TRIBUTE', SW / 2, 192, COL.lgrey);
+    Font.drawCenter(ctx, APP_TITLE, SW / 2, 192, COL.lgrey);
     Font.drawCenter(ctx, 'ENTER START  M MUTE', SW / 2, 206, COL.lgrey);
     ctx.restore();
   },
@@ -3690,7 +3766,8 @@ const Game = {
       if (sc.gameOver) this.toBigOver();
       else {
         this.stageNum++;
-        this.toCurtain(false);
+        if (Config.on('shop') && this.players.some(p => !p.out)) this.toShop();
+        else this.toCurtain(false);
       }
     }
   },
@@ -3861,6 +3938,94 @@ const Game = {
     Font.draw(ctx, 'ENT', 228, 190, COL.black);
   },
 
+  // ---------------------------------------------------------------- shop
+  toShop() {
+    Sound.setEngine(0);
+    this.shop = { order: this.players.filter(p => !p.out), turn: 0, idx: 0, scroll: 0, rep: 0, msg: '', msgT: 0 };
+    this.setState('shop');
+  },
+
+  shopMove(dir) {
+    const sh = this.shop, n = SHOP_ITEMS.length;
+    sh.idx = (sh.idx + dir + n) % n;
+    if (sh.idx < sh.scroll) sh.scroll = sh.idx;
+    if (sh.idx >= sh.scroll + SHOP_ROWS) sh.scroll = sh.idx - SHOP_ROWS + 1;
+  },
+
+  shopBuy() {
+    const sh = this.shop, p = sh.order[sh.turn], item = SHOP_ITEMS[sh.idx];
+    if (item.id === 'done') { this.shopNext(); return; }
+    const price = shopPrice(item), st = shopStatus(item, p);
+    if (st.max) { sh.msg = 'YOU ALREADY HAVE IT'; sh.msgT = 90; Sound.play('steel'); return; }
+    if (p.score < price) { sh.msg = 'NOT ENOUGH POINTS'; sh.msgT = 90; Sound.play('steel'); return; }
+    p.score -= price;
+    shopApply(item, p);
+    sh.msg = 'BOUGHT ' + item.name;
+    sh.msgT = 60;
+    Sound.play(item.id === 'life' ? 'life' : 'pickup');
+  },
+
+  // next player's turn, or on to the stage
+  shopNext() {
+    const sh = this.shop;
+    sh.turn++;
+    sh.idx = 0; sh.scroll = 0; sh.msgT = 0;
+    if (sh.turn >= sh.order.length) {
+      this.lastScores = this.players.map(p => p.score);
+      this.toCurtain(false);
+    } else Sound.play('select');
+  },
+
+  updateShop() {
+    const m = Input.menu(), sh = this.shop;
+    if (sh.msgT > 0) sh.msgT--;
+    let d = 0;
+    if (m.up) { d = -1; sh.rep = 16; } else if (m.down) { d = 1; sh.rep = 16; }
+    else {
+      const held = Input.heldDir();
+      if ((held === 0 || held === 2) && --sh.rep <= 0) { d = held === 0 ? -1 : 1; sh.rep = 4; }
+    }
+    if (d) { this.shopMove(d); Sound.play('select'); }
+    if (m.ok) this.shopBuy();
+    else if (m.back) this.shopNext();
+  },
+
+  renderShop(ctx) {
+    const sh = this.shop, p = sh.order[sh.turn];
+    ctx.fillStyle = COL.black;
+    ctx.fillRect(0, 0, SW, SH);
+    Font.drawCenter(ctx, 'SHOP', SW / 2, 6, COL.red);
+    ctx.drawImage(Sprites.tank('p' + p.level, (this.t >> 3) & 1, 1, Config.playerPal(p.i)), 6, 15);
+    Font.draw(ctx, p.i === 0 ? 'I-PLAYER' : 'II-PLAYER', 26, 20, COL.red);
+    Font.drawRight(ctx, p.score, 214, 20, COL.gold);
+    Font.draw(ctx, 'PTS', 220, 20, COL.white);
+    for (let r = 0; r < SHOP_ROWS; r++) {
+      const i = sh.scroll + r, item = SHOP_ITEMS[i];
+      if (!item) break;
+      const y = SHOP_TOP + r * SHOP_ROW_H;
+      if (i === sh.idx) { ctx.fillStyle = '#20206C'; ctx.fillRect(4, y - 4, SW - 8, SHOP_ROW_H); }
+      if (item.id === 'done') {
+        Font.draw(ctx, item.name + ' ' + this.stageNum, 34, y, COL.white);
+        continue;
+      }
+      ctx.drawImage(Sprites.powerups[item.icon], 12, y - 4);
+      const price = shopPrice(item), st = shopStatus(item, p);
+      Font.draw(ctx, item.name, 34, y, st.max ? COL.lgrey : COL.white);
+      if (!st.max) Font.drawRight(ctx, price, 190, y, p.score >= price ? COL.gold : '#7C3C3C');
+      Font.drawRight(ctx, st.text, 250, y, COL.lgrey);
+    }
+    ctx.fillStyle = COL.lgrey;
+    if (sh.scroll > 0) for (let k = 0; k < 4; k++) ctx.fillRect(SW / 2 - k, 30 + k, 1 + 2 * k, 1);
+    if (sh.scroll + SHOP_ROWS < SHOP_ITEMS.length) for (let k = 0; k < 4; k++) ctx.fillRect(SW / 2 - 3 + k, SHOP_TOP + SHOP_ROWS * SHOP_ROW_H - 3 + k, 7 - 2 * k, 1);
+    const item = SHOP_ITEMS[sh.idx];
+    if (sh.msgT > 0) Font.drawCenter(ctx, sh.msg, SW / 2, 192, sh.msg.startsWith('BOUGHT') ? COL.gold : COL.red);
+    else if (item.desc) {
+      const desc = item.id === 'mines' ? '+' + Config.get('mineCount') + ' ' + item.desc : item.desc;
+      Font.drawCenter(ctx, desc, SW / 2, 192, COL.white);
+    }
+    Font.drawCenter(ctx, 'A BUY   ESC DONE', SW / 2, 208, COL.lgrey);
+  },
+
   // ---------------------------------------------------------------- settings
   toSettings() {
     this.st = { idx: 1, scroll: 0, rep: 0 };
@@ -3927,6 +4092,7 @@ const Game = {
     ctx.fillStyle = COL.black;
     ctx.fillRect(0, 0, SW, SH);
     Font.drawCenter(ctx, 'SETTINGS', SW / 2, 8, COL.red);
+    Font.drawRight(ctx, 'V' + APP_VERSION, 250, 8, '#505050');
     for (let r = 0; r < SETTINGS_ROWS; r++) {
       const i = st.scroll + r, row = SETTINGS_DEF[i];
       if (!row) break;
@@ -3981,6 +4147,13 @@ const Game = {
   // mouse / touch on the canvas (in screen pixels)
   pointer(x, y) {
     Sound.unlock();
+    if (this.state === 'shop') {
+      const r = Math.floor((y - SHOP_TOP + 4) / SHOP_ROW_H), i = this.shop.scroll + r;
+      if (r < 0 || r >= SHOP_ROWS || !SHOP_ITEMS[i]) return;
+      if (i === this.shop.idx) this.shopBuy();
+      else { this.shop.idx = i; Sound.play('select'); }
+      return;
+    }
     if (this.state === 'title' && this.titleY === 0) {
       const i = Math.floor((y - TITLE_MENU_Y + 4) / 14);
       if (i >= 0 && i < TITLE_MENU.length && x > 56 && x < 200) {
@@ -4002,6 +4175,7 @@ const Game = {
 
   wheel(dy) {
     if (this.state === 'settings') this.settingsMove(dy > 0 ? 1 : -1);
+    if (this.state === 'shop') this.shopMove(dy > 0 ? 1 : -1);
   },
 
   // ---------------------------------------------------------------- dispatch
@@ -4015,6 +4189,7 @@ const Game = {
       case 'bigover': this.updateBigOver(); break;
       case 'construct': this.updateConstruct(); break;
       case 'settings': this.updateSettings(); break;
+      case 'shop': this.updateShop(); break;
     }
   },
 
@@ -4027,6 +4202,7 @@ const Game = {
       case 'bigover': this.renderBigOver(ctx); break;
       case 'construct': this.renderConstruct(ctx); break;
       case 'settings': this.renderSettings(ctx); break;
+      case 'shop': this.renderShop(ctx); break;
     }
   },
 };
@@ -4039,6 +4215,7 @@ const Game = {
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
 
+  document.title = APP_TITLE;
   Sprites.init();
   Config.init();
   Input.init();
@@ -4050,7 +4227,7 @@ const Game = {
   };
   canvas.addEventListener('pointerdown', e => { const [x, y] = toScreen(e); Game.pointer(x, y); });
   canvas.addEventListener('wheel', e => {
-    if (Game.state !== 'settings') return;
+    if (Game.state !== 'settings' && Game.state !== 'shop') return;
     e.preventDefault();
     Game.wheel(e.deltaY);
   }, { passive: false });

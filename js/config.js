@@ -104,6 +104,10 @@ const SETTINGS_DEF = [
   { action: 'classicPU', label: 'CLASSIC POWER-UPS ONLY' },
   { action: 'allPU', label: 'ALL POWER-UPS ON' },
 
+  { section: 'SHOP' },
+  { key: 'shop', label: 'SHOP AFTER STAGES', values: ONOFF, def: 'ON' },
+  { key: 'shopPrices', label: 'SHOP PRICES', values: PCTS, def: 100, fmt: fmtPct },
+
   { section: 'GAME' },
   { key: 'gameSpeed', label: 'GAME SPEED', values: [50, 75, 100, 125, 150, 200], def: 100, fmt: fmtPct },
   { key: 'volume', label: 'VOLUME', values: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 100, fmt: fmtPct },

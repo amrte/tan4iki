@@ -1,4 +1,6 @@
-# Tank 1990 — browser replica
+# tan4iki — Tank 1990 browser replica
+
+**Current version: 0.2** (see [CHANGELOG.md](CHANGELOG.md)). The version is shown on the title screen as `tan4iki_v0.2`.
 
 A from-scratch browser remake of **Tank 1990**, the NES/Famicom variant of Battle City.
 It's plain HTML5 Canvas and JavaScript with no dependencies and no build step. Sprites are
@@ -10,8 +12,9 @@ stored as 16×16 palette bitmaps in code, matching the NES originals. Sound come
 Open `index.html` in any modern browser. Double-clicking the file works too, because no server is needed.
 You can also serve the folder (`python3 -m http.server`) or publish it with GitHub Pages.
 
-**Single-file download:** [`dist/tank1990.html`](dist/tank1990.html) is the whole game in one HTML file,
-which you can save anywhere and open offline. To regenerate it after changing the code, run `node tools/build.js`.
+**Single-file download:** [`dist/tan4iki_v0.2.html`](dist/tan4iki_v0.2.html) is the whole game in one HTML file,
+which you can save anywhere and open offline. To regenerate it after changing the code, run `node tools/build.js`;
+the file is named after the version in `js/version.js`.
 
 ### Controls
 
@@ -53,6 +56,25 @@ fire buttons appear on screen.
   Press **Delete** to clear the map and **Enter** to play your map. Custom maps are saved in the browser.
 - Chiptune sound effects and engine hum, made with Web Audio.
 
+## Shop
+
+After each cleared stage, once the score tally finishes, the shop opens. Your score is your money: buying
+something takes its price off your score. In 2-player games player I shops first, then player II. Use up/down to pick,
+**A** (fire/Enter) to buy, and **Esc** when you're done.
+
+| Item | Price | Effect |
+|---|---|---|
+| Extra life | 5000 | one more tank |
+| Star | 3000 | upgrade your tank one level (up to 3) |
+| Gun | 8000 | max level and tree cutting |
+| Ship | 3000 | cross water; the boat soaks one hit |
+| Mines | 1500 | adds mines (3 by default) for the B button |
+| Shovel | 2000 | steel walls around the eagle at the start of the next stage |
+| Helmet, turbo, rapid, spread, rocket, pierce | 1000–3000 | that effect is active when your tank first appears in the next stage |
+
+Upgrades you buy are kept until you lose a tank, as with ones picked up during play. In Settings → SHOP you can turn the shop off or
+scale all prices (25%–300%). There is no shop after a game over.
+
 ## New power-ups
 
 These 8 were not in the original game. They're marked with `*` in Settings and can be switched off there.
@@ -81,6 +103,7 @@ in the browser, and **RESET TO DEFAULTS** restores the classic game.
 | Basic / fast / power / armor tank | speed (100%), shell speed (100%), hits to destroy (1 / 1 / 1 / 4) |
 | Power-ups | helmet time (10 s), clock time (10 s), shovel time (20 s), new power-up time (15 s), mines per pickup (3) |
 | Who can collect | for each of the 16 power-ups: **ANYONE** (you and enemies, default), **PLAYER** (only you) or **OFF** (never appears). Presets: *classic power-ups only* and *all power-ups on*. The selected power-up's icon and effect are shown at the bottom of the screen. |
+| Shop | shop after stages (on), shop prices (100%) |
 | Game | game speed (100%), volume (100%), engine sound (on) |
 
 ## Code layout
@@ -96,7 +119,8 @@ js/audio.js       NES-style Web Audio synth (SFX, jingles, engine)
 js/input.js       keyboard / gamepad / touch
 js/stage.js       gameplay: terrain, movement, AI, bullets, power-ups, rendering
 js/main.js        state machine (title, settings, curtain, play, score, game over, construction) + loop
-tools/build.js    bundles everything into dist/tank1990.html
+js/version.js     app name and version (single source of truth)
+tools/build.js    bundles everything into dist/tan4iki_v<version>.html
 ```
 
 Stage maps in `js/data.js` are easy to edit. Each one is 13×13 tile codes (or 26×26 half-tile blocks),

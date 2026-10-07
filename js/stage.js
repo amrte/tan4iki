@@ -144,6 +144,12 @@ class Stage {
       p.kills = [0, 0, 0, 0];
       p.tank = null;
       if (!p.out) this.spawnPlayer(p, 0);
+      // a shovel charge bought in the shop fortifies the eagle from the start
+      if (p.shopShovel) {
+        p.shopShovel = false;
+        this.shovel = Config.frames('shovelTime');
+        this.setBaseWalls(T_STEEL);
+      }
     }
   }
 
@@ -224,6 +230,12 @@ class Stage {
         const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, player: p, shield: Config.frames('spawnShield') });
         t.applyLevel();
         p.tank = t;
+        // items bought in the shop take effect on the first spawn of the stage
+        if (p.kit) {
+          if (p.kit.helmet) t.shield = Math.max(t.shield, Config.frames('helmetTime'));
+          for (const k of ['turbo', 'rapid', 'rocket', 'pierce', 'spread', 'ghost']) if (p.kit[k]) t.boost[k] = Config.frames('newTime');
+          p.kit = null;
+        }
         this.tanks.push(t);
       }
       s.done = true;
