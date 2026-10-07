@@ -75,6 +75,8 @@ const SHOP_ROWS = 9, SHOP_TOP = 40, SHOP_ROW_H = 16;
 
 // Daily challenge: the same 3 stages and 2 twists for everyone on a given day, 1 player, no shop, no saves.
 const DAILY_KEY = 'tank1990_daily', DAILY_STAGES = 3;
+const MODE_KEY = 'tank1990_modes';   // survival and time-attack records
+const fmtTime = f => { const s = f / 60; return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0') + '.' + Math.floor((s * 10) % 10); };
 const ENEMY_KEYS = k => ENEMY.map((e, i) => 'e' + i + k).filter(key => Config.defs[key]);
 const DAILY_MODS = [
   { name: 'DOUBLE TROUBLE', set: v => { v.enemyCount = 40; v.maxOnScreen = 6; } },
@@ -223,12 +225,14 @@ const Game = {
   titleMenu() {
     const m = [];
     if (this.hasSave()) m.push({ label: 'CONTINUE', act: () => this.loadGame() });
-    m.push({ label: '1 PLAYER', act: () => this.newGame(1, false) });
+    m.push({ label: '1 PLAYER', act: () => this.startGame(1) });
     // left/right picks 2, 3 or 4 players
-    m.push({ label: this.multiN + ' PLAYERS', act: () => this.newGame(this.multiN, false), adjust: d => { this.multiN = (this.multiN - 2 + d + 3) % 3 + 2; } });
+    m.push({ label: this.multiN + ' PLAYERS', act: () => this.startGame(this.multiN), adjust: d => { this.multiN = (this.multiN - 2 + d + 3) % 3 + 2; } });
     // left/right switches between hosting and joining an online game
     m.push({ label: this.onlineJoin ? 'ONLINE: JOIN' : 'ONLINE: HOST', act: () => this.openOnline(), adjust: () => { this.onlineJoin = !this.onlineJoin; } });
     // skill level, named as in DOOM: left/right (or A) changes it
+    // game mode: left/right (or A) changes it
+    m.push({ label: 'MODE: ' + modeInfo(Config.get('gameMode')).name, mode: true, act: () => Config.step('gameMode', 1), adjust: d => Config.step('gameMode', d) });
     m.push({ label: 'DAILY CHALLENGE', daily: true, act: () => this.startDaily() });
     m.push({ label: Config.skill().name, skill: true, act: () => Config.step('skill', 1), adjust: d => Config.step('skill', d) });
     m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
@@ -283,7 +287,13 @@ const Game = {
       ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, top - 4 + this.menuIdx * step);
     }
     const cur = menu[this.menuIdx];
-    if (cur && cur.daily && this.titleY === 0) {
+    if (cur && cur.mode && this.titleY === 0) {
+      const mi = modeInfo(Config.get('gameMode')), rec = STORE.get(MODE_KEY, {});
+      Font.drawCenter(ctx, mi.desc + (mi.vs ? ' (2-4 P)' : ''), SW / 2, 203, COL.gold);
+      const best = mi.key === 'survival' && rec.survival ? 'BEST WAVE ' + rec.survival.wave + '  ' + rec.survival.score
+        : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack) : '< > CHANGE MODE';
+      Font.drawCenter(ctx, best, SW / 2, 213, COL.lgrey);
+    } else if (cur && cur.daily && this.titleY === 0) {
       const d = dailyToday(), best = STORE.get(DAILY_KEY, {});
       Font.drawCenter(ctx, DAILY_MODS[d.mods[0]].name + ' + ' + DAILY_MODS[d.mods[1]].name, SW / 2, 203, COL.gold);
       Font.drawCenter(ctx, 'STAGE ' + d.stage + '  BEST ' + (best.date === d.date ? best.score : 0), SW / 2, 213, COL.lgrey);
@@ -314,7 +324,7 @@ const Game = {
   // ---------------------------------------------------------------- save / load
   // One save slot: written by SAVE GAME in the pause menu and automatically at every stage start.
   saveGame() {
-    if (!this.stage || this.stage.over || this.daily) return false;
+    if (!this.stage || this.stage.over || this.daily || (this.mode && this.mode !== 'classic')) return false;
     const data = {
       app: APP_VERSION, time: Date.now(), numPlayers: this.players.length, stageNum: this.stageNum, lastScores: this.lastScores,
       players: this.players.map(p => { const o = Object.assign({}, p); delete o.tank; return o; }),
@@ -362,7 +372,13 @@ const Game = {
     // the stage picker starts where you last played
     this.stageNum = Math.max(1, Math.min(this.stageLimit(), STORE.get('tank1990_lastStage', 1) | 0 || 1));
     this.customPending = custom;
-    this.toCurtain(!custom);
+    // game mode (modes.js); versus needs at least two players
+    this.mode = custom || this.daily ? 'classic' : Config.get('gameMode');
+    if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
+    this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
+    this.toCurtain(!custom && this.mode === 'classic');
+    if (this.mode === 'timeattack') this.stageNum = 1;
+    else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
   },
 
   toCurtain(selectable) {
@@ -417,15 +433,18 @@ const Game = {
     let map, custom = false;
     if (this.customPending) { map = this.custom; custom = true; this.customPending = false; }
     else map = LEVELS[(this.stageNum - 1) % LEVELS.length];
-    const boss = custom ? null : bossForStage(this.stageNum);
+    const boss = custom || this.mode !== 'classic' ? null : bossForStage(this.stageNum);
     if (boss) map = BOSS_ARENAS[boss.idx];
-    this.stage = new Stage(this.stageNum, map, this.players, { custom, boss, base: this.base });
+    const vs = modeInfo(this.mode).vs ? this.mode : null;
+    this.stage = new Stage(this.stageNum, map, this.players, {
+      custom, boss, base: vs ? newBase() : this.base, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
+    });
     this.paused = false;
     this.openH = SCREEN_H / 2;
     this.setState('play');
     Sound.play('start');
-    this.saveGame(); // autosave at every stage start
-    if (!custom && Net.role !== 'client' && !this.daily) {
+    if (this.mode === 'classic') this.saveGame(); // autosave at every stage start
+    if (!custom && Net.role !== 'client' && !this.daily && this.mode === 'classic') {
       STORE.set('tank1990_lastStage', this.stageNum);
       if (this.stageNum > STORE.get('tank1990_bestStage', 1)) STORE.set('tank1990_bestStage', this.stageNum);
     }
@@ -454,6 +473,11 @@ const Game = {
       return;
     }
     this.stage.update();
+    if (this.mode === 'timeattack' && !this.stage.over && !this.stage.clearTimer) this.taFrames++;
+    const r = this.stage.result;
+    if (r === 'vsRound') { this.vsRoundEnd(); return; }
+    if (r && this.mode === 'timeattack' && r === 'clear') { this.saveHi(); this.taNext(); return; }
+    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack')) { this.saveHi(); this.toModeResult(false); return; }
     if (this.stage.result) {
       // beating a boss earns 25% off in the next shop
       this.shopDiscount = this.stage.result === 'clear' && this.stage.bossIdx !== undefined;
@@ -466,7 +490,7 @@ const Game = {
     if (action === 'CONTINUE') this.paused = false;
     else if (action === 'SAVE GAME') {
       const ok = this.saveGame();
-      this.pauseMsg = ok ? 'GAME SAVED' : this.daily ? 'NO SAVES IN DAILY' : 'SAVE FAILED';
+      this.pauseMsg = ok ? 'GAME SAVED' : this.daily ? 'NO SAVES IN DAILY' : this.mode !== 'classic' ? 'NO SAVES IN THIS MODE' : 'SAVE FAILED';
       this.pauseMsgT = 120;
       Sound.play(ok ? 'pickup' : 'steel');
     } else if (action === 'ONLINE PLAYERS') {
@@ -482,6 +506,8 @@ const Game = {
 
   renderPlay(ctx) {
     this.stage.render(ctx);
+    // time attack: the clock, in the border above the field
+    if (this.mode === 'timeattack') Font.drawCenter(ctx, fmtTime(this.taFrames) + '  STAGE ' + (this.taCleared + 1) + '/' + TA_STAGES, SCREEN_W / 2, 0, COL.black);
     if (this.paused) {
       const w = 112, h = 70, x = FX + ((FW - w) >> 1), y = FY + ((FH - h) >> 1);
       ctx.fillStyle = COL.black;
@@ -657,6 +683,103 @@ const Game = {
     }
   },
 
+  // ---------------------------------------------------------------- game modes
+  startGame(n) {
+    if (modeInfo(Config.get('gameMode')).vs && n < 2) { this.toast('VERSUS NEEDS 2-4 PLAYERS'); Sound.play('steel'); return; }
+    this.newGame(n, false);
+  },
+
+  // time attack: on to the next stage, or done
+  taNext() {
+    this.taCleared++;
+    if (this.taCleared >= TA_STAGES) { this.toModeResult(true); return; }
+    this.stageNum++;
+    this.toCurtain(false);
+  },
+
+  toModeResult(done) {
+    const rec = STORE.get(MODE_KEY, {}), score = this.players.reduce((a, p) => a + p.score, 0);
+    const res = { mode: this.mode, done, score, newBest: false };
+    if (this.mode === 'survival') {
+      res.wave = this.stage.wave;
+      const b = rec.survival;
+      if (!b || res.wave > b.wave || (res.wave === b.wave && score > b.score)) { rec.survival = { wave: res.wave, score }; res.newBest = true; }
+      res.best = rec.survival;
+    } else {
+      res.frames = this.taFrames;
+      res.cleared = this.taCleared;
+      if (done && (!rec.timeattack || this.taFrames < rec.timeattack)) { rec.timeattack = this.taFrames; res.newBest = true; }
+      res.best = rec.timeattack || 0;
+    }
+    STORE.set(MODE_KEY, rec);
+    this.modeRes = res;
+    Sound.setEngine(0);
+    Sound.play(res.newBest ? 'bonus' : 'gameover');
+    this.setState('modeResult');
+  },
+
+  // versus: a round is over
+  vsRoundEnd() {
+    const st = this.stage, w = st.vsWinner;
+    if (w >= 0) this.vsWins[w] = (this.vsWins[w] || 0) + 1;
+    const final = this.mode !== 'eagles' || this.vsWins.some(n => n >= VS_ROUNDS);
+    this.vsRes = {
+      mode: this.mode, winner: w, final, round: this.round,
+      rows: this.players.map(p => ({ i: p.i, kills: p.vsKills || 0, caps: p.caps || 0, wins: this.vsWins[p.i] || 0 })),
+    };
+    Sound.setEngine(0);
+    this.setState('vsResult');
+  },
+
+  updateVsResult() {
+    if (this.t < 90 || !(Input.menu().ok || this.t > 600)) return;
+    if (this.vsRes.final) { this.stage = null; this.toTitle(); this.titleY = 0; return; }
+    this.round++;
+    this.stageNum = this.stageNum % LEVELS.length + 1;
+    for (const p of this.players) { p.out = false; p.vsKills = 0; }
+    this.toCurtain(false);
+  },
+
+  renderVsResult(ctx) {
+    const r = this.vsRes;
+    ctx.fillStyle = COL.black;
+    ctx.fillRect(0, 0, SW, SH);
+    Font.drawCenter(ctx, modeInfo(r.mode).name + (r.mode === 'eagles' ? '  ROUND ' + r.round : ''), SW / 2, 30, COL.red);
+    const msg = r.winner >= 0 ? ROMAN[r.winner] + '-PLAYER ' + (r.final ? 'WINS THE MATCH!' : 'WINS THE ROUND') : 'DRAW!';
+    if ((this.t >> 4) & 1 || this.t > 90) Font.drawCenter(ctx, msg, SW / 2, 60, COL.gold);
+    const head = r.mode === 'eagles' ? 'ROUNDS' : r.mode === 'dm' ? 'KILLS' : 'FLAGS';
+    Font.draw(ctx, head, 136, 92, COL.lgrey);
+    r.rows.forEach((row, k) => {
+      const y = 110 + k * 18;
+      ctx.drawImage(Sprites.playerIcon(Config.playerPal(row.i)), 64, y);
+      Font.draw(ctx, ROMAN[row.i] + '-PLAYER', 76, y, COL.white);
+      Font.drawRight(ctx, r.mode === 'eagles' ? row.wins : r.mode === 'dm' ? row.kills : row.caps, 184, y, COL.white);
+    });
+    if (this.t > 90) Font.drawCenter(ctx, r.final ? 'PRESS ENTER' : 'PRESS ENTER: NEXT ROUND', SW / 2, 200, COL.lgrey);
+  },
+
+  updateModeResult() {
+    if (this.t > 60 && Input.menu().ok) { this.stage = null; this.toTitle(); this.titleY = 0; }
+  },
+
+  renderModeResult(ctx) {
+    const r = this.modeRes;
+    ctx.fillStyle = COL.black;
+    ctx.fillRect(0, 0, SW, SH);
+    Font.drawCenter(ctx, modeInfo(r.mode).name, SW / 2, 40, COL.red);
+    if (r.mode === 'survival') {
+      Font.drawCenter(ctx, 'YOU HELD OUT TO WAVE ' + r.wave, SW / 2, 80, COL.white);
+      Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
+      Font.drawCenter(ctx, 'BEST: WAVE ' + r.best.wave + '  ' + r.best.score, SW / 2, 124, COL.lgrey);
+    } else {
+      Font.drawCenter(ctx, r.done ? 'ALL ' + TA_STAGES + ' STAGES IN ' + fmtTime(r.frames) : 'FAILED ON STAGE ' + (r.cleared + 1), SW / 2, 80, COL.white);
+      Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
+      Font.drawCenter(ctx, 'BEST TIME ' + (r.best ? fmtTime(r.best) : '-'), SW / 2, 124, COL.lgrey);
+    }
+    if (r.newBest && (this.t >> 4) & 1) Font.drawCenter(ctx, 'NEW BEST!', SW / 2, 150, COL.gold);
+    if (this.t > 60) Font.drawCenter(ctx, 'PRESS ENTER', SW / 2, 196, COL.lgrey);
+  },
+
   // ---------------------------------------------------------------- daily challenge
   startDaily() {
     if (Net.role === 'host') Net.hangUp();
@@ -664,6 +787,7 @@ const Game = {
     // today's twists go on top of your settings for this run only (never saved)
     this.dailyBackup = Object.assign({}, Config.values);
     Config.values.shop = 'OFF';
+    Config.values.gameMode = 'classic';
     for (const i of d.mods) DAILY_MODS[i].set(Config.values);
     Config.apply();
     this.daily = { date: d.date, mods: d.mods, start: d.stage, cleared: 0 };
@@ -1277,6 +1401,8 @@ const Game = {
       case 'keys': this.updateKeys(); break;
       case 'ranks': this.updateRanks(); break;
       case 'dailyResult': this.updateDailyResult(); break;
+      case 'vsResult': this.updateVsResult(); break;
+      case 'modeResult': this.updateModeResult(); break;
     }
   },
 
@@ -1321,6 +1447,8 @@ const Game = {
       case 'keys': this.renderKeys(ctx); break;
       case 'ranks': this.renderRanks(ctx); break;
       case 'dailyResult': this.renderDailyResult(ctx); break;
+      case 'vsResult': this.renderVsResult(ctx); break;
+      case 'modeResult': this.renderModeResult(ctx); break;
       case 'netwait': this.renderNetWait(ctx); break;
     }
   },

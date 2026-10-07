@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.14</title>
+  <title>tanb4iki_v0.15</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.14';
+const APP_VERSION = '0.15';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2213,6 +2213,13 @@ const Sprites = {
     }
     return c;
   },
+  // a capture-the-flag flag in a player's colour
+  vsFlag(pal) {
+    const k = 'vsflag' + pal;
+    let c = this.cache.get(k);
+    if (!c) { c = gridCanvas(parseGrid(FLAG_GRID), [null, PALS[pal][2], '#ADADAD']); this.cache.set(k, c); }
+    return c;
+  },
   // turret gun in a palette, aimed in dir
   turretGun(dir, pal) {
     const k = 'tg' + dir + pal;
@@ -2524,6 +2531,8 @@ const SETTINGS_DEF = [
   { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
   { section: 'GAME' },
+  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'survival', 'timeattack', 'eagles', 'dm', 'ctf'], def: 'classic',
+    fmt: v => modeInfo(v).name },
   { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!'][v] },
   { key: 'terrainExtras', label: 'MUD, BELTS, PADS', values: ONOFF, def: 'ON' },
   { key: 'darkStages', label: 'NIGHT AND FOG', values: ['SOME', 'OFF', 'ALWAYS NIGHT', 'ALWAYS FOG'], def: 'SOME',
@@ -3509,7 +3518,8 @@ function mapToBlocks(map) {
 // 4th, 11th, 18th ... enemy carries a power-up
 const isBonusSlot = i => i % 7 === 3;
 
-function buildQueue(stageNum) {
+// count: how many tanks (the ENEMIES setting unless given, e.g. a survival wave)
+function buildQueue(stageNum, count) {
   const mix = enemyMix(stageNum);
   const list = [];
   mix.forEach((n, type) => { for (let i = 0; i < n; i++) list.push(type); });
@@ -3520,7 +3530,8 @@ function buildQueue(stageNum) {
     [list[i], list[j]] = [list[j], list[i]];
   }
   // stretch or shrink the 20-tank line-up to the configured count
-  const count = Config.get('enemyCount'), bonus = Config.on('bonusTanks');
+  count = count || Config.get('enemyCount');
+  const bonus = Config.on('bonusTanks');
   const out = [];
   for (let i = 0; i < count; i++) out.push({ type: list[Math.floor(i * list.length / count)], bonus: bonus && isBonusSlot(i) });
   // Later stages get tougher: new enemy types join one by one (rocket from stage 4, sapper 7, shield 11,
@@ -3655,6 +3666,11 @@ class Stage {
     this.result = null;
     this.frame = 0;
     this.dirty = true;
+    // game modes (modes.js)
+    this.noBase = false;
+    if (opts.vs) this.setupVersus(opts.vs);
+    if (opts.survival) this.setupSurvival();
+    if (opts.timeAttack) this.spawnInterval = Math.round(this.spawnInterval / 2);
     for (const p of players) {
       p.kills = zeroKills();
       if (!opts.snapshot) p.stageXp = 0;
@@ -3786,7 +3802,7 @@ class Stage {
 
   // ------------------------------------------------------------ spawning
   spawnPlayer(p, delay) {
-    const [x, y] = PLAYER_SPAWN[p.i];
+    const [x, y] = (this.vsSpawn || PLAYER_SPAWN)[p.i];
     this.spawns.push({ x, y, t: SPARKLE_TIME + delay, player: p });
   }
 
@@ -3894,7 +3910,10 @@ class Stage {
     if (this.over) {
       this.overTimer++;
       if (this.overTimer >= 320) this.result = 'gameover';
+    } else if (this.vs) {
+      this.updateVersus();
     } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer) && !this.bossAlive()) {
+      if (this.survival) { this.nextWave(); return; }
       this.clearTimer++;
       if (this.clearTimer === 1) for (const p of this.players) if (!p.out) this.addXp(p, 25);
       if (this.clearTimer >= 190) this.result = 'clear';
@@ -4090,7 +4109,8 @@ class Stage {
         if (tt === T_WATER && !t.ship && !t.boost.ghost && !t.hover) return false;
       }
     }
-    if (overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
+    if (!this.noBase && overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
+    if (this.vsEagles && this.vsEagles.some(e => overlap(nx, ny, 16, 16, e.x, e.y, 16, 16))) return false;
     if (this.decoy && overlap(nx, ny, 16, 16, this.decoy.x, this.decoy.y, 16, 16)) return false;
     if (this.bosses.length && this.bossBlocksTank(t, nx, ny)) return false;
     if (this.turrets.length) {
@@ -4177,7 +4197,8 @@ class Stage {
       this.hitDecoy();
       return;
     }
-    if (overlap(b.x, b.y, 4, 4, BASE_X, BASE_Y, 16, 16)) {
+    if (this.vsEagles && this.vsBulletEagle(b)) return;
+    if (!this.noBase && overlap(b.x, b.y, 4, 4, BASE_X, BASE_Y, 16, 16)) {
       this.killBullet(b, true);
       if (this.baseAlive) this.destroyBase();
       return;
@@ -4187,11 +4208,11 @@ class Stage {
       if (!overlap(b.x, b.y, 4, 4, t.x, t.y, 16, 16)) continue;
       if (b.pierce) {
         // piercing shells damage each tank once and keep flying
-        if (b.isPlayer === t.isPlayer && (!b.isPlayer || Config.get('friendlyFire') === 'OFF')) continue;
+        if (b.isPlayer === t.isPlayer && (!b.isPlayer || (Config.get('friendlyFire') === 'OFF' && !this.vs))) continue;
         b.hits = b.hits || new Set();
         if (b.hits.has(t)) continue;
         b.hits.add(t);
-        if (b.isPlayer && t.isPlayer) { if (t.shield <= 0) t.frozen = 180; }
+        if (b.isPlayer && t.isPlayer) { if (this.vs) this.hitPlayer(t, b.owner); else if (t.shield <= 0) t.frozen = 180; }
         else if (b.isPlayer) this.hitEnemy(t, b.owner, b.rocket);
         else this.hitPlayer(t);
         continue;
@@ -4204,6 +4225,7 @@ class Stage {
         return;
       }
       if (b.isPlayer) {
+        if (t.isPlayer && this.vs) { this.hitPlayer(t, b.owner); this.killBullet(b, true, t); return; }   // versus: for real
         if (t.isPlayer) {
           // friendly fire freezes the other player for a few seconds
           if (Config.get('friendlyFire') === 'OFF') continue;
@@ -4294,8 +4316,12 @@ class Stage {
       if (!t.alive || t === exclude || !reaches(t.x, t.y, 16, 16)) continue;
       if (byPlayer && !t.isPlayer) this.hitEnemy(t, owner, true);
       else if (!byPlayer && t.isPlayer) this.hitPlayer(t);
+      else if (this.vs && t.isPlayer && (!owner || !owner.player || t.player !== owner.player)) this.hitPlayer(t, owner);
     }
-    if (!byPlayer && this.baseAlive && reaches(BASE_X, BASE_Y, 16, 16)) this.destroyBase();
+    if (!byPlayer && !this.noBase && this.baseAlive && reaches(BASE_X, BASE_Y, 16, 16)) this.destroyBase();
+    for (const e of this.vsEagles || []) {
+      if (e.alive && reaches(e.x, e.y, 16, 16) && (!owner || !owner.player || owner.player.i !== e.i)) this.vsEagleDown(e);
+    }
     if (!byPlayer && this.decoy && reaches(this.decoy.x, this.decoy.y, 16, 16)) this.hitDecoy();
     if (byPlayer) {
       for (const bo of this.bosses.slice()) {
@@ -4316,7 +4342,9 @@ class Stage {
     for (const m of this.mines) {
       m.t++;
       if (m.t < MINE_ARM_TIME) continue;
-      const victim = this.tanks.find(t => t.alive && t.isPlayer !== m.byPlayer && overlap(t.x, t.y, 16, 16, m.x - 4, m.y - 4, 8, 8));
+      // in versus a mine is for everyone but the player who laid it
+      const foe = t => t.isPlayer !== m.byPlayer || (this.vs && t.isPlayer && (!m.owner || t.player !== m.owner.player));
+      const victim = this.tanks.find(t => t.alive && foe(t) && overlap(t.x, t.y, 16, 16, m.x - 4, m.y - 4, 8, 8));
       if (victim) {
         m.done = true;
         this.blast(m.x, m.y, MINE_RADIUS, m.byPlayer, m.owner, false);
@@ -4357,7 +4385,8 @@ class Stage {
     }
   }
 
-  hitPlayer(t) {
+  // by: the tank (or turret gunner) whose shot it was, for versus kills
+  hitPlayer(t, by) {
     if (t.ally) { this.hitAlly(t); return; }
     if (!t.alive || t.shield > 0) return;
     const p = t.player;
@@ -4395,6 +4424,7 @@ class Stage {
       p.xp = Math.max(floor, p.xp - Math.round((p.xp - floor) * loss / 100));
     }
     p.tank = null;
+    if (this.vs) { this.vsDeath(t, by); return; }
     if (Config.infiniteLives()) {
       this.spawnPlayer(p, 30);
     } else if (p.lives > 0) {
@@ -4458,9 +4488,9 @@ class Stage {
   }
 
   // ------------------------------------------------------------ power-ups
-  spawnPowerup() {
-    // only power-ups enabled in the settings can appear
-    const weights = POWERUPS.map((pu, i) => (Config.get('pu' + i) === 'OFF' ? 0 : pu.weight));
+  spawnPowerup(only) {
+    // only power-ups enabled in the settings can appear (and, in versus, only those that make sense there)
+    const weights = POWERUPS.map((pu, i) => (Config.get('pu' + i) === 'OFF' || (only && !only.includes(i)) ? 0 : pu.weight));
     const total = weights.reduce((a, b) => a + b, 0);
     if (total === 0) return;
     let r = rnd(total), type = 0;
@@ -4680,7 +4710,8 @@ class Stage {
     }
     this.renderBelts(ctx);
     this.renderPads(ctx);
-    this.renderEagle(ctx);
+    if (!this.noBase) this.renderEagle(ctx);
+    this.renderVs(ctx);
     this.renderDecoy(ctx);
 
     for (const m of this.mines) ctx.drawImage(Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0], m.x - 4, m.y - 4);
@@ -4739,6 +4770,7 @@ class Stage {
     this.renderBossBanner(ctx);
     this.renderRankMsg(ctx);
     this.renderRevival(ctx);
+    this.renderModeBanner(ctx);
     ctx.restore();
     this.renderHud(ctx);
   }
@@ -4780,6 +4812,7 @@ class Stage {
   }
 
   renderHud(ctx) {
+    if (this.vs) { this.renderVsHud(ctx, HUD_X); return; }
     const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
     if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);
@@ -4800,7 +4833,7 @@ class Stage {
         } else this.renderCarried(ctx, p, H + 1, y + 9, false, 5);
       });
       ctx.drawImage(Sprites.flag, H, 184);
-      Font.drawRight(ctx, String(this.num), H + 16, 200, COL.black);
+      Font.drawRight(ctx, String(this.survival ? this.wave : this.num), H + 16, 200, COL.black);
       return;
     }
     // 1-2 players: label, lives, mines carried and (with XP on) the level and XP bar
@@ -4823,7 +4856,7 @@ class Stage {
       }
     });
     ctx.drawImage(Sprites.flag, H, 184);
-    Font.drawRight(ctx, String(this.num), H + 16, 200, COL.black);
+    Font.drawRight(ctx, String(this.survival ? this.wave : this.num), H + 16, 200, COL.black);
   }
 }
 
@@ -6271,6 +6304,253 @@ Object.assign(Stage.prototype, {
   <script>
 'use strict';
 // =====================================================================
+//  Game modes (picked on the title screen's MODE row)
+//    CLASSIC      the game as always
+//    SURVIVAL     endless waves on one map, each bigger and stronger; a breather between waves
+//    TIME ATTACK  clear stages 1-5 as fast as you can (the clock runs from the first stage)
+//    VS EAGLES    2-4 players, each with an eagle: defend yours, destroy theirs; best of 3 rounds
+//    DEATHMATCH   2-4 players, no eagles: first to 10 kills, or the most kills after 3 minutes
+//    FLAGS        capture the flag: bring another player's flag home to your own; first to 3
+// =====================================================================
+
+const MODES = [
+  { key: 'classic', name: 'CLASSIC', desc: 'THE GAME AS ALWAYS' },
+  { key: 'survival', name: 'SURVIVAL', desc: 'ENDLESS WAVES, HOW LONG?' },
+  { key: 'timeattack', name: 'TIME ATTACK', desc: 'CLEAR 5 STAGES FAST' },
+  { key: 'eagles', name: 'VS EAGLES', vs: true, desc: 'GUARD YOURS, HIT THEIRS' },
+  { key: 'dm', name: 'DEATHMATCH', vs: true, desc: 'FIRST TO 10 KILLS' },
+  { key: 'ctf', name: 'FLAGS', vs: true, desc: 'BRING THEIR FLAG HOME' },
+];
+const modeInfo = key => MODES.find(m => m.key === key) || MODES[0];
+const TA_STAGES = 5, VS_ROUNDS = 2, DM_FRAGS = 10, DM_TIME = 3 * 60 * 60, CTF_CAPS = 3;
+const VS_RESPAWN = 90, VS_PU_EVERY = 900, WAVE_BREAK = 240;
+// power-ups that make sense between players
+const VS_POWERUPS = [PU.HELMET, PU.STAR, PU.SHIP, PU.TURBO, PU.RAPID, PU.SPREAD, PU.PIERCE, PU.ROCKET, PU.MINES, PU.GHOST, PU.SMOKE, PU.GUN];
+
+// survival: what wave w brings
+function waveQueue(w) {
+  return buildQueue(Math.min(60, w * 2), Math.min(60, 6 + w * 2));
+}
+
+Object.assign(Stage.prototype, {
+  // ------------------------------------------------------------ survival
+  setupSurvival() {
+    this.survival = true;
+    this.wave = 1;
+    this.queue = waveQueue(1);
+    this.total = this.queue.length;
+    this.waveBreak = 0;
+  },
+
+  // called instead of "stage clear" when a wave is beaten
+  nextWave() {
+    if (this.waveBreak > 0) {
+      if (--this.waveBreak === 0) {
+        this.wave++;
+        this.queue = waveQueue(this.wave);
+        this.total += this.queue.length;
+        this.spawnTimer = 0;
+      }
+      return;
+    }
+    this.waveBreak = WAVE_BREAK;
+    // a breather: the fortress is patched, every 5 waves a tank for everyone
+    this.setBaseWalls(T_BRICK);
+    if ((this.wave + 1) % 5 === 0) for (const p of this.players) if (!p.out && !Config.infiniteLives()) p.lives++;
+    for (const p of this.players) if (!p.out) this.addXp(p, 10 + this.wave * 2);
+    Sound.play('bonus');
+  },
+
+  // ------------------------------------------------------------ versus
+  setupVersus(kind) {
+    this.vs = kind;
+    this.queue = [];
+    this.total = 0;
+    this.noBase = true;
+    const midY = Math.round((FH / 2 - 8) / 16) * 16;
+    const homes = [[BASE_X, BASE_Y], [BASE_X, 0], [0, midY], [FW - 16, midY]];
+    this.vsSpawn = kind === 'dm'
+      ? [[0, FH - 16], [FW - 16, 0], [0, 0], [FW - 16, FH - 16]]
+      : [[BASE_X - 32, BASE_Y], [BASE_X + 32, 0], [0, midY - 32], [FW - 16, midY + 32]];
+    // clear room around everyone's home and entry point; the classic fortress goes (rebuilt below if needed)
+    this.setBaseWalls(T_EMPTY);
+    const clear = (x, y, r) => {
+      for (let cy = (y >> 2) - r; cy < (y >> 2) + 4 + r; cy++) for (let cx = (x >> 2) - r; cx < (x >> 2) + 4 + r; cx++) {
+        const t = this.get(cx, cy);
+        if (t !== -1 && t !== T_EMPTY) this.set(cx, cy, T_EMPTY);
+      }
+    };
+    this.players.forEach((p, i) => { clear(...this.vsSpawn[i], 1); if (kind !== 'dm') clear(...homes[i], 3); });
+    this.pads = this.pads.filter(pd => !this.players.some((p, i) => overlap(pd.x, pd.y, 16, 16, this.vsSpawn[i][0] - 8, this.vsSpawn[i][1] - 8, 32, 32)));
+    if (kind === 'eagles') {
+      this.vsEagles = this.players.map((p, i) => ({ x: homes[i][0], y: homes[i][1], i, alive: true }));
+      for (const e of this.vsEagles) this.fortressAround(e.x, e.y);
+    }
+    if (kind === 'ctf') {
+      this.flags = this.players.map((p, i) => ({ i, hx: homes[i][0], hy: homes[i][1], x: homes[i][0], y: homes[i][1], carrier: null }));
+    }
+    for (const p of this.players) { p.vsKills = p.vsKills || 0; p.caps = 0; p.out = false; }
+    this.vsTime = 0;
+    this.vsPu = VS_PU_EVERY / 2;
+    this.vsEnd = 0;
+  },
+
+  // a ring of 8px brick blocks around a 16px eagle (inside the field)
+  fortressAround(x, y) {
+    const bx = x / 8, by = y / 8;
+    for (let yy = by - 1; yy <= by + 2; yy++) for (let xx = bx - 1; xx <= bx + 2; xx++) {
+      const inside = xx >= bx && xx <= bx + 1 && yy >= by && yy <= by + 1;
+      if (!inside && xx >= 0 && yy >= 0 && xx < COLS * 2 && yy < ROWS * 2) this.setBlock(xx, yy, T_BRICK);
+    }
+  },
+
+  vsPlayerOf(tank) { return tank && tank.player ? tank.player : null; },
+
+  // a player tank was destroyed in a versus game
+  vsDeath(t, by) {
+    const p = t.player, killer = this.vsPlayerOf(by);
+    if (killer && killer !== p) {
+      killer.vsKills++;
+      this.addScore(killer, 100);
+      this.popups.push({ x: t.x + 8, y: t.y, text: ROMAN[killer.i] + ' +1', label: true, color: PALS[Config.playerPal(killer.i)][2], t: 0, delay: 0 });
+    }
+    // a flag carrier drops the flag where it fell
+    for (const f of this.flags || []) if (f.carrier === p) { f.carrier = null; f.x = t.x; f.y = t.y; }
+    const eagleGone = this.vs === 'eagles' && !this.vsEagles[p.i].alive;
+    if (eagleGone) p.out = true; else this.spawnPlayer(p, VS_RESPAWN);
+  },
+
+  // a shell meets an eagle (true if it stopped there)
+  vsBulletEagle(b) {
+    for (const e of this.vsEagles || []) {
+      if (!e.alive || !overlap(b.x, b.y, 4, 4, e.x, e.y, 16, 16)) continue;
+      this.killBullet(b, true);
+      const owner = this.vsPlayerOf(b.owner);
+      if (!owner || owner.i !== e.i) this.vsEagleDown(e);   // your own shells can't hurt your eagle
+      return true;
+    }
+    return false;
+  },
+
+  vsEagleDown(e) {
+    if (!e.alive) return;
+    e.alive = false;
+    this.addFx(e.x + 8, e.y + 8, BIG_EXPLOSION(), 6);
+    Sound.play('baseDie');
+    const p = this.players[e.i];
+    p.out = true;
+    if (p.tank) { p.tank.alive = false; this.addFx(p.tank.x + 8, p.tank.y + 8, BIG_EXPLOSION(), 5); p.tank = null; }
+    this.spawns = this.spawns.filter(s => s.player !== p);
+    this.popups.push({ x: e.x + 8, y: e.y, text: ROMAN[e.i] + ' IS OUT', label: true, color: COL.red, t: 0, delay: 0, life: 120 });
+  },
+
+  updateVersus() {
+    this.vsTime++;
+    // power-ups drop now and then (no bonus tanks here)
+    if (!this.powerup && --this.vsPu <= 0) {
+      this.vsPu = VS_PU_EVERY;
+      this.spawnPowerup(VS_POWERUPS);
+    }
+    if (this.vs === 'ctf') this.updateFlags();
+    if (this.vsEnd > 0) { if (--this.vsEnd === 0) this.result = 'vsRound'; return; }
+    // has anyone won?
+    let winner = null;
+    if (this.vs === 'eagles') {
+      const alive = this.vsEagles.filter(e => e.alive);
+      if (alive.length <= 1) winner = alive.length ? alive[0].i : -1;
+    } else if (this.vs === 'dm') {
+      const top = this.players.find(p => p.vsKills >= DM_FRAGS);
+      if (top) winner = top.i;
+      else if (this.vsTime >= DM_TIME) winner = this.leader(p => p.vsKills);
+    } else if (this.vs === 'ctf') {
+      const top = this.players.find(p => p.caps >= CTF_CAPS);
+      if (top) winner = top.i;
+    }
+    if (winner !== null) { this.vsWinner = winner; this.vsEnd = 150; Sound.play(winner >= 0 ? 'bonus' : 'gameover'); }
+  },
+
+  // the single best player by some count, or -1 on a tie
+  leader(f) {
+    const best = Math.max(...this.players.map(f));
+    const top = this.players.filter(p => f(p) === best);
+    return top.length === 1 ? top[0].i : -1;
+  },
+
+  updateFlags() {
+    for (const f of this.flags) {
+      if (f.carrier) {
+        const t = f.carrier.tank;
+        if (t) { f.x = t.x; f.y = t.y; }
+        continue;
+      }
+      for (const t of this.tanks) {
+        if (!t.alive || !t.isPlayer || t.ally || !overlap(t.x + 2, t.y + 2, 12, 12, f.x + 2, f.y + 2, 12, 12)) continue;
+        const p = t.player;
+        if (p.i === f.i) {
+          // your own flag: a dropped one goes home; at home, bring a captured flag to it
+          if (f.x !== f.hx || f.y !== f.hy) { f.x = f.hx; f.y = f.hy; Sound.play('pickup'); }
+          const carried = this.flags.find(g => g.carrier === p);
+          if (carried) {
+            carried.carrier = null; carried.x = carried.hx; carried.y = carried.hy;
+            p.caps++;
+            this.addScore(p, 500);
+            this.popups.push({ x: t.x + 8, y: t.y, text: 'CAPTURE!', label: true, color: COL.gold, t: 0, delay: 0, life: 90 });
+            Sound.play('life');
+          }
+        } else if (!this.flags.some(g => g.carrier === p)) {
+          f.carrier = p;   // grabbed someone else's flag
+          Sound.play('bonus');
+        }
+        break;
+      }
+    }
+  },
+
+  // ------------------------------------------------------------ drawing
+  renderVs(ctx) {
+    for (const e of this.vsEagles || []) {
+      if (!e.alive) { ctx.drawImage(Sprites.eagleDead, e.x, e.y); continue; }
+      ctx.drawImage(Sprites.outline(Sprites.eagle, PALS[Config.playerPal(e.i)][2]), e.x - 1, e.y - 1);
+      ctx.drawImage(Sprites.eagle, e.x, e.y);
+    }
+    for (const f of this.flags || []) {
+      // home marker, then the flag itself in its owner's colour
+      ctx.strokeStyle = PALS[Config.playerPal(f.i)][2];
+      ctx.strokeRect(f.hx + 0.5, f.hy + 0.5, 15, 15);
+      ctx.drawImage(Sprites.vsFlag(Config.playerPal(f.i)), f.x, f.y - (f.carrier ? 6 : 0));
+    }
+  },
+
+  renderVsHud(ctx, H) {
+    const val = p => (this.vs === 'eagles' ? (Game.vsWins[p.i] || 0) : this.vs === 'dm' ? p.vsKills : p.caps);
+    Font.draw(ctx, this.vs === 'eagles' ? 'WIN' : this.vs === 'dm' ? 'KIL' : 'CAP', H - 4, 24, COL.black);
+    this.players.forEach((p, i) => {
+      const y = 40 + i * 20;
+      ctx.drawImage(Sprites.playerIcon(Config.playerPal(i)), H, y);
+      Font.draw(ctx, String(Math.min(99, val(p))), H + 8, y, p.out ? '#3C3C3C' : COL.black);
+      if (this.vs === 'eagles' && !this.vsEagles[i].alive) { ctx.fillStyle = COL.red; ctx.fillRect(H, y + 3, 16, 1); }
+    });
+    if (this.vs === 'dm') {
+      const left = Math.max(0, Math.ceil((DM_TIME - this.vsTime) / 60));
+      Font.drawCenter(ctx, Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'), H + 8, 130, COL.black);
+    }
+  },
+
+  renderModeBanner(ctx) {
+    if (this.survival && this.waveBreak > 0 && (this.waveBreak >> 4) & 1) {
+      Font.drawCenter(ctx, 'WAVE ' + (this.wave + 1), FW / 2, FH / 2 - 4, COL.gold);
+    }
+    if (this.vs && this.vsEnd > 0) {
+      const w = this.vsWinner;
+      Font.drawCenter(ctx, w >= 0 ? ROMAN[w] + '-PLAYER WINS!' : 'DRAW!', FW / 2, FH / 2 - 4, COL.gold);
+    }
+  },
+});
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
 //  Boss rounds: every Nth stage (default 10) is a boss stage with escorts.
 //  Boss order: IRON BEAR, MOLE, HYDRA, PHANTOM, DREADNOUGHT, then repeat tougher.
 // =====================================================================
@@ -7362,10 +7642,14 @@ const Net = {
 
   buildView(full) {
     const G = Game, v = { t: 'v', s: G.state, gt: G.t, c: COLS, r: ROWS, stn: G.stageNum, hi: G.hi, eng: Sound.engineState };
-    if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover'].includes(G.state)) v.s = 'wait';
+    if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover', 'vsResult', 'modeResult'].includes(G.state)) v.s = 'wait';
+    v.mode = G.mode; v.ta = G.taFrames; v.tac = G.taCleared; v.vw = G.vsWins;
+    if (v.s === 'vsResult') v.vsr = G.vsRes;
+    if (v.s === 'modeResult') v.mr = G.modeRes;
     v.pl = G.players.map(p => ({
       i: p.i, score: p.score, lives: p.lives, level: p.level, mines: p.mines, kills: p.kills, out: p.out,
       ship: p.ship, cutter: p.cutter, kit: p.kit, shopShovel: p.shopShovel, xp: p.xp, rank: p.rank, stageXp: p.stageXp,
+      vsKills: p.vsKills, caps: p.caps,
     }));
     v.base = G.base;
     v.snd = this.sndQueue.splice(0);
@@ -7413,6 +7697,9 @@ const Net = {
       rw: st.reviveWait,
       dc: st.decoy,
       pd: st.pads, wx: st.weather,
+      md: [st.vs || null, st.noBase ? 1 : 0, st.vsTime || 0, st.vsEnd || 0, st.vsWinner, st.survival ? 1 : 0, st.wave || 0, st.waveBreak || 0],
+      ve: st.vsEagles || null,
+      fg: st.flags ? st.flags.map(f => [f.i, f.hx, f.hy, f.x, f.y, f.carrier ? 1 : 0]) : null,
     };
     st.netDiff = [];
     if (full) sv.tf = Array.from(st.terrain).join('');
@@ -7511,6 +7798,9 @@ const Net = {
     if (v.c !== COLS || v.r !== ROWS) setFieldSize(v.c, v.r);
     G.players = v.pl.map((o, k) => Object.assign(G.players[k] && G.players[k].i === o.i ? G.players[k] : newPlayer(o.i), o, { tank: null }));
     if (v.base) G.base = v.base;
+    G.mode = v.mode; G.taFrames = v.ta; G.taCleared = v.tac; G.vsWins = v.vw || [];
+    if (v.vsr) G.vsRes = v.vsr;
+    if (v.mr) G.modeRes = v.mr;
     G.twoP = G.players.length > 1;
     G.stageNum = v.stn;
     G.hi = v.hi;
@@ -7558,6 +7848,9 @@ const Net = {
     st.reviveWait = sv.rw || 0;
     st.decoy = sv.dc || null;
     st.pads = sv.pd || [];
+    if (sv.md) [st.vs, st.noBase, st.vsTime, st.vsEnd, st.vsWinner, st.survival, st.wave, st.waveBreak] = [sv.md[0], !!sv.md[1], sv.md[2], sv.md[3], sv.md[4], !!sv.md[5], sv.md[6], sv.md[7]];
+    st.vsEagles = sv.ve || null;
+    st.flags = sv.fg ? sv.fg.map(a => ({ i: a[0], hx: a[1], hy: a[2], x: a[3], y: a[4], carrier: a[5] ? {} : null })) : null;
     st.weather = sv.wx || null;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
@@ -7846,6 +8139,8 @@ const SHOP_ROWS = 9, SHOP_TOP = 40, SHOP_ROW_H = 16;
 
 // Daily challenge: the same 3 stages and 2 twists for everyone on a given day, 1 player, no shop, no saves.
 const DAILY_KEY = 'tank1990_daily', DAILY_STAGES = 3;
+const MODE_KEY = 'tank1990_modes';   // survival and time-attack records
+const fmtTime = f => { const s = f / 60; return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0') + '.' + Math.floor((s * 10) % 10); };
 const ENEMY_KEYS = k => ENEMY.map((e, i) => 'e' + i + k).filter(key => Config.defs[key]);
 const DAILY_MODS = [
   { name: 'DOUBLE TROUBLE', set: v => { v.enemyCount = 40; v.maxOnScreen = 6; } },
@@ -7994,12 +8289,14 @@ const Game = {
   titleMenu() {
     const m = [];
     if (this.hasSave()) m.push({ label: 'CONTINUE', act: () => this.loadGame() });
-    m.push({ label: '1 PLAYER', act: () => this.newGame(1, false) });
+    m.push({ label: '1 PLAYER', act: () => this.startGame(1) });
     // left/right picks 2, 3 or 4 players
-    m.push({ label: this.multiN + ' PLAYERS', act: () => this.newGame(this.multiN, false), adjust: d => { this.multiN = (this.multiN - 2 + d + 3) % 3 + 2; } });
+    m.push({ label: this.multiN + ' PLAYERS', act: () => this.startGame(this.multiN), adjust: d => { this.multiN = (this.multiN - 2 + d + 3) % 3 + 2; } });
     // left/right switches between hosting and joining an online game
     m.push({ label: this.onlineJoin ? 'ONLINE: JOIN' : 'ONLINE: HOST', act: () => this.openOnline(), adjust: () => { this.onlineJoin = !this.onlineJoin; } });
     // skill level, named as in DOOM: left/right (or A) changes it
+    // game mode: left/right (or A) changes it
+    m.push({ label: 'MODE: ' + modeInfo(Config.get('gameMode')).name, mode: true, act: () => Config.step('gameMode', 1), adjust: d => Config.step('gameMode', d) });
     m.push({ label: 'DAILY CHALLENGE', daily: true, act: () => this.startDaily() });
     m.push({ label: Config.skill().name, skill: true, act: () => Config.step('skill', 1), adjust: d => Config.step('skill', d) });
     m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
@@ -8054,7 +8351,13 @@ const Game = {
       ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, top - 4 + this.menuIdx * step);
     }
     const cur = menu[this.menuIdx];
-    if (cur && cur.daily && this.titleY === 0) {
+    if (cur && cur.mode && this.titleY === 0) {
+      const mi = modeInfo(Config.get('gameMode')), rec = STORE.get(MODE_KEY, {});
+      Font.drawCenter(ctx, mi.desc + (mi.vs ? ' (2-4 P)' : ''), SW / 2, 203, COL.gold);
+      const best = mi.key === 'survival' && rec.survival ? 'BEST WAVE ' + rec.survival.wave + '  ' + rec.survival.score
+        : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack) : '< > CHANGE MODE';
+      Font.drawCenter(ctx, best, SW / 2, 213, COL.lgrey);
+    } else if (cur && cur.daily && this.titleY === 0) {
       const d = dailyToday(), best = STORE.get(DAILY_KEY, {});
       Font.drawCenter(ctx, DAILY_MODS[d.mods[0]].name + ' + ' + DAILY_MODS[d.mods[1]].name, SW / 2, 203, COL.gold);
       Font.drawCenter(ctx, 'STAGE ' + d.stage + '  BEST ' + (best.date === d.date ? best.score : 0), SW / 2, 213, COL.lgrey);
@@ -8085,7 +8388,7 @@ const Game = {
   // ---------------------------------------------------------------- save / load
   // One save slot: written by SAVE GAME in the pause menu and automatically at every stage start.
   saveGame() {
-    if (!this.stage || this.stage.over || this.daily) return false;
+    if (!this.stage || this.stage.over || this.daily || (this.mode && this.mode !== 'classic')) return false;
     const data = {
       app: APP_VERSION, time: Date.now(), numPlayers: this.players.length, stageNum: this.stageNum, lastScores: this.lastScores,
       players: this.players.map(p => { const o = Object.assign({}, p); delete o.tank; return o; }),
@@ -8133,7 +8436,13 @@ const Game = {
     // the stage picker starts where you last played
     this.stageNum = Math.max(1, Math.min(this.stageLimit(), STORE.get('tank1990_lastStage', 1) | 0 || 1));
     this.customPending = custom;
-    this.toCurtain(!custom);
+    // game mode (modes.js); versus needs at least two players
+    this.mode = custom || this.daily ? 'classic' : Config.get('gameMode');
+    if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
+    this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
+    this.toCurtain(!custom && this.mode === 'classic');
+    if (this.mode === 'timeattack') this.stageNum = 1;
+    else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
   },
 
   toCurtain(selectable) {
@@ -8188,15 +8497,18 @@ const Game = {
     let map, custom = false;
     if (this.customPending) { map = this.custom; custom = true; this.customPending = false; }
     else map = LEVELS[(this.stageNum - 1) % LEVELS.length];
-    const boss = custom ? null : bossForStage(this.stageNum);
+    const boss = custom || this.mode !== 'classic' ? null : bossForStage(this.stageNum);
     if (boss) map = BOSS_ARENAS[boss.idx];
-    this.stage = new Stage(this.stageNum, map, this.players, { custom, boss, base: this.base });
+    const vs = modeInfo(this.mode).vs ? this.mode : null;
+    this.stage = new Stage(this.stageNum, map, this.players, {
+      custom, boss, base: vs ? newBase() : this.base, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
+    });
     this.paused = false;
     this.openH = SCREEN_H / 2;
     this.setState('play');
     Sound.play('start');
-    this.saveGame(); // autosave at every stage start
-    if (!custom && Net.role !== 'client' && !this.daily) {
+    if (this.mode === 'classic') this.saveGame(); // autosave at every stage start
+    if (!custom && Net.role !== 'client' && !this.daily && this.mode === 'classic') {
       STORE.set('tank1990_lastStage', this.stageNum);
       if (this.stageNum > STORE.get('tank1990_bestStage', 1)) STORE.set('tank1990_bestStage', this.stageNum);
     }
@@ -8225,6 +8537,11 @@ const Game = {
       return;
     }
     this.stage.update();
+    if (this.mode === 'timeattack' && !this.stage.over && !this.stage.clearTimer) this.taFrames++;
+    const r = this.stage.result;
+    if (r === 'vsRound') { this.vsRoundEnd(); return; }
+    if (r && this.mode === 'timeattack' && r === 'clear') { this.saveHi(); this.taNext(); return; }
+    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack')) { this.saveHi(); this.toModeResult(false); return; }
     if (this.stage.result) {
       // beating a boss earns 25% off in the next shop
       this.shopDiscount = this.stage.result === 'clear' && this.stage.bossIdx !== undefined;
@@ -8237,7 +8554,7 @@ const Game = {
     if (action === 'CONTINUE') this.paused = false;
     else if (action === 'SAVE GAME') {
       const ok = this.saveGame();
-      this.pauseMsg = ok ? 'GAME SAVED' : this.daily ? 'NO SAVES IN DAILY' : 'SAVE FAILED';
+      this.pauseMsg = ok ? 'GAME SAVED' : this.daily ? 'NO SAVES IN DAILY' : this.mode !== 'classic' ? 'NO SAVES IN THIS MODE' : 'SAVE FAILED';
       this.pauseMsgT = 120;
       Sound.play(ok ? 'pickup' : 'steel');
     } else if (action === 'ONLINE PLAYERS') {
@@ -8253,6 +8570,8 @@ const Game = {
 
   renderPlay(ctx) {
     this.stage.render(ctx);
+    // time attack: the clock, in the border above the field
+    if (this.mode === 'timeattack') Font.drawCenter(ctx, fmtTime(this.taFrames) + '  STAGE ' + (this.taCleared + 1) + '/' + TA_STAGES, SCREEN_W / 2, 0, COL.black);
     if (this.paused) {
       const w = 112, h = 70, x = FX + ((FW - w) >> 1), y = FY + ((FH - h) >> 1);
       ctx.fillStyle = COL.black;
@@ -8428,6 +8747,103 @@ const Game = {
     }
   },
 
+  // ---------------------------------------------------------------- game modes
+  startGame(n) {
+    if (modeInfo(Config.get('gameMode')).vs && n < 2) { this.toast('VERSUS NEEDS 2-4 PLAYERS'); Sound.play('steel'); return; }
+    this.newGame(n, false);
+  },
+
+  // time attack: on to the next stage, or done
+  taNext() {
+    this.taCleared++;
+    if (this.taCleared >= TA_STAGES) { this.toModeResult(true); return; }
+    this.stageNum++;
+    this.toCurtain(false);
+  },
+
+  toModeResult(done) {
+    const rec = STORE.get(MODE_KEY, {}), score = this.players.reduce((a, p) => a + p.score, 0);
+    const res = { mode: this.mode, done, score, newBest: false };
+    if (this.mode === 'survival') {
+      res.wave = this.stage.wave;
+      const b = rec.survival;
+      if (!b || res.wave > b.wave || (res.wave === b.wave && score > b.score)) { rec.survival = { wave: res.wave, score }; res.newBest = true; }
+      res.best = rec.survival;
+    } else {
+      res.frames = this.taFrames;
+      res.cleared = this.taCleared;
+      if (done && (!rec.timeattack || this.taFrames < rec.timeattack)) { rec.timeattack = this.taFrames; res.newBest = true; }
+      res.best = rec.timeattack || 0;
+    }
+    STORE.set(MODE_KEY, rec);
+    this.modeRes = res;
+    Sound.setEngine(0);
+    Sound.play(res.newBest ? 'bonus' : 'gameover');
+    this.setState('modeResult');
+  },
+
+  // versus: a round is over
+  vsRoundEnd() {
+    const st = this.stage, w = st.vsWinner;
+    if (w >= 0) this.vsWins[w] = (this.vsWins[w] || 0) + 1;
+    const final = this.mode !== 'eagles' || this.vsWins.some(n => n >= VS_ROUNDS);
+    this.vsRes = {
+      mode: this.mode, winner: w, final, round: this.round,
+      rows: this.players.map(p => ({ i: p.i, kills: p.vsKills || 0, caps: p.caps || 0, wins: this.vsWins[p.i] || 0 })),
+    };
+    Sound.setEngine(0);
+    this.setState('vsResult');
+  },
+
+  updateVsResult() {
+    if (this.t < 90 || !(Input.menu().ok || this.t > 600)) return;
+    if (this.vsRes.final) { this.stage = null; this.toTitle(); this.titleY = 0; return; }
+    this.round++;
+    this.stageNum = this.stageNum % LEVELS.length + 1;
+    for (const p of this.players) { p.out = false; p.vsKills = 0; }
+    this.toCurtain(false);
+  },
+
+  renderVsResult(ctx) {
+    const r = this.vsRes;
+    ctx.fillStyle = COL.black;
+    ctx.fillRect(0, 0, SW, SH);
+    Font.drawCenter(ctx, modeInfo(r.mode).name + (r.mode === 'eagles' ? '  ROUND ' + r.round : ''), SW / 2, 30, COL.red);
+    const msg = r.winner >= 0 ? ROMAN[r.winner] + '-PLAYER ' + (r.final ? 'WINS THE MATCH!' : 'WINS THE ROUND') : 'DRAW!';
+    if ((this.t >> 4) & 1 || this.t > 90) Font.drawCenter(ctx, msg, SW / 2, 60, COL.gold);
+    const head = r.mode === 'eagles' ? 'ROUNDS' : r.mode === 'dm' ? 'KILLS' : 'FLAGS';
+    Font.draw(ctx, head, 136, 92, COL.lgrey);
+    r.rows.forEach((row, k) => {
+      const y = 110 + k * 18;
+      ctx.drawImage(Sprites.playerIcon(Config.playerPal(row.i)), 64, y);
+      Font.draw(ctx, ROMAN[row.i] + '-PLAYER', 76, y, COL.white);
+      Font.drawRight(ctx, r.mode === 'eagles' ? row.wins : r.mode === 'dm' ? row.kills : row.caps, 184, y, COL.white);
+    });
+    if (this.t > 90) Font.drawCenter(ctx, r.final ? 'PRESS ENTER' : 'PRESS ENTER: NEXT ROUND', SW / 2, 200, COL.lgrey);
+  },
+
+  updateModeResult() {
+    if (this.t > 60 && Input.menu().ok) { this.stage = null; this.toTitle(); this.titleY = 0; }
+  },
+
+  renderModeResult(ctx) {
+    const r = this.modeRes;
+    ctx.fillStyle = COL.black;
+    ctx.fillRect(0, 0, SW, SH);
+    Font.drawCenter(ctx, modeInfo(r.mode).name, SW / 2, 40, COL.red);
+    if (r.mode === 'survival') {
+      Font.drawCenter(ctx, 'YOU HELD OUT TO WAVE ' + r.wave, SW / 2, 80, COL.white);
+      Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
+      Font.drawCenter(ctx, 'BEST: WAVE ' + r.best.wave + '  ' + r.best.score, SW / 2, 124, COL.lgrey);
+    } else {
+      Font.drawCenter(ctx, r.done ? 'ALL ' + TA_STAGES + ' STAGES IN ' + fmtTime(r.frames) : 'FAILED ON STAGE ' + (r.cleared + 1), SW / 2, 80, COL.white);
+      Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
+      Font.drawCenter(ctx, 'BEST TIME ' + (r.best ? fmtTime(r.best) : '-'), SW / 2, 124, COL.lgrey);
+    }
+    if (r.newBest && (this.t >> 4) & 1) Font.drawCenter(ctx, 'NEW BEST!', SW / 2, 150, COL.gold);
+    if (this.t > 60) Font.drawCenter(ctx, 'PRESS ENTER', SW / 2, 196, COL.lgrey);
+  },
+
   // ---------------------------------------------------------------- daily challenge
   startDaily() {
     if (Net.role === 'host') Net.hangUp();
@@ -8435,6 +8851,7 @@ const Game = {
     // today's twists go on top of your settings for this run only (never saved)
     this.dailyBackup = Object.assign({}, Config.values);
     Config.values.shop = 'OFF';
+    Config.values.gameMode = 'classic';
     for (const i of d.mods) DAILY_MODS[i].set(Config.values);
     Config.apply();
     this.daily = { date: d.date, mods: d.mods, start: d.stage, cleared: 0 };
@@ -9048,6 +9465,8 @@ const Game = {
       case 'keys': this.updateKeys(); break;
       case 'ranks': this.updateRanks(); break;
       case 'dailyResult': this.updateDailyResult(); break;
+      case 'vsResult': this.updateVsResult(); break;
+      case 'modeResult': this.updateModeResult(); break;
     }
   },
 
@@ -9092,6 +9511,8 @@ const Game = {
       case 'keys': this.renderKeys(ctx); break;
       case 'ranks': this.renderRanks(ctx); break;
       case 'dailyResult': this.renderDailyResult(ctx); break;
+      case 'vsResult': this.renderVsResult(ctx); break;
+      case 'modeResult': this.renderModeResult(ctx); break;
       case 'netwait': this.renderNetWait(ctx); break;
     }
   },

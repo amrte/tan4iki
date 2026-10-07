@@ -186,10 +186,14 @@ const Net = {
 
   buildView(full) {
     const G = Game, v = { t: 'v', s: G.state, gt: G.t, c: COLS, r: ROWS, stn: G.stageNum, hi: G.hi, eng: Sound.engineState };
-    if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover'].includes(G.state)) v.s = 'wait';
+    if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover', 'vsResult', 'modeResult'].includes(G.state)) v.s = 'wait';
+    v.mode = G.mode; v.ta = G.taFrames; v.tac = G.taCleared; v.vw = G.vsWins;
+    if (v.s === 'vsResult') v.vsr = G.vsRes;
+    if (v.s === 'modeResult') v.mr = G.modeRes;
     v.pl = G.players.map(p => ({
       i: p.i, score: p.score, lives: p.lives, level: p.level, mines: p.mines, kills: p.kills, out: p.out,
       ship: p.ship, cutter: p.cutter, kit: p.kit, shopShovel: p.shopShovel, xp: p.xp, rank: p.rank, stageXp: p.stageXp,
+      vsKills: p.vsKills, caps: p.caps,
     }));
     v.base = G.base;
     v.snd = this.sndQueue.splice(0);
@@ -237,6 +241,9 @@ const Net = {
       rw: st.reviveWait,
       dc: st.decoy,
       pd: st.pads, wx: st.weather,
+      md: [st.vs || null, st.noBase ? 1 : 0, st.vsTime || 0, st.vsEnd || 0, st.vsWinner, st.survival ? 1 : 0, st.wave || 0, st.waveBreak || 0],
+      ve: st.vsEagles || null,
+      fg: st.flags ? st.flags.map(f => [f.i, f.hx, f.hy, f.x, f.y, f.carrier ? 1 : 0]) : null,
     };
     st.netDiff = [];
     if (full) sv.tf = Array.from(st.terrain).join('');
@@ -335,6 +342,9 @@ const Net = {
     if (v.c !== COLS || v.r !== ROWS) setFieldSize(v.c, v.r);
     G.players = v.pl.map((o, k) => Object.assign(G.players[k] && G.players[k].i === o.i ? G.players[k] : newPlayer(o.i), o, { tank: null }));
     if (v.base) G.base = v.base;
+    G.mode = v.mode; G.taFrames = v.ta; G.taCleared = v.tac; G.vsWins = v.vw || [];
+    if (v.vsr) G.vsRes = v.vsr;
+    if (v.mr) G.modeRes = v.mr;
     G.twoP = G.players.length > 1;
     G.stageNum = v.stn;
     G.hi = v.hi;
@@ -382,6 +392,9 @@ const Net = {
     st.reviveWait = sv.rw || 0;
     st.decoy = sv.dc || null;
     st.pads = sv.pd || [];
+    if (sv.md) [st.vs, st.noBase, st.vsTime, st.vsEnd, st.vsWinner, st.survival, st.wave, st.waveBreak] = [sv.md[0], !!sv.md[1], sv.md[2], sv.md[3], sv.md[4], !!sv.md[5], sv.md[6], sv.md[7]];
+    st.vsEagles = sv.ve || null;
+    st.flags = sv.fg ? sv.fg.map(a => ({ i: a[0], hx: a[1], hy: a[2], x: a[3], y: a[4], carrier: a[5] ? {} : null })) : null;
     st.weather = sv.wx || null;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));

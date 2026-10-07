@@ -105,6 +105,24 @@ score tally shows the level and the XP earned in the stage. Settings → XP AND 
 *looks only*, start level, XP lost on death (0% by default; only progress towards the next level, never a level)
 and *show ranks and perks*, a screen with every rank's tank.
 
+## Game modes
+
+Pick a mode on the title screen's **MODE** row (left/right), then start with 1 PLAYER or N PLAYERS (versus needs 2-4,
+on one keyboard, with pads, or online). Survival and time attack keep their best results; there is no shop and no
+saving outside Classic.
+
+| Mode | Players | How it works |
+|---|---|---|
+| **Classic** | 1-4 | the game as always |
+| **Survival** | 1-4 | endless waves on one map; wave *n* brings 6 + 2*n* tanks and later waves bring the newer, tougher enemies. After each wave a 4-second breather, the fortress walls are patched, and every 5 waves everyone gets a tank. The side panel's flag shows the wave. Ends when the eagle falls or everyone is out; best wave and score are kept |
+| **Time attack** | 1-4 | clear stages 1-5 as fast as you can; enemies arrive twice as fast, no tally between stages, the clock runs in the border above the field; best time is kept |
+| **VS eagles** | 2-4 | everyone has an eagle and a fortress (I bottom, II top, III left, IV right). Your shells, rockets and mines now destroy other players; you respawn while your eagle stands, and your own shells can't hurt it. Lose your eagle and you're out; the last eagle standing wins the round. Best of 3 |
+| **Deathmatch** | 2-4 | no eagles; players start in the corners and respawn; first to 10 kills, or the most kills after 3 minutes (the clock is in the side panel) |
+| **Flags** | 2-4 | each player has a flag at home (marked by a square). Drive over another player's flag to grab it and bring it to your own home flag (yours must be at home) to score. Destroying a carrier drops the flag where it fell; touching your own dropped flag sends it home. First to 3 captures |
+
+In versus, power-ups drop every 15 seconds (only ones that make sense between players), there are no enemy tanks, and
+the side panel shows each player's wins, kills or captures. Round and match results show who won.
+
 ## Skill levels
 
 Pick the skill on the title screen (the coloured row; left/right changes it). The names come from DOOM:
@@ -360,7 +378,7 @@ in the browser, and **RESET TO DEFAULTS** restores the classic game.
 | Players | III / IV-PLAYER COLOR (blue / pink), gamepad rumble (on), key and pad setup |
 | Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
 | Screen | field width (13), field height (13), FIT, scaling (sharp / fill), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
-| Game | skill (hurt me plenty), mud, belts, pads (on), night and fog (some), game speed (100%), volume (100%), engine sound (on) |
+| Game | game mode (classic), skill (hurt me plenty), mud, belts, pads (on), night and fog (some), game speed (100%), volume (100%), engine sound (on) |
 
 ## Code layout
 
@@ -379,6 +397,7 @@ js/enemies.js     abilities of the enemies from the design canvas (mason, mortar
 js/base.js        base upgrades: fortress walls, eagle armor, repair crew, eagle gun, minefield
 js/extras.js      turrets, Claude, airstrikes, revival, wingman, decoy eagle, smoke, bridges
 js/terrain.js     mud, conveyor belts, teleporter pads, night and fog stages
+js/modes.js       game modes: survival waves, time attack, versus eagles, deathmatch, capture the flag
 js/bosses.js      boss rounds: the 5 bosses, their arenas, sprites and behaviour
 js/net.js         online play: WebRTC connection, codes, host streaming, guest view, lobby panels
 js/main.js        state machine (title, settings, curtain, play, score, game over, construction) + loop

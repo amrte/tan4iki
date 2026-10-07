@@ -335,6 +335,13 @@ const Sprites = {
     }
     return c;
   },
+  // a capture-the-flag flag in a player's colour
+  vsFlag(pal) {
+    const k = 'vsflag' + pal;
+    let c = this.cache.get(k);
+    if (!c) { c = gridCanvas(parseGrid(FLAG_GRID), [null, PALS[pal][2], '#ADADAD']); this.cache.set(k, c); }
+    return c;
+  },
   // turret gun in a palette, aimed in dir
   turretGun(dir, pal) {
     const k = 'tg' + dir + pal;

@@ -3,6 +3,13 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.15
+
+- **Game modes** on the title screen's MODE row: Survival (endless escalating waves, best wave kept), Time attack
+  (clear stages 1-5 against the clock, best time kept), and three versus modes for 2-4 players, locally or online:
+  VS eagles (defend your eagle, destroy theirs, best of 3 rounds), Deathmatch (first to 10 kills or most in 3 minutes)
+  and Flags (capture the flag, first to 3).
+
 ## 0.14
 
 - **New terrain:** mud (half speed), conveyor belts (carry tanks along) and teleporter pads (linked pairs; tanks and

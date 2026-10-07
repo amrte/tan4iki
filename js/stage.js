@@ -128,7 +128,8 @@ function mapToBlocks(map) {
 // 4th, 11th, 18th ... enemy carries a power-up
 const isBonusSlot = i => i % 7 === 3;
 
-function buildQueue(stageNum) {
+// count: how many tanks (the ENEMIES setting unless given, e.g. a survival wave)
+function buildQueue(stageNum, count) {
   const mix = enemyMix(stageNum);
   const list = [];
   mix.forEach((n, type) => { for (let i = 0; i < n; i++) list.push(type); });
@@ -139,7 +140,8 @@ function buildQueue(stageNum) {
     [list[i], list[j]] = [list[j], list[i]];
   }
   // stretch or shrink the 20-tank line-up to the configured count
-  const count = Config.get('enemyCount'), bonus = Config.on('bonusTanks');
+  count = count || Config.get('enemyCount');
+  const bonus = Config.on('bonusTanks');
   const out = [];
   for (let i = 0; i < count; i++) out.push({ type: list[Math.floor(i * list.length / count)], bonus: bonus && isBonusSlot(i) });
   // Later stages get tougher: new enemy types join one by one (rocket from stage 4, sapper 7, shield 11,
@@ -274,6 +276,11 @@ class Stage {
     this.result = null;
     this.frame = 0;
     this.dirty = true;
+    // game modes (modes.js)
+    this.noBase = false;
+    if (opts.vs) this.setupVersus(opts.vs);
+    if (opts.survival) this.setupSurvival();
+    if (opts.timeAttack) this.spawnInterval = Math.round(this.spawnInterval / 2);
     for (const p of players) {
       p.kills = zeroKills();
       if (!opts.snapshot) p.stageXp = 0;
@@ -405,7 +412,7 @@ class Stage {
 
   // ------------------------------------------------------------ spawning
   spawnPlayer(p, delay) {
-    const [x, y] = PLAYER_SPAWN[p.i];
+    const [x, y] = (this.vsSpawn || PLAYER_SPAWN)[p.i];
     this.spawns.push({ x, y, t: SPARKLE_TIME + delay, player: p });
   }
 
@@ -513,7 +520,10 @@ class Stage {
     if (this.over) {
       this.overTimer++;
       if (this.overTimer >= 320) this.result = 'gameover';
+    } else if (this.vs) {
+      this.updateVersus();
     } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer) && !this.bossAlive()) {
+      if (this.survival) { this.nextWave(); return; }
       this.clearTimer++;
       if (this.clearTimer === 1) for (const p of this.players) if (!p.out) this.addXp(p, 25);
       if (this.clearTimer >= 190) this.result = 'clear';
@@ -709,7 +719,8 @@ class Stage {
         if (tt === T_WATER && !t.ship && !t.boost.ghost && !t.hover) return false;
       }
     }
-    if (overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
+    if (!this.noBase && overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
+    if (this.vsEagles && this.vsEagles.some(e => overlap(nx, ny, 16, 16, e.x, e.y, 16, 16))) return false;
     if (this.decoy && overlap(nx, ny, 16, 16, this.decoy.x, this.decoy.y, 16, 16)) return false;
     if (this.bosses.length && this.bossBlocksTank(t, nx, ny)) return false;
     if (this.turrets.length) {
@@ -796,7 +807,8 @@ class Stage {
       this.hitDecoy();
       return;
     }
-    if (overlap(b.x, b.y, 4, 4, BASE_X, BASE_Y, 16, 16)) {
+    if (this.vsEagles && this.vsBulletEagle(b)) return;
+    if (!this.noBase && overlap(b.x, b.y, 4, 4, BASE_X, BASE_Y, 16, 16)) {
       this.killBullet(b, true);
       if (this.baseAlive) this.destroyBase();
       return;
@@ -806,11 +818,11 @@ class Stage {
       if (!overlap(b.x, b.y, 4, 4, t.x, t.y, 16, 16)) continue;
       if (b.pierce) {
         // piercing shells damage each tank once and keep flying
-        if (b.isPlayer === t.isPlayer && (!b.isPlayer || Config.get('friendlyFire') === 'OFF')) continue;
+        if (b.isPlayer === t.isPlayer && (!b.isPlayer || (Config.get('friendlyFire') === 'OFF' && !this.vs))) continue;
         b.hits = b.hits || new Set();
         if (b.hits.has(t)) continue;
         b.hits.add(t);
-        if (b.isPlayer && t.isPlayer) { if (t.shield <= 0) t.frozen = 180; }
+        if (b.isPlayer && t.isPlayer) { if (this.vs) this.hitPlayer(t, b.owner); else if (t.shield <= 0) t.frozen = 180; }
         else if (b.isPlayer) this.hitEnemy(t, b.owner, b.rocket);
         else this.hitPlayer(t);
         continue;
@@ -823,6 +835,7 @@ class Stage {
         return;
       }
       if (b.isPlayer) {
+        if (t.isPlayer && this.vs) { this.hitPlayer(t, b.owner); this.killBullet(b, true, t); return; }   // versus: for real
         if (t.isPlayer) {
           // friendly fire freezes the other player for a few seconds
           if (Config.get('friendlyFire') === 'OFF') continue;
@@ -913,8 +926,12 @@ class Stage {
       if (!t.alive || t === exclude || !reaches(t.x, t.y, 16, 16)) continue;
       if (byPlayer && !t.isPlayer) this.hitEnemy(t, owner, true);
       else if (!byPlayer && t.isPlayer) this.hitPlayer(t);
+      else if (this.vs && t.isPlayer && (!owner || !owner.player || t.player !== owner.player)) this.hitPlayer(t, owner);
     }
-    if (!byPlayer && this.baseAlive && reaches(BASE_X, BASE_Y, 16, 16)) this.destroyBase();
+    if (!byPlayer && !this.noBase && this.baseAlive && reaches(BASE_X, BASE_Y, 16, 16)) this.destroyBase();
+    for (const e of this.vsEagles || []) {
+      if (e.alive && reaches(e.x, e.y, 16, 16) && (!owner || !owner.player || owner.player.i !== e.i)) this.vsEagleDown(e);
+    }
     if (!byPlayer && this.decoy && reaches(this.decoy.x, this.decoy.y, 16, 16)) this.hitDecoy();
     if (byPlayer) {
       for (const bo of this.bosses.slice()) {
@@ -935,7 +952,9 @@ class Stage {
     for (const m of this.mines) {
       m.t++;
       if (m.t < MINE_ARM_TIME) continue;
-      const victim = this.tanks.find(t => t.alive && t.isPlayer !== m.byPlayer && overlap(t.x, t.y, 16, 16, m.x - 4, m.y - 4, 8, 8));
+      // in versus a mine is for everyone but the player who laid it
+      const foe = t => t.isPlayer !== m.byPlayer || (this.vs && t.isPlayer && (!m.owner || t.player !== m.owner.player));
+      const victim = this.tanks.find(t => t.alive && foe(t) && overlap(t.x, t.y, 16, 16, m.x - 4, m.y - 4, 8, 8));
       if (victim) {
         m.done = true;
         this.blast(m.x, m.y, MINE_RADIUS, m.byPlayer, m.owner, false);
@@ -976,7 +995,8 @@ class Stage {
     }
   }
 
-  hitPlayer(t) {
+  // by: the tank (or turret gunner) whose shot it was, for versus kills
+  hitPlayer(t, by) {
     if (t.ally) { this.hitAlly(t); return; }
     if (!t.alive || t.shield > 0) return;
     const p = t.player;
@@ -1014,6 +1034,7 @@ class Stage {
       p.xp = Math.max(floor, p.xp - Math.round((p.xp - floor) * loss / 100));
     }
     p.tank = null;
+    if (this.vs) { this.vsDeath(t, by); return; }
     if (Config.infiniteLives()) {
       this.spawnPlayer(p, 30);
     } else if (p.lives > 0) {
@@ -1077,9 +1098,9 @@ class Stage {
   }
 
   // ------------------------------------------------------------ power-ups
-  spawnPowerup() {
-    // only power-ups enabled in the settings can appear
-    const weights = POWERUPS.map((pu, i) => (Config.get('pu' + i) === 'OFF' ? 0 : pu.weight));
+  spawnPowerup(only) {
+    // only power-ups enabled in the settings can appear (and, in versus, only those that make sense there)
+    const weights = POWERUPS.map((pu, i) => (Config.get('pu' + i) === 'OFF' || (only && !only.includes(i)) ? 0 : pu.weight));
     const total = weights.reduce((a, b) => a + b, 0);
     if (total === 0) return;
     let r = rnd(total), type = 0;
@@ -1299,7 +1320,8 @@ class Stage {
     }
     this.renderBelts(ctx);
     this.renderPads(ctx);
-    this.renderEagle(ctx);
+    if (!this.noBase) this.renderEagle(ctx);
+    this.renderVs(ctx);
     this.renderDecoy(ctx);
 
     for (const m of this.mines) ctx.drawImage(Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0], m.x - 4, m.y - 4);
@@ -1358,6 +1380,7 @@ class Stage {
     this.renderBossBanner(ctx);
     this.renderRankMsg(ctx);
     this.renderRevival(ctx);
+    this.renderModeBanner(ctx);
     ctx.restore();
     this.renderHud(ctx);
   }
@@ -1399,6 +1422,7 @@ class Stage {
   }
 
   renderHud(ctx) {
+    if (this.vs) { this.renderVsHud(ctx, HUD_X); return; }
     const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
     if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);
@@ -1419,7 +1443,7 @@ class Stage {
         } else this.renderCarried(ctx, p, H + 1, y + 9, false, 5);
       });
       ctx.drawImage(Sprites.flag, H, 184);
-      Font.drawRight(ctx, String(this.num), H + 16, 200, COL.black);
+      Font.drawRight(ctx, String(this.survival ? this.wave : this.num), H + 16, 200, COL.black);
       return;
     }
     // 1-2 players: label, lives, mines carried and (with XP on) the level and XP bar
@@ -1442,6 +1466,6 @@ class Stage {
       }
     });
     ctx.drawImage(Sprites.flag, H, 184);
-    Font.drawRight(ctx, String(this.num), H + 16, 200, COL.black);
+    Font.drawRight(ctx, String(this.survival ? this.wave : this.num), H + 16, 200, COL.black);
   }
 }
