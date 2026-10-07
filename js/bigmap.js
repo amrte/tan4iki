@@ -155,6 +155,8 @@ Object.assign(Stage.prototype, {
     if (VIEW_W >= FW && VIEW_H >= FH) return [0, 0];
     const mine = Net.role === 'client' ? this.tanks.filter(t => t.isPlayer && !t.ally && t.player && t.player.i === Net.slot) : [];
     const ps = mine.length ? mine : this.tanks.filter(t => t.isPlayer && !t.ally && t.alive);
+    // the corridor holds still while everyone is between tanks (respawns come in near the bottom of the screen)
+    if (!ps.length && this.corridor && this.camX !== undefined) return [Math.round(this.camX), Math.round(this.camY)];
     let fx = BASE_X + 8, fy = BASE_Y + 8;
     if (ps.length) { fx = ps.reduce((a, t) => a + t.x + 8, 0) / ps.length; fy = ps.reduce((a, t) => a + t.y + 8, 0) / ps.length; }
     const tx = Math.max(0, Math.min(FW - VIEW_W, fx - VIEW_W / 2)), ty = Math.max(0, Math.min(FH - VIEW_H, fy - VIEW_H / 2));

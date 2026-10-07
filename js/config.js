@@ -283,7 +283,7 @@ const SETTINGS_DEF = [
   { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
   { section: 'GAME' },
-  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'survival', 'timeattack', 'bigmaps', 'eagles', 'dm', 'ctf'], def: 'classic',
+  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'survival', 'timeattack', 'bigmaps', 'corridor', 'eagles', 'dm', 'ctf'], def: 'classic',
     fmt: v => modeInfo(v).name },
   { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4, 5], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!', 'AUTO'][v] },
   { key: 'terrainExtras', label: 'MUD, BELTS, PADS', values: ONOFF, def: 'ON' },

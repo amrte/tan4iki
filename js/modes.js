@@ -15,6 +15,7 @@ const MODES = [
   { key: 'survival', name: 'SURVIVAL', desc: 'ENDLESS WAVES, HOW LONG?' },
   { key: 'timeattack', name: 'TIME ATTACK', desc: 'CLEAR 5 STAGES FAST' },
   { key: 'bigmaps', name: 'BIG MAPS', desc: 'HUGE SCROLLING BATTLEFIELDS' },
+  { key: 'corridor', name: 'CORRIDOR', desc: 'ENDLESS CLIMB, HOW FAR?' },
   { key: 'eagles', name: 'VS EAGLES', vs: true, desc: 'GUARD YOURS, HIT THEIRS' },
   { key: 'dm', name: 'DEATHMATCH', vs: true, desc: 'FIRST TO 10 KILLS' },
   { key: 'ctf', name: 'FLAGS', vs: true, desc: 'BRING THEIR FLAG HOME' },

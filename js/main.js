@@ -292,7 +292,8 @@ const Game = {
       const mi = modeInfo(Config.get('gameMode')), rec = STORE.get(MODE_KEY, {});
       Font.drawCenter(ctx, mi.desc + (mi.vs ? ' (2-4 P)' : ''), SW / 2, 203, COL.gold);
       const best = mi.key === 'survival' && rec.survival ? 'BEST WAVE ' + rec.survival.wave + '  ' + rec.survival.score
-        : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack) : '< > CHANGE MODE';
+        : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack)
+        : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score : '< > CHANGE MODE';
       Font.drawCenter(ctx, best, SW / 2, 213, COL.lgrey);
     } else if (cur && cur.daily && this.titleY === 0) {
       const d = dailyToday(), best = STORE.get(DAILY_KEY, {});
@@ -385,7 +386,7 @@ const Game = {
     if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
     this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
-    if (this.mode === 'timeattack') this.stageNum = 1;
+    if (this.mode === 'timeattack' || this.mode === 'corridor') this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
   },
 
@@ -448,14 +449,20 @@ const Game = {
     const big = !custom && !boss && (this.mode === 'bigmaps'
       || (this.mode === 'classic' && !this.daily && Config.get('bigStages') === 'SOME' && this.stageNum % 4 === 0));
     let blocks = null, objective = null;
-    if (big) {
+    const corridor = !custom && this.mode === 'corridor';
+    if (corridor) {
+      // the usual width, at least three sections high (one more than the screen needs above and below)
+      const [vc, vr] = this.desiredField(), rows = Math.max(3, Math.ceil((vr + 26) / CORRIDOR_SECTION)) * CORRIDOR_SECTION;
+      setFieldSize(vc, rows, vc, vr);
+      blocks = corridorBlocks(rows / CORRIDOR_SECTION);
+    } else if (big) {
       const [vc, vr] = this.desiredField(), [SX, SY] = bigWorldSize(vc, vr);
       setFieldSize(SX * SECTOR, SY * SECTOR, vc, vr);
       blocks = bigWorldBlocks(this.stageNum, SX, SY);
       objective = Math.floor(this.stageNum / (this.mode === 'bigmaps' ? 1 : 4)) % 2 ? 'outposts' : 'factories';
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
-      custom, boss, base: vs ? newBase() : this.base, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
+      custom, boss, base: vs || corridor ? newBase() : this.base, corridor, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
       blocks, big: objective,
     });
     this.paused = false;
@@ -497,7 +504,7 @@ const Game = {
     if (r === 'vsRound') { this.vsRoundEnd(); return; }
     if (r && this.mode === 'timeattack' && r === 'clear') { this.saveHi(); this.taNext(); return; }
     if (r === 'gameover') AutoSkill.event('gameOver');
-    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack')) { this.saveHi(); this.toModeResult(false); return; }
+    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor')) { this.saveHi(); this.toModeResult(false); return; }
     if (this.stage.result) {
       // beating a boss earns 25% off in the next shop
       this.shopDiscount = this.stage.result === 'clear' && this.stage.bossIdx !== undefined;
@@ -725,6 +732,11 @@ const Game = {
       const b = rec.survival;
       if (!b || res.wave > b.wave || (res.wave === b.wave && score > b.score)) { rec.survival = { wave: res.wave, score }; res.newBest = true; }
       res.best = rec.survival;
+    } else if (this.mode === 'corridor') {
+      res.dist = this.stage.corridorClimb();
+      const b = rec.corridor;
+      if (!b || res.dist > b.dist || (res.dist === b.dist && score > b.score)) { rec.corridor = { dist: res.dist, score }; res.newBest = true; }
+      res.best = rec.corridor;
     } else {
       res.frames = this.taFrames;
       res.cleared = this.taCleared;
@@ -791,6 +803,10 @@ const Game = {
       Font.drawCenter(ctx, 'YOU HELD OUT TO WAVE ' + r.wave, SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
       Font.drawCenter(ctx, 'BEST: WAVE ' + r.best.wave + '  ' + r.best.score, SW / 2, 124, COL.lgrey);
+    } else if (r.mode === 'corridor') {
+      Font.drawCenter(ctx, 'YOU CLIMBED ' + r.dist + ' M', SW / 2, 80, COL.white);
+      Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
+      Font.drawCenter(ctx, 'BEST: ' + r.best.dist + ' M  ' + r.best.score, SW / 2, 124, COL.lgrey);
     } else {
       Font.drawCenter(ctx, r.done ? 'ALL ' + TA_STAGES + ' STAGES IN ' + fmtTime(r.frames) : 'FAILED ON STAGE ' + (r.cleared + 1), SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);

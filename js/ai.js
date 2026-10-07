@@ -76,7 +76,7 @@ Object.assign(Stage.prototype, {
         if (t === T_BRICK && mode !== 'slither') cost += 0.6;
         if (t === T_MUD && mode !== 'hover') cost += 0.25;
       }
-      if (overlap(bx * 8, by * 8, 16, 16, BASE_X, BASE_Y, 16, 16)) cost = -1;
+      if (!this.noBase && overlap(bx * 8, by * 8, 16, 16, BASE_X, BASE_Y, 16, 16)) cost = -1;
       c[by * NX + bx] = cost;
     }
     cache[mode] = { c, ver: this.terrainVer };

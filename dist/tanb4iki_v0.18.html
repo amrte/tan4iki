@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.17</title>
+  <title>tanb4iki_v0.18</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.17';
+const APP_VERSION = '0.18';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2597,7 +2597,7 @@ const SETTINGS_DEF = [
   { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
   { section: 'GAME' },
-  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'survival', 'timeattack', 'bigmaps', 'eagles', 'dm', 'ctf'], def: 'classic',
+  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'survival', 'timeattack', 'bigmaps', 'corridor', 'eagles', 'dm', 'ctf'], def: 'classic',
     fmt: v => modeInfo(v).name },
   { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4, 5], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!', 'AUTO'][v] },
   { key: 'terrainExtras', label: 'MUD, BELTS, PADS', values: ONOFF, def: 'ON' },
@@ -3703,8 +3703,8 @@ class Stage {
     const classic = COLS === 13 && ROWS === 13;
     this.load(opts.blocks || expandBlocks(mapToBlocks(map)), !opts.custom || !classic);   // blocks: a stitched big map
     // mud, teleporters and belts in the normal stages; night and fog on some (terrain.js)
-    if (!opts.boss && !opts.custom && !opts.snapshot && Config.on('terrainExtras')) this.addTerrainExtras(num);
-    this.weather = stageWeather(opts.custom ? 1 : num, !!opts.boss);
+    if (!opts.boss && !opts.custom && !opts.snapshot && !opts.corridor && Config.on('terrainExtras')) this.addTerrainExtras(num);
+    this.weather = opts.corridor ? null : stageWeather(opts.custom ? 1 : num, !!opts.boss);
     this.outposts = []; this.factories = [];
     if (opts.big) this.setupBigMap(opts.big);   // bigmap.js
     this.tanks = [];
@@ -3744,6 +3744,7 @@ class Stage {
     this.noBase = false;
     if (opts.vs) this.setupVersus(opts.vs);
     if (opts.survival) this.setupSurvival();
+    if (opts.corridor) this.setupCorridor();   // corridor.js
     if (opts.timeAttack) this.spawnInterval = Math.round(this.spawnInterval / 2);
     for (const p of players) {
       p.kills = zeroKills();
@@ -3878,7 +3879,7 @@ class Stage {
 
   // ------------------------------------------------------------ spawning
   spawnPlayer(p, delay) {
-    const [x, y] = (this.vsSpawn || PLAYER_SPAWN)[p.i];
+    const [x, y] = this.corridor ? this.corridorSpawnPoint(p) : (this.vsSpawn || PLAYER_SPAWN)[p.i];
     this.spawns.push({ x, y, t: SPARKLE_TIME + delay, player: p });
   }
 
@@ -3912,7 +3913,7 @@ class Stage {
           x: s.x, y: s.y, dir: 2, type, hp: st.hp + vr.hp, bonus: s.enemy.bonus, vet,
           speed: st.speed * vr.speed * Config.skill().speed, bulletSpeed: st.bullet * vr.shell * Config.skill().shell, maxBullets: 1,
           ai: s.enemy.ai !== undefined ? s.enemy.ai : pickPersonality(type, this.num),
-          aiBase: type !== 4 && Math.random() < 0.3,  // some snipers shell the eagle instead of you (not rocket tanks)
+          aiBase: !this.noBase && type !== 4 && Math.random() < 0.3,  // some snipers shell the eagle instead of you (not rocket tanks)
           rocketGun: type === 4, frontShield: type === 5, crusher: type === 6, stealth: type === 7,
           mines: type === 6 ? 3 : 0, hover: type === 10,
           slither: ENEMY[type].kind === 'snake', segN: 4, trail: ENEMY[type].kind === 'snake' ? [] : null,
@@ -3988,6 +3989,8 @@ class Stage {
       if (this.overTimer >= 320) this.result = 'gameover';
     } else if (this.vs) {
       this.updateVersus();
+    } else if (this.corridor) {
+      this.updateCorridor();
     } else if (this.big && this.factoriesAlive()) {
       this.updateBigMap();
     } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer) && !this.bossAlive()) {
@@ -4911,7 +4914,7 @@ class Stage {
 
   renderHud(ctx) {
     if (this.vs) { this.renderVsHud(ctx, HUD_X); return; }
-    this.renderObjectiveLine(ctx);
+    if (this.corridor) this.renderCorridorLine(ctx); else this.renderObjectiveLine(ctx);
     const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
     if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);
@@ -4932,7 +4935,7 @@ class Stage {
         } else this.renderCarried(ctx, p, H + 1, y + 9, false, 5);
       });
       ctx.drawImage(Sprites.flag, H, 184);
-      Font.drawRight(ctx, String(this.survival ? this.wave : this.num), H + 16, 200, COL.black);
+      Font.drawRight(ctx, String(this.survival ? this.wave : this.corridor ? this.corridorLevel() : this.num), H + 16, 200, COL.black);
       return;
     }
     // 1-2 players: label, lives, mines carried and (with XP on) the level and XP bar
@@ -4955,7 +4958,7 @@ class Stage {
       }
     });
     ctx.drawImage(Sprites.flag, H, 184);
-    Font.drawRight(ctx, String(this.survival ? this.wave : this.num), H + 16, 200, COL.black);
+    Font.drawRight(ctx, String(this.survival ? this.wave : this.corridor ? this.corridorLevel() : this.num), H + 16, 200, COL.black);
   }
 }
 
@@ -5039,7 +5042,7 @@ Object.assign(Stage.prototype, {
         if (t === T_BRICK && mode !== 'slither') cost += 0.6;
         if (t === T_MUD && mode !== 'hover') cost += 0.25;
       }
-      if (overlap(bx * 8, by * 8, 16, 16, BASE_X, BASE_Y, 16, 16)) cost = -1;
+      if (!this.noBase && overlap(bx * 8, by * 8, 16, 16, BASE_X, BASE_Y, 16, 16)) cost = -1;
       c[by * NX + bx] = cost;
     }
     cache[mode] = { c, ver: this.terrainVer };
@@ -6426,6 +6429,7 @@ const MODES = [
   { key: 'survival', name: 'SURVIVAL', desc: 'ENDLESS WAVES, HOW LONG?' },
   { key: 'timeattack', name: 'TIME ATTACK', desc: 'CLEAR 5 STAGES FAST' },
   { key: 'bigmaps', name: 'BIG MAPS', desc: 'HUGE SCROLLING BATTLEFIELDS' },
+  { key: 'corridor', name: 'CORRIDOR', desc: 'ENDLESS CLIMB, HOW FAR?' },
   { key: 'eagles', name: 'VS EAGLES', vs: true, desc: 'GUARD YOURS, HIT THEIRS' },
   { key: 'dm', name: 'DEATHMATCH', vs: true, desc: 'FIRST TO 10 KILLS' },
   { key: 'ctf', name: 'FLAGS', vs: true, desc: 'BRING THEIR FLAG HOME' },
@@ -6815,6 +6819,8 @@ Object.assign(Stage.prototype, {
     if (VIEW_W >= FW && VIEW_H >= FH) return [0, 0];
     const mine = Net.role === 'client' ? this.tanks.filter(t => t.isPlayer && !t.ally && t.player && t.player.i === Net.slot) : [];
     const ps = mine.length ? mine : this.tanks.filter(t => t.isPlayer && !t.ally && t.alive);
+    // the corridor holds still while everyone is between tanks (respawns come in near the bottom of the screen)
+    if (!ps.length && this.corridor && this.camX !== undefined) return [Math.round(this.camX), Math.round(this.camY)];
     let fx = BASE_X + 8, fy = BASE_Y + 8;
     if (ps.length) { fx = ps.reduce((a, t) => a + t.x + 8, 0) / ps.length; fy = ps.reduce((a, t) => a + t.y + 8, 0) / ps.length; }
     const tx = Math.max(0, Math.min(FW - VIEW_W, fx - VIEW_W / 2)), ty = Math.max(0, Math.min(FH - VIEW_H, fy - VIEW_H / 2));
@@ -6868,6 +6874,147 @@ Object.assign(Stage.prototype, {
       ? 'OUTPOSTS ' + this.outposts.filter(o => o.alive).length + '/' + this.outposts.length
       : 'FACTORIES LEFT ' + this.factories.filter(f => f.hp > 0).length;
     Font.drawCenter(ctx, text, FX + VIEW_W / 2, 0, COL.black);
+  },
+});
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  CORRIDOR mode: the usual width, endless height. Climb as far as you can.
+//  The world is three map sections stacked (13 tiles high each). When the whole team has climbed out of the bottom
+//  section it is dropped, everything moves down one section, and a fresh section is added on top, so the climb
+//  never ends. Enemies keep arriving just above the screen and get tougher the higher you get; ones left far
+//  behind drop out. No eagle: it's over when everyone is out of tanks. Every 5 sections: a tank for everyone.
+// =====================================================================
+
+const CORRIDOR_SECTIONS = 3, CORRIDOR_SECTION = 13;
+
+// one section's block rows, as wide as the field (a classic 26-block map, mirrored outwards when wider)
+function corridorSection(map) {
+  const b = mapToBlocks(map), TW = COLS * 2, offX = 2 * Math.floor((COLS - 13) / 2);
+  const mirror = (i, n) => { const p = 2 * n, m = ((i % p) + p) % p; return m < n ? m : p - 1 - m; };
+  return b.map(row => { let r = ''; for (let x = 0; x < TW; x++) r += row[mirror(x - offX, 26)]; return r; });
+}
+
+function corridorMap() { return LEVELS[Math.floor(Math.random() * LEVELS.length)]; }
+
+// the starting world: sections stacked top to bottom
+function corridorBlocks(n) {
+  let rows = [];
+  for (let k = 0; k < n; k++) rows = rows.concat(corridorSection(corridorMap()));
+  return rows;
+}
+
+Object.assign(Stage.prototype, {
+  setupCorridor() {
+    this.corridor = { shifts: 0, climbed: 0, startY: PLAYER_SPAWN[0][1], spawnCd: 120, spawned: 0, lifeAt: 5 };
+    this.noBase = true;
+    this.queue = [];
+    this.total = 0;
+    // a clear runway at the bottom where everyone starts
+    this.clearArea(0, FH - 48, FW, 48);
+  },
+
+  sectionPx() { return CORRIDOR_SECTION * 16; },
+
+  // how far the team has climbed, in tiles (the front-runner counts)
+  corridorClimb() {
+    const c = this.corridor, ps = this.tanks.filter(t => t.isPlayer && !t.ally && t.alive);
+    if (ps.length) {
+      const top = Math.min(...ps.map(t => t.y));
+      c.climbed = Math.max(c.climbed, Math.floor((c.shifts * this.sectionPx() + c.startY - top) / 16));
+    }
+    return c.climbed;
+  },
+
+  // "stage" the enemies are drawn from: one up every section climbed
+  corridorLevel() { return 1 + Math.floor(this.corridorClimb() / CORRIDOR_SECTION); },
+
+  // a destroyed player comes back near the bottom of the screen
+  corridorSpawnPoint(p) {
+    if (this.camY === undefined) return PLAYER_SPAWN[p.i];
+    const y = Math.min(FH - 16, Math.floor((this.camY + VIEW_H - 16) / 16) * 16);
+    const x = Math.max(0, Math.min(FW - 16, PLAYER_SPAWN[p.i][0]));
+    this.clearArea(x, y, 16, 16);
+    return [x, y];
+  },
+
+  updateCorridor() {
+    const c = this.corridor, lvl = this.corridorLevel(), S = this.sectionPx();
+    const cam = this.camY === undefined ? FH - VIEW_H : this.camY;
+    // enemies arrive just above the screen
+    if (--c.spawnCd <= 0 && this.freezeE <= 0) {
+      c.spawnCd = Math.round(Math.max(45, 160 - lvl * 5) / Config.scale('spawnRate') / Config.skill().spawn);
+      const onField = this.tanks.filter(t => !t.isPlayer).length + this.spawns.filter(s => s.enemy).length;
+      if (onField < this.maxEnemies) {
+        for (let k = 0; k < 20; k++) {
+          const x = Math.floor(Math.random() * (COLS - 1)) * 16;
+          const y = Math.max(0, Math.floor((cam - 32 - Math.random() * 64) / 16) * 16);
+          if (this.tanks.some(t => overlap(t.x, t.y, 16, 16, x, y, 16, 16))) continue;
+          let solid = false;
+          for (let cy = y >> 2; cy < (y + 16) >> 2 && !solid; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
+            const v = this.get(cx, cy);
+            if (v === T_STEEL || v === T_WATER || v === T_BRICK) { solid = true; break; }
+          }
+          if (solid) continue;
+          const q = buildQueue(lvl, 1)[0];
+          q.ai = [AI.HUNT, AI.HUNT, AI.SNIPE, AI.WANDER][Math.floor(Math.random() * 4)];
+          q.bonus = Config.on('bonusTanks') && c.spawned % 7 === 3;
+          c.spawned++;
+          this.spawns.push({ x, y, t: SPARKLE_TIME, enemy: q });
+          this.total++;
+          break;
+        }
+      }
+    }
+    // enemies left far behind drop out
+    for (const t of this.tanks) if (!t.isPlayer && t.y > cam + VIEW_H + 96) t.alive = false;
+    // a tank for everyone every 5 sections
+    if (this.corridorClimb() >= c.lifeAt * CORRIDOR_SECTION) {
+      c.lifeAt += 5;
+      for (const p of this.players) if (!p.out && !Config.infiniteLives()) p.lives++;
+      Sound.play('life');
+      this.popups.push({ x: FW / 2, y: cam + 40, text: '+1 TANK', label: true, color: COL.gold, t: 0, delay: 0, life: 90 });
+    }
+    // once nobody is left in the bottom section, the world moves down one section
+    const ps = this.tanks.filter(t => t.isPlayer && !t.ally && t.alive);
+    if (ps.length && Math.max(...ps.map(t => t.y)) < FH - S - 16 && !this.spawns.some(s => s.player)) this.corridorShift();
+  },
+
+  corridorShift() {
+    const S = this.sectionPx(), rows = S / 4, c = this.corridor;
+    // terrain: everything moves down `rows` cells, a new section on top
+    const fresh = corridorSection(corridorMap()), t = new Uint8Array(GW * GH);
+    t.set(this.terrain.subarray(0, (GH - rows) * GW), rows * GW);
+    for (let by = 0; by < fresh.length; by++) for (let bx = 0; bx < COLS * 2; bx++) {
+      const v = BLOCK_TYPE[fresh[by][bx]] || T_EMPTY;
+      for (let k = 0; k < 4; k++) t[(by * 2 + (k >> 1)) * GW + bx * 2 + (k & 1)] = v;
+    }
+    this.terrain = t;
+    this.origTerrain = t.slice();
+    this.dirty = true;
+    this.terrainVer = (this.terrainVer || 0) + 1;
+    this.navCost = {}; this.navBaseF = {}; this.navPlayerF = new Map();
+    this.netDiff = []; this.netFull = true;
+    // everything else moves down with it; what falls off the bottom is gone
+    const down = o => { o.y += S; return o.y < FH; };
+    for (const tk of this.tanks) { tk.y += S; if (tk.trail) for (const p of tk.trail) p[1] += S; if (tk.nav) tk.nav = null; }
+    this.tanks = this.tanks.filter(tk => tk.y < FH);
+    for (const k of ['bullets', 'spawns', 'mines', 'turrets', 'claudes', 'strikes', 'shells', 'pads']) this[k] = this[k].filter(down);
+    for (const f of this.fx) f.y += S;
+    for (const p of this.popups) p.y += S;
+    for (const h of this.heals) { h.y1 += S; h.y2 += S; }
+    if (this.powerup && !down(this.powerup)) this.powerup = null;
+    this.pads.forEach((p, i) => { p.pair = this.pads[p.pair] ? p.pair : -1; });
+    this.pads = this.pads.filter(p => p.pair >= 0);
+    if (this.camY !== undefined) this.camY += S;
+    c.shifts++;
+  },
+
+  renderCorridorLine(ctx) {
+    const best = (STORE.get(MODE_KEY, {}).corridor || {}).dist || 0;
+    Font.drawCenter(ctx, 'CLIMBED ' + this.corridorClimb() + ' M' + (best ? '  BEST ' + best : ''), FX + VIEW_W / 2, 0, COL.black);
   },
 });
 
@@ -8026,9 +8173,12 @@ const Net = {
       ve: st.vsEagles || null,
       bg: st.big ? [st.big, st.outposts, st.factories.map(f => [f.x, f.y, f.hp, f.flash])] : null,
       fg: st.flags ? st.flags.map(f => [f.i, f.hx, f.hy, f.x, f.y, f.carrier ? 1 : 0]) : null,
+      cr: st.corridor ? [st.corridor.shifts, st.corridor.climbed, st.corridor.startY] : null,
     };
     st.netDiff = [];
-    if (full) sv.tf = Array.from(st.terrain).join('');
+    // the corridor moved down a section: the whole terrain goes again
+    if (full || st.netFull) sv.tf = Array.from(st.terrain).join('');
+    st.netFull = false;
     if (st.bosses.length) {
       sv.bo = st.bosses.map(b => { const o = Object.assign({}, b); delete o.bullets; return o; });
       sv.bm = st.beams;
@@ -8181,6 +8331,11 @@ const Net = {
     else { st.big = null; st.outposts = []; st.factories = []; }
     st.flags = sv.fg ? sv.fg.map(a => ({ i: a[0], hx: a[1], hy: a[2], x: a[3], y: a[4], carrier: a[5] ? {} : null })) : null;
     st.weather = sv.wx || null;
+    if (sv.cr) {
+      // the host's world moved down: so does this screen's window
+      if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();
+      st.corridor = { shifts: sv.cr[0], climbed: sv.cr[1], startY: sv.cr[2] };
+    } else st.corridor = null;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
     st.heals = (sv.hl || []).map(a => ({ x1: a[0], y1: a[1], x2: a[2], y2: a[3], t: a[4], build: !!a[5] }));
@@ -8685,7 +8840,8 @@ const Game = {
       const mi = modeInfo(Config.get('gameMode')), rec = STORE.get(MODE_KEY, {});
       Font.drawCenter(ctx, mi.desc + (mi.vs ? ' (2-4 P)' : ''), SW / 2, 203, COL.gold);
       const best = mi.key === 'survival' && rec.survival ? 'BEST WAVE ' + rec.survival.wave + '  ' + rec.survival.score
-        : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack) : '< > CHANGE MODE';
+        : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack)
+        : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score : '< > CHANGE MODE';
       Font.drawCenter(ctx, best, SW / 2, 213, COL.lgrey);
     } else if (cur && cur.daily && this.titleY === 0) {
       const d = dailyToday(), best = STORE.get(DAILY_KEY, {});
@@ -8778,7 +8934,7 @@ const Game = {
     if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
     this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
-    if (this.mode === 'timeattack') this.stageNum = 1;
+    if (this.mode === 'timeattack' || this.mode === 'corridor') this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
   },
 
@@ -8841,14 +8997,20 @@ const Game = {
     const big = !custom && !boss && (this.mode === 'bigmaps'
       || (this.mode === 'classic' && !this.daily && Config.get('bigStages') === 'SOME' && this.stageNum % 4 === 0));
     let blocks = null, objective = null;
-    if (big) {
+    const corridor = !custom && this.mode === 'corridor';
+    if (corridor) {
+      // the usual width, at least three sections high (one more than the screen needs above and below)
+      const [vc, vr] = this.desiredField(), rows = Math.max(3, Math.ceil((vr + 26) / CORRIDOR_SECTION)) * CORRIDOR_SECTION;
+      setFieldSize(vc, rows, vc, vr);
+      blocks = corridorBlocks(rows / CORRIDOR_SECTION);
+    } else if (big) {
       const [vc, vr] = this.desiredField(), [SX, SY] = bigWorldSize(vc, vr);
       setFieldSize(SX * SECTOR, SY * SECTOR, vc, vr);
       blocks = bigWorldBlocks(this.stageNum, SX, SY);
       objective = Math.floor(this.stageNum / (this.mode === 'bigmaps' ? 1 : 4)) % 2 ? 'outposts' : 'factories';
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
-      custom, boss, base: vs ? newBase() : this.base, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
+      custom, boss, base: vs || corridor ? newBase() : this.base, corridor, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
       blocks, big: objective,
     });
     this.paused = false;
@@ -8890,7 +9052,7 @@ const Game = {
     if (r === 'vsRound') { this.vsRoundEnd(); return; }
     if (r && this.mode === 'timeattack' && r === 'clear') { this.saveHi(); this.taNext(); return; }
     if (r === 'gameover') AutoSkill.event('gameOver');
-    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack')) { this.saveHi(); this.toModeResult(false); return; }
+    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor')) { this.saveHi(); this.toModeResult(false); return; }
     if (this.stage.result) {
       // beating a boss earns 25% off in the next shop
       this.shopDiscount = this.stage.result === 'clear' && this.stage.bossIdx !== undefined;
@@ -9118,6 +9280,11 @@ const Game = {
       const b = rec.survival;
       if (!b || res.wave > b.wave || (res.wave === b.wave && score > b.score)) { rec.survival = { wave: res.wave, score }; res.newBest = true; }
       res.best = rec.survival;
+    } else if (this.mode === 'corridor') {
+      res.dist = this.stage.corridorClimb();
+      const b = rec.corridor;
+      if (!b || res.dist > b.dist || (res.dist === b.dist && score > b.score)) { rec.corridor = { dist: res.dist, score }; res.newBest = true; }
+      res.best = rec.corridor;
     } else {
       res.frames = this.taFrames;
       res.cleared = this.taCleared;
@@ -9184,6 +9351,10 @@ const Game = {
       Font.drawCenter(ctx, 'YOU HELD OUT TO WAVE ' + r.wave, SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
       Font.drawCenter(ctx, 'BEST: WAVE ' + r.best.wave + '  ' + r.best.score, SW / 2, 124, COL.lgrey);
+    } else if (r.mode === 'corridor') {
+      Font.drawCenter(ctx, 'YOU CLIMBED ' + r.dist + ' M', SW / 2, 80, COL.white);
+      Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
+      Font.drawCenter(ctx, 'BEST: ' + r.best.dist + ' M  ' + r.best.score, SW / 2, 124, COL.lgrey);
     } else {
       Font.drawCenter(ctx, r.done ? 'ALL ' + TA_STAGES + ' STAGES IN ' + fmtTime(r.frames) : 'FAILED ON STAGE ' + (r.cleared + 1), SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);

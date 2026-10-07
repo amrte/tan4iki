@@ -3,6 +3,13 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.18
+
+- **Corridor mode:** the usual width, endless height. Climb as far as you can while enemies keep arriving from above,
+  faster and tougher the higher you get. Sections drop away below and fresh ones (random classic maps) appear on top
+  once the whole team has moved up; every 5 sections everyone gets a tank. No eagle; the best climb is kept and shown on
+  the title screen. Works with 1-4 players, locally or online.
+
 ## 0.17
 
 - **AUTO skill:** a sixth skill that adjusts enemy strength to how you play. A rating from 0 to 4 rises with kills and

@@ -108,7 +108,7 @@ and *show ranks and perks*, a screen with every rank's tank.
 ## Game modes
 
 Pick a mode on the title screen's **MODE** row (left/right), then start with 1 PLAYER or N PLAYERS (versus needs 2-4,
-on one keyboard, with pads, or online). Survival and time attack keep their best results; there is no shop and no
+on one keyboard, with pads, or online). Survival, time attack and corridor keep their best results; there is no shop and no
 saving outside Classic.
 
 | Mode | Players | How it works |
@@ -116,6 +116,7 @@ saving outside Classic.
 | **Classic** | 1-4 | the game as always |
 | **Survival** | 1-4 | endless waves on one map; wave *n* brings 6 + 2*n* tanks and later waves bring the newer, tougher enemies. After each wave a 4-second breather, the fortress walls are patched, and every 5 waves everyone gets a tank. The side panel's flag shows the wave. Ends when the eagle falls or everyone is out; best wave and score are kept |
 | **Big maps** | 1-4 | every stage is a big scrolling map (see below); shop and saves work as in Classic |
+| **Corridor** | 1-4 | the usual width, endless height: no eagle, just climb. The world is three map sections stacked (random classic maps, mirrored outwards on wider fields); once the whole team has climbed out of the bottom section it drops away and a fresh section appears on top, so the climb never ends and nobody gets left behind. Enemies keep arriving just above the screen, faster and tougher the higher you get (the flag shows the level: one per section climbed); ones left far below drop out. A destroyed tank comes back at the bottom of the screen; every 5 sections everyone gets a tank. The border above the field shows how far you've climbed (in tiles) and your best; ends when everyone is out |
 | **Time attack** | 1-4 | clear stages 1-5 as fast as you can; enemies arrive twice as fast, no tally between stages, the clock runs in the border above the field; best time is kept |
 | **VS eagles** | 2-4 | everyone has an eagle and a fortress (I bottom, II top, III left, IV right). Your shells, rockets and mines now destroy other players; you respawn while your eagle stands, and your own shells can't hurt it. Lose your eagle and you're out; the last eagle standing wins the round. Best of 3 |
 | **Deathmatch** | 2-4 | no eagles; players start in the corners and respawn; first to 10 kills, or the most kills after 3 minutes (the clock is in the side panel) |
@@ -427,6 +428,7 @@ js/extras.js      turrets, Claude, airstrikes, revival, wingman, decoy eagle, sm
 js/terrain.js     mud, conveyor belts, teleporter pads, night and fog stages
 js/modes.js       game modes: survival waves, time attack, versus eagles, deathmatch, capture the flag
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
+js/corridor.js    corridor mode: the endless climb, sections added on top as you go
 js/bosses.js      boss rounds: the 5 bosses, their arenas, sprites and behaviour
 js/net.js         online play: WebRTC connection, codes, host streaming, guest view, lobby panels
 js/main.js        state machine (title, settings, curtain, play, score, game over, construction) + loop

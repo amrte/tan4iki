@@ -246,9 +246,12 @@ const Net = {
       ve: st.vsEagles || null,
       bg: st.big ? [st.big, st.outposts, st.factories.map(f => [f.x, f.y, f.hp, f.flash])] : null,
       fg: st.flags ? st.flags.map(f => [f.i, f.hx, f.hy, f.x, f.y, f.carrier ? 1 : 0]) : null,
+      cr: st.corridor ? [st.corridor.shifts, st.corridor.climbed, st.corridor.startY] : null,
     };
     st.netDiff = [];
-    if (full) sv.tf = Array.from(st.terrain).join('');
+    // the corridor moved down a section: the whole terrain goes again
+    if (full || st.netFull) sv.tf = Array.from(st.terrain).join('');
+    st.netFull = false;
     if (st.bosses.length) {
       sv.bo = st.bosses.map(b => { const o = Object.assign({}, b); delete o.bullets; return o; });
       sv.bm = st.beams;
@@ -401,6 +404,11 @@ const Net = {
     else { st.big = null; st.outposts = []; st.factories = []; }
     st.flags = sv.fg ? sv.fg.map(a => ({ i: a[0], hx: a[1], hy: a[2], x: a[3], y: a[4], carrier: a[5] ? {} : null })) : null;
     st.weather = sv.wx || null;
+    if (sv.cr) {
+      // the host's world moved down: so does this screen's window
+      if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();
+      st.corridor = { shifts: sv.cr[0], climbed: sv.cr[1], startY: sv.cr[2] };
+    } else st.corridor = null;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
     st.heals = (sv.hl || []).map(a => ({ x1: a[0], y1: a[1], x2: a[2], y2: a[3], t: a[4], build: !!a[5] }));

@@ -245,8 +245,8 @@ class Stage {
     const classic = COLS === 13 && ROWS === 13;
     this.load(opts.blocks || expandBlocks(mapToBlocks(map)), !opts.custom || !classic);   // blocks: a stitched big map
     // mud, teleporters and belts in the normal stages; night and fog on some (terrain.js)
-    if (!opts.boss && !opts.custom && !opts.snapshot && Config.on('terrainExtras')) this.addTerrainExtras(num);
-    this.weather = stageWeather(opts.custom ? 1 : num, !!opts.boss);
+    if (!opts.boss && !opts.custom && !opts.snapshot && !opts.corridor && Config.on('terrainExtras')) this.addTerrainExtras(num);
+    this.weather = opts.corridor ? null : stageWeather(opts.custom ? 1 : num, !!opts.boss);
     this.outposts = []; this.factories = [];
     if (opts.big) this.setupBigMap(opts.big);   // bigmap.js
     this.tanks = [];
@@ -286,6 +286,7 @@ class Stage {
     this.noBase = false;
     if (opts.vs) this.setupVersus(opts.vs);
     if (opts.survival) this.setupSurvival();
+    if (opts.corridor) this.setupCorridor();   // corridor.js
     if (opts.timeAttack) this.spawnInterval = Math.round(this.spawnInterval / 2);
     for (const p of players) {
       p.kills = zeroKills();
@@ -420,7 +421,7 @@ class Stage {
 
   // ------------------------------------------------------------ spawning
   spawnPlayer(p, delay) {
-    const [x, y] = (this.vsSpawn || PLAYER_SPAWN)[p.i];
+    const [x, y] = this.corridor ? this.corridorSpawnPoint(p) : (this.vsSpawn || PLAYER_SPAWN)[p.i];
     this.spawns.push({ x, y, t: SPARKLE_TIME + delay, player: p });
   }
 
@@ -454,7 +455,7 @@ class Stage {
           x: s.x, y: s.y, dir: 2, type, hp: st.hp + vr.hp, bonus: s.enemy.bonus, vet,
           speed: st.speed * vr.speed * Config.skill().speed, bulletSpeed: st.bullet * vr.shell * Config.skill().shell, maxBullets: 1,
           ai: s.enemy.ai !== undefined ? s.enemy.ai : pickPersonality(type, this.num),
-          aiBase: type !== 4 && Math.random() < 0.3,  // some snipers shell the eagle instead of you (not rocket tanks)
+          aiBase: !this.noBase && type !== 4 && Math.random() < 0.3,  // some snipers shell the eagle instead of you (not rocket tanks)
           rocketGun: type === 4, frontShield: type === 5, crusher: type === 6, stealth: type === 7,
           mines: type === 6 ? 3 : 0, hover: type === 10,
           slither: ENEMY[type].kind === 'snake', segN: 4, trail: ENEMY[type].kind === 'snake' ? [] : null,
@@ -530,6 +531,8 @@ class Stage {
       if (this.overTimer >= 320) this.result = 'gameover';
     } else if (this.vs) {
       this.updateVersus();
+    } else if (this.corridor) {
+      this.updateCorridor();
     } else if (this.big && this.factoriesAlive()) {
       this.updateBigMap();
     } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer) && !this.bossAlive()) {
@@ -1453,7 +1456,7 @@ class Stage {
 
   renderHud(ctx) {
     if (this.vs) { this.renderVsHud(ctx, HUD_X); return; }
-    this.renderObjectiveLine(ctx);
+    if (this.corridor) this.renderCorridorLine(ctx); else this.renderObjectiveLine(ctx);
     const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
     if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);
@@ -1474,7 +1477,7 @@ class Stage {
         } else this.renderCarried(ctx, p, H + 1, y + 9, false, 5);
       });
       ctx.drawImage(Sprites.flag, H, 184);
-      Font.drawRight(ctx, String(this.survival ? this.wave : this.num), H + 16, 200, COL.black);
+      Font.drawRight(ctx, String(this.survival ? this.wave : this.corridor ? this.corridorLevel() : this.num), H + 16, 200, COL.black);
       return;
     }
     // 1-2 players: label, lives, mines carried and (with XP on) the level and XP bar
@@ -1497,6 +1500,6 @@ class Stage {
       }
     });
     ctx.drawImage(Sprites.flag, H, 184);
-    Font.drawRight(ctx, String(this.survival ? this.wave : this.num), H + 16, 200, COL.black);
+    Font.drawRight(ctx, String(this.survival ? this.wave : this.corridor ? this.corridorLevel() : this.num), H + 16, 200, COL.black);
   }
 }
