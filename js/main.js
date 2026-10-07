@@ -426,7 +426,7 @@ const Game = {
     Sound.setEngine(0);
     // one row per classic tank type, plus one for all the new types when any were destroyed
     const rows = [[0], [1], [2], [3]];
-    if (this.players.some(p => NEW_TYPES.some(k => p.kills[k]))) rows.push(NEW_TYPES);
+    if (this.players.some(p => ALL_NEW.some(k => p.kills[k]))) rows.push(ALL_NEW);
     this.sc = { gameOver, row: 0, n: 0, wait: 30, phase: 'rows', bonus: -1, rows };
     this.setState('score');
   },

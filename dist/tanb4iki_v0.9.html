@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.8</title>
+  <title>tanb4iki_v0.9</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.8';
+const APP_VERSION = '0.9';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -1765,6 +1765,49 @@ TANK_GRIDS.e7 = newEnemyGrids([
   '........',
 ], 5, 13);
 
+// Enemies designed on the "Tank 1990 New Enemies" canvas. Rows are the left half (mirrored to 16) in the
+// canvas's colour order: 1 = dark outline, 2 = body, 3 = highlight. tracks: the outer columns roll between frames.
+function canvasEnemyGrids(rows, tracks = true) {
+  const swap = { 1: '3', 3: '1' };
+  const full = rows.map(r => (r + r.split('').reverse().join('')).replace(/[13]/g, c => swap[c]));
+  const f1 = full.map((r, y) => {
+    if (!tracks || r[0] === '.') return r;
+    let n = y + 1;
+    while (n < 16 && full[n][0] === '.') n++;
+    if (n >= 16) return r;
+    const src = full[n];
+    return src.slice(0, 2) + r.slice(2, 14) + src.slice(14);
+  });
+  return [full, f1];
+}
+// MASON (Crane): blue chassis under a yellow gantry with a hanging hook
+TANK_GRIDS.e8 = canvasEnemyGrids(['....3333', '....3..1', '....3..1', '111.3.11', '13113111', '11113222', '13112222', '11112112',
+  '13112112', '11112222', '13112332', '11112332', '13112222', '11112222', '13111111', '111.....']);
+// MORTAR (Long Tom): bronze howitzer with a full-length barrel and muzzle brake
+TANK_GRIDS.e9 = canvasEnemyGrids(['......11', '.......1', '.......1', '.......1', '.......3', '.......1', '111...11', '13111122',
+  '11112322', '13112232', '11112222', '13111122', '11112222', '13112121', '11112121', '11111111']);
+// SKIMMER (Hover): skirt ring, pale deck, fan at the back; no tracks
+TANK_GRIDS.e10 = canvasEnemyGrids(['.......1', '.......1', '...11111', '..112222', '.1122333', '.1223311', '11223131', '12233131',
+  '12233111', '12223333', '11222222', '.1222121', '.1122212', '..112222', '...11111', '........'], false);
+// FLAMER (Torch): fuel cylinders on the back deck, glowing nozzle
+TANK_GRIDS.e11 = canvasEnemyGrids(['........', '.......3', '......11', '111...11', '13111111', '11112222', '13112332', '11112222',
+  '13112222', '11111111', '1311.131', '1111.121', '1311.121', '1111.131', '1311.111', '111.....']);
+// SPLITTER (Twin Hull): two half-hulls along a dark seam
+TANK_GRIDS.e12 = canvasEnemyGrids(['.....1..', '.....1..', '111..1..', '13111111', '11122221', '13123321', '11122221', '13122321',
+  '11122221', '13122221', '11123321', '13122221', '11111111', '13111111', '111.....', '........']);
+// MEDIC (Field Ambulance): white hull, red cross
+TANK_GRIDS.e13 = canvasEnemyGrids(['........', '........', '111.....', '13111111', '11112222', '13112223', '11112223', '13112333',
+  '11112333', '13112223', '11112223', '13112222', '11112222', '13111111', '111.....', '........']);
+// JAMMER (Dish): grey hull under a wide radar dish
+TANK_GRIDS.e14 = canvasEnemyGrids(['........', '..111111', '.1333333', '..133331', '111.1111', '13111221', '11112222', '13112332',
+  '11112222', '13112222', '11112332', '13112222', '11111111', '13111111', '111.....', '........']);
+// SPOTTER (Sky Eye): tall mast with a red eye
+TANK_GRIDS.e15 = canvasEnemyGrids(['......11', '.....123', '......11', '111....1', '13111111', '11112222', '13112222', '11112112',
+  '13112112', '11112222', '13112222', '11111111', '13111111', '111.....', '........', '........']);
+// MINI: one half of a split Splitter
+TANK_GRIDS.e16 = canvasEnemyGrids(['........', '........', '........', '.......1', '.......1', '...11111', '...13122', '...11123',
+  '...13122', '...11122', '...13111', '...111..', '........', '........', '........', '........']);
+
 </script>
   <script>
 'use strict';
@@ -1795,6 +1838,15 @@ const PALS = {
   shieldE: [null, '#D8F0FC', '#5C94FC', '#0028A0'],
   sapper: [null, '#F8E8A0', '#AC9C3C', '#4C3C00'],
   shade: [null, '#E8D0FC', '#9064D8', '#381870'],
+  // from the new-enemies design canvas
+  mason: [null, '#F8B800', '#3880D8', '#101820'],
+  mortar: [null, '#F0D090', '#8C6C44', '#141414'],
+  skimmer: [null, '#B8F0F8', '#2C8CB8', '#0C1420'],
+  flamer: [null, '#F8B848', '#C83C20', '#1C0C08'],
+  splitter: [null, '#E8F8F8', '#58A0C8', '#101018'],
+  medic: [null, '#D82800', '#E8E8E0', '#181418'],
+  jammer: [null, '#F8F8F8', '#686878', '#101018'],
+  spotter: [null, '#F83800', '#C87C28', '#18100C'],
 };
 
 function makeCanvas(w, h) {
@@ -2222,18 +2274,55 @@ const SETTINGS_DEF = [
   { key: 'e4Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 4 },
   { key: 'e4Shell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 4 },
   { key: 'e4Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 4 },
+  { key: 'e4On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 4 },
   { section: 'SHIELD TANK *', enemy: 5 },
   { key: 'e5Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 5 },
   { key: 'e5Shell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 5 },
   { key: 'e5Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 5 },
+  { key: 'e5On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 5 },
   { section: 'SAPPER TANK *', enemy: 6 },
   { key: 'e6Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 6 },
   { key: 'e6Shell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 6 },
   { key: 'e6Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 6 },
+  { key: 'e6On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 6 },
   { section: 'SHADE TANK *', enemy: 7 },
   { key: 'e7Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 7 },
   { key: 'e7Shell', label: 'SHELL SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 7 },
   { key: 'e7Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 7 },
+  { key: 'e7On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 7 },
+
+  { section: 'MASON *', enemy: 8 },
+  { key: 'e8Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 8 },
+  { key: 'e8Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 8 },
+  { key: 'e8On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 8 },
+  { section: 'MORTAR *', enemy: 9 },
+  { key: 'e9Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 9 },
+  { key: 'e9Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 9 },
+  { key: 'e9On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 9 },
+  { section: 'SKIMMER *', enemy: 10 },
+  { key: 'e10Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 10 },
+  { key: 'e10Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 10 },
+  { key: 'e10On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 10 },
+  { section: 'FLAMER *', enemy: 11 },
+  { key: 'e11Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 11 },
+  { key: 'e11Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 11 },
+  { key: 'e11On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 11 },
+  { section: 'SPLITTER *', enemy: 12 },
+  { key: 'e12Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 12 },
+  { key: 'e12Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 12 },
+  { key: 'e12On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 12 },
+  { section: 'MEDIC *', enemy: 13 },
+  { key: 'e13Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 13 },
+  { key: 'e13Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 13 },
+  { key: 'e13On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 13 },
+  { section: 'JAMMER *', enemy: 14 },
+  { key: 'e14Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 14 },
+  { key: 'e14Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 14 },
+  { key: 'e14On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 14 },
+  { section: 'SPOTTER *', enemy: 15 },
+  { key: 'e15Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 15 },
+  { key: 'e15Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 15 },
+  { key: 'e15On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 15 },
 
   { section: 'POWER-UPS' },
   { key: 'helmetTime', label: 'HELMET TIME', values: SECS.slice(1), def: 10, fmt: fmtSec },
@@ -2345,12 +2434,13 @@ const Config = {
   frames(k) { return Math.round(this.values[k] * 60); },
   xpOn() { return this.values.xp === 'ON'; },
   scale(k) { return this.values[k] / 100; },
+  // an enemy type's stats with its settings applied (types without a setting use the defaults)
   enemy(type) {
-    const base = ENEMY[type];
+    const base = ENEMY[type], pct = k => (this.values[k] === undefined ? 1 : this.values[k] / 100);
     return {
-      speed: base.speed * this.scale('e' + type + 'Speed'),
-      bullet: base.bullet * this.scale('e' + type + 'Shell'),
-      hp: this.values['e' + type + 'Hits'],
+      speed: base.speed * pct('e' + type + 'Speed'),
+      bullet: base.bullet * pct('e' + type + 'Shell'),
+      hp: this.values['e' + type + 'Hits'] === undefined ? base.hp : this.values['e' + type + 'Hits'],
       pts: base.pts,
     };
   },
@@ -2530,6 +2620,22 @@ const Sound = {
         break;
       case 'life':
         this.seq([76, 79, 84, 88, 0, 76, 79, 84, 88, 91], 0.055, t, { vol: 0.15, decayTo: 0.5 });
+        break;
+      case 'flame': // flamer jet
+        this.noise(5000, t, [[0, 0.13], [0.5, 0.1], [0.65, 0]]);
+        break;
+      case 'mortar': // a shell lobbed into the air
+        this.note(43, t, 0.08, { vol: 0.2, decayTo: 0.1 });
+        this.noise(9000, t, [[0, 0.1], [0.08, 0]]);
+        break;
+      case 'heal': // medic repair
+        this.seq([79, 84, 91], 0.045, t, { vol: 0.08, decayTo: 0.4, wave: 'p25' });
+        break;
+      case 'mark': // spotter has you
+        this.seq([88, 0, 88], 0.05, t, { vol: 0.09, flat: true, wave: 'p25' });
+        break;
+      case 'split': // splitter breaks in two
+        this.seq([67, 60], 0.06, t, { vol: 0.12, decayTo: 0.3 });
         break;
       case 'levelUp': // promotion fanfare
         this.seq([67, 72, 76, 79, 0, 79, 84], 0.07, t, { vol: 0.15, decayTo: 0.55 });
@@ -3109,8 +3215,22 @@ const ENEMY = [
   { name: 'SHIELD', speed: 0.5, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [1, 6, 3, 0], pal: 'shieldE', from: 11, desc: 'FRONT PLATE STOPS SHELLS' },
   { name: 'SAPPER', speed: 0.9, bullet: 2.5, hp: 1, pts: 400, xp: 20, ai: [1, 7, 2, 0], pal: 'sapper', from: 7, desc: 'CRUSHES BRICKS, LAYS MINES' },
   { name: 'SHADE', speed: 1, bullet: 4.5, hp: 1, pts: 600, xp: 35, ai: [1, 1, 7, 1], pal: 'shade', from: 15, desc: 'NEARLY INVISIBLE HUNTER' },
+  // from the new-enemies design canvas (abilities in enemies.js); fire = how often it uses its gun
+  { name: 'MASON', kind: 'mason', speed: 0.5, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [3, 5, 1, 1], pal: 'mason', from: 12, fire: 0.5, desc: 'REBUILDS BROKEN BRICKS' },
+  { name: 'MORTAR', kind: 'mortar', speed: 0.4, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [1, 1, 1, 7], pal: 'mortar', from: 19, desc: 'LOBS SHELLS OVER WALLS' },
+  { name: 'SKIMMER', kind: 'skimmer', speed: 1.1, bullet: 2.5, hp: 1, pts: 300, xp: 15, ai: [2, 3, 4, 1], pal: 'skimmer', from: 6, desc: 'GLIDES OVER WATER' },
+  { name: 'FLAMER', kind: 'flamer', speed: 0.75, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [1, 2, 7, 0], pal: 'flamer', from: 9, desc: 'SHORT FLAME JET, BURNS TREES' },
+  { name: 'SPLITTER', kind: 'splitter', speed: 0.75, bullet: 2.5, hp: 1, pts: 300, xp: 15, ai: [2, 5, 2, 1], pal: 'splitter', from: 14, desc: 'SPLITS INTO TWO MINIS' },
+  { name: 'MEDIC', kind: 'medic', speed: 0.75, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [6, 1, 0, 3], pal: 'medic', from: 17, fire: 0.3, desc: 'REPAIRS NEARBY ENEMIES' },
+  { name: 'JAMMER', kind: 'jammer', speed: 0.5, bullet: 2.5, hp: 1, pts: 400, xp: 25, ai: [4, 1, 1, 4], pal: 'jammer', from: 21, fire: 0.3, desc: 'SLOWS YOUR SHELLS NEARBY' },
+  { name: 'SPOTTER', kind: 'spotter', speed: 1.1, bullet: 2.5, hp: 1, pts: 500, xp: 30, ai: [1, 0, 1, 8], pal: 'spotter', from: 23, fire: 0.4, desc: 'MARKS YOU FOR ALL ENEMIES' },
+  // half of a destroyed splitter (never in a line-up)
+  { name: 'MINI', kind: 'mini', speed: 1.4, bullet: 2.5, hp: 1, pts: 100, xp: 5, ai: [0, 1, 0, 0], pal: 'splitter', mini: true },
 ];
-const NEW_TYPES = [4, 5, 6, 7];
+// types that can join a line-up, and every non-classic type (the tally's NEW row)
+const NEW_TYPES = ENEMY.map((e, i) => i).filter(i => i >= 4 && !ENEMY[i].mini);
+const ALL_NEW = ENEMY.map((e, i) => i).filter(i => i >= 4);
+const kindOf = t => ENEMY[t.type].kind;
 // Veteran and elite enemies (later stages): extra hits, faster shells and engine, more XP; they wear rank stripes
 const ENEMY_RANKS = [
   null,
@@ -3207,7 +3327,7 @@ function buildQueue(stageNum) {
   // Later stages get tougher: new enemy types join one by one (rocket from stage 4, sapper 7, shield 11,
   // shade 15) and take a growing share of the line-up; veterans appear from stage 10 and elites from stage 20.
   const mult = { OFF: 0, FEW: 0.5, NORMAL: 1, MANY: 1.8 }[Config.get('newEnemies')] || 0;
-  const s = stageNum, kinds = NEW_TYPES.filter(k => s >= ENEMY[k].from);
+  const s = stageNum, kinds = NEW_TYPES.filter(k => s >= ENEMY[k].from && Config.get('e' + k + 'On') !== 'OFF');
   if (mult && kinds.length) {
     const share = Math.min(0.6, (0.06 + (s - 4) * 0.015) * mult);
     for (let i = 2; i < out.length; i++) {   // never the very first tanks of a stage
@@ -3272,7 +3392,7 @@ class Tank {
     this.speed = 0.75; this.bulletSpeed = 2.5; this.maxBullets = 1;
     this.boost = {};   // active timed power-ups: name -> frames left
     this.mines = 0;    // mines carried by an enemy tank
-    this.ai = 0; this.aiBase = false; this.hold = 0; this.vet = 0;            // enemy personality (see ai.js)
+    this.ai = 0; this.aiBase = false; this.hold = 0; this.vet = 0; this.hover = false; this.cd = 0; this.maxHp = 0;            // enemy personality (see ai.js)
     this.rocketGun = false; this.frontShield = false; this.crusher = false; this.stealth = false; this.reveal = 0;
     this.plates = 0;   // armour plates (XP perk): each one soaks a hit
     this.repair = 0;
@@ -3300,6 +3420,7 @@ class Stage {
     this.terrain = new Uint8Array(GW * GH);
     const classic = COLS === 13 && ROWS === 13;
     this.load(expandBlocks(mapToBlocks(map)), !opts.custom || !classic);
+    this.origTerrain = this.terrain.slice();   // what a mason rebuilds
     this.tanks = [];
     this.bullets = [];
     this.fx = [];
@@ -3308,6 +3429,7 @@ class Stage {
     this.powerup = null;
     this.mines = [];
     this.bosses = []; this.beams = []; this.tracks = []; this.dust = [];
+    this.flames = []; this.shells = []; this.heals = []; this.mark = null; this.jamList = [];   // see enemies.js
     this.lastBrickSound = -1;
     this.queue = buildQueue(num);
     this.total = this.queue.length;
@@ -3347,7 +3469,7 @@ class Stage {
   snapshot() {
     const tankKeys = ['x', 'y', 'dir', 'isPlayer', 'type', 'hp', 'bonus', 'shield', 'frozen', 'ship', 'cutter', 'power',
       'speed', 'bulletSpeed', 'maxBullets', 'boost', 'mines', 'plates', 'repair',
-      'ai', 'aiBase', 'hold', 'rocketGun', 'frontShield', 'crusher', 'stealth', 'vet'];
+      'ai', 'aiBase', 'hold', 'rocketGun', 'frontShield', 'crusher', 'stealth', 'vet', 'hover', 'cd', 'maxHp'];
     return {
       cols: COLS, rows: ROWS,
       terrain: Array.from(this.terrain).join(''),
@@ -3480,8 +3602,9 @@ class Stage {
           ai: s.enemy.ai !== undefined ? s.enemy.ai : pickPersonality(type, this.num),
           aiBase: type !== 4 && Math.random() < 0.3,  // some snipers shell the eagle instead of you (not rocket tanks)
           rocketGun: type === 4, frontShield: type === 5, crusher: type === 6, stealth: type === 7,
-          mines: type === 6 ? 3 : 0,
+          mines: type === 6 ? 3 : 0, hover: type === 10,
         }));
+        this.enemySpawned(this.tanks[this.tanks.length - 1]);
       } else {
         const p = s.player;
         const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, player: p, shield: Config.frames('spawnShield') });
@@ -3513,9 +3636,11 @@ class Stage {
     this.updateSpawns();
     for (const t of this.tanks) {
       if (!t.alive) continue;
-      for (const k in t.boost) if (--t.boost[k] <= 0) delete t.boost[k];
+      // inside a jammer's field your timed power-ups stop counting down
+      if (!(t.isPlayer && this.jamList.length && this.jammed(t.x + 8, t.y + 8))) for (const k in t.boost) if (--t.boost[k] <= 0) delete t.boost[k];
       if (t.isPlayer) this.updatePlayer(t); else this.updateEnemy(t);
     }
+    this.updateSpecials();
     this.updateBosses();
     this.updateBullets();
     this.updateMines();
@@ -3605,7 +3730,7 @@ class Stage {
       // a sniper parked in position; it moves on if a player gets too close
       t.hold--;
       const pt = this.nearestPlayer(t);
-      if (pt && Math.abs(pt.x - t.x) + Math.abs(pt.y - t.y) < SNIPE_MIN - 8) t.hold = 0;
+      if (t.ai === AI.SNIPE && pt && Math.abs(pt.x - t.x) + Math.abs(pt.y - t.y) < SNIPE_MIN - 8) t.hold = 0;
     } else {
       ok = this.move(t, t.dir);
       if (!ok) {
@@ -3613,25 +3738,28 @@ class Stage {
         // personalities shoot their way through bricks instead of turning away
         const wait = smart && this.brickAhead(t) ? 40 : 6;
         if (t.blocked >= wait && Math.random() < 0.3) {
-          if (smart) this.aiChoose(t, true); else this.chooseDir(t, true);
+          if (smart || this.markedTank(t)) this.aiChoose(t, true); else this.chooseDir(t, true);
           t.blocked = 0;
         }
       } else {
         t.blocked = 0;
         if ((t.x & 7) === 0 && (t.y & 7) === 0) {
-          if (smart) this.aiChoose(t, false);
+          if (smart || this.markedTank(t)) this.aiChoose(t, false);
           else if (Math.random() < 1 / 20) this.chooseDir(t, false);
         }
       }
     }
     if (t.mines > 0 && ok && !t.hold && Math.random() < (t.crusher ? 1 / 150 : 1 / 180)) { this.dropMine(t); t.mines--; }
+    const kind = kindOf(t);
+    if (kind === 'flamer' || kind === 'mortar') { this[kind + 'Act'](t); return; }
     const maxB = t.boost.rapid ? 3 : 1;
     if (t.bullets < maxB && t.cool === 0) {
       let chance = ok ? 0.022 : 0.07;
       if (this.targetInSight(t)) chance = 0.15;
       if (t.hold > 0) chance = 0.1;
       else if (smart && !ok && this.brickAhead(t)) chance = 0.2;
-      chance *= Config.scale('enemyFire') * (t.boost.rapid ? 3 : 1) * (t.vet ? ENEMY_RANKS[t.vet].fire : 1);
+      chance *= Config.scale('enemyFire') * (t.boost.rapid ? 3 : 1) * (t.vet ? ENEMY_RANKS[t.vet].fire : 1) * (ENEMY[t.type].fire || 1);
+      if (this.mark) chance *= 1.5;   // a spotter's mark: everyone shoots more
       if (Math.random() < chance) { this.fire(t); t.cool = t.rocketGun ? 50 : 16; }
     }
   }
@@ -3722,7 +3850,7 @@ class Stage {
       for (let cx = x0 >> 2; cx <= x1 >> 2; cx++) {
         const tt = this.get(cx, cy);
         if (tt === T_STEEL || (tt === T_BRICK && !t.boost.ghost && !t.crusher)) return false;
-        if (tt === T_WATER && !t.ship && !t.boost.ghost) return false;
+        if (tt === T_WATER && !t.ship && !t.boost.ghost && !t.hover) return false;
       }
     }
     if (overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
@@ -3787,6 +3915,7 @@ class Stage {
   }
 
   stepBullet(b, dist) {
+    if (b.isPlayer && this.jamList.length && this.jammed(b.x + 2, b.y + 2)) dist *= 0.5;   // jammer field
     b.x += DXY[b.dir][0] * dist;
     b.y += DXY[b.dir][1] * dist;
     if (b.x < 0 || b.y < 0 || b.x > FW - 4 || b.y > FH - 4) {
@@ -3813,7 +3942,7 @@ class Stage {
         if (b.hits.has(t)) continue;
         b.hits.add(t);
         if (b.isPlayer && t.isPlayer) { if (t.shield <= 0) t.frozen = 180; }
-        else if (b.isPlayer) this.hitEnemy(t, b.owner);
+        else if (b.isPlayer) this.hitEnemy(t, b.owner, b.rocket);
         else this.hitPlayer(t);
         continue;
       }
@@ -3832,7 +3961,7 @@ class Stage {
           if (t.shield <= 0) t.frozen = 180;
           return;
         }
-        this.hitEnemy(t, b.owner);
+        this.hitEnemy(t, b.owner, b.rocket);
         this.killBullet(b, true, t);
         return;
       }
@@ -3913,7 +4042,7 @@ class Stage {
     const reaches = (x, y, w, h) => Math.hypot(Math.max(x, Math.min(cx, x + w)) - cx, Math.max(y, Math.min(cy, y + h)) - cy) < r - 2;
     for (const t of this.tanks) {
       if (!t.alive || t === exclude || !reaches(t.x, t.y, 16, 16)) continue;
-      if (byPlayer && !t.isPlayer) this.hitEnemy(t, owner);
+      if (byPlayer && !t.isPlayer) this.hitEnemy(t, owner, true);
       else if (!byPlayer && t.isPlayer) this.hitPlayer(t);
     }
     if (!byPlayer && this.baseAlive && reaches(BASE_X, BASE_Y, 16, 16)) this.destroyBase();
@@ -3946,13 +4075,15 @@ class Stage {
   }
 
   // ------------------------------------------------------------ damage
-  hitEnemy(t, by) {
+  // blast: rockets, mines and explosions (a splitter hit by one doesn't split)
+  hitEnemy(t, by, blast) {
     t.reveal = 90;
     if (t.bonus) { t.bonus = false; this.spawnPowerup(); }
     if (t.shield > 0) { Sound.play('steel'); return; }
     t.hp--;
     if (t.hp > 0) { Sound.play('armor'); return; }
     this.killEnemy(t, by, true);
+    if (kindOf(t) === 'splitter' && !blast) this.split(t);
   }
 
   killEnemy(t, by, award, silent) {
@@ -4255,6 +4386,7 @@ class Stage {
 
     for (const m of this.mines) ctx.drawImage(Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0], m.x - 4, m.y - 4);
     this.renderBossUnder(ctx);
+    this.renderSpecialsUnder(ctx);
     for (const t of this.tanks) this.drawTank(ctx, t);
     this.renderBosses(ctx);
     for (const s of this.spawns) {
@@ -4273,6 +4405,7 @@ class Stage {
     if (this.powerup && ((this.powerup.t >> 3) & 1) === 0) {
       ctx.drawImage(Sprites.powerups[this.powerup.type], this.powerup.x, this.powerup.y);
     }
+    this.renderSpecialsOver(ctx);
     for (const f of this.fx) {
       if (f.tick < 0) continue;
       const fr = f.frames[Math.min(f.frames.length - 1, Math.floor(f.tick / f.per))];
@@ -4397,8 +4530,10 @@ function pickPersonality(type, stageNum) {
   if (mode === 'CLASSIC') return AI.WANDER;
   if (mode !== 'MIXED') return AI[mode];
   const w = ENEMY[type].ai.slice();
-  // later stages bring fewer aimless tanks
+  // later stages bring fewer aimless tanks; the first few stages go easy on rushing and hunting
   w[0] *= Math.max(0.35, 1 - (stageNum - 1) * 0.03);
+  const ramp = Math.min(1, 0.4 + stageNum * 0.12);
+  w[1] *= ramp; w[2] *= ramp;
   let r = Math.random() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < 4; i++) { if (r < w[i]) return i; r -= w[i]; }
   return AI.WANDER;
@@ -4442,27 +4577,27 @@ Object.assign(Stage.prototype, {
   // ------------------------------------------------------------ navigation grid
   // Nodes are tank positions on the 8px grid. Entering a node costs 1, plus extra for every brick cell
   // under the tank (it has to shoot its way through); steel, water and the eagle can't be entered.
-  navCosts() {
-    if (this.navCost && this.navCostVer === this.terrainVer) return this.navCost;
+  navCosts(mode = '') {
+    const cache = this.navCost || (this.navCost = {});
+    if (cache[mode] && cache[mode].ver === this.terrainVer) return cache[mode].c;
     const NX = COLS * 2 - 1, NY = ROWS * 2 - 1, c = new Float32Array(NX * NY);
     for (let by = 0; by < NY; by++) for (let bx = 0; bx < NX; bx++) {
       let cost = 1;
       for (let cy = by * 2; cy < by * 2 + 4 && cost > 0; cy++) for (let cx = bx * 2; cx < bx * 2 + 4; cx++) {
         const t = this.get(cx, cy);
-        if (t === T_STEEL || t === T_WATER) { cost = -1; break; }
+        if (t === T_STEEL || (t === T_WATER && mode !== 'hover')) { cost = -1; break; }
         if (t === T_BRICK) cost += 0.6;
       }
       if (overlap(bx * 8, by * 8, 16, 16, BASE_X, BASE_Y, 16, 16)) cost = -1;
       c[by * NX + bx] = cost;
     }
-    this.navCost = c;
-    this.navCostVer = this.terrainVer;
+    cache[mode] = { c, ver: this.terrainVer };
     return c;
   },
 
   // distance (in moves) from every node to the nearest seed node
-  navField(seeds) {
-    const NX = COLS * 2 - 1, cost = this.navCosts(), dist = new Float64Array(cost.length).fill(Infinity);
+  navField(seeds, mode = '') {
+    const NX = COLS * 2 - 1, cost = this.navCosts(mode), dist = new Float64Array(cost.length).fill(Infinity);
     const h = new NavHeap();
     for (const n of seeds) if (n >= 0 && n < dist.length) { dist[n] = 0; h.push(0, n); }
     while (h.size) {
@@ -4482,27 +4617,27 @@ Object.assign(Stage.prototype, {
   },
 
   // route to the eagle: any spot right next to it (rebuilt as the bricks change, at most twice a second)
-  navBase() {
-    const f = this.navBaseF;
+  navBase(mode = '') {
+    const all = this.navBaseF || (this.navBaseF = {}), f = all[mode];
     if (f && (f.ver === this.terrainVer || this.frame - f.at < 30)) return f.dist;
     const NX = COLS * 2 - 1, NY = ROWS * 2 - 1, seeds = [];
     for (let by = 0; by < NY; by++) for (let bx = 0; bx < NX; bx++) {
       const x = bx * 8, y = by * 8;
       if (overlap(x, y, 16, 16, BASE_X - 8, BASE_Y - 8, 32, 32) && !overlap(x, y, 16, 16, BASE_X, BASE_Y, 16, 16)) seeds.push(by * NX + bx);
     }
-    this.navBaseF = { dist: this.navField(seeds), at: this.frame, ver: this.terrainVer };
-    return this.navBaseF.dist;
+    all[mode] = { dist: this.navField(seeds, mode), at: this.frame, ver: this.terrainVer };
+    return all[mode].dist;
   },
 
   // route to a player's tank (rebuilt three times a second)
-  navPlayer(pt) {
+  navPlayer(pt, mode = '') {
     const cache = this.navPlayerF || (this.navPlayerF = new Map());
-    const f = cache.get(pt);
+    const key = mode ? pt.player.i + mode : pt, f = cache.get(key);
     if (f && this.frame - f.at < 20) return f.dist;
     const NX = COLS * 2 - 1, NY = ROWS * 2 - 1;
     const bx = Math.max(0, Math.min(NX - 1, Math.round(pt.x / 8))), by = Math.max(0, Math.min(NY - 1, Math.round(pt.y / 8)));
-    const dist = this.navField([by * NX + bx]);
-    cache.set(pt, { dist, at: this.frame });
+    const dist = this.navField([by * NX + bx], mode);
+    cache.set(key, { dist, at: this.frame });
     return dist;
   },
 
@@ -4550,14 +4685,17 @@ Object.assign(Stage.prototype, {
   aiChoose(t, blocked) {
     // now and then do something unexpected, so tanks don't drive in single file
     if (!blocked && Math.random() < 0.06) { this.chooseDir(t, false); return; }
-    const pt = this.nearestPlayer(t);
+    const pt = this.nearestPlayer(t), mode = t.hover ? 'hover' : '';
+    // a spotter's mark sends everyone (but spotters) after the marked player
+    const marked = this.markedTank(t);
+    if (marked) { this.followField(t, this.navPlayer(marked, mode), blocked); return; }
     switch (t.ai) {
       case AI.RUSH:
-        if (!blocked && this.navBase()[(t.y >> 3) * (COLS * 2 - 1) + (t.x >> 3)] === 0) { this.faceTarget(t, BASE_X + 8, BASE_Y + 8); return; }
-        this.followField(t, this.navBase(), blocked);
+        if (!blocked && this.navBase(mode)[(t.y >> 3) * (COLS * 2 - 1) + (t.x >> 3)] === 0) { this.faceTarget(t, BASE_X + 8, BASE_Y + 8); return; }
+        this.followField(t, this.navBase(mode), blocked);
         return;
       case AI.HUNT:
-        this.followField(t, pt ? this.navPlayer(pt) : this.navBase(), blocked);
+        this.followField(t, pt ? this.navPlayer(pt, mode) : this.navBase(mode), blocked);
         return;
       case AI.SNIPE: {
         const target = t.aiBase || !pt ? { x: BASE_X, y: BASE_Y } : pt;
@@ -4575,7 +4713,7 @@ Object.assign(Stage.prototype, {
           const away = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 3 : 1) : (dy > 0 ? 0 : 2);
           if (!(blocked && away === t.dir) && this.canStep(t, away)) { this.turn(t, away); return; }
         }
-        this.followField(t, t.aiBase || !pt ? this.navBase() : this.navPlayer(pt), blocked);
+        this.followField(t, t.aiBase || !pt ? this.navBase(mode) : this.navPlayer(pt, mode), blocked);
         return;
       }
       default:
@@ -4589,6 +4727,257 @@ Object.assign(Stage.prototype, {
       [t.x, t.y + 16, t.x + 15, t.y + 19], [t.x - 4, t.y, t.x - 1, t.y + 15]][t.dir];
     for (let cy = y0 >> 2; cy <= y1 >> 2; cy++) for (let cx = x0 >> 2; cx <= x1 >> 2; cx++) if (this.get(cx, cy) === T_BRICK) return true;
     return false;
+  },
+});
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  Abilities of the enemies from the new-enemies design canvas
+//    MASON    rebuilds bricks that were shot away (one 8px block every 3 s)
+//    MORTAR   stops and lobs a shell over walls at a player; a crosshair marks the spot 1.5 s before impact
+//    SKIMMER  glides over water (see canStep and the 'hover' path map)
+//    FLAMER   a 2-tile flame jet instead of shells: burns trees, can't be shot down, hurts every tank it touches
+//    SPLITTER on its last hit splits into two fast minis that rush the eagle (a blast destroys it whole)
+//    MEDIC    repairs one hit on a damaged enemy nearby every 4 s; tanks appearing near it get a shield
+//    JAMMER   inside its 3-tile field your shells fly at half speed and timed power-ups stop counting down
+//    SPOTTER  marks a player it can see; while marked, every enemy hunts that player and fires more
+// =====================================================================
+
+const BUILD_EVERY = 180, BUILD_RANGE = 96;
+const HEAL_EVERY = 240, HEAL_RANGE = 96;
+const JAM_RADIUS = 48;
+const FLAME_LEN = 32, FLAME_TIME = 40;
+const MORTAR_MIN = 48, MORTAR_MAX = 208, MORTAR_FLIGHT = 90, MORTAR_RADIUS = 12;
+const MARK_TIME = 300, SPOT_RANGE = 176;
+
+Object.assign(Stage.prototype, {
+  // ------------------------------------------------------------ spawning and splitting
+  enemySpawned(t) {
+    t.maxHp = t.hp;
+    t.cd = 60 + rnd(90);
+    // a medic shields tanks that appear near it
+    if (this.tanks.some(m => m.alive && m !== t && kindOf(m) === 'medic' && Math.abs(m.x - t.x) + Math.abs(m.y - t.y) < 64)) t.shield = 120;
+  },
+
+  split(t) {
+    const st = Config.enemy(16);
+    for (const dir of [3, 1]) {
+      const m = new Tank({ x: t.x, y: t.y, dir, type: 16, hp: st.hp, speed: st.speed, bulletSpeed: st.bullet, maxBullets: 1, ai: AI.RUSH });
+      m.maxHp = m.hp;
+      this.tanks.push(m);
+    }
+    Sound.play('split');
+  },
+
+  // the player tank a spotter has marked (not for spotters themselves)
+  markedTank(t) {
+    const m = this.mark;
+    if (!m || (t && kindOf(t) === 'spotter')) return null;
+    if (m.p.tank && m.p.tank.alive) return m.p.tank;
+    return this.tanks.find(o => o.isPlayer && o.alive && o.player === m.p) || null;   // (online guests)
+  },
+
+  jammed(x, y) {
+    for (const j of this.jamList || []) if (Math.hypot(j.x + 8 - x, j.y + 8 - y) < JAM_RADIUS) return true;
+    return false;
+  },
+
+  // ------------------------------------------------------------ flamer and mortar (instead of shells)
+  flamerAct(t) {
+    if (t.cool > 0 || this.flames.some(f => f.owner === t)) return;
+    const pt = this.nearestPlayer(t);
+    let go = false;
+    if (pt) {
+      const dx = pt.x - t.x, dy = pt.y - t.y;
+      const ahead = [-dy, dx, dy, -dx][t.dir], side = Math.abs((t.dir & 1) ? dy : dx);
+      go = ahead > 0 && ahead < FLAME_LEN + 16 && side < 12;
+    }
+    // now and then it scorches whatever is in front anyway (trees, other routes)
+    if (!go && Math.random() < 0.004) go = true;
+    if (!go) return;
+    this.flames.push({ owner: t, age: 0, hit: new Set(), x: 0, y: 0, w: 0, h: 0 });
+    t.hold = FLAME_TIME;
+    t.cool = 100;
+    t.reveal = 60;
+    Sound.play('flame');
+  },
+
+  mortarAct(t) {
+    if (--t.cd > 0) return;
+    const pt = this.nearestPlayer(t);
+    if (!pt) { t.cd = 60; return; }
+    const tx = pt.x + 8, ty = pt.y + 8, d = Math.hypot(tx - t.x - 8, ty - t.y - 8);
+    if (d < MORTAR_MIN || d > MORTAR_MAX) { t.cd = 30; return; }
+    this.faceTarget(t, tx, ty);
+    t.hold = 50;
+    t.cd = Math.round((220 + rnd(120)) / Config.scale('enemyFire'));
+    this.shells.push({ x: tx, y: ty, t: MORTAR_FLIGHT, owner: t });
+    Sound.play('mortar');
+  },
+
+  // ------------------------------------------------------------ every frame
+  updateSpecials() {
+    this.jamList = this.tanks.filter(t => t.alive && kindOf(t) === 'jammer');
+    for (const t of this.tanks) {
+      if (!t.alive || t.isPlayer || this.freezeE > 0) continue;
+      const kind = kindOf(t);
+      if (kind === 'mason' && --t.cd <= 0) { t.cd = BUILD_EVERY; this.masonBuild(t); }
+      if (kind === 'medic' && --t.cd <= 0) { t.cd = HEAL_EVERY; this.medicHeal(t); }
+      if (kind === 'spotter') this.spotterLook(t);
+    }
+    this.updateFlames();
+    // mortar shells in flight
+    for (const s of this.shells) {
+      if (--s.t > 0) continue;
+      this.blast(s.x, s.y, MORTAR_RADIUS, false, s.owner, false);
+    }
+    this.shells = this.shells.filter(s => s.t > 0);
+    for (const h of this.heals) h.t--;
+    this.heals = this.heals.filter(h => h.t > 0);
+    // the mark fades when no spotter has seen the player for a while, or the spotters are gone
+    if (this.mark) {
+      const spotters = this.tanks.some(t => t.alive && kindOf(t) === 'spotter');
+      if (--this.mark.t <= 0 || !spotters || !this.markedTank(null)) this.mark = null;
+    }
+  },
+
+  masonBuild(t) {
+    const orig = this.origTerrain;
+    if (!orig) return;
+    const cx = t.x + 8, cy = t.y + 8;
+    let best = null, bd = BUILD_RANGE;
+    // 8px blocks that were brick when the stage began and have been shot away
+    for (let by = Math.max(0, (cy - BUILD_RANGE) >> 3); by <= Math.min(GH / 2 - 1, (cy + BUILD_RANGE) >> 3); by++) {
+      for (let bx = Math.max(0, (cx - BUILD_RANGE) >> 3); bx <= Math.min(GW / 2 - 1, (cx + BUILD_RANGE) >> 3); bx++) {
+        let missing = false;
+        for (let k = 0; k < 4; k++) {
+          const i = (by * 2 + (k >> 1)) * GW + bx * 2 + (k & 1);
+          if (orig[i] === T_BRICK && this.terrain[i] === T_EMPTY) missing = true;
+        }
+        if (!missing) continue;
+        const d = Math.hypot(bx * 8 + 4 - cx, by * 8 + 4 - cy);
+        if (d >= bd) continue;
+        // never wall a tank in
+        if (this.tanks.some(o => o.alive && overlap(o.x, o.y, 16, 16, bx * 8, by * 8, 8, 8))) continue;
+        best = [bx, by]; bd = d;
+      }
+    }
+    if (!best) return;
+    const [bx, by] = best;
+    for (let k = 0; k < 4; k++) {
+      const x = bx * 2 + (k & 1), y = by * 2 + (k >> 1), i = y * GW + x;
+      if (orig[i] === T_BRICK && this.terrain[i] === T_EMPTY) this.set(x, y, T_BRICK);
+    }
+    this.addFx(bx * 8 + 4, by * 8 + 4, [Sprites.sparkle[0], Sprites.sparkle[1]], 4);
+    this.heals.push({ x1: cx, y1: cy, x2: bx * 8 + 4, y2: by * 8 + 4, t: 16, build: true });
+    Sound.play('build');
+  },
+
+  medicHeal(t) {
+    let best = null, bd = HEAL_RANGE;
+    for (const o of this.tanks) {
+      if (!o.alive || o.isPlayer || o === t || o.hp >= (o.maxHp || o.hp)) continue;
+      const d = Math.abs(o.x - t.x) + Math.abs(o.y - t.y);
+      if (d < bd) { bd = d; best = o; }
+    }
+    if (!best) return;
+    best.hp++;
+    this.heals.push({ x1: t.x + 8, y1: t.y + 8, x2: best.x + 8, y2: best.y + 8, t: 24 });
+    Sound.play('heal');
+  },
+
+  // a spotter sees along its row or column, until steel, brick or trees block the view
+  spotterLook(t) {
+    for (const o of this.tanks) {
+      if (!o.isPlayer || !o.alive) continue;
+      const dx = o.x - t.x, dy = o.y - t.y;
+      if ((Math.abs(dx) >= 8 && Math.abs(dy) >= 8) || Math.abs(dx) + Math.abs(dy) > SPOT_RANGE) continue;
+      if (!this.sightLine(t.x + 8, t.y + 8, o.x + 8, o.y + 8)) continue;
+      if (!this.mark || this.mark.p !== o.player) Sound.play('mark');
+      this.mark = { p: o.player, t: MARK_TIME };
+      return;
+    }
+  },
+
+  sightLine(x0, y0, x1, y1) {
+    const n = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 4);
+    for (let i = 1; i < n; i++) {
+      const v = this.get(Math.floor((x0 + (x1 - x0) * i / n) / 4), Math.floor((y0 + (y1 - y0) * i / n) / 4));
+      if (v === T_STEEL || v === T_BRICK || v === T_FOREST) return false;
+    }
+    return true;
+  },
+
+  updateFlames() {
+    for (const f of this.flames) {
+      const t = f.owner;
+      f.age++;
+      if (!t.alive || f.age > FLAME_TIME) { f.done = true; continue; }
+      const len = Math.min(FLAME_LEN, f.age * 4), w = 12;
+      [f.x, f.y, f.w, f.h] = [[t.x + 2, t.y - len, w, len], [t.x + 16, t.y + 2, len, w], [t.x + 2, t.y + 16, w, len], [t.x - len, t.y + 2, len, w]][t.dir];
+      // burn the trees
+      for (let cy = Math.max(0, f.y >> 2); cy <= (f.y + f.h - 1) >> 2; cy++) {
+        for (let cx = Math.max(0, f.x >> 2); cx <= (f.x + f.w - 1) >> 2; cx++) if (this.get(cx, cy) === T_FOREST) this.set(cx, cy, T_EMPTY);
+      }
+      // and every tank in reach, its own side too (once per jet)
+      for (const o of this.tanks.slice()) {
+        if (!o.alive || o === t || f.hit.has(o) || !overlap(o.x, o.y, 16, 16, f.x, f.y, f.w, f.h)) continue;
+        f.hit.add(o);
+        if (o.isPlayer) this.hitPlayer(o); else this.hitEnemy(o, null);
+      }
+    }
+    this.flames = this.flames.filter(f => !f.done);
+  },
+
+  // ------------------------------------------------------------ drawing
+  // under the tanks: jammer fields
+  renderSpecialsUnder(ctx) {
+    for (const j of this.tanks) {
+      if (!j.alive || kindOf(j) !== 'jammer') continue;
+      const cx = j.x + 8, cy = j.y + 8, r = JAM_RADIUS - 2 + ((this.frame >> 3) & 3);
+      ctx.fillStyle = (this.frame >> 4) & 1 ? '#686878' : '#3C3C50';
+      for (let a = 0; a < 40; a++) {
+        const ang = (a / 40) * Math.PI * 2 + this.frame * 0.01;
+        ctx.fillRect(Math.round(cx + Math.cos(ang) * r), Math.round(cy + Math.sin(ang) * r), 2, 2);
+      }
+    }
+  },
+
+  // over the tanks: flames, repair beams, mortar crosshairs, the spotter's mark
+  renderSpecialsOver(ctx) {
+    const fire = ['#F8F8F8', '#F8D878', '#F87830', '#D82800'];
+    for (const f of this.flames) {
+      for (let k = 0; k < 18; k++) {
+        const px = f.x + ((k * 37 + this.frame * 13) % Math.max(1, f.w)), py = f.y + ((k * 53 + this.frame * 7) % Math.max(1, f.h));
+        ctx.fillStyle = fire[(k + (this.frame >> 1)) & 3];
+        ctx.fillRect(px - 1, py - 1, 3, 3);
+      }
+    }
+    for (const h of this.heals) {
+      ctx.fillStyle = h.build ? '#F8B800' : ((h.t >> 1) & 1 ? '#F8F8F8' : '#D82800');
+      const n = Math.max(1, Math.round(Math.hypot(h.x2 - h.x1, h.y2 - h.y1) / 3));
+      for (let i = 0; i <= n; i += 1) {
+        if ((i + (h.t >> 1)) % 2) continue;
+        ctx.fillRect(Math.round(h.x1 + (h.x2 - h.x1) * i / n) - 1, Math.round(h.y1 + (h.y2 - h.y1) * i / n) - 1, 2, 2);
+      }
+    }
+    for (const s of this.shells) {
+      if ((s.t >> 2) & 1 && s.t > 20) continue;
+      const r = 4 + Math.round(s.t / 10);
+      ctx.fillStyle = s.t < 20 ? '#F83800' : '#F8F8F8';
+      ctx.fillRect(s.x - r, s.y, r * 2 + 1, 1);
+      ctx.fillRect(s.x, s.y - r, 1, r * 2 + 1);
+      ctx.fillRect(s.x - 1, s.y - 1, 3, 3);
+    }
+    const mt = this.markedTank(null);
+    if (mt && (this.frame >> 3) & 1) {
+      ctx.fillStyle = '#F83800';
+      for (const [x, y, w, h] of [[-2, -2, 5, 1], [-2, -2, 1, 5], [13, -2, 5, 1], [17, -2, 1, 5], [-2, 17, 5, 1], [-2, 13, 1, 5], [13, 17, 5, 1], [17, 13, 1, 5]]) {
+        ctx.fillRect(mt.x + x, mt.y + y, w, h);
+      }
+    }
   },
 });
 
@@ -5724,6 +6113,11 @@ const Net = {
       mi: st.mines.map(m => [m.x, m.y, m.t]),
       sp: st.spawns.map(s => [s.x, s.y, s.t]),
       rm: st.rankMsg ? [st.rankMsg.p.i, st.rankMsg.r, st.rankMsg.t] : null,
+      // new-enemy effects: flames, mortar shells, repair beams, the spotter's mark
+      fl: st.flames.map(f => [f.x, f.y, f.w, f.h]),
+      ar: st.shells.map(a => [a.x, a.y, a.t]),
+      hl: st.heals.map(h => [h.x1, h.y1, h.x2, h.y2, h.t, h.build ? 1 : 0]),
+      mk: st.mark ? st.mark.p.i : -1,
     };
     st.netDiff = [];
     if (full) sv.tf = Array.from(st.terrain).join('');
@@ -5860,7 +6254,12 @@ const Net = {
       type: a[5], hp: a[6], bonus: !!a[7], shield: a[8], frozen: a[9], ship: !!a[10], anim: a[11], boost: a[12] ? { ghost: 1 } : {},
       plates: a[13] || 0, glow: a[14] || 0, reveal: a[15] || 0, ai: a[16] || 0, vet: a[17] || 0, stealth: a[5] === 7,
     }));
-    st.rankMsg = sv.rm ? { p: G.players.find(p => p.i === sv.rm[0]) || G.players[0], r: sv.rm[1], t: sv.rm[2] } : null;
+    st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
+    st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
+    st.heals = (sv.hl || []).map(a => ({ x1: a[0], y1: a[1], x2: a[2], y2: a[3], t: a[4], build: !!a[5] }));
+    const mp = G.players.find(p => p.i === sv.mk);
+    st.mark = mp ? { p: mp, t: 1 } : null;
+        st.rankMsg = sv.rm ? { p: G.players.find(p => p.i === sv.rm[0]) || G.players[0], r: sv.rm[1], t: sv.rm[2] } : null;
     st.bullets = sv.bu.map(a => ({ x: a[0], y: a[1], dir: a[2], rocket: !!a[3], pierce: !!a[4], alive: true }));
     const FX = { s: () => Sprites.smallExp, b: () => Sprites.bigExp, B: BIG_EXPLOSION };
     st.fx = sv.fx.map(a => ({ x: a[0], y: a[1], frames: FX[a[2]](), per: a[3], tick: a[4] }));
@@ -6493,7 +6892,7 @@ const Game = {
     Sound.setEngine(0);
     // one row per classic tank type, plus one for all the new types when any were destroyed
     const rows = [[0], [1], [2], [3]];
-    if (this.players.some(p => NEW_TYPES.some(k => p.kills[k]))) rows.push(NEW_TYPES);
+    if (this.players.some(p => ALL_NEW.some(k => p.kills[k]))) rows.push(ALL_NEW);
     this.sc = { gameOver, row: 0, n: 0, wait: 30, phase: 'rows', bonus: -1, rows };
     this.setState('score');
   },

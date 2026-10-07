@@ -171,6 +171,22 @@ const Sound = {
       case 'life':
         this.seq([76, 79, 84, 88, 0, 76, 79, 84, 88, 91], 0.055, t, { vol: 0.15, decayTo: 0.5 });
         break;
+      case 'flame': // flamer jet
+        this.noise(5000, t, [[0, 0.13], [0.5, 0.1], [0.65, 0]]);
+        break;
+      case 'mortar': // a shell lobbed into the air
+        this.note(43, t, 0.08, { vol: 0.2, decayTo: 0.1 });
+        this.noise(9000, t, [[0, 0.1], [0.08, 0]]);
+        break;
+      case 'heal': // medic repair
+        this.seq([79, 84, 91], 0.045, t, { vol: 0.08, decayTo: 0.4, wave: 'p25' });
+        break;
+      case 'mark': // spotter has you
+        this.seq([88, 0, 88], 0.05, t, { vol: 0.09, flat: true, wave: 'p25' });
+        break;
+      case 'split': // splitter breaks in two
+        this.seq([67, 60], 0.06, t, { vol: 0.12, decayTo: 0.3 });
+        break;
       case 'levelUp': // promotion fanfare
         this.seq([67, 72, 76, 79, 0, 79, 84], 0.07, t, { vol: 0.15, decayTo: 0.55 });
         this.seq([60, 64, 67, 72, 0, 72, 76], 0.07, t, { vol: 0.08, decayTo: 0.5, wave: 'p25' });

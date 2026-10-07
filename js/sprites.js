@@ -782,3 +782,46 @@ TANK_GRIDS.e7 = newEnemyGrids([
   '........',
   '........',
 ], 5, 13);
+
+// Enemies designed on the "Tank 1990 New Enemies" canvas. Rows are the left half (mirrored to 16) in the
+// canvas's colour order: 1 = dark outline, 2 = body, 3 = highlight. tracks: the outer columns roll between frames.
+function canvasEnemyGrids(rows, tracks = true) {
+  const swap = { 1: '3', 3: '1' };
+  const full = rows.map(r => (r + r.split('').reverse().join('')).replace(/[13]/g, c => swap[c]));
+  const f1 = full.map((r, y) => {
+    if (!tracks || r[0] === '.') return r;
+    let n = y + 1;
+    while (n < 16 && full[n][0] === '.') n++;
+    if (n >= 16) return r;
+    const src = full[n];
+    return src.slice(0, 2) + r.slice(2, 14) + src.slice(14);
+  });
+  return [full, f1];
+}
+// MASON (Crane): blue chassis under a yellow gantry with a hanging hook
+TANK_GRIDS.e8 = canvasEnemyGrids(['....3333', '....3..1', '....3..1', '111.3.11', '13113111', '11113222', '13112222', '11112112',
+  '13112112', '11112222', '13112332', '11112332', '13112222', '11112222', '13111111', '111.....']);
+// MORTAR (Long Tom): bronze howitzer with a full-length barrel and muzzle brake
+TANK_GRIDS.e9 = canvasEnemyGrids(['......11', '.......1', '.......1', '.......1', '.......3', '.......1', '111...11', '13111122',
+  '11112322', '13112232', '11112222', '13111122', '11112222', '13112121', '11112121', '11111111']);
+// SKIMMER (Hover): skirt ring, pale deck, fan at the back; no tracks
+TANK_GRIDS.e10 = canvasEnemyGrids(['.......1', '.......1', '...11111', '..112222', '.1122333', '.1223311', '11223131', '12233131',
+  '12233111', '12223333', '11222222', '.1222121', '.1122212', '..112222', '...11111', '........'], false);
+// FLAMER (Torch): fuel cylinders on the back deck, glowing nozzle
+TANK_GRIDS.e11 = canvasEnemyGrids(['........', '.......3', '......11', '111...11', '13111111', '11112222', '13112332', '11112222',
+  '13112222', '11111111', '1311.131', '1111.121', '1311.121', '1111.131', '1311.111', '111.....']);
+// SPLITTER (Twin Hull): two half-hulls along a dark seam
+TANK_GRIDS.e12 = canvasEnemyGrids(['.....1..', '.....1..', '111..1..', '13111111', '11122221', '13123321', '11122221', '13122321',
+  '11122221', '13122221', '11123321', '13122221', '11111111', '13111111', '111.....', '........']);
+// MEDIC (Field Ambulance): white hull, red cross
+TANK_GRIDS.e13 = canvasEnemyGrids(['........', '........', '111.....', '13111111', '11112222', '13112223', '11112223', '13112333',
+  '11112333', '13112223', '11112223', '13112222', '11112222', '13111111', '111.....', '........']);
+// JAMMER (Dish): grey hull under a wide radar dish
+TANK_GRIDS.e14 = canvasEnemyGrids(['........', '..111111', '.1333333', '..133331', '111.1111', '13111221', '11112222', '13112332',
+  '11112222', '13112222', '11112332', '13112222', '11111111', '13111111', '111.....', '........']);
+// SPOTTER (Sky Eye): tall mast with a red eye
+TANK_GRIDS.e15 = canvasEnemyGrids(['......11', '.....123', '......11', '111....1', '13111111', '11112222', '13112222', '11112112',
+  '13112112', '11112222', '13112222', '11111111', '13111111', '111.....', '........', '........']);
+// MINI: one half of a split Splitter
+TANK_GRIDS.e16 = canvasEnemyGrids(['........', '........', '........', '.......1', '.......1', '...11111', '...13122', '...11123',
+  '...13122', '...11122', '...13111', '...111..', '........', '........', '........', '........']);

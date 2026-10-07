@@ -17,8 +17,10 @@ function pickPersonality(type, stageNum) {
   if (mode === 'CLASSIC') return AI.WANDER;
   if (mode !== 'MIXED') return AI[mode];
   const w = ENEMY[type].ai.slice();
-  // later stages bring fewer aimless tanks
+  // later stages bring fewer aimless tanks; the first few stages go easy on rushing and hunting
   w[0] *= Math.max(0.35, 1 - (stageNum - 1) * 0.03);
+  const ramp = Math.min(1, 0.4 + stageNum * 0.12);
+  w[1] *= ramp; w[2] *= ramp;
   let r = Math.random() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < 4; i++) { if (r < w[i]) return i; r -= w[i]; }
   return AI.WANDER;
@@ -62,27 +64,27 @@ Object.assign(Stage.prototype, {
   // ------------------------------------------------------------ navigation grid
   // Nodes are tank positions on the 8px grid. Entering a node costs 1, plus extra for every brick cell
   // under the tank (it has to shoot its way through); steel, water and the eagle can't be entered.
-  navCosts() {
-    if (this.navCost && this.navCostVer === this.terrainVer) return this.navCost;
+  navCosts(mode = '') {
+    const cache = this.navCost || (this.navCost = {});
+    if (cache[mode] && cache[mode].ver === this.terrainVer) return cache[mode].c;
     const NX = COLS * 2 - 1, NY = ROWS * 2 - 1, c = new Float32Array(NX * NY);
     for (let by = 0; by < NY; by++) for (let bx = 0; bx < NX; bx++) {
       let cost = 1;
       for (let cy = by * 2; cy < by * 2 + 4 && cost > 0; cy++) for (let cx = bx * 2; cx < bx * 2 + 4; cx++) {
         const t = this.get(cx, cy);
-        if (t === T_STEEL || t === T_WATER) { cost = -1; break; }
+        if (t === T_STEEL || (t === T_WATER && mode !== 'hover')) { cost = -1; break; }
         if (t === T_BRICK) cost += 0.6;
       }
       if (overlap(bx * 8, by * 8, 16, 16, BASE_X, BASE_Y, 16, 16)) cost = -1;
       c[by * NX + bx] = cost;
     }
-    this.navCost = c;
-    this.navCostVer = this.terrainVer;
+    cache[mode] = { c, ver: this.terrainVer };
     return c;
   },
 
   // distance (in moves) from every node to the nearest seed node
-  navField(seeds) {
-    const NX = COLS * 2 - 1, cost = this.navCosts(), dist = new Float64Array(cost.length).fill(Infinity);
+  navField(seeds, mode = '') {
+    const NX = COLS * 2 - 1, cost = this.navCosts(mode), dist = new Float64Array(cost.length).fill(Infinity);
     const h = new NavHeap();
     for (const n of seeds) if (n >= 0 && n < dist.length) { dist[n] = 0; h.push(0, n); }
     while (h.size) {
@@ -102,27 +104,27 @@ Object.assign(Stage.prototype, {
   },
 
   // route to the eagle: any spot right next to it (rebuilt as the bricks change, at most twice a second)
-  navBase() {
-    const f = this.navBaseF;
+  navBase(mode = '') {
+    const all = this.navBaseF || (this.navBaseF = {}), f = all[mode];
     if (f && (f.ver === this.terrainVer || this.frame - f.at < 30)) return f.dist;
     const NX = COLS * 2 - 1, NY = ROWS * 2 - 1, seeds = [];
     for (let by = 0; by < NY; by++) for (let bx = 0; bx < NX; bx++) {
       const x = bx * 8, y = by * 8;
       if (overlap(x, y, 16, 16, BASE_X - 8, BASE_Y - 8, 32, 32) && !overlap(x, y, 16, 16, BASE_X, BASE_Y, 16, 16)) seeds.push(by * NX + bx);
     }
-    this.navBaseF = { dist: this.navField(seeds), at: this.frame, ver: this.terrainVer };
-    return this.navBaseF.dist;
+    all[mode] = { dist: this.navField(seeds, mode), at: this.frame, ver: this.terrainVer };
+    return all[mode].dist;
   },
 
   // route to a player's tank (rebuilt three times a second)
-  navPlayer(pt) {
+  navPlayer(pt, mode = '') {
     const cache = this.navPlayerF || (this.navPlayerF = new Map());
-    const f = cache.get(pt);
+    const key = mode ? pt.player.i + mode : pt, f = cache.get(key);
     if (f && this.frame - f.at < 20) return f.dist;
     const NX = COLS * 2 - 1, NY = ROWS * 2 - 1;
     const bx = Math.max(0, Math.min(NX - 1, Math.round(pt.x / 8))), by = Math.max(0, Math.min(NY - 1, Math.round(pt.y / 8)));
-    const dist = this.navField([by * NX + bx]);
-    cache.set(pt, { dist, at: this.frame });
+    const dist = this.navField([by * NX + bx], mode);
+    cache.set(key, { dist, at: this.frame });
     return dist;
   },
 
@@ -170,14 +172,17 @@ Object.assign(Stage.prototype, {
   aiChoose(t, blocked) {
     // now and then do something unexpected, so tanks don't drive in single file
     if (!blocked && Math.random() < 0.06) { this.chooseDir(t, false); return; }
-    const pt = this.nearestPlayer(t);
+    const pt = this.nearestPlayer(t), mode = t.hover ? 'hover' : '';
+    // a spotter's mark sends everyone (but spotters) after the marked player
+    const marked = this.markedTank(t);
+    if (marked) { this.followField(t, this.navPlayer(marked, mode), blocked); return; }
     switch (t.ai) {
       case AI.RUSH:
-        if (!blocked && this.navBase()[(t.y >> 3) * (COLS * 2 - 1) + (t.x >> 3)] === 0) { this.faceTarget(t, BASE_X + 8, BASE_Y + 8); return; }
-        this.followField(t, this.navBase(), blocked);
+        if (!blocked && this.navBase(mode)[(t.y >> 3) * (COLS * 2 - 1) + (t.x >> 3)] === 0) { this.faceTarget(t, BASE_X + 8, BASE_Y + 8); return; }
+        this.followField(t, this.navBase(mode), blocked);
         return;
       case AI.HUNT:
-        this.followField(t, pt ? this.navPlayer(pt) : this.navBase(), blocked);
+        this.followField(t, pt ? this.navPlayer(pt, mode) : this.navBase(mode), blocked);
         return;
       case AI.SNIPE: {
         const target = t.aiBase || !pt ? { x: BASE_X, y: BASE_Y } : pt;
@@ -195,7 +200,7 @@ Object.assign(Stage.prototype, {
           const away = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 3 : 1) : (dy > 0 ? 0 : 2);
           if (!(blocked && away === t.dir) && this.canStep(t, away)) { this.turn(t, away); return; }
         }
-        this.followField(t, t.aiBase || !pt ? this.navBase() : this.navPlayer(pt), blocked);
+        this.followField(t, t.aiBase || !pt ? this.navBase(mode) : this.navPlayer(pt, mode), blocked);
         return;
       }
       default:

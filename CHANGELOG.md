@@ -3,6 +3,16 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.9
+
+- **Eight more enemy tanks** from the *Tank 1990 New Enemies* design canvas, each with its own sprite: Skimmer
+  (stage 6, crosses water), Flamer (9, flame jet that burns trees and hurts everything it touches), Mason (12, rebuilds
+  shot-away bricks), Splitter (14, splits into two minis that rush the eagle), Medic (17, repairs and shields other
+  enemies), Mortar (19, lobs shells over walls with a 1.5 s crosshair warning), Jammer (21, slows your shells and
+  pauses your power-ups in its field) and Spotter (23, marks you so every enemy hunts you).
+- Every new enemy type has an APPEARS on/off setting.
+- The first few stages have fewer rushing and hunting enemies; the full mix arrives by stage 5.
+
 ## 0.8
 
 - **Enemy personalities:** every enemy now wanders, rushes the eagle, hunts the nearest player or snipes from a

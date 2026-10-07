@@ -26,6 +26,15 @@ const PALS = {
   shieldE: [null, '#D8F0FC', '#5C94FC', '#0028A0'],
   sapper: [null, '#F8E8A0', '#AC9C3C', '#4C3C00'],
   shade: [null, '#E8D0FC', '#9064D8', '#381870'],
+  // from the new-enemies design canvas
+  mason: [null, '#F8B800', '#3880D8', '#101820'],
+  mortar: [null, '#F0D090', '#8C6C44', '#141414'],
+  skimmer: [null, '#B8F0F8', '#2C8CB8', '#0C1420'],
+  flamer: [null, '#F8B848', '#C83C20', '#1C0C08'],
+  splitter: [null, '#E8F8F8', '#58A0C8', '#101018'],
+  medic: [null, '#D82800', '#E8E8E0', '#181418'],
+  jammer: [null, '#F8F8F8', '#686878', '#101018'],
+  spotter: [null, '#F83800', '#C87C28', '#18100C'],
 };
 
 function makeCanvas(w, h) {

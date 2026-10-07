@@ -28,8 +28,22 @@ const ENEMY = [
   { name: 'SHIELD', speed: 0.5, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [1, 6, 3, 0], pal: 'shieldE', from: 11, desc: 'FRONT PLATE STOPS SHELLS' },
   { name: 'SAPPER', speed: 0.9, bullet: 2.5, hp: 1, pts: 400, xp: 20, ai: [1, 7, 2, 0], pal: 'sapper', from: 7, desc: 'CRUSHES BRICKS, LAYS MINES' },
   { name: 'SHADE', speed: 1, bullet: 4.5, hp: 1, pts: 600, xp: 35, ai: [1, 1, 7, 1], pal: 'shade', from: 15, desc: 'NEARLY INVISIBLE HUNTER' },
+  // from the new-enemies design canvas (abilities in enemies.js); fire = how often it uses its gun
+  { name: 'MASON', kind: 'mason', speed: 0.5, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [3, 5, 1, 1], pal: 'mason', from: 12, fire: 0.5, desc: 'REBUILDS BROKEN BRICKS' },
+  { name: 'MORTAR', kind: 'mortar', speed: 0.4, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [1, 1, 1, 7], pal: 'mortar', from: 19, desc: 'LOBS SHELLS OVER WALLS' },
+  { name: 'SKIMMER', kind: 'skimmer', speed: 1.1, bullet: 2.5, hp: 1, pts: 300, xp: 15, ai: [2, 3, 4, 1], pal: 'skimmer', from: 6, desc: 'GLIDES OVER WATER' },
+  { name: 'FLAMER', kind: 'flamer', speed: 0.75, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [1, 2, 7, 0], pal: 'flamer', from: 9, desc: 'SHORT FLAME JET, BURNS TREES' },
+  { name: 'SPLITTER', kind: 'splitter', speed: 0.75, bullet: 2.5, hp: 1, pts: 300, xp: 15, ai: [2, 5, 2, 1], pal: 'splitter', from: 14, desc: 'SPLITS INTO TWO MINIS' },
+  { name: 'MEDIC', kind: 'medic', speed: 0.75, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [6, 1, 0, 3], pal: 'medic', from: 17, fire: 0.3, desc: 'REPAIRS NEARBY ENEMIES' },
+  { name: 'JAMMER', kind: 'jammer', speed: 0.5, bullet: 2.5, hp: 1, pts: 400, xp: 25, ai: [4, 1, 1, 4], pal: 'jammer', from: 21, fire: 0.3, desc: 'SLOWS YOUR SHELLS NEARBY' },
+  { name: 'SPOTTER', kind: 'spotter', speed: 1.1, bullet: 2.5, hp: 1, pts: 500, xp: 30, ai: [1, 0, 1, 8], pal: 'spotter', from: 23, fire: 0.4, desc: 'MARKS YOU FOR ALL ENEMIES' },
+  // half of a destroyed splitter (never in a line-up)
+  { name: 'MINI', kind: 'mini', speed: 1.4, bullet: 2.5, hp: 1, pts: 100, xp: 5, ai: [0, 1, 0, 0], pal: 'splitter', mini: true },
 ];
-const NEW_TYPES = [4, 5, 6, 7];
+// types that can join a line-up, and every non-classic type (the tally's NEW row)
+const NEW_TYPES = ENEMY.map((e, i) => i).filter(i => i >= 4 && !ENEMY[i].mini);
+const ALL_NEW = ENEMY.map((e, i) => i).filter(i => i >= 4);
+const kindOf = t => ENEMY[t.type].kind;
 // Veteran and elite enemies (later stages): extra hits, faster shells and engine, more XP; they wear rank stripes
 const ENEMY_RANKS = [
   null,
@@ -126,7 +140,7 @@ function buildQueue(stageNum) {
   // Later stages get tougher: new enemy types join one by one (rocket from stage 4, sapper 7, shield 11,
   // shade 15) and take a growing share of the line-up; veterans appear from stage 10 and elites from stage 20.
   const mult = { OFF: 0, FEW: 0.5, NORMAL: 1, MANY: 1.8 }[Config.get('newEnemies')] || 0;
-  const s = stageNum, kinds = NEW_TYPES.filter(k => s >= ENEMY[k].from);
+  const s = stageNum, kinds = NEW_TYPES.filter(k => s >= ENEMY[k].from && Config.get('e' + k + 'On') !== 'OFF');
   if (mult && kinds.length) {
     const share = Math.min(0.6, (0.06 + (s - 4) * 0.015) * mult);
     for (let i = 2; i < out.length; i++) {   // never the very first tanks of a stage
@@ -191,7 +205,7 @@ class Tank {
     this.speed = 0.75; this.bulletSpeed = 2.5; this.maxBullets = 1;
     this.boost = {};   // active timed power-ups: name -> frames left
     this.mines = 0;    // mines carried by an enemy tank
-    this.ai = 0; this.aiBase = false; this.hold = 0; this.vet = 0;            // enemy personality (see ai.js)
+    this.ai = 0; this.aiBase = false; this.hold = 0; this.vet = 0; this.hover = false; this.cd = 0; this.maxHp = 0;            // enemy personality (see ai.js)
     this.rocketGun = false; this.frontShield = false; this.crusher = false; this.stealth = false; this.reveal = 0;
     this.plates = 0;   // armour plates (XP perk): each one soaks a hit
     this.repair = 0;
@@ -219,6 +233,7 @@ class Stage {
     this.terrain = new Uint8Array(GW * GH);
     const classic = COLS === 13 && ROWS === 13;
     this.load(expandBlocks(mapToBlocks(map)), !opts.custom || !classic);
+    this.origTerrain = this.terrain.slice();   // what a mason rebuilds
     this.tanks = [];
     this.bullets = [];
     this.fx = [];
@@ -227,6 +242,7 @@ class Stage {
     this.powerup = null;
     this.mines = [];
     this.bosses = []; this.beams = []; this.tracks = []; this.dust = [];
+    this.flames = []; this.shells = []; this.heals = []; this.mark = null; this.jamList = [];   // see enemies.js
     this.lastBrickSound = -1;
     this.queue = buildQueue(num);
     this.total = this.queue.length;
@@ -266,7 +282,7 @@ class Stage {
   snapshot() {
     const tankKeys = ['x', 'y', 'dir', 'isPlayer', 'type', 'hp', 'bonus', 'shield', 'frozen', 'ship', 'cutter', 'power',
       'speed', 'bulletSpeed', 'maxBullets', 'boost', 'mines', 'plates', 'repair',
-      'ai', 'aiBase', 'hold', 'rocketGun', 'frontShield', 'crusher', 'stealth', 'vet'];
+      'ai', 'aiBase', 'hold', 'rocketGun', 'frontShield', 'crusher', 'stealth', 'vet', 'hover', 'cd', 'maxHp'];
     return {
       cols: COLS, rows: ROWS,
       terrain: Array.from(this.terrain).join(''),
@@ -399,8 +415,9 @@ class Stage {
           ai: s.enemy.ai !== undefined ? s.enemy.ai : pickPersonality(type, this.num),
           aiBase: type !== 4 && Math.random() < 0.3,  // some snipers shell the eagle instead of you (not rocket tanks)
           rocketGun: type === 4, frontShield: type === 5, crusher: type === 6, stealth: type === 7,
-          mines: type === 6 ? 3 : 0,
+          mines: type === 6 ? 3 : 0, hover: type === 10,
         }));
+        this.enemySpawned(this.tanks[this.tanks.length - 1]);
       } else {
         const p = s.player;
         const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, player: p, shield: Config.frames('spawnShield') });
@@ -432,9 +449,11 @@ class Stage {
     this.updateSpawns();
     for (const t of this.tanks) {
       if (!t.alive) continue;
-      for (const k in t.boost) if (--t.boost[k] <= 0) delete t.boost[k];
+      // inside a jammer's field your timed power-ups stop counting down
+      if (!(t.isPlayer && this.jamList.length && this.jammed(t.x + 8, t.y + 8))) for (const k in t.boost) if (--t.boost[k] <= 0) delete t.boost[k];
       if (t.isPlayer) this.updatePlayer(t); else this.updateEnemy(t);
     }
+    this.updateSpecials();
     this.updateBosses();
     this.updateBullets();
     this.updateMines();
@@ -524,7 +543,7 @@ class Stage {
       // a sniper parked in position; it moves on if a player gets too close
       t.hold--;
       const pt = this.nearestPlayer(t);
-      if (pt && Math.abs(pt.x - t.x) + Math.abs(pt.y - t.y) < SNIPE_MIN - 8) t.hold = 0;
+      if (t.ai === AI.SNIPE && pt && Math.abs(pt.x - t.x) + Math.abs(pt.y - t.y) < SNIPE_MIN - 8) t.hold = 0;
     } else {
       ok = this.move(t, t.dir);
       if (!ok) {
@@ -532,25 +551,28 @@ class Stage {
         // personalities shoot their way through bricks instead of turning away
         const wait = smart && this.brickAhead(t) ? 40 : 6;
         if (t.blocked >= wait && Math.random() < 0.3) {
-          if (smart) this.aiChoose(t, true); else this.chooseDir(t, true);
+          if (smart || this.markedTank(t)) this.aiChoose(t, true); else this.chooseDir(t, true);
           t.blocked = 0;
         }
       } else {
         t.blocked = 0;
         if ((t.x & 7) === 0 && (t.y & 7) === 0) {
-          if (smart) this.aiChoose(t, false);
+          if (smart || this.markedTank(t)) this.aiChoose(t, false);
           else if (Math.random() < 1 / 20) this.chooseDir(t, false);
         }
       }
     }
     if (t.mines > 0 && ok && !t.hold && Math.random() < (t.crusher ? 1 / 150 : 1 / 180)) { this.dropMine(t); t.mines--; }
+    const kind = kindOf(t);
+    if (kind === 'flamer' || kind === 'mortar') { this[kind + 'Act'](t); return; }
     const maxB = t.boost.rapid ? 3 : 1;
     if (t.bullets < maxB && t.cool === 0) {
       let chance = ok ? 0.022 : 0.07;
       if (this.targetInSight(t)) chance = 0.15;
       if (t.hold > 0) chance = 0.1;
       else if (smart && !ok && this.brickAhead(t)) chance = 0.2;
-      chance *= Config.scale('enemyFire') * (t.boost.rapid ? 3 : 1) * (t.vet ? ENEMY_RANKS[t.vet].fire : 1);
+      chance *= Config.scale('enemyFire') * (t.boost.rapid ? 3 : 1) * (t.vet ? ENEMY_RANKS[t.vet].fire : 1) * (ENEMY[t.type].fire || 1);
+      if (this.mark) chance *= 1.5;   // a spotter's mark: everyone shoots more
       if (Math.random() < chance) { this.fire(t); t.cool = t.rocketGun ? 50 : 16; }
     }
   }
@@ -641,7 +663,7 @@ class Stage {
       for (let cx = x0 >> 2; cx <= x1 >> 2; cx++) {
         const tt = this.get(cx, cy);
         if (tt === T_STEEL || (tt === T_BRICK && !t.boost.ghost && !t.crusher)) return false;
-        if (tt === T_WATER && !t.ship && !t.boost.ghost) return false;
+        if (tt === T_WATER && !t.ship && !t.boost.ghost && !t.hover) return false;
       }
     }
     if (overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
@@ -706,6 +728,7 @@ class Stage {
   }
 
   stepBullet(b, dist) {
+    if (b.isPlayer && this.jamList.length && this.jammed(b.x + 2, b.y + 2)) dist *= 0.5;   // jammer field
     b.x += DXY[b.dir][0] * dist;
     b.y += DXY[b.dir][1] * dist;
     if (b.x < 0 || b.y < 0 || b.x > FW - 4 || b.y > FH - 4) {
@@ -732,7 +755,7 @@ class Stage {
         if (b.hits.has(t)) continue;
         b.hits.add(t);
         if (b.isPlayer && t.isPlayer) { if (t.shield <= 0) t.frozen = 180; }
-        else if (b.isPlayer) this.hitEnemy(t, b.owner);
+        else if (b.isPlayer) this.hitEnemy(t, b.owner, b.rocket);
         else this.hitPlayer(t);
         continue;
       }
@@ -751,7 +774,7 @@ class Stage {
           if (t.shield <= 0) t.frozen = 180;
           return;
         }
-        this.hitEnemy(t, b.owner);
+        this.hitEnemy(t, b.owner, b.rocket);
         this.killBullet(b, true, t);
         return;
       }
@@ -832,7 +855,7 @@ class Stage {
     const reaches = (x, y, w, h) => Math.hypot(Math.max(x, Math.min(cx, x + w)) - cx, Math.max(y, Math.min(cy, y + h)) - cy) < r - 2;
     for (const t of this.tanks) {
       if (!t.alive || t === exclude || !reaches(t.x, t.y, 16, 16)) continue;
-      if (byPlayer && !t.isPlayer) this.hitEnemy(t, owner);
+      if (byPlayer && !t.isPlayer) this.hitEnemy(t, owner, true);
       else if (!byPlayer && t.isPlayer) this.hitPlayer(t);
     }
     if (!byPlayer && this.baseAlive && reaches(BASE_X, BASE_Y, 16, 16)) this.destroyBase();
@@ -865,13 +888,15 @@ class Stage {
   }
 
   // ------------------------------------------------------------ damage
-  hitEnemy(t, by) {
+  // blast: rockets, mines and explosions (a splitter hit by one doesn't split)
+  hitEnemy(t, by, blast) {
     t.reveal = 90;
     if (t.bonus) { t.bonus = false; this.spawnPowerup(); }
     if (t.shield > 0) { Sound.play('steel'); return; }
     t.hp--;
     if (t.hp > 0) { Sound.play('armor'); return; }
     this.killEnemy(t, by, true);
+    if (kindOf(t) === 'splitter' && !blast) this.split(t);
   }
 
   killEnemy(t, by, award, silent) {
@@ -1174,6 +1199,7 @@ class Stage {
 
     for (const m of this.mines) ctx.drawImage(Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0], m.x - 4, m.y - 4);
     this.renderBossUnder(ctx);
+    this.renderSpecialsUnder(ctx);
     for (const t of this.tanks) this.drawTank(ctx, t);
     this.renderBosses(ctx);
     for (const s of this.spawns) {
@@ -1192,6 +1218,7 @@ class Stage {
     if (this.powerup && ((this.powerup.t >> 3) & 1) === 0) {
       ctx.drawImage(Sprites.powerups[this.powerup.type], this.powerup.x, this.powerup.y);
     }
+    this.renderSpecialsOver(ctx);
     for (const f of this.fx) {
       if (f.tick < 0) continue;
       const fr = f.frames[Math.min(f.frames.length - 1, Math.floor(f.tick / f.per))];

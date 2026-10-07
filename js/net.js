@@ -223,6 +223,11 @@ const Net = {
       mi: st.mines.map(m => [m.x, m.y, m.t]),
       sp: st.spawns.map(s => [s.x, s.y, s.t]),
       rm: st.rankMsg ? [st.rankMsg.p.i, st.rankMsg.r, st.rankMsg.t] : null,
+      // new-enemy effects: flames, mortar shells, repair beams, the spotter's mark
+      fl: st.flames.map(f => [f.x, f.y, f.w, f.h]),
+      ar: st.shells.map(a => [a.x, a.y, a.t]),
+      hl: st.heals.map(h => [h.x1, h.y1, h.x2, h.y2, h.t, h.build ? 1 : 0]),
+      mk: st.mark ? st.mark.p.i : -1,
     };
     st.netDiff = [];
     if (full) sv.tf = Array.from(st.terrain).join('');
@@ -359,7 +364,12 @@ const Net = {
       type: a[5], hp: a[6], bonus: !!a[7], shield: a[8], frozen: a[9], ship: !!a[10], anim: a[11], boost: a[12] ? { ghost: 1 } : {},
       plates: a[13] || 0, glow: a[14] || 0, reveal: a[15] || 0, ai: a[16] || 0, vet: a[17] || 0, stealth: a[5] === 7,
     }));
-    st.rankMsg = sv.rm ? { p: G.players.find(p => p.i === sv.rm[0]) || G.players[0], r: sv.rm[1], t: sv.rm[2] } : null;
+    st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
+    st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
+    st.heals = (sv.hl || []).map(a => ({ x1: a[0], y1: a[1], x2: a[2], y2: a[3], t: a[4], build: !!a[5] }));
+    const mp = G.players.find(p => p.i === sv.mk);
+    st.mark = mp ? { p: mp, t: 1 } : null;
+        st.rankMsg = sv.rm ? { p: G.players.find(p => p.i === sv.rm[0]) || G.players[0], r: sv.rm[1], t: sv.rm[2] } : null;
     st.bullets = sv.bu.map(a => ({ x: a[0], y: a[1], dir: a[2], rocket: !!a[3], pierce: !!a[4], alive: true }));
     const FX = { s: () => Sprites.smallExp, b: () => Sprites.bigExp, B: BIG_EXPLOSION };
     st.fx = sv.fx.map(a => ({ x: a[0], y: a[1], frames: FX[a[2]](), per: a[3], tick: a[4] }));
