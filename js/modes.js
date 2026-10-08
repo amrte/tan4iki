@@ -12,6 +12,7 @@
 
 const MODES = [
   { key: 'classic', name: 'CLASSIC', desc: 'THE GAME AS ALWAYS' },
+  { key: 'custom', name: 'CUSTOM LEVELS', desc: 'YOUR OWN LEVELS, IN TURN' },   // editor.js
   { key: 'survival', name: 'SURVIVAL', desc: 'ENDLESS WAVES, HOW LONG?' },
   { key: 'timeattack', name: 'TIME ATTACK', desc: 'CLEAR 5 STAGES FAST' },
   { key: 'bigmaps', name: 'BIG MAPS', desc: 'HUGE SCROLLING BATTLEFIELDS' },

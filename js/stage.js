@@ -13,7 +13,7 @@ let VIEW_W = 208, VIEW_H = 208;                    // the part of the field on s
 const T_EMPTY = 0, T_BRICK = 1, T_STEEL = 2, T_WATER = 3, T_FOREST = 4, T_ICE = 5, T_BRIDGE = 6, T_MUD = 7;
 const T_BELT = 8;   // 8-11: conveyor belts pushing up / right / down / left (terrain.js)
 const BLOCK_TYPE = { '.': T_EMPTY, '#': T_BRICK, '@': T_STEEL, '~': T_WATER, '%': T_FOREST, '_': T_ICE,
-  m: T_MUD, '^': T_BELT, '>': T_BELT + 1, v: T_BELT + 2, '<': T_BELT + 3, T: T_EMPTY };   // T: teleporter pad
+  m: T_MUD, '=': T_BRIDGE, '^': T_BELT, '>': T_BELT + 1, v: T_BELT + 2, '<': T_BELT + 3, T: T_EMPTY };   // T: teleporter pad
 const DXY = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
 // basic, fast, power, armor, then the new types (not in the original):
@@ -255,7 +255,7 @@ class Stage {
     this.load(opts.blocks || expandBlocks(mapToBlocks(map)), !opts.custom || !classic);   // blocks: a stitched big map
     // the season: its colours, and frozen or dried-up water (seasons.js)
     this.theme = stageTheme(num, opts);
-    if (!opts.snapshot) this.applyThemeTerrain(num);
+    if (!opts.snapshot && !opts.editor) this.applyThemeTerrain(num);   // the editor shows what you drew
     // mud, teleporters and belts in the normal stages; night and fog on some (terrain.js)
     if (!opts.boss && !opts.custom && !opts.snapshot && !opts.corridor && Config.on('terrainExtras')) this.addTerrainExtras(num);
     this.weather = opts.corridor ? null : stageWeather(opts.custom ? 1 : num, !!opts.boss);

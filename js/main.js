@@ -14,15 +14,6 @@ const STORE = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
 };
 
-// construction palette: the 14 patterns of the original editor (as 2x2 blocks)
-const CONSTRUCT_PATS = [
-  ['.#', '.#'], ['..', '##'], ['#.', '#.'], ['##', '..'], ['##', '##'],
-  ['.@', '.@'], ['..', '@@'], ['@.', '@.'], ['@@', '..'], ['@@', '@@'],
-  ['~~', '~~'], ['%%', '%%'], ['__', '__'],
-  // additions: mud, conveyor belts (up, right, down, left) and a teleporter pad (pads pair up in the order placed)
-  ['mm', 'mm'], ['^^', '^^'], ['>>', '>>'], ['vv', 'vv'], ['<<', '<<'], ['TT', 'TT'],
-  ['..', '..'],
-];
 
 function newPlayer(i) {
   return {
@@ -33,10 +24,12 @@ function newPlayer(i) {
   };
 }
 
+
+// a blank custom level: just the eagle's brick fortress (classic 13x13 layout; the editor is in editor.js)
 function defaultCustomMap() {
   const rows = [];
   for (let y = 0; y < 26; y++) rows.push('.'.repeat(26).split(''));
-  for (const [bx, by] of BASE_WALL) rows[by][bx] = '#';
+  for (const [bx, by] of [[11, 23], [12, 23], [13, 23], [14, 23], [11, 24], [14, 24], [11, 25], [14, 25]]) rows[by][bx] = '#';
   return rows.map(r => r.join(''));
 }
 
@@ -338,7 +331,8 @@ const Game = {
         : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score
         : mi.key === 'eagles' ? '1P: VS CPU' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '') + '  2-4P: VS'
         : mi.key === 'dm' ? '1P: VS ' + DM_BOTS + ' BOTS  2-4P: VS EACH OTHER'
-        : mi.key === 'race' ? 'FIRST TO ' + Config.get('raceTarget') + '  1P: VS ' + DM_BOTS + ' BOTS' : '< > CHANGE MODE';
+        : mi.key === 'race' ? 'FIRST TO ' + Config.get('raceTarget') + '  1P: VS ' + DM_BOTS + ' BOTS'
+        : mi.key === 'custom' ? (Customs.used().length ? Customs.used().length + ' OF ' + CUSTOM_SLOTS + ' SLOTS FILLED' : 'MAKE SOME IN CONSTRUCTION') : '< > CHANGE MODE';
       Font.drawCenter(ctx, best, SW / 2, 213, COL.lgrey);
     } else if (cur && cur.daily && this.titleY === 0) {
       const d = dailyToday(), best = STORE.get(DAILY_KEY, {});
@@ -434,7 +428,7 @@ const Game = {
     else if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
     this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
-    if (this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu' || this.mode === 'race') this.stageNum = 1;
+    if (this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu' || this.mode === 'race' || this.mode === 'custom') this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
     // KILL RACE: the first curtain picks how many points win the game (race.js)
     if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
@@ -488,6 +482,10 @@ const Game = {
         if (c.raceSel && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + 42, '#3C3C3C');
       }
       // against the computer: what their HQ got for this round
+      if (this.mode === 'custom' && !this.customPending) {
+        const used = Customs.used();
+        Font.drawCenter(ctx, 'YOUR LEVEL ' + (used[(this.stageNum - 1) % used.length] + 1), cx, cy + 14, '#3C3C3C');
+      }
       if (this.mode === 'cpu') {
         const news = cpuNews(this.stageNum);
         if (news.length) Font.drawCenter(ctx, 'ENEMY HQ UPGRADED', cx, cy + 14, '#A00000');
@@ -497,9 +495,13 @@ const Game = {
       const boss = bossForStage(this.stageNum);
       if (boss) Font.drawCenter(ctx, 'BOSS: ' + BOSSES[boss.idx].name, cx, cy + 10, '#A00000');
       // the season (when it's known in advance)
-      const ss = Config.get('seasons'), th = ss === 'RANDOM' || ss === 'OFF' || this.customPending ? null : THEMES[stageTheme(this.stageNum)];
+      let lvTheme;
+      if (this.mode === 'custom' && !this.customPending) { const u = Customs.used(); lvTheme = Customs.level(u[(this.stageNum - 1) % u.length]).theme; }
+      else if (this.customPending) lvTheme = this.customTheme;
+      if (lvTheme === 'auto') lvTheme = undefined;
+      const ss = Config.get('seasons'), th = lvTheme ? THEMES[lvTheme] : ss === 'RANDOM' || ss === 'OFF' ? null : THEMES[stageTheme(this.stageNum)];
       if (th && th.name && !(this.mode === 'race' && c.raceSel)) Font.drawCenter(ctx, th.name, cx, cy - 36, '#3C3C3C');
-      const wx = !this.customPending && stageWeather(this.stageNum, !!boss);
+      const wx = !this.customPending && this.mode !== 'custom' && stageWeather(this.stageNum, !!boss);
       if (wx) Font.drawCenter(ctx, wx === 'night' ? 'NIGHT' : 'FOG', cx, cy + (boss ? 34 : c.selectable ? 24 : 10), wx === 'night' ? '#00006C' : '#ADADAD');
       if (Config.get('skill') !== 2) Font.drawCenter(ctx, Config.skill().name, cx, cy - 24, '#3C3C3C');
       if (c.selectable && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + (boss ? 24 : 12), '#3C3C3C');
@@ -510,9 +512,15 @@ const Game = {
   stageLimit() { return Math.max(LEVELS.length, Math.min(99, STORE.get('tank1990_bestStage', 1) | 0)); },
 
   beginStage() {
-    let map, custom = false;
-    if (this.customPending) { map = this.custom; custom = true; this.customPending = false; }
-    else map = LEVELS[(this.stageNum - 1) % LEVELS.length];
+    let map, custom = false, theme;
+    if (this.customPending) { map = this.custom; custom = true; this.customPending = false; theme = this.customTheme; }
+    else if (this.mode === 'custom') {
+      // CUSTOM LEVELS: your saved levels in turn (editor.js), on the classic field they were made for
+      const used = Customs.used(), lv = Customs.level(used[(this.stageNum - 1) % used.length]);
+      map = lv.blocks; custom = true; theme = lv.theme;
+      this.applyLayout(13, 13);
+    } else map = LEVELS[(this.stageNum - 1) % LEVELS.length];
+    if (theme === 'auto') theme = undefined;   // the stage's usual season
     const boss = custom || this.mode !== 'classic' ? null : bossForStage(this.stageNum);
     if (boss) map = BOSS_ARENAS[boss.idx];
     const vs = modeInfo(this.mode).vs ? this.mode : null;
@@ -535,7 +543,7 @@ const Game = {
     this.stage = new Stage(this.stageNum, map, this.players, {
       custom, boss, base: vs || corridor || this.mode === 'race' ? newBase() : this.base, corridor, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
       race: this.mode === 'race' && !custom ? { target: this.raceTarget, round: this.round } : null, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
-      blocks, big: objective,
+      blocks, big: objective, theme,
     });
     this.paused = false;
     this.openH = SCREEN_H / 2;
@@ -806,6 +814,7 @@ const Game = {
   startGame(n) {
     const mi = modeInfo(Config.get('gameMode'));
     if (mi.vs && !mi.cpu && n < 2) { this.toast('VERSUS NEEDS 2-4 PLAYERS'); Sound.play('steel'); return; }
+    if (mi.key === 'custom' && !Customs.used().length) { this.toast('NO LEVELS YET: TRY CONSTRUCTION'); Sound.play('steel'); return; }
     this.newGame(n, false);
   },
 
@@ -1027,104 +1036,7 @@ const Game = {
     ctx.restore();
   },
 
-  // ---------------------------------------------------------------- construction
-  toConstruct() {
-    this.applyLayout(13, 13); // the editor works on the classic 13x13 field
-    this.ed = {
-      tx: 0, ty: 0, pat: -1, last: null, rep: 0,
-      stage: new Stage(1, this.custom, [], { custom: true }),
-    };
-    this.setState('construct');
-  },
-
-  editTile(tx, ty, patIdx) {
-    if (tx === 6 && ty === 12) return; // the eagle itself
-    const p = CONSTRUCT_PATS[patIdx];
-    const rows = this.custom.map(r => r.split(''));
-    for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
-      const bx = tx * 2 + x, by = ty * 2 + y;
-      rows[by][bx] = p[y][x];
-      this.ed.stage.setBlock(bx, by, BLOCK_TYPE[p[y][x]]);
-    }
-    this.custom = rows.map(r => r.join(''));
-    this.ed.stage.pads = padsFromBlocks(this.custom);
-    STORE.set('tank1990_custom', this.custom);
-    Sound.play('build');
-  },
-
-  updateConstruct() {
-    const ed = this.ed, m = Input.menu();
-    const moveCursor = d => {
-      ed.tx = Math.max(0, Math.min(12, ed.tx + DXY[d][0]));
-      ed.ty = Math.max(0, Math.min(12, ed.ty + DXY[d][1]));
-    };
-    const tapped = m.up ? 0 : m.right ? 1 : m.down ? 2 : m.left ? 3 : -1;
-    if (tapped >= 0) {
-      moveCursor(tapped);
-      ed.rep = 14; // auto-repeat after a short delay
-    } else {
-      const held = Input.heldDir();
-      if (held >= 0 && --ed.rep <= 0) { moveCursor(held); ed.rep = 5; }
-    }
-
-    const here = ed.tx + ',' + ed.ty;
-    if (m.fire && !m.start) {
-      if (ed.pat < 0) ed.pat = 0;
-      else if (ed.last === here) ed.pat = (ed.pat + 1) % CONSTRUCT_PATS.length;
-      ed.last = here;
-      this.editTile(ed.tx, ed.ty, ed.pat);
-    } else if (m.alt) {
-      ed.pat = ed.pat < 0 ? CONSTRUCT_PATS.length - 1 : (ed.pat + CONSTRUCT_PATS.length - 1) % CONSTRUCT_PATS.length;
-      ed.last = here;
-      this.editTile(ed.tx, ed.ty, ed.pat);
-    }
-    if (m.start) this.newGame(1, true);
-    else if (m.back) this.toTitle();
-    else if (Input.just.has('Delete')) { this.custom = defaultCustomMap(); STORE.set('tank1990_custom', this.custom); this.toConstruct(); }
-  },
-
-  renderConstruct(ctx) {
-    const st = this.ed.stage;
-    ctx.fillStyle = COL.bg;
-    ctx.fillRect(0, 0, SW, SH);
-    ctx.fillStyle = COL.black;
-    ctx.fillRect(FX, FY, FW, FH);
-    if (st.dirty) st.buildLayers();
-    ctx.save();
-    ctx.translate(FX, FY);
-    ctx.drawImage(st.bgLayer, 0, 0);
-    for (const i of st.waterCells) {
-      const cx = i % GW, cy = (i / GW) | 0;
-      ctx.drawImage(Sprites.tex.water0, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
-    }
-    st.frame = this.t;
-    st.renderBelts(ctx);
-    st.renderPads(ctx);
-    ctx.drawImage(Sprites.eagle, BASE_X, BASE_Y);
-    ctx.drawImage(st.forestLayer, 0, 0);
-    if (((this.t >> 3) & 1) === 0) ctx.drawImage(Sprites.tank('p0', 0, 0, Config.playerPal(0)), this.ed.tx * 16, this.ed.ty * 16);
-    ctx.restore();
-    // current pattern preview
-    Font.draw(ctx, 'PAT', 228, 16, COL.black);
-    ctx.fillStyle = COL.black;
-    ctx.fillRect(231, 26, 18, 18);
-    if (this.ed.pat >= 0) {
-      const p = CONSTRUCT_PATS[this.ed.pat];
-      const tex = { '#': 'brick', '@': 'steel', '~': 'water0', '%': 'forest', '_': 'ice' };
-      for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
-        const c = p[y][x], k = tex[c];
-        if (k) ctx.drawImage(Sprites.tex[k], 232 + x * 8, 27 + y * 8);
-        else if (c === 'm') ctx.drawImage(Sprites.mudTex, 232 + x * 8, 27 + y * 8);
-      }
-      const arrow = { '^': '^', '>': '>', v: 'V', '<': '<' }[p[0][0]];
-      if (arrow) { ctx.fillStyle = '#383838'; ctx.fillRect(232, 27, 16, 16); Font.draw(ctx, arrow, 236, 31, '#9C9C9C'); }
-      if (p[0][0] === 'T') { ctx.strokeStyle = PAD_COLORS[0]; ctx.strokeRect(234.5, 29.5, 11, 11); ctx.fillStyle = PAD_COLORS[0]; ctx.fillRect(238, 33, 4, 4); }
-    }
-    Font.draw(ctx, 'A', 228, 60, COL.black); Font.draw(ctx, '+', 236, 60, COL.black);
-    Font.draw(ctx, 'B', 228, 72, COL.black); Font.draw(ctx, '-', 236, 72, COL.black);
-    Font.draw(ctx, 'GO', 228, 180, COL.black);
-    Font.draw(ctx, 'ENT', 228, 190, COL.black);
-  },
+  // ---------------------------------------------------------------- construction: see editor.js
 
   // ---------------------------------------------------------------- shop
   toShop() {
@@ -1549,6 +1461,7 @@ const Game = {
   pointer(x, y) {
     Sound.unlock();
     if (this.state === 'ranks') { this.setState('settings'); return; }
+    if (this.state === 'construct') { this.constructPointer(x, y, false); return; }
     if (this.state === 'title' || this.state === 'settings' || this.state === 'shop') { x -= menuOX(); y -= menuOY(); }
     if (this.state === 'shop') {
       const r = Math.floor((y - SHOP_TOP + 4) / SHOP_ROW_H), i = this.shop.scroll + r;
@@ -1686,6 +1599,8 @@ function toggleFullscreen() {
     return [(e.clientX - r.left) * canvas.width / r.width, (e.clientY - r.top) * canvas.height / r.height];
   };
   canvas.addEventListener('pointerdown', e => { const [x, y] = toScreen(e); Game.pointer(x, y); });
+  // drag to paint in the editor
+  canvas.addEventListener('pointermove', e => { if ((e.buttons & 1) && Game.state === 'construct') { const [x, y] = toScreen(e); Game.constructPointer(x, y, true); } });
   canvas.addEventListener('wheel', e => {
     if (Game.state !== 'settings' && Game.state !== 'shop') return;
     e.preventDefault();

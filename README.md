@@ -69,8 +69,7 @@ fire buttons appear on screen.
 - Spawn sparkles, shields, explosions, score pop-ups, the rising "GAME OVER", the tallied score screen
   and the big brick "GAME OVER" screen.
 - An extra life at 20,000 points.
-- **Construction mode:** move the cursor and press **A** (fire) to place or cycle 14 tile patterns, or **B** to cycle backwards.
-  Press **Delete** to clear the map and **Enter** to play your map. Custom maps are saved in the browser.
+- **Construction mode** (the level editor): see *Construction and custom levels* below.
 - Chiptune sound effects and engine hum, made with Web Audio.
 
 ## XP and levels
@@ -116,6 +115,7 @@ CPU, and no saving outside Classic and Big maps.
 |---|---|---|
 | **Classic** | 1-4 | the game as always |
 | **Survival** | 1-4 | endless waves on one map; wave *n* brings 6 + 2*n* tanks and later waves bring the newer, tougher enemies. After each wave a 4-second breather, the fortress walls are patched, and every 5 waves everyone gets a tank. The side panel's flag shows the wave. Ends when the eagle falls or everyone is out; best wave and score are kept |
+| **Custom levels** | 1-4 | your levels from CONSTRUCTION, every filled slot in turn (see below); shop as in Classic, no saves |
 | **Big maps** | 1-4 | every stage is a big scrolling map (see below); shop and saves work as in Classic |
 | **Corridor** | 1-4 | the usual width, endless height: no eagle, just climb. The world is three map sections stacked (random classic maps, mirrored outwards on wider fields); once the whole team has climbed out of the bottom section it drops away and a fresh section appears on top, so the climb never ends and nobody gets left behind. Enemies keep arriving just above the screen, faster and tougher the higher you get (the flag shows the level: one per section climbed). The enemy grows slowly with the climb: only basic tanks at first, then fast (10 tiles), power (26) and armor (45), then the newer types one at a time every 20 tiles from 52 (rocket first), each starting rare and taking 40 tiles to reach its full share; veterans from about 100 tiles and elites from 230. A gold *NAME AHEAD!* tells you when a new kind joins; ones left far below drop out. A destroyed tank comes back at the bottom of the screen; every 5 sections everyone gets a tank. The border above the field shows how far you've climbed (in tiles) and your best; ends when everyone is out |
 | **Time attack** | 1-4 | clear stages 1-5 as fast as you can; enemies arrive twice as fast, no tally between stages, the clock runs in the border above the field; best time is kept |
@@ -358,6 +358,26 @@ These 14 were not in the original game. They're marked with `*` in Settings and 
   stays for the stage and anyone can use it. Carried kits show as brown dots in the side panel. An enemy that grabs
   the power-up can cross water.
 
+## Construction and custom levels
+
+CONSTRUCTION on the title screen opens the level editor (a help screen shows the keys the first time; **H** brings
+it back).
+
+- **Tiles:** the palette on the right has every terrain: brick and steel (whole and half tiles), water, trees, ice,
+  mud, a bridge, conveyor belts in four directions, a teleporter pad (pads pair up in the order you place them) and
+  empty ground. Pick one with **Q / E** or a click; **A** / Space places it at the cursor (again on the same spot:
+  the next tile), **B** the previous one. With a mouse, click or drag on the field to paint.
+- **R** (or RND on the panel) makes a **random level**: a symmetric map in the classic style (walls, steel, ponds,
+  trees, ice, mud, sometimes a bridge, a belt or a pair of teleporters), checked so that every enemy entry point and
+  both players can reach the eagle.
+- **T** (or the three letters on the panel) sets the level's **season**: ANY (the stage's usual one), BLK (classic
+  black) or one of the six.
+- **8 slots** (1-8, PgUp / PgDn, or the S1 on the panel): each holds a level and its season, saved as you go.
+  Delete clears the slot.
+- **Enter** plays the level you're editing; Esc goes back to the title.
+- **CUSTOM LEVELS** (on the title screen's MODE row) plays every slot you've filled, one after another, as a normal
+  game: tally, shop, base upgrades, the stage number (and the enemy) going up as you go round again.
+
 ## Seasons
 
 Every stage has a season, with its own ground, colours and something drifting across the screen (Settings → GAME →
@@ -478,6 +498,7 @@ js/base.js        base upgrades: fortress walls, eagle armor, repair crew, eagle
 js/extras.js      turrets, Claude, airstrikes, revival, wingman, decoy eagle, smoke, bridges
 js/terrain.js     mud, conveyor belts, teleporter pads, night and fog stages
 js/seasons.js     seasons: themed ground, textures and particles; frozen lakes, dried ponds
+js/editor.js      construction: the level editor, random levels, save slots, custom levels
 js/modes.js       game modes: survival waves, time attack, versus eagles, deathmatch, capture the flag
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go
