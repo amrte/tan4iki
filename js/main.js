@@ -505,7 +505,10 @@ const Game = {
       else if (this.customPending) lvTheme = this.customTheme;
       if (lvTheme === 'auto') lvTheme = undefined;
       const ss = Config.get('seasons'), th = lvTheme ? THEMES[lvTheme] : ss === 'RANDOM' || ss === 'OFF' ? null : THEMES[stageTheme(this.stageNum)];
-      if (th && th.name && !(this.mode === 'race' && c.raceSel)) Font.drawCenter(ctx, th.name, cx, cy - 36, '#3C3C3C');
+      if (th && th.name && !(this.mode === 'race' && c.raceSel)) {
+        const fx = Config.on('seasonFx') && SEASON_FX_NAME[lvTheme || stageTheme(this.stageNum)];   // its twist (seasonal.js)
+        Font.drawCenter(ctx, th.name + (fx ? ': ' + fx : ''), cx, cy - 36, '#3C3C3C');
+      }
       const wx = !this.customPending && this.mode !== 'custom' && stageWeather(this.stageNum, !!boss);
       if (wx) Font.drawCenter(ctx, wx === 'night' ? 'NIGHT' : 'FOG', cx, cy + (boss ? 34 : c.selectable ? 24 : 10), wx === 'night' ? '#00006C' : '#ADADAD');
       if (Config.get('skill') !== 2) Font.drawCenter(ctx, Config.skill().name, cx, cy - 24, '#3C3C3C');

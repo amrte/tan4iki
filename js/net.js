@@ -194,7 +194,7 @@ const Net = {
     v.pl = G.players.map(p => ({
       i: p.i, score: p.score, lives: p.lives, level: p.level, mines: p.mines, kills: p.kills, out: p.out,
       ship: p.ship, cutter: p.cutter, kit: p.kit, shopShovel: p.shopShovel, xp: p.xp, rank: p.rank, stageXp: p.stageXp,
-      vsKills: p.vsKills, caps: p.caps, spent: p.spent, racePts: p.racePts, bot: p.bot,
+      vsKills: p.vsKills, caps: p.caps, spent: p.spent, racePts: p.racePts, bot: p.bot, rad: p.rad || 0,
     }));
     v.base = G.base;
     v.snd = this.sndQueue.splice(0);
@@ -222,7 +222,7 @@ const Net = {
       df: st.netDiff || [],
       tk: st.tanks.filter(t => t.alive).map(t => [t.x, t.y, t.dir, t.isPlayer ? 1 : 0, t.player ? t.player.i : -1, t.type, t.hp,
         t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow, t.reveal, t.ai, t.vet, t.segs ? t.segs.map(p => p[0] + ',' + p[1]).join(';') : 0,
-        t.ally ? 1 : 0, t.boost.smoke ? 1 : 0]),
+        t.ally ? 1 : 0, t.boost.smoke ? 1 : 0, (t.burrow > 0 ? 1 : 0) | (t.mirage ? 2 : 0) | (t.blowing ? 4 : 0) | (t.iced > 0 ? 8 : 0), t.hopT || 0]),
       bu: st.bullets.filter(b => b.alive).map(b => [r(b.x), r(b.y), b.dir, b.rocket ? 1 : 0, b.pierce ? 1 : 0]),
       fx: st.fx.map(f => [r(f.x), r(f.y), fxKind(f), f.per, f.tick]),
       pp: st.popups,
@@ -247,6 +247,8 @@ const Net = {
       bg: st.big ? [st.big, st.outposts, st.factories.map(f => [f.x, f.y, f.hp, f.flash])] : null,
       fg: st.flags ? st.flags.map(f => [f.i, f.hx, f.hy, f.x, f.y, f.carrier ? 1 : 0]) : null,
       cr: st.corridor ? [st.corridor.shifts, st.corridor.climbed, st.corridor.startY] : null,
+      se: st.seasonFx || (st.wrecks && st.wrecks.length) || (st.fires && st.fires.size) ? [Array.from(st.fires.keys()), st.wind ? st.wind.dir : -1, st.blizzard, st.shower,
+        st.zones.map(z => [z.x, z.y, z.r]), st.wrecks.map(w => [w.x, w.y, w.dir, w.t])] : null,
       mz: st.maze ? [st.maze.sx, st.maze.sy, st.maze.ex, st.maze.ey, st.maze.hintAt, st.maze.escaped ? 1 : 0, st.maze.MW, st.maze.MH] : null,
       cd: st.card || null,
       cp: st.cpu || null,
@@ -396,6 +398,7 @@ const Net = {
       type: a[5], hp: a[6], bonus: !!a[7], shield: a[8], frozen: a[9], ship: !!a[10], anim: a[11], boost: Object.assign(a[12] ? { ghost: 1 } : {}, a[20] ? { smoke: 1 } : {}),
       plates: a[13] || 0, glow: a[14] || 0, reveal: a[15] || 0, ai: a[16] || 0, vet: a[17] || 0, stealth: a[5] === 7,
       segs: a[18] ? a[18].split(';').map(p => p.split(',').map(Number)) : null, ally: !!a[19],
+      burrow: a[21] & 1 ? 1 : 0, mirage: a[21] & 2 ? 1 : 0, blowing: !!(a[21] & 4), iced: a[21] & 8 ? 2 : 0, hopT: a[22] || 0,
     }));
     if (sv.ea) { st.eagleArmor = sv.ea[0]; st.eagleFlash = sv.ea[1]; st.gunDir = sv.ea[2]; st.teslaT = sv.ea[4]; st.zaps = sv.ea[5] || []; st.base = Object.assign(newBase(), G.base || {}); }
     st.turrets = (sv.tu || []).map(a => ({ x: a[0], y: a[1], dir: a[2], hp: a[3], owner: G.players.find(p => p.i === a[4]) || null, enemy: !!a[5] }));
@@ -420,6 +423,13 @@ const Net = {
       if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();
       st.corridor = { shifts: sv.cr[0], climbed: sv.cr[1], startY: sv.cr[2] };
     } else st.corridor = null;
+    // the season's twists (seasonal.js)
+    const se = sv.se || [[], -1, 0, 0, [], []];
+    st.fires = new Map(se[0].map(i => [i, { tree: true }]));
+    st.wind = se[1] >= 0 ? { dir: se[1], t: GUST_TIME } : null;
+    st.blizzard = se[2]; st.shower = se[3];
+    st.zones = se[4].map(a => ({ x: a[0], y: a[1], r: a[2] }));
+    st.wrecks = se[5].map(a => ({ x: a[0], y: a[1], dir: a[2], t: a[3] }));
     st.maze = sv.mz ? { sx: sv.mz[0], sy: sv.mz[1], ex: sv.mz[2], ey: sv.mz[3], hintAt: sv.mz[4], escaped: !!sv.mz[5], MW: sv.mz[6], MH: sv.mz[7] } : null;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.31</title>
+  <title>tanb4iki_v0.32</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.31';
+const APP_VERSION = '0.32';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2588,6 +2588,31 @@ const SETTINGS_DEF = [
   { key: 'e17Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 17 },
   { key: 'e17Hits', label: 'HITS TO DESTROY', values: range(1, 30), def: 16, enemy: 17 },
   { key: 'e17On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 17 },
+  // the seasons' own (seasonal.js): each only in its season
+  { section: 'HOPPER *', enemy: 18 },
+  { key: 'e18Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 18 },
+  { key: 'e18Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 1, enemy: 18 },
+  { key: 'e18On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 18 },
+  { section: 'FIREBUG *', enemy: 19 },
+  { key: 'e19Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 19 },
+  { key: 'e19Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 19 },
+  { key: 'e19On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 19 },
+  { section: 'GUSTER *', enemy: 20 },
+  { key: 'e20Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 20 },
+  { key: 'e20Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 3, enemy: 20 },
+  { key: 'e20On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 20 },
+  { section: 'FROST *', enemy: 21 },
+  { key: 'e21Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 21 },
+  { key: 'e21Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 21 },
+  { key: 'e21On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 21 },
+  { section: 'GHOUL *', enemy: 22 },
+  { key: 'e22Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 22 },
+  { key: 'e22Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 22 },
+  { key: 'e22On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 22 },
+  { section: 'BURROWER *', enemy: 23 },
+  { key: 'e23Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 23 },
+  { key: 'e23Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 23 },
+  { key: 'e23On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 23 },
 
   { section: 'POWER-UPS' },
   { key: 'helmetTime', label: 'HELMET TIME', values: SECS.slice(1), def: 10, fmt: fmtSec },
@@ -2633,6 +2658,8 @@ const SETTINGS_DEF = [
   { key: 'terrainExtras', label: 'MUD, BELTS, PADS', values: ONOFF, def: 'ON' },
   // seasons.js: a new season every stage, or one at random, or always the same (OFF: the classic black)
   { key: 'seasons', label: 'SEASONS', values: ['CYCLE', 'RANDOM', 'OFF', 'SPRING', 'SUMMER', 'AUTUMN', 'WINTER', 'NUCLEAR', 'DESERT'], def: 'CYCLE' },
+  // seasonal.js: showers, wildfire, gusts, blizzards, hot spots, mirages
+  { key: 'seasonFx', label: 'SEASON EFFECTS', values: ONOFF, def: 'ON' },
   // classic games: every 4th stage (not a boss stage) a big scrolling map
   { key: 'bigStages', label: 'BIG MAP STAGES', values: ['OFF', 'SOME'], def: 'OFF' },
   { key: 'darkStages', label: 'NIGHT AND FOG', values: ['SOME', 'OFF', 'ALWAYS NIGHT', 'ALWAYS FOG'], def: 'SOME',
@@ -3772,9 +3799,16 @@ const ENEMY = [
   { name: 'MINI', kind: 'mini', speed: 1.4, bullet: 2.5, hp: 1, pts: 100, xp: 5, ai: [0, 1, 0, 0], pal: 'splitter', mini: true, desc: 'HALF A SPLITTER, VERY FAST' },
   // a long snake: fast, never shoots, 16 hits (head only), eats your tank and grows
   { name: 'SNAKE', kind: 'snake', speed: 1.4, bullet: 2.5, hp: 16, pts: 800, xp: 50, ai: [0, 0, 1, 0], pal: 'snake', from: 13, desc: 'FAST, 16 HITS, EATS TANKS' },
+  // one for each season, found only there (seasonal.js)
+  { name: 'HOPPER', kind: 'hopper', speed: 1, bullet: 2.5, hp: 1, pts: 300, xp: 20, ai: [2, 3, 4, 1], pal: 'hopper', season: 'spring', desc: 'JUMPS OVER WALLS AND WATER' },
+  { name: 'FIREBUG', kind: 'firebug', speed: 0.75, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [2, 3, 4, 1], pal: 'firebug', season: 'summer', desc: 'FIRE SHELLS, FIREPROOF' },
+  { name: 'GUSTER', kind: 'guster', speed: 0.6, bullet: 2.5, hp: 3, pts: 400, xp: 25, ai: [1, 2, 6, 1], pal: 'guster', season: 'autumn', fire: 0.4, desc: 'ITS FAN BLOWS YOU BACK' },
+  { name: 'FROST', kind: 'frost', speed: 0.6, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [2, 3, 3, 2], pal: 'frost', season: 'winter', desc: 'SHELLS FREEZE YOU SOLID' },
+  { name: 'GHOUL', kind: 'ghoul', speed: 0.6, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [2, 2, 5, 1], pal: 'ghoul', season: 'nuclear', desc: 'RISES AGAIN: SHOOT ITS WRECK' },
+  { name: 'BURROWER', kind: 'burrower', speed: 0.8, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [1, 2, 6, 1], pal: 'burrower', season: 'desert', desc: 'DIVES UNDER THE SAND' },
 ];
 // types that can join a line-up, and every non-classic type (the tally's NEW row)
-const NEW_TYPES = ENEMY.map((e, i) => i).filter(i => i >= 4 && !ENEMY[i].mini);
+const NEW_TYPES = ENEMY.map((e, i) => i).filter(i => i >= 4 && !ENEMY[i].mini && !ENEMY[i].season);   // the seasons' own come their own way
 const ALL_NEW = ENEMY.map((e, i) => i).filter(i => i >= 4);
 const kindOf = t => ENEMY[t.type].kind;
 // Veteran and elite enemies (later stages): extra hits, faster shells and engine, more XP; they wear rank stripes
@@ -4095,6 +4129,7 @@ class Stage {
         this.setBaseWalls(T_STEEL);
       }
     }
+    this.setupSeason(opts);   // the season's twist and its own enemy (seasonal.js)
     if (opts.boss) this.initBoss(opts.boss);
     if (opts.snapshot) this.restore(opts.snapshot);
     else if (this.claudeLevel() >= 5 && !this.vs) this.claudeAtStart();   // CLAUDE LEVEL 5 (extras.js)
@@ -4310,6 +4345,7 @@ class Stage {
     }
     this.updateTerrainFx();
     this.updateSpecials();
+    this.updateSeason();
     this.updateBase();
     if (this.cpu) this.updateCpu();
     this.updateTurrets();
@@ -4346,10 +4382,11 @@ class Stage {
       // against the computer the round goes on until their HQ falls
     } else if (this.big && this.factoriesAlive()) {
       this.updateBigMap();
-    } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer) && !this.bossAlive()) {
+    } else if (this.queue.length === 0 && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => !t.isPlayer && !t.mirage) && !this.bossAlive() && !this.seasonPending()) {
       if (this.survival) { this.nextWave(); return; }
       this.clearTimer++;
       if (this.clearTimer === 1) {
+        for (const t of this.tanks) if (t.mirage) this.vanishMirage(t, false);
         for (const p of this.players) if (!p.out) this.addXp(p, 25);
         if (this.big) this.bigMapBonus();
         AutoSkill.event('clear');
@@ -4416,6 +4453,7 @@ class Stage {
     if (t.shield > 0) t.shield--;
     if (t.reveal > 0) t.reveal--;
     if (this.freezeE > 0) return;
+    if (t.hopT > 0) { this.hopStep(t); return; }   // in the air (hopper)
     if (t.cool > 0) t.cool--;
     const smart = t.ai > 0;
     let ok = true;
@@ -4432,6 +4470,7 @@ class Stage {
       if (!ok) {
         t.blocked++;
         const other = this.tankAhead(t);
+        if (!other && t.blocked > 4 && kindOf(t) === 'hopper' && this.tryHop(t)) { t.blocked = 0; return; }
         if (other) {
           // another tank in the way: one of the two steps aside and lets it pass (the other waits a moment first,
           // so two tanks nose to nose in a lane don't both turn back and forth for ever)
@@ -4459,6 +4498,7 @@ class Stage {
     if (t.mines > 0 && ok && !t.hold && Math.random() < (t.crusher ? 1 / 150 : 1 / 180)) { this.dropMine(t); t.mines--; }
     const kind = kindOf(t);
     if (kind === 'flamer' || kind === 'mortar' || kind === 'snake') { this[kind + 'Act'](t); return; }
+    if (t.burrow > 0) return;   // underground: no shooting
     const maxB = t.boost.rapid ? 3 : 1;
     if (t.bullets < maxB && t.cool === 0) {
       let chance = ok ? 0.022 : 0.07;
@@ -4467,7 +4507,7 @@ class Stage {
       else if (smart && !ok && this.brickAhead(t)) chance = 0.2;
       chance *= Config.scale('enemyFire') * (t.boost.rapid ? 3 : 1) * (t.vet ? ENEMY_RANKS[t.vet].fire : 1) * (ENEMY[t.type].fire || 1);
       if (this.mark) chance *= 1.5;   // a spotter's mark: everyone shoots more
-      chance *= Config.skill().fire * (this.weather === 'night' ? 0.8 : 1);   // they can't see well at night either
+      chance *= Config.skill().fire * (this.weather === 'night' || this.blizzard > 0 ? 0.8 : 1);   // they can't see well at night either
       if (Math.random() < chance) { this.fire(t); t.cool = t.rocketGun ? 50 : 16; }
     }
   }
@@ -4601,8 +4641,9 @@ class Stage {
       const tu = this.turretAt(nx, ny, 16, 16);
       if (tu && !overlap(t.x, t.y, 16, 16, tu.x, tu.y, 16, 16)) return false;
     }
+    if (t.burrow > 0 || t.mirage) return true;   // under the sand, or not really there: nothing in the way
     for (const o of this.tanks) {
-      if (o === t || !o.alive) continue;
+      if (o === t || !o.alive || o.burrow > 0 || o.mirage || o.hopT > 0) continue;
       if (overlap(nx, ny, 16, 16, o.x, o.y, 16, 16) && !overlap(t.x, t.y, 16, 16, o.x, o.y, 16, 16)) return false;
     }
     return true;
@@ -4614,6 +4655,7 @@ class Stage {
       x, y, dir, speed: t.bulletSpeed, owner: t, free,
       isPlayer: t.isPlayer, power: t.power, cutter: t.cutter, alive: true,
       pierce: !!t.boost.pierce, rocket: !!(t.boost.rocket || t.rocketGun), passPlayers: !!t.ally,
+      frost: !t.isPlayer && kindOf(t) === 'frost', fire: !t.isPlayer && kindOf(t) === 'firebug', mirage: !!t.mirage,
     });
     const pos = [[t.x + 6, t.y], [t.x + 12, t.y + 6], [t.x + 6, t.y + 12], [t.x, t.y + 6]][t.dir];
     shell(pos[0], pos[1], t.dir, false);
@@ -4658,6 +4700,7 @@ class Stage {
     if (!b.alive) return;
     b.alive = false;
     if (!b.free) b.owner.bullets = Math.max(0, b.owner.bullets - 1);
+    if (b.fire && this.fires) this.igniteAt(b.x + 2, b.y + 2, 6, true);   // a firebug's shell
     if (fx && b.rocket) this.blast(b.x + 2, b.y + 2, ROCKET_RADIUS, b.isPlayer, b.owner, b.power, exclude, excludeBoss);
     else if (fx) this.addFx(b.x + 2, b.y + 2, Sprites.smallExp, 3);
   }
@@ -4680,6 +4723,8 @@ class Stage {
       if (b.isPlayer) Sound.play('steel');
       return;
     }
+    if (b.mirage) { this.mirageShell(b); return; }   // a mirage's shell harms nothing
+    if (b.frost || b.fire) this.specialShell(b);
     if (this.bulletTerrain(b)) return;
     if (this.turrets.length && this.bulletTurret(b)) return;
     if (b.isPlayer && this.snakeList.length && this.bulletSnakeBody(b)) return;
@@ -4697,8 +4742,10 @@ class Stage {
       if (this.baseAlive) this.destroyBase();
       return;
     }
+    if (b.isPlayer && this.wrecks && this.wrecks.length && this.bulletWreck(b)) return;
     for (const t of this.tanks) {
       if (!t.alive || t === b.owner || ((b.eagle || b.passPlayers) && t.isPlayer)) continue;
+      if (t.burrow > 0 || t.hopT > 0) continue;   // under the sand, or in the air: the shell flies past
       if (!overlap(b.x, b.y, 4, 4, t.x, t.y, 16, 16)) continue;
       if (b.pierce) {
         // piercing shells damage each tank once and keep flying
@@ -4732,6 +4779,7 @@ class Stage {
         return;
       }
       if (!t.isPlayer) continue;
+      if (b.frost) { this.frostHit(t); this.killBullet(b, false); return; }
       this.hitPlayer(t);
       this.killBullet(b, true, t);
       return;
@@ -4811,6 +4859,7 @@ class Stage {
   // ------------------------------------------------------------ blasts and mines
   // explosion that breaks bricks (steel with power) and damages the other side's tanks
   blast(cx, cy, r, byPlayer, owner, power, exclude, excludeBoss) {
+    this.explosionHeat(cx, cy, r + 4);
     const wrecked = { brick: 0, steel: 0 };
     for (let y = Math.floor((cy - r) / 4); y <= Math.floor((cy + r) / 4); y++) {
       for (let x = Math.floor((cx - r) / 4); x <= Math.floor((cx + r) / 4); x++) {
@@ -4869,6 +4918,7 @@ class Stage {
   // ------------------------------------------------------------ damage
   // blast: rockets, mines and explosions (a splitter hit by one doesn't split)
   hitEnemy(t, by, blast) {
+    if (t.mirage) { this.vanishMirage(t, true); return; }
     t.reveal = 90;
     if (t.bonus) { t.bonus = false; this.spawnPowerup(); }
     if (t.shield > 0) { Sound.play('steel'); return; }
@@ -4880,9 +4930,12 @@ class Stage {
 
   killEnemy(t, by, award, silent) {
     if (!t.alive) return;
+    if (t.mirage) { this.vanishMirage(t, false); return; }
     t.alive = false;
     this.killed++;
     this.addFx(t.x + 8, t.y + 8, BIG_EXPLOSION(), 5);
+    this.explosionHeat(t.x + 8, t.y + 8, 10);   // summer: the trees round it catch fire
+    if (award && kindOf(t) === 'ghoul') this.ghoulDown(t);   // only one you destroyed rises again
     if (!silent) Sound.play('explode');
     if (award && by && by.isPlayer) {
       // NIGHTMARE!: destroyed enemies may come back, as in DOOM
@@ -5270,6 +5323,7 @@ class Stage {
     this.renderBelts(ctx);
     this.renderPads(ctx);
     if (this.maze) this.renderMazeExit(ctx);
+    this.renderSeasonUnder(ctx);   // hot spots, ghoul wrecks (seasonal.js)
     if (!this.noBase) this.renderEagle(ctx);
     this.renderVs(ctx);
     this.renderDecoy(ctx);
@@ -5279,7 +5333,7 @@ class Stage {
     this.renderSpecialsUnder(ctx);
     this.renderBaseZones(ctx);
     this.renderTurrets(ctx);
-    for (const t of this.tanks) this.drawTank(ctx, t);
+    for (const t of this.tanks) if (!this.drawSeasonTank(ctx, t)) this.drawTank(ctx, t);
     this.renderClaudes(ctx);
     this.renderBosses(ctx);
     for (const s of this.spawns) {
@@ -5307,6 +5361,7 @@ class Stage {
       ctx.drawImage(fr, Math.round(f.x - fr.width / 2), Math.round(f.y - fr.height / 2));
     }
     this.renderSeason(ctx, camX, camY);   // petals, leaves, snow, ash, sand
+    this.renderSeasonOver(ctx, camX, camY);   // fire, rain, gusts, blizzard, Geiger counters (seasonal.js)
     this.renderDarkness(ctx);
     for (const p of this.popups) {
       if (p.t < p.delay) continue;
@@ -6943,7 +6998,8 @@ Object.assign(Stage.prototype, {
 
   // night and fog: a dark layer with holes where something gives light
   renderDarkness(ctx) {
-    const w = this.weather;
+    const wo = this.whiteout ? this.whiteout() : 0;   // a winter blizzard (seasonal.js)
+    const w = this.weather || (wo > 0 ? 'blizzard' : null);
     if (!w) return;
     // night vision: the whole field in green, flickering back to dark in its last two seconds
     if (w === 'night' && this.nightVision > 0 && !(this.nightVision < 120 && (this.frame >> 2) & 1)) {
@@ -6952,10 +7008,10 @@ Object.assign(Stage.prototype, {
       return;
     }
     if (!this.darkLayer || this.darkLayer.width !== FW || this.darkLayer.height !== FH) this.darkLayer = makeCanvas(FW, FH);
-    const d = this.darkLayer.getContext('2d'), k = w === 'fog' ? 1.4 : 1;
+    const d = this.darkLayer.getContext('2d'), k = w === 'fog' ? 1.4 : w === 'blizzard' ? 1.15 : 1;
     d.globalCompositeOperation = 'source-over';
     d.clearRect(0, 0, FW, FH);
-    d.fillStyle = w === 'fog' ? 'rgba(150,150,160,0.86)' : 'rgba(0,0,14,0.95)';
+    d.fillStyle = w === 'fog' ? 'rgba(150,150,160,0.86)' : w === 'blizzard' ? 'rgba(232,238,250,' + (0.92 * wo).toFixed(2) + ')' : 'rgba(0,0,14,0.95)';
     d.fillRect(0, 0, FW, FH);
     d.globalCompositeOperation = 'destination-out';
     const light = (x, y, r) => {
@@ -7158,6 +7214,543 @@ Object.assign(Stage.prototype, {
   <script>
 'use strict';
 // =====================================================================
+//  What makes each season its own, besides the look (seasons.js): a twist in the rules and an enemy found nowhere else.
+//    SPRING   SHOWERS   now and then it rains; puddles of mud form on open ground and dry up a while after
+//             HOPPER    a light tank on springs: when a thin wall or water blocks it, it jumps over
+//    SUMMER   WILDFIRE  explosions set trees ablaze (and the heat starts the odd fire by itself); fire spreads from
+//                       tree to tree, burns them away and burns any tank inside
+//             FIREBUG   its shells set fire to trees and ground where they land; it doesn't burn itself
+//    AUTUMN   GUSTS     a gust of wind every so often shoves every tank one way for a few seconds
+//             GUSTER    a big fan up front: blows you backwards when you're in front of it
+//    WINTER   BLIZZARD  now and then a whiteout: you see only what is close (and so do they, they fire less)
+//             FROST     its shells freeze you solid for a moment instead of destroying you; a second hit
+//                       while frozen shatters you. They freeze water they fly over, too
+//    NUCLEAR  HOT SPOTS glowing radioactive patches: stay in one and your Geiger counter fills; when it's
+//                       full your tank is gone. Out of them it clicks back down
+//             GHOUL     destroyed, it leaves a glowing wreck that rises again 4 s later, unless you shoot it
+//    DESERT   MIRAGES   phantom tanks shimmer into view: their shells can't hurt, a shot or a touch and
+//                       they're gone (no points)
+//             BURROWER  dives under the sand (shells pass over it), runs, and surfaces somewhere else to fire
+//  Settings -> GAME -> SEASON EFFECTS turns the twists off; the enemies each have APPEARS in ENEMY TYPES.
+// =====================================================================
+
+const SEASON_ENEMY = { spring: 18, summer: 19, autumn: 20, winter: 21, nuclear: 22, desert: 23 };
+const SEASON_FX_NAME = { spring: 'SHOWERS', summer: 'WILDFIRE', autumn: 'GUSTS', winter: 'BLIZZARDS', nuclear: 'HOT SPOTS', desert: 'MIRAGES' };
+const HOP_TIME = 24, FROST_TIME = 150, GHOUL_RISE = 240, GUST_RANGE = 96, RAD_MAX = 180, MIRAGE_LIFE = 900;
+const SHOWER_TIME = 720, BLIZZARD_TIME = 600, GUST_TIME = 240;
+// easier skills are gentler with you: how long the Geiger counter takes to fill, how long you can stand in flames
+const RAD_SKILL = [2, 1.6, 1.25, 1, 0.85], BURN_GRACE = [60, 40, 25, 15, 8];
+const seasonSkill = () => { const s = Config.get('skill'); return s === AUTO_SKILL ? Math.max(0, Math.min(4, Math.round(AutoSkill.rating))) : s; };
+
+// ------------------------------------------------------------------ the six tanks
+Object.assign(PALS, {
+  hopper: [null, '#F8B8F8', '#58D854', '#004800'],
+  firebug: [null, '#F8D878', '#E45C10', '#300800'],
+  guster: [null, '#F8D8A8', '#AC7C00', '#3C1800'],
+  frost: [null, '#F8F8F8', '#7CC8F8', '#00287C'],
+  ghoul: [null, '#B8F818', '#4C6C3C', '#101810'],
+  ghoulDead: [null, '#38581C', '#1C2C14', '#080C08'],
+  burrower: [null, '#FCE0A8', '#C8903C', '#4C2C00'],
+});
+// HOPPER: a light frame on big coil springs
+TANK_GRIDS.e18 = canvasEnemyGrids(['........', '.......1', '.......1', '111...11', '131.1122', '111.1222', '131.1232', '111.1222',
+  '131.1222', '111.1232', '131.1222', '111.1122', '131..111', '111.....', '........', '........']);
+// FIREBUG: a beetle shell with feelers, no tracks
+TANK_GRIDS.e19 = canvasEnemyGrids(['.....1..', '......1.', '.......1', '...11111', '..122222', '.1223333', '11222322', '12222222',
+  '12233222', '12222222', '11222322', '.1222222', '..122222', '...11111', '........', '........'], false);
+// GUSTER: a great round fan in front of the hull
+TANK_GRIDS.e20 = canvasEnemyGrids(['..111111', '.1233333', '.1232222', '.1233333', '..111111', '111..1..', '13111111', '11112222',
+  '13112222', '11112332', '13112222', '11112222', '13111111', '111.....', '........', '........']);
+// FROST: angular, icicles hanging off the back
+TANK_GRIDS.e21 = canvasEnemyGrids(['.......3', '.......1', '.......1', '1.1....1', '131.1111', '11112222', '13112333', '11112322',
+  '13112333', '11112222', '13111111', '111.1.1.', '1.1.....', '........', '........', '........']);
+// GHOUL: a skull for a turret
+TANK_GRIDS.e22 = canvasEnemyGrids(['.......1', '.......1', '111.1111', '13112222', '11122222', '13123322', '11122222', '13122222',
+  '11112121', '13111111', '11112222', '13112222', '11111111', '111.....', '........', '........']);
+// BURROWER: a drill for a nose
+TANK_GRIDS.e23 = canvasEnemyGrids(['.......1', '......11', '......12', '.....122', '....1222', '111.1232', '13111222', '11112222',
+  '13112332', '11112222', '13112222', '11111111', '13111111', '111.....', '........', '........']);
+
+Object.assign(Stage.prototype, {
+  // ------------------------------------------------------------ set-up
+  setupSeason(opts) {
+    this.fires = new Map(); this.puddles = []; this.wrecks = []; this.zones = [];
+    this.wind = null; this.blizzard = 0; this.shower = 0;
+    // the twist: in the normal game and the modes, not in boss fights or the editor
+    this.seasonFx = Config.on('seasonFx') && !opts.boss && !opts.editor && !opts.snapshot && THEMES[this.theme] && SEASON_FX_NAME[this.theme] ? this.theme : null;
+    const s = this.seasonFx;
+    this.seaT = 600 + rnd(600);   // the first shower, gust, blizzard, mirage or summer fire
+    if (s === 'nuclear') this.placeHotSpots();
+    if (!opts.snapshot && !this.seasoned) this.seasonEnemies(this.queue);
+  },
+
+  // the season's own enemy takes some places in a line-up (from the 3rd tank on)
+  seasonEnemies(queue) {
+    const type = SEASON_ENEMY[this.theme];
+    if (type === undefined || !queue || queue.length < 4 || Config.get('e' + type + 'On') === 'OFF') return;
+    const mult = { OFF: 0, FEW: 0.5, NORMAL: 1, MANY: 1.8 }[Config.get('newEnemies')] || 0;
+    const n = Math.min(8, queue.length - 2, Math.round((3 + Math.floor(this.num / 8)) * mult));
+    for (let k = 0; k < n; k++) queue[2 + Math.floor((k + 0.5) * (queue.length - 2) / n)].type = type;
+  },
+
+  // one enemy arriving one at a time (corridor, maze reinforcements): sometimes the season's own
+  seasonSwap(q, chance = 0.08) {
+    const type = SEASON_ENEMY[this.theme];
+    if (type !== undefined && Config.get('e' + type + 'On') !== 'OFF' && Config.get('newEnemies') !== 'OFF' && Math.random() < chance) q.type = type;
+    return q;
+  },
+
+  placeHotSpots() {
+    const n = Math.max(3, Math.min(12, Math.round(3 * FW * FH / (208 * 208))));
+    const away = (x, y, list, d) => list.every(([px, py]) => Math.abs(px + 8 - x) + Math.abs(py + 8 - y) > d);
+    for (let k = 0, tries = 0; k < n && tries < 400; tries++) {
+      const x = 24 + rnd((FW - 48) / 8) * 8, y = 24 + rnd((FH - 48) / 8) * 8;
+      if (!away(x, y, PLAYER_SPAWN.concat(this.vsSpawn || []), 64) || !away(x, y, ENEMY_SPAWNS, 40) || !away(x, y, [[BASE_X, BASE_Y]], 64)) continue;
+      if (this.zones.some(z => Math.hypot(z.x - x, z.y - y) < 56)) continue;
+      if (this.get(x >> 2, y >> 2) === T_STEEL || this.get(x >> 2, y >> 2) === T_WATER) continue;
+      this.zones.push({ x, y, r: 18 + rnd(3) * 3 });
+      k++;
+    }
+  },
+
+  // ------------------------------------------------------------ every frame
+  updateSeason() {
+    const s = this.seasonFx;
+    if (s && !this.over && !this.clearTimer && this.freezeE <= 0 && --this.seaT <= 0) this.seasonEvent(s);
+    if (this.shower > 0) this.updateShower();
+    for (const pd of this.puddles) if (this.frame >= pd.dry) for (const i of pd.cells) if (this.terrain[i] === T_MUD) this.set(i % GW, (i / GW) | 0, T_EMPTY);
+    this.puddles = this.puddles.filter(pd => this.frame < pd.dry);
+    if (this.wind && --this.wind.t <= 0) this.wind = null;
+    if (this.wind) this.updateWind();
+    if (this.blizzard > 0) this.blizzard--;
+    if (this.fires.size && this.frame % 4 === 0) this.updateFires();
+    if (this.zones.length) this.updateRadiation();
+    if (this.wrecks.length) this.updateWrecks();
+    for (const t of this.tanks) {
+      if (!t.alive || t.isPlayer) continue;
+      if (t.mirage) { this.updateMirage(t); continue; }
+      const kind = kindOf(t);
+      if (kind === 'burrower') this.updateBurrower(t);
+      else if (kind === 'guster' && this.freezeE <= 0) this.gusterBlow(t);
+    }
+  },
+
+  // the season's next event, and when the one after it comes
+  seasonEvent(s) {
+    if (s === 'spring') { this.shower = SHOWER_TIME; this.seaT = SHOWER_TIME + 1500 + rnd(1200); this.seasonNote('SHOWER!', '#7CB8F8'); }
+    else if (s === 'summer') {
+      // the heat: a tree somewhere catches fire
+      const trees = [];
+      for (let i = 0; i < this.terrain.length; i += 7) if (this.terrain[i] === T_FOREST) trees.push(i);
+      if (trees.length) { const i = trees[rnd(trees.length)]; this.ignite(i, false); this.seasonNote('WILDFIRE!', '#F87830', (i % GW) * 4, ((i / GW) | 0) * 4); }
+      this.seaT = 1500 + rnd(1200);
+    } else if (s === 'autumn') {
+      const dir = Math.random() < 0.65 ? (Math.random() < 0.5 ? 1 : 3) : (Math.random() < 0.5 ? 0 : 2);
+      this.wind = { dir, t: GUST_TIME };
+      this.seaT = GUST_TIME + 1200 + rnd(900);
+      this.seasonNote('GUST ' + ['^^^', '>>>', 'VVV', '<<<'][dir], '#F8B800');
+    } else if (s === 'winter') { this.blizzard = BLIZZARD_TIME; this.seaT = BLIZZARD_TIME + 1500 + rnd(1200); this.seasonNote('BLIZZARD!', '#F8F8F8'); }
+    else if (s === 'desert') {
+      if (this.tanks.filter(t => t.mirage).length < 2) this.spawnMirage();
+      this.seaT = 900 + rnd(700);
+    } else this.seaT = 1e9;
+  },
+
+  seasonNote(text, color, x, y) {
+    this.popups.push({ x: x !== undefined ? x : (this.camX || 0) + VIEW_W / 2, y: y !== undefined ? y : (this.camY || 0) + 48, text, label: true, color, t: 0, delay: 0, life: 110 });
+  },
+
+  // ------------------------------------------------------------ spring: showers and puddles
+  updateShower() {
+    this.shower--;
+    if (this.shower % 40 !== 0 || this.puddles.length >= 8) return;
+    for (let k = 0; k < 20; k++) {
+      const x = rnd((FW - 16) / 8 + 1) * 8, y = rnd((FH - 16) / 8 + 1) * 8, cells = [];
+      if (Math.abs(x - BASE_X) < 40 && Math.abs(y - BASE_Y) < 40) continue;
+      let ok = true;
+      for (let cy = y >> 2; cy < (y + 16) >> 2 && ok; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
+        if (this.get(cx, cy) !== T_EMPTY) { ok = false; break; }
+        cells.push(cy * GW + cx);
+      }
+      if (!ok) continue;
+      // a rounded puddle: leave the corners dry
+      const keep = cells.filter((i, n) => ![0, 3, 12, 15].includes(n));
+      for (const i of keep) this.set(i % GW, (i / GW) | 0, T_MUD);
+      this.puddles.push({ cells: keep, dry: this.frame + this.shower + 600 + rnd(600) });
+      return;
+    }
+  },
+
+  // ------------------------------------------------------------ summer: fire
+  // set a 4px cell burning (trees burn longer and spread; open ground only flickers a moment)
+  ignite(i, ground) {
+    if (this.fires.has(i) || this.fires.size > 500) return;
+    const v = this.terrain[i];
+    if (v === T_FOREST) this.fires.set(i, { life: 150, tree: true });
+    else if (ground && (v === T_EMPTY || v === T_ICE || v === T_MUD)) this.fires.set(i, { life: 90, tree: false });
+  },
+
+  igniteAt(x, y, r, ground) {
+    for (let cy = Math.floor((y - r) / 4); cy <= Math.floor((y + r) / 4); cy++) {
+      for (let cx = Math.floor((x - r) / 4); cx <= Math.floor((x + r) / 4); cx++) {
+        if (cx < 0 || cy < 0 || cx >= GW || cy >= GH || Math.hypot(cx * 4 + 2 - x, cy * 4 + 2 - y) > r) continue;
+        this.ignite(cy * GW + cx, ground);
+      }
+    }
+  },
+
+  // an explosion: in summer the trees around it catch
+  explosionHeat(x, y, r) { if (this.seasonFx === 'summer') this.igniteAt(x, y, r, false); },
+
+  updateFires() {
+    const spread = [];
+    for (const [i, f] of this.fires) {
+      f.life -= 4;
+      if (f.tree && f.life > 30 && Math.random() < 0.25) {
+        const cx = i % GW, cy = (i / GW) | 0;
+        const [dx, dy] = DXY[rnd(4)], nx = cx + dx, ny = cy + dy;
+        if (nx >= 0 && ny >= 0 && nx < GW && ny < GH) spread.push(ny * GW + nx);
+      }
+      if (f.life <= 0) {
+        this.fires.delete(i);
+        if (f.tree && this.terrain[i] === T_FOREST) this.set(i % GW, (i / GW) | 0, T_EMPTY);   // burnt away
+      }
+    }
+    for (const i of spread) this.ignite(i, false);
+    if (!this.fires.size) return;
+    // tanks in the flames get burnt (firebugs don't; something underground or in the air is safe)
+    for (const t of this.tanks.slice()) {
+      if (!t.alive || t.burrow > 0 || t.hopT > 0 || t.mirage || (!t.isPlayer && kindOf(t) === 'firebug')) continue;
+      let hot = false;
+      for (let cy = (t.y + 2) >> 2; cy <= (t.y + 13) >> 2 && !hot; cy++) for (let cx = (t.x + 2) >> 2; cx <= (t.x + 13) >> 2; cx++) if (this.fires.has(cy * GW + cx)) { hot = true; break; }
+      if (!hot) { t.heat = 0; continue; }
+      if ((t.burnAt || 0) > this.frame) continue;
+      // you get a moment to drive out (longer on easier skills); enemies burn at once
+      if (t.isPlayer && (t.heat = (t.heat || 0) + 4) < BURN_GRACE[seasonSkill()]) continue;
+      t.burnAt = this.frame + 45; t.heat = 0;
+      if (t.isPlayer) this.hitPlayer(t); else this.hitEnemy(t, null);
+    }
+  },
+
+  // ------------------------------------------------------------ autumn: wind
+  // push a tank one pixel in direction d, if there's room
+  shove(t, d) {
+    if (!this.canStep(t, d)) return false;
+    t.x += DXY[d][0]; t.y += DXY[d][1];
+    return true;
+  },
+
+  updateWind() {
+    const w = this.wind, k = Math.min(1, w.t / 30, (GUST_TIME - w.t) / 30);   // eases in and out
+    for (const t of this.tanks) {
+      if (!t.alive || t.burrow > 0 || t.hopT > 0) continue;
+      t.windAcc = (t.windAcc || 0) + 0.45 * k;
+      while (t.windAcc >= 1) { t.windAcc--; this.shove(t, w.dir); }
+    }
+  },
+
+  gusterBlow(t) {
+    t.blowing = false;
+    for (const o of this.tanks) {
+      if (!o.alive || !o.isPlayer) continue;
+      const dx = o.x - t.x, dy = o.y - t.y;
+      const ahead = [-dy, dx, dy, -dx][t.dir], side = Math.abs((t.dir & 1) ? dy : dx);
+      if (ahead <= 0 || ahead > GUST_RANGE || side > 10 || !this.sightLine(t.x + 8, t.y + 8, o.x + 8, o.y + 8)) continue;
+      t.blowing = true;
+      o.blowAcc = (o.blowAcc || 0) + 0.9;
+      while (o.blowAcc >= 1) { o.blowAcc--; this.shove(o, t.dir); }
+    }
+  },
+
+  // ------------------------------------------------------------ hopper
+  // blocked by a thin wall (or water): jump over it, if there's room to land
+  tryHop(t) {
+    if (t.hopT > 0) return false;
+    const [dx, dy] = DXY[t.dir], x1 = Math.round((t.x + dx * 32) / 8) * 8, y1 = Math.round((t.y + dy * 32) / 8) * 8;
+    if (x1 < 0 || y1 < 0 || x1 > FW - 16 || y1 > FH - 16) return false;
+    for (let cy = y1 >> 2; cy < (y1 + 16) >> 2; cy++) for (let cx = x1 >> 2; cx < (x1 + 16) >> 2; cx++) {
+      const v = this.get(cx, cy);
+      if (v === T_BRICK || v === T_STEEL || v === T_WATER) return false;
+    }
+    if (this.tanks.some(o => o.alive && o !== t && overlap(o.x, o.y, 16, 16, x1, y1, 16, 16))) return false;
+    if (!this.noBase && overlap(x1, y1, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
+    t.hop = [t.x, t.y, x1, y1];
+    t.hopT = HOP_TIME;
+    Sound.play('skid');
+    return true;
+  },
+
+  hopStep(t) {
+    const [x0, y0, x1, y1] = t.hop, k = 1 - --t.hopT / HOP_TIME;
+    t.x = Math.round(x0 + (x1 - x0) * k); t.y = Math.round(y0 + (y1 - y0) * k);
+    if (t.hopT <= 0) { t.x = x1; t.y = y1; t.hop = null; }
+  },
+
+  // ------------------------------------------------------------ frost
+  frostHit(t) {
+    if (t.shield > 0) return;
+    if (t.frozen > 0) { this.hitPlayer(t); return; }   // frozen solid: this one shatters you
+    t.frozen = FROST_TIME;
+    t.iced = FROST_TIME;
+    this.popups.push({ x: t.x + 8, y: t.y - 4, text: 'FROZEN!', label: true, color: '#7CC8F8', t: 0, delay: 0, life: 70 });
+    Sound.play('armor');
+  },
+
+  // a frost shell freezes the water under it; a firebug's shell sets trees on fire as it passes
+  specialShell(b) {
+    const x0 = Math.floor(b.x / 4), y0 = Math.floor(b.y / 4);
+    for (let cy = y0; cy <= y0 + 1; cy++) for (let cx = x0; cx <= x0 + 1; cx++) {
+      const v = this.get(cx, cy);
+      if (b.frost && v === T_WATER) this.set(cx, cy, T_ICE);
+      if (b.fire && v === T_FOREST) this.ignite(cy * GW + cx, false);
+    }
+  },
+
+  // ------------------------------------------------------------ ghoul
+  ghoulDown(t) {
+    if (t.risen || this.over || !this.wrecks) return;
+    this.wrecks.push({ x: t.x, y: t.y, dir: t.dir, t: GHOUL_RISE, vet: t.vet });
+  },
+
+  updateWrecks() {
+    for (const w of this.wrecks) {
+      if (this.freezeE > 0 || --w.t > 0) continue;
+      if (this.tanks.some(o => o.alive && overlap(o.x, o.y, 16, 16, w.x, w.y, 16, 16))) { w.t = 10; continue; }
+      const st = Config.enemy(22), vr = ENEMY_RANKS[w.vet] || { hp: 0, shell: 1, speed: 1 };
+      const g = new Tank({ x: w.x, y: w.y, dir: w.dir, type: 22, hp: st.hp + vr.hp, vet: w.vet, speed: st.speed * vr.speed * Config.skill().speed,
+        bulletSpeed: st.bullet * vr.shell * Config.skill().shell, maxBullets: 1, ai: AI.HUNT });
+      g.risen = true;
+      this.tanks.push(g);
+      this.enemySpawned(g);
+      this.addFx(w.x + 8, w.y + 8, [Sprites.sparkle[0], Sprites.sparkle[1], Sprites.sparkle[2]], 5);
+      this.popups.push({ x: w.x + 8, y: w.y - 4, text: 'IT RISES!', label: true, color: '#B8F818', t: 0, delay: 0, life: 70 });
+      Sound.play('teleport');
+      w.done = true;
+    }
+    this.wrecks = this.wrecks.filter(w => !w.done);
+  },
+
+  // a player's shell on a ghoul's wreck puts it down for good
+  bulletWreck(b) {
+    const w = this.wrecks.find(q => overlap(b.x, b.y, 4, 4, q.x, q.y, 16, 16));
+    if (!w) return false;
+    this.killBullet(b, true);
+    this.wrecks.splice(this.wrecks.indexOf(w), 1);
+    this.addFx(w.x + 8, w.y + 8, BIG_EXPLOSION(), 4);
+    Sound.play('explode');
+    if (b.owner && b.owner.player) { this.addScore(b.owner.player, 100); this.popups.push({ x: w.x + 8, y: w.y + 8, text: '100', t: 0, delay: 0 }); }
+    return true;
+  },
+
+  // ------------------------------------------------------------ burrower
+  updateBurrower(t) {
+    if (this.freezeE > 0) return;
+    if (t.burrow > 0) {
+      if (--t.burrow > 0) return;
+      // back up, unless someone is standing there
+      if (this.tanks.some(o => o.alive && o !== t && !(o.burrow > 0) && overlap(o.x, o.y, 16, 16, t.x, t.y, 16, 16))) { t.burrow = 10; return; }
+      t.speed = t.landSpeed || t.speed;
+      t.cd = 200 + rnd(120);
+      t.reveal = 60;
+      this.addFx(t.x + 8, t.y + 8, Sprites.smallExp, 3);
+      Sound.play('burrow');
+      return;
+    }
+    if (t.cd === undefined || t.cd > 400) t.cd = 150 + rnd(120);
+    if (--t.cd <= 0) {
+      t.burrow = 150 + rnd(60);
+      t.landSpeed = t.speed;
+      t.speed *= 1.6;
+      Sound.play('burrow');
+    }
+  },
+
+  // ------------------------------------------------------------ desert: mirages
+  spawnMirage() {
+    for (let k = 0; k < 30; k++) {
+      const x = rnd((FW - 16) / 16 + 1) * 16, y = rnd((FH - 16) / 16 + 1) * 16;
+      if (this.tanks.some(o => o.alive && Math.abs(o.x - x) + Math.abs(o.y - y) < (o.isPlayer ? 80 : 24))) continue;
+      let bad = false;
+      for (let cy = y >> 2; cy < (y + 16) >> 2 && !bad; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
+        const v = this.get(cx, cy);
+        if (v === T_BRICK || v === T_STEEL || v === T_WATER) { bad = true; break; }
+      }
+      if (bad) continue;
+      const type = rnd(4), st = Config.enemy(type);
+      const m = new Tank({ x, y, dir: rnd(4), type, hp: 1, speed: st.speed, bulletSpeed: st.bullet, maxBullets: 1, ai: AI.HUNT });
+      m.mirage = MIRAGE_LIFE;
+      this.tanks.push(m);
+      return;
+    }
+  },
+
+  updateMirage(t) {
+    if (--t.mirage <= 0) { this.vanishMirage(t, false); return; }
+    // a touch and it's gone
+    if (this.tanks.some(o => o.alive && o.isPlayer && overlap(o.x - 2, o.y - 2, 20, 20, t.x, t.y, 16, 16))) this.vanishMirage(t, true);
+  },
+
+  vanishMirage(t, seen) {
+    if (!t.alive) return;
+    t.alive = false;
+    this.addFx(t.x + 8, t.y + 8, [Sprites.sparkle[2], Sprites.sparkle[1], Sprites.sparkle[0]], 4);
+    if (seen) { this.popups.push({ x: t.x + 8, y: t.y, text: 'MIRAGE', label: true, color: '#F8D878', t: 0, delay: 0, life: 60 }); Sound.play('teleport'); }
+  },
+
+  // a mirage's shell is nothing: it fades when it meets anything
+  mirageShell(b) {
+    const v = this.get(Math.floor((b.x + 2) / 4), Math.floor((b.y + 2) / 4));
+    if (v === T_BRICK || v === T_STEEL || this.tanks.some(t => t.alive && t.isPlayer && overlap(b.x, b.y, 4, 4, t.x, t.y, 16, 16))) b.alive = false;
+    if (!b.alive && !b.free) b.owner.bullets = Math.max(0, b.owner.bullets - 1);
+  },
+
+  // ------------------------------------------------------------ nuclear: hot spots
+  updateRadiation() {
+    for (const t of this.tanks) {
+      if (!t.alive || !t.isPlayer || t.ally) continue;
+      const p = t.player, inside = this.zones.some(z => Math.hypot(t.x + 8 - z.x, t.y + 8 - z.y) < z.r);
+      if (inside && t.shield <= 0) {
+        p.rad = (p.rad || 0) + 1;
+        if (this.frame % Math.max(4, 18 - Math.floor(p.rad / RAD_SKILL[seasonSkill()] / 12)) === 0) Sound.play('tick');
+        if (p.rad >= RAD_MAX * RAD_SKILL[seasonSkill()]) {
+          p.rad = 0;
+          this.popups.push({ x: t.x + 8, y: t.y - 4, text: 'RADIATION!', label: true, color: '#B8F818', t: 0, delay: 0, life: 80 });
+          this.hitPlayer(t);
+        }
+      } else if (p.rad > 0) p.rad = Math.max(0, p.rad - 0.5);
+    }
+  },
+
+  // ------------------------------------------------------------ drawing
+  // on the ground, under the tanks: hot spots, wrecks
+  renderSeasonUnder(ctx) {
+    for (const z of this.zones || []) {
+      const pulse = (this.frame >> 3) & 1;
+      for (let dy = -z.r; dy <= z.r; dy += 2) for (let dx = -z.r; dx <= z.r; dx += 2) {
+        const d = Math.hypot(dx, dy);
+        if (d > z.r || ((dx + dy) >> 1) & 1) continue;
+        ctx.fillStyle = d > z.r - 3 ? (pulse ? '#B8F818' : '#58A800') : d < 5 ? '#D8F878' : 'rgba(120,220,40,0.45)';
+        ctx.fillRect(z.x + dx, z.y + dy, 2, 2);
+      }
+    }
+    for (const w of this.wrecks || []) {
+      ctx.drawImage(Sprites.tank('e22', 0, w.dir, 'ghoulDead'), w.x, w.y);
+      if (w.t < 90 ? (this.frame >> 1) & 1 : (this.frame >> 4) & 1) ctx.drawImage(Sprites.outline(Sprites.tank('e22', 0, w.dir, 'ghoulDead'), '#B8F818'), w.x - 1, w.y - 1);
+    }
+  },
+
+  // a tank as the season sees it: up in the air, under the sand, a shimmer of heat (false: draw it as usual)
+  drawSeasonTank(ctx, t) {
+    if (t.burrow > 0) {
+      // a mound of sand moving along
+      const f = this.frame;
+      ctx.fillStyle = '#A07838'; ctx.fillRect(t.x + 3, t.y + 7, 10, 5);
+      ctx.fillStyle = '#C8A060'; ctx.fillRect(t.x + 5, t.y + 5, 6, 3);
+      ctx.fillStyle = '#E0C080';
+      for (let k = 0; k < 3; k++) ctx.fillRect(t.x + 2 + ((f + k * 5) % 12), t.y + 11 + (k & 1), 1, 1);
+      return true;
+    }
+    if (t.hopT > 0) {
+      const lift = Math.round(Math.sin(Math.PI * (1 - t.hopT / HOP_TIME)) * 10);
+      ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(t.x + 3, t.y + 10, 10, 4);
+      ctx.save(); ctx.translate(0, -lift); this.drawTank(ctx, t); ctx.restore();
+      return true;
+    }
+    if (t.mirage) {
+      ctx.save();
+      ctx.globalAlpha = 0.45 + 0.25 * Math.sin(this.frame / 6 + t.x);
+      ctx.translate(Math.round(Math.sin(this.frame / 3 + t.y) * 1.2), 0);
+      this.drawTank(ctx, t);
+      ctx.restore();
+      return true;
+    }
+    return false;
+  },
+
+  // over everything on the ground: flames, frost, the guster's wind, Geiger counters, rain and whiteout
+  renderSeasonOver(ctx, camX, camY) {
+    const f = this.frame, fire = ['#F8F8F8', '#F8D878', '#F87830', '#D82800'];
+    for (const [i, fl] of this.fires || []) {
+      const cx = i % GW, cy = (i / GW) | 0, x = cx * 4, y = cy * 4, h = cx * 7 + cy * 13;
+      // a red base, an orange body, a flickering yellow-white tip
+      ctx.fillStyle = '#D82800'; ctx.fillRect(x, y + 2, 4, 2);
+      ctx.fillStyle = fire[2 - ((h + (f >> 2)) & 1)]; ctx.fillRect(x + ((h + (f >> 1)) & 1), y + 1, 3, 2);
+      if (fl.tree && ((h + (f >> 1)) % 3)) { ctx.fillStyle = fire[(h + (f >> 2)) & 1]; ctx.fillRect(x + 1 + ((h >> 1) & 1), y - ((f + h) & 1), 1, 2); }
+    }
+    for (const t of this.tanks) {
+      if (!t.alive) continue;
+      if (t.isPlayer && t.iced > 0) { t.iced--; ctx.drawImage(Sprites.outline(Sprites.rankTank('p' + t.player.level, 0, t.dir, Config.playerPal(t.player.i), 1, 0), '#7CC8F8'), t.x - 1, t.y - 1); }
+      if (t.blowing) {
+        ctx.fillStyle = 'rgba(248,248,248,0.7)';
+        for (let k = 0; k < 6; k++) {
+          const d = (f * 3 + k * 16) % GUST_RANGE, s = ((k * 5) % 12) - 6;
+          const [x, y] = [[t.x + 8 + s, t.y - d], [t.x + 16 + d, t.y + 8 + s], [t.x + 8 + s, t.y + 16 + d], [t.x - d, t.y + 8 + s]][t.dir];
+          ctx.fillRect(x, y, (t.dir & 1) ? 4 : 1, (t.dir & 1) ? 1 : 4);
+        }
+      }
+      if (t.isPlayer && t.player && t.player.rad > 0) {
+        const full = RAD_MAX * RAD_SKILL[seasonSkill()], w = Math.round(14 * Math.min(1, t.player.rad / full));
+        ctx.fillStyle = COL.black; ctx.fillRect(t.x, t.y - 4, 16, 3);
+        ctx.fillStyle = t.player.rad > full * 0.66 ? '#F83800' : '#B8F818'; ctx.fillRect(t.x + 1, t.y - 3, w, 1);
+      }
+    }
+    if (this.shower > 0) {
+      ctx.fillStyle = 'rgba(0,0,30,0.12)'; ctx.fillRect(camX, camY, VIEW_W, VIEW_H);
+      ctx.fillStyle = 'rgba(160,200,248,0.7)';
+      for (let k = 0; k < 70; k++) {
+        const x = camX + ((k * 47 + f * 2) % (VIEW_W + 20)) - 10, y = camY + ((k * 83 + f * 7) % (VIEW_H + 20)) - 10;
+        ctx.fillRect(Math.round(x), Math.round(y), 1, 4);
+      }
+    }
+    if (this.wind) {
+      ctx.fillStyle = 'rgba(248,184,0,0.8)';
+      const [dx, dy] = DXY[this.wind.dir];
+      for (let k = 0; k < 24; k++) {
+        const along = (k * 61 + f * 5) % (dx ? VIEW_W : VIEW_H), across = (k * 97) % (dx ? VIEW_H : VIEW_W);
+        const pos = dx > 0 || dy > 0 ? along : (dx ? VIEW_W : VIEW_H) - along;
+        ctx.fillRect(camX + (dx ? pos : across), camY + (dx ? across : pos), dx ? 3 : 1, dx ? 1 : 3);
+      }
+    }
+    if (this.blizzard > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      for (let k = 0; k < 90; k++) {
+        const x = camX + ((k * 53 + f * 4) % VIEW_W), y = camY + ((k * 71 + f * 2) % VIEW_H);
+        ctx.fillRect(x, y, 2, 1);
+      }
+    }
+  },
+
+  // the blizzard's whiteout: how thick it is now (0-1), easing in and out
+  whiteout() { return this.blizzard > 0 ? Math.min(1, this.blizzard / 60, (BLIZZARD_TIME - this.blizzard) / 60) : 0; },
+
+  // the corridor moved everything down S pixels: the season's things go with it (and the new section gets hot spots)
+  seasonShift(S) {
+    const rows = S / 4, fires = new Map();
+    for (const [i, f] of this.fires) if (i + rows * GW < GW * GH) fires.set(i + rows * GW, f);
+    this.fires = fires;
+    for (const pd of this.puddles) pd.cells = pd.cells.map(i => i + rows * GW).filter(i => i < GW * GH);
+    for (const z of this.zones) z.y += S;
+    this.zones = this.zones.filter(z => z.y < FH);
+    for (const w of this.wrecks) w.y += S;
+    this.wrecks = this.wrecks.filter(w => w.y < FH);
+    if (this.seasonFx === 'nuclear') {
+      for (let k = 0, tries = 0; k < 3 && tries < 100; tries++) {
+        const x = 24 + rnd((FW - 48) / 8) * 8, y = 16 + rnd((S - 32) / 8) * 8;
+        if (this.zones.some(z => Math.hypot(z.x - x, z.y - y) < 56) || this.get(x >> 2, y >> 2) === T_STEEL || this.get(x >> 2, y >> 2) === T_WATER) continue;
+        this.zones.push({ x, y, r: 18 + rnd(3) * 3 });
+        k++;
+      }
+    }
+  },
+
+  // anything still to come before the stage can be clear (a ghoul's wreck)
+  seasonPending() { return (this.wrecks || []).length > 0; },
+});
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
 //  Game modes (picked on the title screen's MODE row)
 //    CLASSIC      the game as always
 //    SURVIVAL     endless waves on one map, each bigger and stronger; a breather between waves
@@ -7211,6 +7804,7 @@ Object.assign(Stage.prototype, {
       if (--this.waveBreak === 0) {
         this.wave++;
         this.queue = waveQueue(this.wave);
+        this.seasonEnemies(this.queue);
         this.total += this.queue.length;
         this.spawnTimer = 0;
       }
@@ -7754,7 +8348,7 @@ Object.assign(Stage.prototype, {
             if (v === T_STEEL || v === T_WATER || v === T_BRICK) { solid = true; break; }
           }
           if (solid) continue;
-          const q = corridorEnemy(this.corridorClimb());
+          const q = this.seasonSwap(corridorEnemy(this.corridorClimb()));
           q.ai = noBasePersonality();
           q.bonus = Config.on('bonusTanks') && c.spawned % 7 === 3;
           c.spawned++;
@@ -7814,6 +8408,7 @@ Object.assign(Stage.prototype, {
     this.pads.forEach((p, i) => { p.pair = this.pads[p.pair] ? p.pair : -1; });
     this.pads = this.pads.filter(p => p.pair >= 0);
     if (this.camY !== undefined) this.camY += S;
+    this.seasonShift(S);   // fires, puddles, hot spots, wrecks (seasonal.js)
     c.shifts++;
   },
 
@@ -7936,6 +8531,7 @@ Object.assign(Stage.prototype, {
     // the enemy: some waiting along the way out, some in other passages, the rest turn up later
     const n = Math.min(60, Math.round((10 + 3 * this.num) * Config.get('enemyCount') / 20));
     this.queue = buildQueue(this.num, n);
+    this.seasonEnemies(this.queue); this.seasoned = true;   // the season's own enemy among them (seasonal.js)
     for (const q of this.queue) q.ai = AI.WANDER;
     // none near the start: at least 4 cells away along the passages, and 3 as the crow flies (walls don't stop them waking)
     const far = c => mz.dist[c[1] * mz.MW + c[0]] >= 4 && Math.abs(c[0] - mz.start[0]) + Math.abs(c[1] - mz.start[1]) >= 3;
@@ -9630,7 +10226,7 @@ const Net = {
     v.pl = G.players.map(p => ({
       i: p.i, score: p.score, lives: p.lives, level: p.level, mines: p.mines, kills: p.kills, out: p.out,
       ship: p.ship, cutter: p.cutter, kit: p.kit, shopShovel: p.shopShovel, xp: p.xp, rank: p.rank, stageXp: p.stageXp,
-      vsKills: p.vsKills, caps: p.caps, spent: p.spent, racePts: p.racePts, bot: p.bot,
+      vsKills: p.vsKills, caps: p.caps, spent: p.spent, racePts: p.racePts, bot: p.bot, rad: p.rad || 0,
     }));
     v.base = G.base;
     v.snd = this.sndQueue.splice(0);
@@ -9658,7 +10254,7 @@ const Net = {
       df: st.netDiff || [],
       tk: st.tanks.filter(t => t.alive).map(t => [t.x, t.y, t.dir, t.isPlayer ? 1 : 0, t.player ? t.player.i : -1, t.type, t.hp,
         t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow, t.reveal, t.ai, t.vet, t.segs ? t.segs.map(p => p[0] + ',' + p[1]).join(';') : 0,
-        t.ally ? 1 : 0, t.boost.smoke ? 1 : 0]),
+        t.ally ? 1 : 0, t.boost.smoke ? 1 : 0, (t.burrow > 0 ? 1 : 0) | (t.mirage ? 2 : 0) | (t.blowing ? 4 : 0) | (t.iced > 0 ? 8 : 0), t.hopT || 0]),
       bu: st.bullets.filter(b => b.alive).map(b => [r(b.x), r(b.y), b.dir, b.rocket ? 1 : 0, b.pierce ? 1 : 0]),
       fx: st.fx.map(f => [r(f.x), r(f.y), fxKind(f), f.per, f.tick]),
       pp: st.popups,
@@ -9683,6 +10279,8 @@ const Net = {
       bg: st.big ? [st.big, st.outposts, st.factories.map(f => [f.x, f.y, f.hp, f.flash])] : null,
       fg: st.flags ? st.flags.map(f => [f.i, f.hx, f.hy, f.x, f.y, f.carrier ? 1 : 0]) : null,
       cr: st.corridor ? [st.corridor.shifts, st.corridor.climbed, st.corridor.startY] : null,
+      se: st.seasonFx || (st.wrecks && st.wrecks.length) || (st.fires && st.fires.size) ? [Array.from(st.fires.keys()), st.wind ? st.wind.dir : -1, st.blizzard, st.shower,
+        st.zones.map(z => [z.x, z.y, z.r]), st.wrecks.map(w => [w.x, w.y, w.dir, w.t])] : null,
       mz: st.maze ? [st.maze.sx, st.maze.sy, st.maze.ex, st.maze.ey, st.maze.hintAt, st.maze.escaped ? 1 : 0, st.maze.MW, st.maze.MH] : null,
       cd: st.card || null,
       cp: st.cpu || null,
@@ -9832,6 +10430,7 @@ const Net = {
       type: a[5], hp: a[6], bonus: !!a[7], shield: a[8], frozen: a[9], ship: !!a[10], anim: a[11], boost: Object.assign(a[12] ? { ghost: 1 } : {}, a[20] ? { smoke: 1 } : {}),
       plates: a[13] || 0, glow: a[14] || 0, reveal: a[15] || 0, ai: a[16] || 0, vet: a[17] || 0, stealth: a[5] === 7,
       segs: a[18] ? a[18].split(';').map(p => p.split(',').map(Number)) : null, ally: !!a[19],
+      burrow: a[21] & 1 ? 1 : 0, mirage: a[21] & 2 ? 1 : 0, blowing: !!(a[21] & 4), iced: a[21] & 8 ? 2 : 0, hopT: a[22] || 0,
     }));
     if (sv.ea) { st.eagleArmor = sv.ea[0]; st.eagleFlash = sv.ea[1]; st.gunDir = sv.ea[2]; st.teslaT = sv.ea[4]; st.zaps = sv.ea[5] || []; st.base = Object.assign(newBase(), G.base || {}); }
     st.turrets = (sv.tu || []).map(a => ({ x: a[0], y: a[1], dir: a[2], hp: a[3], owner: G.players.find(p => p.i === a[4]) || null, enemy: !!a[5] }));
@@ -9856,6 +10455,13 @@ const Net = {
       if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();
       st.corridor = { shifts: sv.cr[0], climbed: sv.cr[1], startY: sv.cr[2] };
     } else st.corridor = null;
+    // the season's twists (seasonal.js)
+    const se = sv.se || [[], -1, 0, 0, [], []];
+    st.fires = new Map(se[0].map(i => [i, { tree: true }]));
+    st.wind = se[1] >= 0 ? { dir: se[1], t: GUST_TIME } : null;
+    st.blizzard = se[2]; st.shower = se[3];
+    st.zones = se[4].map(a => ({ x: a[0], y: a[1], r: a[2] }));
+    st.wrecks = se[5].map(a => ({ x: a[0], y: a[1], dir: a[2], t: a[3] }));
     st.maze = sv.mz ? { sx: sv.mz[0], sy: sv.mz[1], ex: sv.mz[2], ey: sv.mz[3], hintAt: sv.mz[4], escaped: !!sv.mz[5], MW: sv.mz[6], MH: sv.mz[7] } : null;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
@@ -10574,7 +11180,10 @@ const Game = {
       else if (this.customPending) lvTheme = this.customTheme;
       if (lvTheme === 'auto') lvTheme = undefined;
       const ss = Config.get('seasons'), th = lvTheme ? THEMES[lvTheme] : ss === 'RANDOM' || ss === 'OFF' ? null : THEMES[stageTheme(this.stageNum)];
-      if (th && th.name && !(this.mode === 'race' && c.raceSel)) Font.drawCenter(ctx, th.name, cx, cy - 36, '#3C3C3C');
+      if (th && th.name && !(this.mode === 'race' && c.raceSel)) {
+        const fx = Config.on('seasonFx') && SEASON_FX_NAME[lvTheme || stageTheme(this.stageNum)];   // its twist (seasonal.js)
+        Font.drawCenter(ctx, th.name + (fx ? ': ' + fx : ''), cx, cy - 36, '#3C3C3C');
+      }
       const wx = !this.customPending && this.mode !== 'custom' && stageWeather(this.stageNum, !!boss);
       if (wx) Font.drawCenter(ctx, wx === 'night' ? 'NIGHT' : 'FOG', cx, cy + (boss ? 34 : c.selectable ? 24 : 10), wx === 'night' ? '#00006C' : '#ADADAD');
       if (Config.get('skill') !== 2) Font.drawCenter(ctx, Config.skill().name, cx, cy - 24, '#3C3C3C');

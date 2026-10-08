@@ -214,7 +214,7 @@ Eight more come from the *Tank 1990 New Enemies* design canvas (the variant used
 | Snake | 13 | a long green snake with red eyes and a flicking tongue | fast, never shoots, slithers through brick (not steel); only its head can be hurt (16 hits, its body stops shells); it hunts you and eats your tank if it reaches you, growing a segment each time; a shield or armour plate makes it recoil | 16 / 800 / 50 |
 | Spotter (Sky Eye) | 23 | orange with a red-eyed mast | marks a player it can see along a row or column (steel, brick and trees block its view); while marked, every enemy hunts that player and fires more; the mark fades 5 s after it loses sight, or when the spotters die | 1 / 500 / 30 |
 
-They take a bigger share of each stage as the game goes on (about 1 in 4 tanks by stage 20, about half by stage 35); from stage 23 all 12 types are in the mix.
+They take a bigger share of each stage as the game goes on (about 1 in 4 tanks by stage 20, about half by stage 35); from stage 23 all 12 types are in the mix. Each season also brings an enemy of its own (see Seasons).
 NEW ENEMY TYPES: OFF / FEW / NORMAL / MANY. The score tally adds a NEW row for them.
 
 **Veterans and elites.** From stage 10 some enemies are veterans (2 white stripes: +1 hit, shells 30% faster,
@@ -381,16 +381,19 @@ it back).
 
 Every stage has a season, with its own ground, colours and something drifting across the screen (Settings → GAME →
 SEASONS: CYCLE, a new one every stage (default); RANDOM; OFF, the classic black; or always the same one). The stage
-curtain names it.
+curtain names it and its twist. Each season also changes the rules a little and has an enemy of its own that you
+meet nowhere else (3 or more per stage, more later on; FEW / MANY in NEW ENEMY TYPES apply). Settings → GAME →
+SEASON EFFECTS turns the twists off; each seasonal enemy has its own APPEARS switch under ENEMY TYPES. Boss stages
+keep the look but not the twist.
 
-| Season | Look | In the game |
-|---|---|---|
-| Spring | dark green ground, blossom on the trees, petals in the air | |
-| Summer | deep green, fireflies at dusk | |
-| Autumn | brown ground, orange and red trees, falling leaves, darker water | |
-| Winter | snowy blue-grey ground, snow on the bricks, steel and trees, snowfall | most lakes are frozen over (ice: slippery, but you can drive across) |
-| Nuclear winter | ash-grey ground, scorched bricks, dead trees, toxic green water, falling ash, a sickly tint | some lakes are frozen |
-| Desert | sand, sandstone bricks, cacti, drifting sand | many ponds have dried into mud (it slows you) |
+| Season | Look | Twist | Its own enemy |
+|---|---|---|---|
+| Spring | dark green ground, blossom on the trees, petals in the air | **Showers**: now and then it rains for 12 s and puddles of mud (slow going) form on open ground; they dry up a while later | **Hopper** (green and pink, on springs): when a thin wall or water blocks it, it jumps over; shells fly under it mid-jump. 1 hit, 300 |
+| Summer | deep green, fireflies at dusk | **Wildfire**: explosions set nearby trees on fire, and the heat starts the odd fire by itself; fire spreads from tree to tree and burns them away; a tank in the flames burns (you get a moment to drive out, longer on easier skills) | **Firebug** (an orange beetle): its shells set fire to trees as they pass and to the ground where they land; it never burns itself. 2 hits, 400 |
+| Autumn | brown ground, orange and red trees, falling leaves, darker water | **Gusts**: every so often a 4-second gust shoves every tank one way (the border shows which) | **Guster** (a big fan up front): blows you backwards while you're in front of it (up to 6 tiles, walls block it); fires less. 3 hits, 400 |
+| Winter | snowy blue-grey ground, snow on the bricks, steel and trees, snowfall | most lakes are frozen over (ice: slippery, but you can drive across). **Blizzards**: now and then a 10-second whiteout: you only see what's close, and the enemy fires less | **Frost** (pale blue, icicles): its shells freeze you solid for 2.5 s instead of destroying you; a second hit while frozen shatters you. Its shells freeze the water they fly over. 2 hits, 400 |
+| Nuclear winter | ash-grey ground, scorched bricks, dead trees, toxic green water, falling ash, a sickly tint | some lakes are frozen. **Hot spots**: glowing radioactive patches (3 or more, never at the start points); stand in one and your Geiger counter fills (a bar over your tank, clicking faster); full, and your tank is gone (3 s on Ultra-violence, twice that on the easiest skill). Out of them it drains away. A shield protects you | **Ghoul** (skull turret): destroyed, it leaves a glowing wreck that rises again 4 s later with full strength, once, unless you shoot the wreck (100). The stage isn't clear while a wreck lies there. 2 hits, 500 |
+| Desert | sand, sandstone bricks, cacti, drifting sand | many ponds have dried into mud (it slows you). **Mirages**: phantom tanks shimmer into view now and then; their shells can't hurt, and a shot or a touch makes them vanish (no points); they never hold up the end of a stage | **Burrower** (a drill nose): dives under the sand for a few seconds (a moving mound; shells fly over it, it can't fire), runs faster down there and surfaces somewhere else to fire. 2 hits, 500 |
 
 ## Mode title screens and music
 
@@ -513,7 +516,7 @@ the browser, and **RESET TO DEFAULTS** (top level) restores the classic game.
 | Players | III / IV-PLAYER COLOR (blue / pink), gamepad rumble (on), key and pad setup |
 | Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
 | Screen | field width (13), field height (13), FIT, scaling (sharp / fill), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
-| Game | game mode (classic), skill (hurt me plenty), kill race first to (3 points), mud, belts, pads (on), seasons (cycle), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on), music (on), music volume (50%), mode title screens (on), first-meet cards (on), *show all cards again* |
+| Game | game mode (classic), skill (hurt me plenty), kill race first to (3 points), mud, belts, pads (on), seasons (cycle), season effects (on), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on), music (on), music volume (50%), mode title screens (on), first-meet cards (on), *show all cards again* |
 
 ## Code layout
 
@@ -534,6 +537,7 @@ js/base.js        base upgrades: fortress walls, eagle armor, repair crew, eagle
 js/extras.js      turrets, Claude, airstrikes, revival, wingman, decoy eagle, smoke, bridges
 js/terrain.js     mud, conveyor belts, teleporter pads, night and fog stages
 js/seasons.js     seasons: themed ground, textures and particles; frozen lakes, dried ponds
+js/seasonal.js    each season's twist (showers, wildfire, gusts, blizzards, hot spots, mirages) and its own enemy
 js/editor.js      construction: the level editor, random levels, save slots, custom levels
 js/intro.js       mode title screens: a pixel-art picture per mode; what music plays when
 js/modes.js       game modes: survival waves, time attack, versus eagles, deathmatch, capture the flag

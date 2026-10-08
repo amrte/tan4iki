@@ -53,6 +53,7 @@ Object.assign(Stage.prototype, {
       if (--this.waveBreak === 0) {
         this.wave++;
         this.queue = waveQueue(this.wave);
+        this.seasonEnemies(this.queue);
         this.total += this.queue.length;
         this.spawnTimer = 0;
       }

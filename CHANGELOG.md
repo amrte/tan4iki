@@ -3,6 +3,22 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.32
+
+- **Seasons with their own rules and enemies.** Every season now has a twist and an enemy found nowhere else:
+  - Spring: **showers** leave puddles of mud for a while; the **Hopper** jumps over thin walls and water.
+  - Summer: **wildfire**: explosions (and the heat) set trees ablaze, fire spreads and burns tanks; the **Firebug**'s
+    shells start fires and it can't burn.
+  - Autumn: **gusts** shove every tank one way for a few seconds; the **Guster**'s fan blows you backwards.
+  - Winter: **blizzards** (whiteouts, the enemy fires less); the **Frost** tank's shells freeze you solid, and a
+    second hit shatters you.
+  - Nuclear winter: radioactive **hot spots** fill your Geiger counter until your tank goes; the **Ghoul** rises from
+    its wreck unless you shoot it.
+  - Desert: **mirages**, phantom tanks that vanish at a touch; the **Burrower** dives under the sand and surfaces
+    elsewhere to fire.
+  The stage curtain names the twist. Radiation and fire are gentler on easier skills. Settings → GAME → SEASON
+  EFFECTS (on/off); each new enemy has its own page in ENEMY TYPES. Works in every mode and online.
+
 ## 0.31
 
 - **Turrets where you want them:** the TURRET power-up no longer drops its turret on the spot; it goes into the

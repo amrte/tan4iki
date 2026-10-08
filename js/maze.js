@@ -109,6 +109,7 @@ Object.assign(Stage.prototype, {
     // the enemy: some waiting along the way out, some in other passages, the rest turn up later
     const n = Math.min(60, Math.round((10 + 3 * this.num) * Config.get('enemyCount') / 20));
     this.queue = buildQueue(this.num, n);
+    this.seasonEnemies(this.queue); this.seasoned = true;   // the season's own enemy among them (seasonal.js)
     for (const q of this.queue) q.ai = AI.WANDER;
     // none near the start: at least 4 cells away along the passages, and 3 as the crow flies (walls don't stop them waking)
     const far = c => mz.dist[c[1] * mz.MW + c[0]] >= 4 && Math.abs(c[0] - mz.start[0]) + Math.abs(c[1] - mz.start[1]) >= 3;

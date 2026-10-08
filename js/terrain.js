@@ -186,7 +186,8 @@ Object.assign(Stage.prototype, {
 
   // night and fog: a dark layer with holes where something gives light
   renderDarkness(ctx) {
-    const w = this.weather;
+    const wo = this.whiteout ? this.whiteout() : 0;   // a winter blizzard (seasonal.js)
+    const w = this.weather || (wo > 0 ? 'blizzard' : null);
     if (!w) return;
     // night vision: the whole field in green, flickering back to dark in its last two seconds
     if (w === 'night' && this.nightVision > 0 && !(this.nightVision < 120 && (this.frame >> 2) & 1)) {
@@ -195,10 +196,10 @@ Object.assign(Stage.prototype, {
       return;
     }
     if (!this.darkLayer || this.darkLayer.width !== FW || this.darkLayer.height !== FH) this.darkLayer = makeCanvas(FW, FH);
-    const d = this.darkLayer.getContext('2d'), k = w === 'fog' ? 1.4 : 1;
+    const d = this.darkLayer.getContext('2d'), k = w === 'fog' ? 1.4 : w === 'blizzard' ? 1.15 : 1;
     d.globalCompositeOperation = 'source-over';
     d.clearRect(0, 0, FW, FH);
-    d.fillStyle = w === 'fog' ? 'rgba(150,150,160,0.86)' : 'rgba(0,0,14,0.95)';
+    d.fillStyle = w === 'fog' ? 'rgba(150,150,160,0.86)' : w === 'blizzard' ? 'rgba(232,238,250,' + (0.92 * wo).toFixed(2) + ')' : 'rgba(0,0,14,0.95)';
     d.fillRect(0, 0, FW, FH);
     d.globalCompositeOperation = 'destination-out';
     const light = (x, y, r) => {

@@ -122,7 +122,7 @@ Object.assign(Stage.prototype, {
             if (v === T_STEEL || v === T_WATER || v === T_BRICK) { solid = true; break; }
           }
           if (solid) continue;
-          const q = corridorEnemy(this.corridorClimb());
+          const q = this.seasonSwap(corridorEnemy(this.corridorClimb()));
           q.ai = noBasePersonality();
           q.bonus = Config.on('bonusTanks') && c.spawned % 7 === 3;
           c.spawned++;
@@ -182,6 +182,7 @@ Object.assign(Stage.prototype, {
     this.pads.forEach((p, i) => { p.pair = this.pads[p.pair] ? p.pair : -1; });
     this.pads = this.pads.filter(p => p.pair >= 0);
     if (this.camY !== undefined) this.camY += S;
+    this.seasonShift(S);   // fires, puddles, hot spots, wrecks (seasonal.js)
     c.shifts++;
   },
 
