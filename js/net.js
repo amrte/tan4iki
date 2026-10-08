@@ -185,7 +185,7 @@ const Net = {
   },
 
   buildView(full) {
-    const G = Game, v = { t: 'v', s: G.state, gt: G.t, c: COLS, r: ROWS, vc: VIEW_W / 16, vr: VIEW_H / 16, stn: G.stageNum, hi: G.hi, eng: Sound.engineState };
+    const G = Game, v = { t: 'v', s: G.state, gt: G.t, c: COLS, r: ROWS, vc: VIEW_W / 16, vr: VIEW_H / 16, bs: BASE_SIDE, stn: G.stageNum, hi: G.hi, eng: Sound.engineState };
     if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover', 'vsResult', 'modeResult'].includes(G.state)) v.s = 'wait';
     v.as = AutoSkill.rating;
     v.mode = G.mode; v.ta = G.taFrames; v.tac = G.taCleared; v.vw = G.vsWins; v.rt = G.raceTarget; v.rd = G.round;
@@ -349,7 +349,7 @@ const Net = {
 
   applyView(v) {
     const G = Game;
-    if (v.c !== COLS || v.r !== ROWS || v.vc * 16 !== VIEW_W || v.vr * 16 !== VIEW_H) setFieldSize(v.c, v.r, v.vc || v.c, v.vr || v.r);
+    if (v.c !== COLS || v.r !== ROWS || v.vc * 16 !== VIEW_W || v.vr * 16 !== VIEW_H || (v.bs || 'bottom') !== BASE_SIDE) setFieldSize(v.c, v.r, v.vc || v.c, v.vr || v.r, v.bs || 'bottom');
     G.players = v.pl.map((o, k) => Object.assign(G.players[k] && G.players[k].i === o.i ? G.players[k] : newPlayer(o.i), o, { tank: null }));
     if (v.base) G.base = v.base;
     if (v.as !== undefined && AutoSkill.rating !== v.as) { AutoSkill.rating = v.as; AutoSkill.cache = null; }

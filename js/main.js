@@ -428,7 +428,7 @@ const Game = {
     else if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
     this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
-    if (this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu' || this.mode === 'race' || this.mode === 'custom') this.stageNum = 1;
+    if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides'].includes(this.mode)) this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
     // KILL RACE: the first curtain picks how many points win the game (race.js)
     if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
@@ -436,6 +436,8 @@ const Game = {
 
   toCurtain(selectable) {
     Sound.setEngine(0);
+    // ANY SIDE: the edge the eagle will be on this time (never the bottom)
+    if (this.mode === 'sides') this.nextSide = ['left', 'right', 'top'][rnd(3)];
     this.curtain = { selectable, h: 0, phase: 'close' };
     this.setState('curtain');
   },
@@ -482,6 +484,7 @@ const Game = {
         if (c.raceSel && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + 42, '#3C3C3C');
       }
       // against the computer: what their HQ got for this round
+      if (this.mode === 'sides' && this.nextSide) Font.drawCenter(ctx, 'YOUR EAGLE: ' + this.nextSide.toUpperCase(), cx, cy + 24, '#A00000');
       if (this.mode === 'custom' && !this.customPending) {
         const used = Customs.used();
         Font.drawCenter(ctx, 'YOUR LEVEL ' + (used[(this.stageNum - 1) % used.length] + 1), cx, cy + 14, '#3C3C3C');
@@ -539,6 +542,11 @@ const Game = {
       setFieldSize(SX * SECTOR, SY * SECTOR, vc, vr);
       blocks = bigWorldBlocks(this.stageNum, SX, SY);
       objective = Math.floor(this.stageNum / (this.mode === 'bigmaps' ? 1 : 4)) % 2 ? 'outposts' : 'factories';
+    } else if (!custom && this.mode === 'sides') {
+      // ANY SIDE: the classic field, turned so the eagle's edge is the chosen one
+      const side = this.nextSide || 'left';
+      setFieldSize(13, 13, 13, 13, side);
+      blocks = turnBlocks(mapToBlocks(map), side);
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
       custom, boss, base: vs || corridor || this.mode === 'race' ? newBase() : this.base, corridor, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,

@@ -75,25 +75,77 @@ let BASE_X = 96, BASE_Y = 192;
 let ENEMY_SPAWN_X = [96, 192, 0];
 let PLAYER_SPAWN = [[64, 192], [128, 192], [0, 192], [192, 192]];
 let BASE_WALL = [[11, 23], [12, 23], [13, 23], [14, 23], [11, 24], [14, 24], [11, 25], [14, 25]];
+// which edge the eagle sits on (ANY SIDE mode turns the map; everything else has it at the bottom):
+// BASE_FWD is the way from the eagle into the field, ENEMY_SPAWNS the entry points on the opposite edge
+let BASE_SIDE = 'bottom', BASE_FWD = 0, ENEMY_SPAWNS = [[96, 0], [192, 0], [0, 0]], ENEMY_SPAWN_DIR = 2;
+const SIDE_FWD = { bottom: 0, top: 2, left: 1, right: 3 };
+
+// the 8px blocks at ring distance d around the eagle's 2x2 blocks, inside the field (row by row)
+function baseRing(d) {
+  const bx = BASE_X / 8, by = BASE_Y / 8, out = [];
+  for (let y = by - d; y <= by + 1 + d; y++) for (let x = bx - d; x <= bx + 1 + d; x++) {
+    if (Math.max(Math.max(bx - x, x - bx - 1), Math.max(by - y, y - by - 1)) !== d) continue;
+    if (x >= 0 && y >= 0 && x < COLS * 2 && y < ROWS * 2) out.push([x, y]);
+  }
+  return out;
+}
+
+// a block in "eagle at the bottom" terms: u across (the eagle's blocks are 0 and 1), v towards the field
+// (-1 = the row just in front of it; the eagle's own rows are 0 and 1)
+function baseRel(x, y) {
+  const bx = BASE_X / 8, by = BASE_Y / 8;
+  switch (BASE_SIDE) {
+    case 'top': return [x - bx, by + 1 - y];
+    case 'left': return [y - by, bx + 1 - x];
+    case 'right': return [y - by, x - bx];
+    default: return [x - bx, y - by];
+  }
+}
 
 // vcols / vrows: the window onto a bigger field that scrolls (big maps); the whole field otherwise
-function setFieldSize(cols, rows, vcols = cols, vrows = rows) {
+// side: where the eagle is (ANY SIDE mode; square fields only for the sides and the top)
+function setFieldSize(cols, rows, vcols = cols, vrows = rows, side = 'bottom') {
   COLS = cols; ROWS = rows;
   FW = cols * 16; FH = rows * 16;
   GW = cols * 4; GH = rows * 4;
   VIEW_W = Math.min(FW, vcols * 16); VIEW_H = Math.min(FH, vrows * 16);
   SCREEN_W = FX + VIEW_W + 32; SCREEN_H = FY * 2 + VIEW_H; HUD_X = FX + VIEW_W + 8;
-  // eagle at the bottom centre, with its brick fortress
-  BASE_X = cols * 8 - 8; BASE_Y = FH - 16;
-  const bx = BASE_X / 8, by = BASE_Y / 8;
-  BASE_WALL = [[bx - 1, by - 1], [bx, by - 1], [bx + 1, by - 1], [bx + 2, by - 1], [bx - 1, by], [bx + 2, by], [bx - 1, by + 1], [bx + 2, by + 1]];
-  // players I and II beside the eagle, III and IV in the bottom corners
-  PLAYER_SPAWN = [[BASE_X - 32, BASE_Y], [BASE_X + 32, BASE_Y], [0, FH - 16], [FW - 16, FH - 16]];
-  // enemy entry points along the top: centre, right, left, then more for wide fields
-  const n = 2 * Math.max(1, Math.round((cols - 1) / 12)) + 1, mid = (n - 1) / 2;
-  const at = i => Math.round(i * (cols - 1) / (n - 1)) * 16;
-  ENEMY_SPAWN_X = [at(mid)];
-  for (let k = 1; k <= mid; k++) ENEMY_SPAWN_X.push(at(mid + k), at(mid - k));
+  // eagle at the centre of its edge (the bottom, normally), with its brick fortress
+  BASE_SIDE = side; BASE_FWD = SIDE_FWD[side];
+  const across = side === 'left' || side === 'right' ? rows : cols;
+  const mid16 = across * 8 - 8, far = side === 'top' || side === 'left' ? 0 : (side === 'bottom' ? FH : FW) - 16;
+  [BASE_X, BASE_Y] = side === 'left' || side === 'right' ? [far, mid16] : [mid16, far];
+  BASE_WALL = baseRing(1);
+  // players I and II beside the eagle, III and IV in the corners on its edge
+  const along = (a, d) => (side === 'left' || side === 'right' ? [d, a] : [a, d]);
+  PLAYER_SPAWN = [along(mid16 - 32, far), along(mid16 + 32, far), along(0, far), along(across * 16 - 16, far)];
+  // enemy entry points along the far edge: centre, then outwards (right, left), more for wide fields
+  const n = 2 * Math.max(1, Math.round((across - 1) / 12)) + 1, mid = (n - 1) / 2;
+  const at = i => Math.round(i * (across - 1) / (n - 1)) * 16;
+  const order = [at(mid)];
+  for (let k = 1; k <= mid; k++) order.push(at(mid + k), at(mid - k));
+  const opp = side === 'bottom' || side === 'right' ? 0 : (side === 'top' ? FH : FW) - 16;
+  ENEMY_SPAWNS = order.map(a => along(a, opp));
+  ENEMY_SPAWN_X = ENEMY_SPAWNS.map(p => p[0]);
+  ENEMY_SPAWN_DIR = (BASE_FWD + 2) % 4;   // they come in heading for the eagle's edge
+}
+
+// turn a 26x26 block map so its bottom edge (the eagle's) faces side
+function turnBlocks(blocks, side) {
+  if (side === 'bottom') return blocks;
+  const n = blocks.length, belt = { left: { '^': '>', '>': 'v', v: '<', '<': '^' }, right: { '^': '<', '>': '^', v: '>', '<': 'v' }, top: { '^': 'v', v: '^', '<': '>', '>': '<' } }[side];
+  const out = [];
+  for (let y = 0; y < n; y++) {
+    let r = '';
+    for (let x = 0; x < n; x++) {
+      // the old block that lands at (x, y)
+      const [ox, oy] = side === 'left' ? [y, n - 1 - x] : side === 'right' ? [n - 1 - y, x] : [n - 1 - x, n - 1 - y];
+      const c = blocks[oy][ox];
+      r += belt[c] || c;
+    }
+    out.push(r);
+  }
+  return out;
 }
 
 // Fit a 26x26-block stage into the current field: the original sits at the bottom centre
@@ -402,7 +454,7 @@ class Stage {
         if (t === T_BRICK || t === T_STEEL || t === T_WATER) this.setBlock(x, y, T_EMPTY);
       }
     };
-    ENEMY_SPAWN_X.forEach(x => clearSolid(x / 8, 0));
+    ENEMY_SPAWNS.forEach(([x, y]) => clearSolid(x / 8, y / 8));
     PLAYER_SPAWN.forEach(([x, y]) => clearSolid(x / 8, y / 8));
     // the eagle and its fortress
     for (let y = BASE_Y / 8; y < BASE_Y / 8 + 2; y++) for (let x = BASE_X / 8; x < BASE_X / 8 + 2; x++) this.setBlock(x, y, T_EMPTY);
@@ -447,15 +499,16 @@ class Stage {
     const onField = this.tanks.filter(t => !t.isPlayer).length + this.spawns.filter(s => s.enemy).length;
     if (onField >= this.maxEnemies) return;
     // pick the next entry point that no boss is sitting on
-    let x = -1;
-    const xs = this.spawnXs || ENEMY_SPAWN_X;
-    for (let k = 0; k < xs.length && x < 0; k++) {
-      const cand = xs[this.spawnPos++ % xs.length];
-      if (!this.bossBlocksSpawn(cand)) x = cand;
-    }
+    let x = -1, y = 0;
+    if (this.spawnXs || BASE_SIDE === 'bottom') {
+      const xs = this.spawnXs || ENEMY_SPAWN_X;
+      for (let k = 0; k < xs.length && x < 0; k++) {
+        const cand = xs[this.spawnPos++ % xs.length];
+        if (!this.bossBlocksSpawn(cand)) x = cand;
+      }
+    } else [x, y] = ENEMY_SPAWNS[this.spawnPos++ % ENEMY_SPAWNS.length];   // ANY SIDE: the edge across from the eagle
     if (x < 0) return;
     // KILL RACE: anywhere on the map (race.js); the top row if no spot is free
-    let y = 0;
     const spot = this.race && this.raceSpawnSpot();
     if (spot) [x, y] = spot;
     const item = this.queue.shift();
@@ -473,7 +526,7 @@ class Stage {
         const st = Config.enemy(s.enemy.type);
         const type = s.enemy.type, vet = s.enemy.rank || 0, vr = ENEMY_RANKS[vet] || { hp: 0, shell: 1, speed: 1 };
         this.tanks.push(new Tank({
-          x: s.x, y: s.y, dir: 2, type, hp: st.hp + vr.hp, bonus: s.enemy.bonus, vet,
+          x: s.x, y: s.y, dir: ENEMY_SPAWN_DIR, type, hp: st.hp + vr.hp, bonus: s.enemy.bonus, vet,
           speed: st.speed * vr.speed * Config.skill().speed, bulletSpeed: st.bullet * vr.shell * Config.skill().shell, maxBullets: 1,
           ai: s.enemy.ai !== undefined ? s.enemy.ai : this.noBase ? noBasePersonality() : pickPersonality(type, this.num),
           aiBase: !this.noBase && type !== 4 && Math.random() < 0.3 * Config.skill().baseAim,  // some snipers shell the eagle instead of you (not rocket tanks)
@@ -487,7 +540,7 @@ class Stage {
         this.makeWingman(s);
       } else {
         const p = s.player;
-        const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, player: p, shield: Math.round(Config.frames('spawnShield') * (Config.skill().shield || 1)) });
+        const t = new Tank({ x: s.x, y: s.y, dir: BASE_FWD, isPlayer: true, player: p, shield: Math.round(Config.frames('spawnShield') * (Config.skill().shield || 1)) });
         const perk = rankPerks(p.rank || 1);
         p.level = Math.max(p.level, perk.star);
         t.plates = Math.max(perk.plates, Config.skill().plates);   // the easiest skill: a plate every life

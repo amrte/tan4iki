@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.26</title>
+  <title>tanb4iki_v0.27</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.26';
+const APP_VERSION = '0.27';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2628,11 +2628,13 @@ const SETTINGS_DEF = [
   { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
   { section: 'GAME' },
-  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'survival', 'timeattack', 'bigmaps', 'corridor', 'race', 'eagles', 'dm', 'ctf'], def: 'classic',
+  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'custom', 'survival', 'timeattack', 'bigmaps', 'sides', 'corridor', 'race', 'eagles', 'dm', 'ctf'], def: 'classic',
     fmt: v => modeInfo(v).name },
   { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4, 5], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!', 'AUTO'][v] },
   { key: 'raceTarget', label: 'RACE: FIRST TO', values: [1, 2, 3, 5, 7, 10], def: 3, fmt: v => v + ' PTS' },
   { key: 'terrainExtras', label: 'MUD, BELTS, PADS', values: ONOFF, def: 'ON' },
+  // seasons.js: a new season every stage, or one at random, or always the same (OFF: the classic black)
+  { key: 'seasons', label: 'SEASONS', values: ['CYCLE', 'RANDOM', 'OFF', 'SPRING', 'SUMMER', 'AUTUMN', 'WINTER', 'NUCLEAR', 'DESERT'], def: 'CYCLE' },
   // classic games: every 4th stage (not a boss stage) a big scrolling map
   { key: 'bigStages', label: 'BIG MAP STAGES', values: ['OFF', 'SOME'], def: 'OFF' },
   { key: 'darkStages', label: 'NIGHT AND FOG', values: ['SOME', 'OFF', 'ALWAYS NIGHT', 'ALWAYS FOG'], def: 'SOME',
@@ -3510,7 +3512,7 @@ let VIEW_W = 208, VIEW_H = 208;                    // the part of the field on s
 const T_EMPTY = 0, T_BRICK = 1, T_STEEL = 2, T_WATER = 3, T_FOREST = 4, T_ICE = 5, T_BRIDGE = 6, T_MUD = 7;
 const T_BELT = 8;   // 8-11: conveyor belts pushing up / right / down / left (terrain.js)
 const BLOCK_TYPE = { '.': T_EMPTY, '#': T_BRICK, '@': T_STEEL, '~': T_WATER, '%': T_FOREST, '_': T_ICE,
-  m: T_MUD, '^': T_BELT, '>': T_BELT + 1, v: T_BELT + 2, '<': T_BELT + 3, T: T_EMPTY };   // T: teleporter pad
+  m: T_MUD, '=': T_BRIDGE, '^': T_BELT, '>': T_BELT + 1, v: T_BELT + 2, '<': T_BELT + 3, T: T_EMPTY };   // T: teleporter pad
 const DXY = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
 // basic, fast, power, armor, then the new types (not in the original):
@@ -3572,25 +3574,77 @@ let BASE_X = 96, BASE_Y = 192;
 let ENEMY_SPAWN_X = [96, 192, 0];
 let PLAYER_SPAWN = [[64, 192], [128, 192], [0, 192], [192, 192]];
 let BASE_WALL = [[11, 23], [12, 23], [13, 23], [14, 23], [11, 24], [14, 24], [11, 25], [14, 25]];
+// which edge the eagle sits on (ANY SIDE mode turns the map; everything else has it at the bottom):
+// BASE_FWD is the way from the eagle into the field, ENEMY_SPAWNS the entry points on the opposite edge
+let BASE_SIDE = 'bottom', BASE_FWD = 0, ENEMY_SPAWNS = [[96, 0], [192, 0], [0, 0]], ENEMY_SPAWN_DIR = 2;
+const SIDE_FWD = { bottom: 0, top: 2, left: 1, right: 3 };
+
+// the 8px blocks at ring distance d around the eagle's 2x2 blocks, inside the field (row by row)
+function baseRing(d) {
+  const bx = BASE_X / 8, by = BASE_Y / 8, out = [];
+  for (let y = by - d; y <= by + 1 + d; y++) for (let x = bx - d; x <= bx + 1 + d; x++) {
+    if (Math.max(Math.max(bx - x, x - bx - 1), Math.max(by - y, y - by - 1)) !== d) continue;
+    if (x >= 0 && y >= 0 && x < COLS * 2 && y < ROWS * 2) out.push([x, y]);
+  }
+  return out;
+}
+
+// a block in "eagle at the bottom" terms: u across (the eagle's blocks are 0 and 1), v towards the field
+// (-1 = the row just in front of it; the eagle's own rows are 0 and 1)
+function baseRel(x, y) {
+  const bx = BASE_X / 8, by = BASE_Y / 8;
+  switch (BASE_SIDE) {
+    case 'top': return [x - bx, by + 1 - y];
+    case 'left': return [y - by, bx + 1 - x];
+    case 'right': return [y - by, x - bx];
+    default: return [x - bx, y - by];
+  }
+}
 
 // vcols / vrows: the window onto a bigger field that scrolls (big maps); the whole field otherwise
-function setFieldSize(cols, rows, vcols = cols, vrows = rows) {
+// side: where the eagle is (ANY SIDE mode; square fields only for the sides and the top)
+function setFieldSize(cols, rows, vcols = cols, vrows = rows, side = 'bottom') {
   COLS = cols; ROWS = rows;
   FW = cols * 16; FH = rows * 16;
   GW = cols * 4; GH = rows * 4;
   VIEW_W = Math.min(FW, vcols * 16); VIEW_H = Math.min(FH, vrows * 16);
   SCREEN_W = FX + VIEW_W + 32; SCREEN_H = FY * 2 + VIEW_H; HUD_X = FX + VIEW_W + 8;
-  // eagle at the bottom centre, with its brick fortress
-  BASE_X = cols * 8 - 8; BASE_Y = FH - 16;
-  const bx = BASE_X / 8, by = BASE_Y / 8;
-  BASE_WALL = [[bx - 1, by - 1], [bx, by - 1], [bx + 1, by - 1], [bx + 2, by - 1], [bx - 1, by], [bx + 2, by], [bx - 1, by + 1], [bx + 2, by + 1]];
-  // players I and II beside the eagle, III and IV in the bottom corners
-  PLAYER_SPAWN = [[BASE_X - 32, BASE_Y], [BASE_X + 32, BASE_Y], [0, FH - 16], [FW - 16, FH - 16]];
-  // enemy entry points along the top: centre, right, left, then more for wide fields
-  const n = 2 * Math.max(1, Math.round((cols - 1) / 12)) + 1, mid = (n - 1) / 2;
-  const at = i => Math.round(i * (cols - 1) / (n - 1)) * 16;
-  ENEMY_SPAWN_X = [at(mid)];
-  for (let k = 1; k <= mid; k++) ENEMY_SPAWN_X.push(at(mid + k), at(mid - k));
+  // eagle at the centre of its edge (the bottom, normally), with its brick fortress
+  BASE_SIDE = side; BASE_FWD = SIDE_FWD[side];
+  const across = side === 'left' || side === 'right' ? rows : cols;
+  const mid16 = across * 8 - 8, far = side === 'top' || side === 'left' ? 0 : (side === 'bottom' ? FH : FW) - 16;
+  [BASE_X, BASE_Y] = side === 'left' || side === 'right' ? [far, mid16] : [mid16, far];
+  BASE_WALL = baseRing(1);
+  // players I and II beside the eagle, III and IV in the corners on its edge
+  const along = (a, d) => (side === 'left' || side === 'right' ? [d, a] : [a, d]);
+  PLAYER_SPAWN = [along(mid16 - 32, far), along(mid16 + 32, far), along(0, far), along(across * 16 - 16, far)];
+  // enemy entry points along the far edge: centre, then outwards (right, left), more for wide fields
+  const n = 2 * Math.max(1, Math.round((across - 1) / 12)) + 1, mid = (n - 1) / 2;
+  const at = i => Math.round(i * (across - 1) / (n - 1)) * 16;
+  const order = [at(mid)];
+  for (let k = 1; k <= mid; k++) order.push(at(mid + k), at(mid - k));
+  const opp = side === 'bottom' || side === 'right' ? 0 : (side === 'top' ? FH : FW) - 16;
+  ENEMY_SPAWNS = order.map(a => along(a, opp));
+  ENEMY_SPAWN_X = ENEMY_SPAWNS.map(p => p[0]);
+  ENEMY_SPAWN_DIR = (BASE_FWD + 2) % 4;   // they come in heading for the eagle's edge
+}
+
+// turn a 26x26 block map so its bottom edge (the eagle's) faces side
+function turnBlocks(blocks, side) {
+  if (side === 'bottom') return blocks;
+  const n = blocks.length, belt = { left: { '^': '>', '>': 'v', v: '<', '<': '^' }, right: { '^': '<', '>': '^', v: '>', '<': 'v' }, top: { '^': 'v', v: '^', '<': '>', '>': '<' } }[side];
+  const out = [];
+  for (let y = 0; y < n; y++) {
+    let r = '';
+    for (let x = 0; x < n; x++) {
+      // the old block that lands at (x, y)
+      const [ox, oy] = side === 'left' ? [y, n - 1 - x] : side === 'right' ? [n - 1 - y, x] : [n - 1 - x, n - 1 - y];
+      const c = blocks[oy][ox];
+      r += belt[c] || c;
+    }
+    out.push(r);
+  }
+  return out;
 }
 
 // Fit a 26x26-block stage into the current field: the original sits at the bottom centre
@@ -3750,6 +3804,9 @@ class Stage {
     this.terrain = new Uint8Array(GW * GH);
     const classic = COLS === 13 && ROWS === 13;
     this.load(opts.blocks || expandBlocks(mapToBlocks(map)), !opts.custom || !classic);   // blocks: a stitched big map
+    // the season: its colours, and frozen or dried-up water (seasons.js)
+    this.theme = stageTheme(num, opts);
+    if (!opts.snapshot && !opts.editor) this.applyThemeTerrain(num);   // the editor shows what you drew
     // mud, teleporters and belts in the normal stages; night and fog on some (terrain.js)
     if (!opts.boss && !opts.custom && !opts.snapshot && !opts.corridor && Config.on('terrainExtras')) this.addTerrainExtras(num);
     this.weather = opts.corridor ? null : stageWeather(opts.custom ? 1 : num, !!opts.boss);
@@ -3837,7 +3894,7 @@ class Stage {
       kills: this.players.map(p => p.kills.slice()),
       eagleArmor: this.eagleArmor,
       decoy: this.decoy,
-      pads: this.pads, weather: this.weather,
+      pads: this.pads, weather: this.weather, theme: this.theme,
       vcols: VIEW_W / 16, vrows: VIEW_H / 16, big: this.big || null, outposts: this.outposts, factories: this.factories,
       turrets: this.turrets.map(tu => Object.assign({}, tu, { owner: tu.owner ? tu.owner.i : -1 })),
       claudes: this.claudes.map(c => Object.assign({}, c, { p: c.p ? c.p.i : -1 })),
@@ -3857,6 +3914,7 @@ class Stage {
     if (sn.pads) this.pads = sn.pads;
     if (sn.big) { this.big = sn.big; this.outposts = sn.outposts || []; this.factories = sn.factories || []; }
     if (sn.weather !== undefined) this.weather = sn.weather;
+    if (sn.theme) { this.theme = sn.theme; this.dirty = true; }
     this.turrets = (sn.turrets || []).map(tu => Object.assign({}, tu, { owner: this.players[tu.owner] || null }));
     this.claudes = (sn.claudes || []).map(c => Object.assign({}, c, { p: this.players[c.p] || null }));
     this.spawns = [];
@@ -3895,7 +3953,7 @@ class Stage {
         if (t === T_BRICK || t === T_STEEL || t === T_WATER) this.setBlock(x, y, T_EMPTY);
       }
     };
-    ENEMY_SPAWN_X.forEach(x => clearSolid(x / 8, 0));
+    ENEMY_SPAWNS.forEach(([x, y]) => clearSolid(x / 8, y / 8));
     PLAYER_SPAWN.forEach(([x, y]) => clearSolid(x / 8, y / 8));
     // the eagle and its fortress
     for (let y = BASE_Y / 8; y < BASE_Y / 8 + 2; y++) for (let x = BASE_X / 8; x < BASE_X / 8 + 2; x++) this.setBlock(x, y, T_EMPTY);
@@ -3940,15 +3998,16 @@ class Stage {
     const onField = this.tanks.filter(t => !t.isPlayer).length + this.spawns.filter(s => s.enemy).length;
     if (onField >= this.maxEnemies) return;
     // pick the next entry point that no boss is sitting on
-    let x = -1;
-    const xs = this.spawnXs || ENEMY_SPAWN_X;
-    for (let k = 0; k < xs.length && x < 0; k++) {
-      const cand = xs[this.spawnPos++ % xs.length];
-      if (!this.bossBlocksSpawn(cand)) x = cand;
-    }
+    let x = -1, y = 0;
+    if (this.spawnXs || BASE_SIDE === 'bottom') {
+      const xs = this.spawnXs || ENEMY_SPAWN_X;
+      for (let k = 0; k < xs.length && x < 0; k++) {
+        const cand = xs[this.spawnPos++ % xs.length];
+        if (!this.bossBlocksSpawn(cand)) x = cand;
+      }
+    } else [x, y] = ENEMY_SPAWNS[this.spawnPos++ % ENEMY_SPAWNS.length];   // ANY SIDE: the edge across from the eagle
     if (x < 0) return;
     // KILL RACE: anywhere on the map (race.js); the top row if no spot is free
-    let y = 0;
     const spot = this.race && this.raceSpawnSpot();
     if (spot) [x, y] = spot;
     const item = this.queue.shift();
@@ -3966,7 +4025,7 @@ class Stage {
         const st = Config.enemy(s.enemy.type);
         const type = s.enemy.type, vet = s.enemy.rank || 0, vr = ENEMY_RANKS[vet] || { hp: 0, shell: 1, speed: 1 };
         this.tanks.push(new Tank({
-          x: s.x, y: s.y, dir: 2, type, hp: st.hp + vr.hp, bonus: s.enemy.bonus, vet,
+          x: s.x, y: s.y, dir: ENEMY_SPAWN_DIR, type, hp: st.hp + vr.hp, bonus: s.enemy.bonus, vet,
           speed: st.speed * vr.speed * Config.skill().speed, bulletSpeed: st.bullet * vr.shell * Config.skill().shell, maxBullets: 1,
           ai: s.enemy.ai !== undefined ? s.enemy.ai : this.noBase ? noBasePersonality() : pickPersonality(type, this.num),
           aiBase: !this.noBase && type !== 4 && Math.random() < 0.3 * Config.skill().baseAim,  // some snipers shell the eagle instead of you (not rocket tanks)
@@ -3980,7 +4039,7 @@ class Stage {
         this.makeWingman(s);
       } else {
         const p = s.player;
-        const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, player: p, shield: Math.round(Config.frames('spawnShield') * (Config.skill().shield || 1)) });
+        const t = new Tank({ x: s.x, y: s.y, dir: BASE_FWD, isPlayer: true, player: p, shield: Math.round(Config.frames('spawnShield') * (Config.skill().shield || 1)) });
         const perk = rankPerks(p.rank || 1);
         p.level = Math.max(p.level, perk.star);
         t.plates = Math.max(perk.plates, Config.skill().plates);   // the easiest skill: a plate every life
@@ -4850,7 +4909,7 @@ class Stage {
       this.bgLayer = makeCanvas(FW, FH);
       this.forestLayer = makeCanvas(FW, FH);
     }
-    const bg = this.bgLayer.getContext('2d'), fo = this.forestLayer.getContext('2d'), tex = Sprites.tex;
+    const bg = this.bgLayer.getContext('2d'), fo = this.forestLayer.getContext('2d'), tex = themeTex(this.theme);
     bg.clearRect(0, 0, FW, FH);
     fo.clearRect(0, 0, FW, FH);
     this.waterCells = [];
@@ -4870,6 +4929,7 @@ class Stage {
         else if (t === T_WATER) this.waterCells.push(cy * GW + cx);
       }
     }
+    this.themeCaps(bg, fo);   // snow on top in winter (seasons.js)
     this.dirty = false;
   }
 
@@ -4959,8 +5019,9 @@ class Stage {
     ctx.save();
     ctx.translate(-camX, -camY);
 
+    ctx.drawImage(this.groundLayer(), 0, 0);   // the season's ground (seasons.js)
     ctx.drawImage(this.bgLayer, 0, 0);
-    const wt = Sprites.tex[(this.frame >> 5) & 1 ? 'water1' : 'water0'];
+    const wt = themeTex(this.theme)[(this.frame >> 5) & 1 ? 'water1' : 'water0'];
     for (const i of this.waterCells) {
       const cx = i % GW, cy = (i / GW) | 0;
       ctx.drawImage(wt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
@@ -5009,6 +5070,7 @@ class Stage {
       const fr = f.frames[Math.min(f.frames.length - 1, Math.floor(f.tick / f.per))];
       ctx.drawImage(fr, Math.round(f.x - fr.width / 2), Math.round(f.y - fr.height / 2));
     }
+    this.renderSeason(ctx, camX, camY);   // petals, leaves, snow, ash, sand
     this.renderDarkness(ctx);
     for (const p of this.popups) {
       if (p.t < p.delay) continue;
@@ -5740,20 +5802,14 @@ Object.assign(Stage.prototype, {
     this.placeMinefield(this.base.field * 2);
   },
 
-  // the extra ring of blocks around the classic fortress
-  outerRing() {
-    const bx = BASE_X / 8, by = BASE_Y / 8, out = [];
-    for (let y = by - 2; y <= by + 1; y++) for (let x = bx - 2; x <= bx + 3; x++) {
-      if ((x === bx - 2 || x === bx + 3 || y === by - 2) && x >= 0 && x < COLS * 2 && y >= 0) out.push([x, y]);
-    }
-    return out;
-  },
+  // the extra ring of blocks around the classic fortress (whichever edge the eagle is on)
+  outerRing() { return baseRing(2); },
 
   // the outer ring: brick, steel corners at level 4, all steel at level 5
   outerWallType(x, y) {
-    const w = this.base ? this.base.walls : 0, bx = BASE_X / 8, by = BASE_Y / 8;
+    const w = this.base ? this.base.walls : 0, [u, v] = baseRel(x, y);
     if (w >= 5) return T_STEEL;
-    if (w >= 4 && y === by - 2 && (x === bx - 2 || x === bx + 3)) return T_STEEL;
+    if (w >= 4 && v === -2 && (u === -2 || u === 3)) return T_STEEL;
     return T_BRICK;
   },
 
@@ -5762,18 +5818,24 @@ Object.assign(Stage.prototype, {
     const w = this.base ? this.base.walls : 0;
     if (w >= 3) return T_STEEL;
     if (w >= 2) {
-      const [x, y] = BASE_WALL[i], bx = BASE_X / 8, by = BASE_Y / 8;
-      if ((x === bx - 1 || x === bx + 2) && (y === by - 1 || y === by + 1)) return T_STEEL;
+      const [u, v] = baseRel(...BASE_WALL[i]);
+      if ((u === -1 || u === 2) && (v === -1 || v === 1)) return T_STEEL;
     }
     return T_BRICK;
   },
 
+  // a point in front of the eagle: `ahead` px into the field, `side` px across (from the eagle's centre)
+  baseAhead(ahead, side) {
+    const [fx, fy] = DXY[BASE_FWD];
+    return [BASE_X + 8 + fx * ahead - fy * side, BASE_Y + 8 + fy * ahead + fx * side];
+  },
+
   placeMinefield(n) {
     const spots = [];
-    for (const dy of [48, 72, 96]) for (const dx of [0, -24, 24, -48, 48, -72, 72]) spots.push([BASE_X + 8 + dx, BASE_Y + 8 - dy]);
+    for (const dy of [48, 72, 96]) for (const dx of [0, -24, 24, -48, 48, -72, 72]) spots.push(this.baseAhead(dy, dx));
     for (const [x, y] of spots) {
       if (n <= 0) break;
-      if (x < 8 || x > FW - 8 || y < 8) continue;
+      if (x < 8 || x > FW - 8 || y < 8 || y > FH - 8) continue;
       // any ground a tank can drive on: open, trees, ice, mud, bridges, belts
       const t = this.get(x >> 2, y >> 2);
       if (t === T_BRICK || t === T_STEEL || t === T_WATER || t < 0) continue;
@@ -5825,9 +5887,9 @@ Object.assign(Stage.prototype, {
   supplyDrop() {
     this.spawnPowerup();
     if (!this.powerup) return;
-    for (const dy of [-40, -56, -32, -72]) for (const dx of [0, -24, 24, -48, 48]) {
-      const x = BASE_X + dx, y = BASE_Y + dy;
-      if (x < 0 || y < 0 || x > FW - 16) continue;
+    for (const dy of [40, 56, 32, 72]) for (const dx of [0, -24, 24, -48, 48]) {
+      const [cx, cy] = this.baseAhead(dy, dx), x = cx - 8, y = cy - 8;
+      if (x < 0 || y < 0 || x > FW - 16 || y > FH - 16) continue;
       let bad = false;
       for (let cy = y >> 2; cy < (y + 16) >> 2; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
         const v = this.get(cx, cy);
@@ -5866,11 +5928,11 @@ Object.assign(Stage.prototype, {
     for (const t of this.tanks) {
       if (!t.alive || t.isPlayer) continue;
       const dx = t.x + 8 - ex, dy = t.y + 8 - ey;
-      let dir = -1;
-      if (Math.abs(dx) < 8 && dy < 0) dir = 0;
-      else if (Math.abs(dy) < 8) dir = dx > 0 ? 1 : 3;
+      // straight out into the field, or along the eagle's own edge (never into the wall behind it)
+      const dir = Math.abs(dx) < 8 ? (dy < 0 ? 0 : 2) : Math.abs(dy) < 8 ? (dx > 0 ? 1 : 3) : -1;
+      if (dir < 0 || dir === (BASE_FWD + 2) % 4) continue;
       const d = Math.abs(dx) + Math.abs(dy);
-      if (dir >= 0 && d < bd) { bd = d; best = dir; }
+      if (d < bd) { bd = d; best = dir; }
     }
     if (best === null) return;
     // the shell starts outside the fortress so it never breaks its own walls
@@ -5902,10 +5964,11 @@ Object.assign(Stage.prototype, {
     const b = this.base;
     if (!b || !this.baseAlive) return;
     const ex = BASE_X + 8, ey = BASE_Y + 8;
+    const a0 = Math.atan2(DXY[BASE_FWD][1], DXY[BASE_FWD][0]) - Math.PI / 2;
     const ring = (r, color, n) => {
       ctx.fillStyle = color;
       for (let a = 0; a < n; a++) {
-        const ang = Math.PI + (a / (n - 1)) * Math.PI;   // the half circle above the eagle
+        const ang = a0 + (a / (n - 1)) * Math.PI;   // the half circle in front of the eagle
         ctx.fillRect(Math.round(ex + Math.cos(ang) * r), Math.round(ey + Math.sin(ang) * r), 1, 1);
       }
     };
@@ -6195,12 +6258,12 @@ Object.assign(Stage.prototype, {
     const targets = this.tanks.filter(t => t.alive && t.isPlayer !== byPlayer);
     let y = -1, bestN = 0, bestOff = Infinity;
     for (let row = 0; row <= FH - 16; row += 8) {
-      if (row > BASE_Y - 40) break;
+      if (Math.abs(row - BASE_Y) < 40) continue;   // never the rows by the eagle
       const hit = targets.filter(t => Math.abs(t.y - row) < 12);
       const off = hit.reduce((a, t) => a + Math.abs(t.y - row), 0);   // ties: the row they sit on exactly
       if (hit.length > bestN || (hit.length === bestN && hit.length && off < bestOff)) { bestN = hit.length; bestOff = off; y = row; }
     }
-    if (y < 0) y = Math.min(BASE_Y - 48, 32 + rnd(Math.max(1, (FH >> 1) - 32)));
+    if (y < 0) y = BASE_Y > FH / 2 ? Math.min(BASE_Y - 48, 32 + rnd(Math.max(1, (FH >> 1) - 32))) : Math.max(BASE_Y + 48, FH / 2 + rnd(Math.max(1, (FH >> 1) - 48)));
     const dir = Math.random() < 0.5 ? 1 : 3;
     this.strikes.push({ x: dir === 1 ? -24 : FW + 8, y, dir, byPlayer, owner, drop: 0 });
     Sound.play('plane');
@@ -6695,6 +6758,174 @@ Object.assign(Stage.prototype, {
   <script>
 'use strict';
 // =====================================================================
+//  Seasons: every stage has a look of its own. The ground, bricks, trees and water take the season's colours, and
+//  something drifts across the screen. A little of it changes the game too:
+//    SPRING          blossom on the trees, petals in the air
+//    SUMMER          deep green, fireflies
+//    AUTUMN          orange and red trees, falling leaves
+//    WINTER          snow on everything, snowfall; most lakes are frozen over (ice)
+//    NUCLEAR WINTER  dead trees, grey bricks, toxic green water, falling ash; some lakes frozen
+//    DESERT          sand, sandstone bricks, cacti, drifting sand; many ponds have dried into mud (it slows you)
+//  Settings -> GAME -> SEASONS: CYCLE (a new one every stage, default), RANDOM, OFF (the classic black), or one of them.
+// =====================================================================
+
+const THEME_ORDER = ['spring', 'summer', 'autumn', 'winter', 'nuclear', 'desert'];
+const THEMES = {
+  classic: { name: '', ground: '#000000' },
+  spring: {
+    name: 'SPRING', color: '#F878B8', ground: '#0C1C08', specks: ['#14280C', '#1C3010'],
+    tex: { forest: { colors: { g: '#8CD050', G: '#2C7418', p: '#F8A8D0' }, rows: ['.gGp.gg.', 'ggpgGgGg', 'Gg.gggp.', 'gpgGg.gG', '.gggpgGg', 'gGg.Gggp', 'gpggg.Gg', '.Gg.gp..'] } },
+    particles: { kind: 'drift', n: 18, colors: ['#F8B8D8', '#FFFFFF', '#F890C0'], w: 2, h: 1, fall: [0.15, 0.35], sway: 0.6 },
+  },
+  summer: {
+    name: 'SUMMER', color: '#58D854', ground: '#0C1808', specks: ['#122410', '#0E1E0A'],
+    tex: { forest: { colors: { g: '#58B000', G: '#085400' } } },
+    particles: { kind: 'firefly', n: 10, colors: ['#E8F858', '#B8F818'], w: 1, h: 1 },
+  },
+  autumn: {
+    name: 'AUTUMN', color: '#F87800', ground: '#1C1006', specks: ['#2A1A0A', '#24140A'],
+    tex: { forest: { colors: { g: '#F08800', G: '#B03000' } }, water0: { colors: { b: '#204098' } }, water1: { colors: { b: '#204098' } } },
+    particles: { kind: 'drift', n: 18, colors: ['#F87800', '#C83000', '#F8B800'], w: 2, h: 2, fall: [0.25, 0.55], sway: 1 },
+  },
+  winter: {
+    name: 'WINTER', color: '#B8D8F8', ground: '#3C4858', specks: ['#4C5868', '#566476', '#6C7C90'], snowCaps: '#F8F8FF',
+    tex: { forest: { colors: { g: '#D8E8F0', G: '#2C5C48' } }, brick: { colors: { R: '#A83C28', H: '#D87860', D: '#682010' } },
+      water0: { colors: { b: '#1C3C98' } }, water1: { colors: { b: '#1C3C98' } } },
+    particles: { kind: 'drift', n: 46, colors: ['#FFFFFF', '#E0E8F8'], w: 1, h: 1, big: 0.3, fall: [0.3, 0.8], sway: 0.5 },
+    freeze: 0.75,
+  },
+  nuclear: {
+    name: 'NUCLEAR WINTER', color: '#A8D820', ground: '#24241C', specks: ['#30302A', '#2A2A20', '#38382C'], snowCaps: '#8C8C80', tint: 'rgba(140,170,40,0.07)',
+    tex: { forest: { colors: { g: '#7C7458', G: '#3C3428' } }, brick: { colors: { R: '#6C5C50', H: '#8C7C6C', D: '#3C3028', M: '#7C7C70' } },
+      steel: { colors: { W: '#C8C8B8', G: '#8C8C80' } },
+      water0: { colors: { b: '#2C6C18', w: '#A8E040' } }, water1: { colors: { b: '#2C6C18', w: '#A8E040' } }, ice: { colors: { W: '#C8C8B0', G: '#8C8C78' } } },
+    particles: { kind: 'drift', n: 40, colors: ['#9C9C90', '#6C6C64', '#B0B0A0'], w: 1, h: 1, big: 0.3, fall: [0.15, 0.4], sway: 0.3 },
+    freeze: 0.4,
+  },
+  desert: {
+    name: 'DESERT', color: '#F8B858', ground: '#5C4420', specks: ['#6C5028', '#4C3818', '#7C5C2C'],
+    tex: { brick: { colors: { R: '#C08840', H: '#E8B868', D: '#805418', M: '#B8A070' } },
+      forest: { colors: { g: '#58A838', G: '#1C5818', y: '#F8D878' }, rows: ['..G..g..', '.GG..gg.', '.gG.Gg..', 'GgG.gGy.', '.gGGg...', '..gG..G.', '..gG.gG.', '..Gg..g.'] },
+      water0: { colors: { b: '#1880C0' } }, water1: { colors: { b: '#1880C0' } } },
+    particles: { kind: 'sand', n: 14, colors: ['#C8A060', '#E0C080'], w: 3, h: 1 },
+    dry: 0.6,
+  },
+};
+
+// which season stage num is in (opts.theme: a custom level's own choice)
+function stageTheme(num, opts = {}) {
+  if (opts.theme && THEMES[opts.theme]) return opts.theme;
+  const s = typeof Config !== 'undefined' ? Config.get('seasons') : 'CYCLE';
+  if (s === 'OFF') return 'classic';
+  if (s === 'RANDOM') return THEME_ORDER[Math.floor(Math.random() * THEME_ORDER.length)];
+  if (s && s !== 'CYCLE') return s.toLowerCase();
+  return THEME_ORDER[(Math.max(1, num) - 1) % THEME_ORDER.length];
+}
+
+// textures in a season's colours (cached per season)
+const themeTexCache = {};
+function themeTex(theme) {
+  if (themeTexCache[theme]) return themeTexCache[theme];
+  const t = THEMES[theme] || THEMES.classic, out = {};
+  for (const k in TEX_SRC) {
+    const o = (t.tex || {})[k] || {};
+    out[k] = paintRows(o.rows || TEX_SRC[k].rows, Object.assign({}, TEX_SRC[k].colors, o.colors || {}));
+  }
+  themeTexCache[theme] = out;
+  return out;
+}
+
+Object.assign(Stage.prototype, {
+  // the season's mark on the map: frozen lakes in winter, dried ponds in the desert
+  applyThemeTerrain(num) {
+    const t = THEMES[this.theme] || {}, p = t.freeze || t.dry;
+    if (!p) return;
+    const r = seeded(num * 4241 + 7), seen = new Uint8Array(GW * GH);
+    for (let i = 0; i < GW * GH; i++) {
+      if (seen[i] || this.terrain[i] !== T_WATER) continue;
+      // one lake at a time: it freezes (or dries up) as a whole, or stays
+      const lake = [i]; seen[i] = 1;
+      for (let k = 0; k < lake.length; k++) {
+        const c = lake[k], cx = c % GW, cy = (c / GW) | 0;
+        for (const [dx, dy] of DXY) {
+          const nx = cx + dx, ny = cy + dy, n = ny * GW + nx;
+          if (nx < 0 || ny < 0 || nx >= GW || ny >= GH || seen[n] || this.terrain[n] !== T_WATER) continue;
+          seen[n] = 1; lake.push(n);
+        }
+      }
+      if (r() < p) for (const c of lake) this.terrain[c] = t.freeze ? T_ICE : T_MUD;
+    }
+  },
+
+  // the ground: the season's colour with a scatter of specks (the same every time for a stage)
+  groundLayer() {
+    const t = THEMES[this.theme] || THEMES.classic;
+    if (this.ground && this.ground.width === FW && this.ground.height === FH && this.groundFor === this.theme) return this.ground;
+    const c = makeCanvas(FW, FH), x = c.getContext('2d');
+    x.fillStyle = t.ground; x.fillRect(0, 0, FW, FH);
+    if (t.specks) {
+      const r = seeded(this.num * 977 + FW);
+      for (let k = 0; k < FW * FH / 40; k++) {
+        x.fillStyle = t.specks[Math.floor(r() * t.specks.length)];
+        x.fillRect(Math.floor(r() * FW), Math.floor(r() * FH), 1 + (r() < 0.3 ? 1 : 0), 1);
+      }
+    }
+    this.ground = c; this.groundFor = this.theme;
+    return c;
+  },
+
+  // snow (or ash) along the top edges of bricks, steel and trees
+  themeCaps(bg, fo) {
+    const t = THEMES[this.theme];
+    if (!t || !t.snowCaps) return;
+    const solid = v => v === T_BRICK || v === T_STEEL || v === T_FOREST;
+    for (let cy = 0; cy < GH; cy++) for (let cx = 0; cx < GW; cx++) {
+      const v = this.terrain[cy * GW + cx];
+      if (!solid(v) || (cy > 0 && solid(this.terrain[(cy - 1) * GW + cx]))) continue;
+      const ctx = v === T_FOREST ? fo : bg;
+      ctx.fillStyle = t.snowCaps;
+      ctx.fillRect(cx * 4, cy * 4, 4, 1);
+      if ((cx + cy) % 3 === 0) ctx.fillRect(cx * 4 + 1, cy * 4 + 1, 2, 1);
+    }
+  },
+
+  // what drifts across the screen (purely for looks: it runs in the drawing, so online guests see their own)
+  renderSeason(ctx, camX, camY) {
+    const t = THEMES[this.theme];
+    if (!t) return;
+    if (t.tint) { ctx.fillStyle = t.tint; ctx.fillRect(camX, camY, VIEW_W, VIEW_H); }
+    const P = t.particles;
+    if (!P) return;
+    if (!this.parts || this.partsFor !== this.theme) {
+      this.partsFor = this.theme;
+      this.parts = [];
+      for (let k = 0; k < P.n; k++) this.parts.push({ x: Math.random() * VIEW_W, y: Math.random() * VIEW_H, v: Math.random(), ph: Math.random() * 6.28 });
+    }
+    const f = this.frame || 0;
+    for (const p of this.parts) {
+      if (P.kind === 'drift') {
+        p.y += P.fall[0] + (P.fall[1] - P.fall[0]) * p.v;
+        p.x += Math.sin(f / 40 + p.ph) * P.sway * 0.3;
+      } else if (P.kind === 'sand') {
+        p.x += 1.5 + 2 * p.v; p.y += Math.sin(f / 20 + p.ph) * 0.2;
+      } else {   // fireflies wander and blink
+        p.x += Math.sin(f / 50 + p.ph) * 0.3; p.y += Math.cos(f / 60 + p.ph * 2) * 0.25;
+        if ((f + Math.floor(p.ph * 40)) % 90 > 50) continue;
+      }
+      if (p.y > VIEW_H) { p.y = -2; p.x = Math.random() * VIEW_W; }
+      if (p.x > VIEW_W) { p.x = -3; p.y = Math.random() * VIEW_H; }
+      if (p.x < -3) p.x = VIEW_W;
+      const big = P.big && p.v < P.big;
+      ctx.fillStyle = P.colors[Math.floor(p.v * P.colors.length)];
+      ctx.fillRect(Math.round(camX + p.x), Math.round(camY + p.y), P.w + (big ? 1 : 0), P.h + (big ? 1 : 0));
+    }
+  },
+});
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
 //  Game modes (picked on the title screen's MODE row)
 //    CLASSIC      the game as always
 //    SURVIVAL     endless waves on one map, each bigger and stronger; a breather between waves
@@ -6707,9 +6938,11 @@ Object.assign(Stage.prototype, {
 
 const MODES = [
   { key: 'classic', name: 'CLASSIC', desc: 'THE GAME AS ALWAYS' },
+  { key: 'custom', name: 'CUSTOM LEVELS', desc: 'YOUR OWN LEVELS, IN TURN' },   // editor.js
   { key: 'survival', name: 'SURVIVAL', desc: 'ENDLESS WAVES, HOW LONG?' },
   { key: 'timeattack', name: 'TIME ATTACK', desc: 'CLEAR 5 STAGES FAST' },
   { key: 'bigmaps', name: 'BIG MAPS', desc: 'HUGE SCROLLING BATTLEFIELDS' },
+  { key: 'sides', name: 'ANY SIDE', desc: 'YOUR EAGLE ON ANOTHER EDGE' },   // the map turned: eagle left, right or top
   { key: 'corridor', name: 'CORRIDOR', desc: 'ENDLESS CLIMB, HOW FAR?' },
   { key: 'race', name: 'KILL RACE', cpu: true, desc: 'MOST KILLS WINS THE ROUND' },   // race.js; 1 player races bots
   { key: 'eagles', name: 'VS EAGLES', vs: true, cpu: true, desc: 'GUARD YOURS, HIT THEIRS' },   // cpu: 1 player plays the computer
@@ -8939,7 +9172,7 @@ const Net = {
   },
 
   buildView(full) {
-    const G = Game, v = { t: 'v', s: G.state, gt: G.t, c: COLS, r: ROWS, vc: VIEW_W / 16, vr: VIEW_H / 16, stn: G.stageNum, hi: G.hi, eng: Sound.engineState };
+    const G = Game, v = { t: 'v', s: G.state, gt: G.t, c: COLS, r: ROWS, vc: VIEW_W / 16, vr: VIEW_H / 16, bs: BASE_SIDE, stn: G.stageNum, hi: G.hi, eng: Sound.engineState };
     if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover', 'vsResult', 'modeResult'].includes(G.state)) v.s = 'wait';
     v.as = AutoSkill.rating;
     v.mode = G.mode; v.ta = G.taFrames; v.tac = G.taCleared; v.vw = G.vsWins; v.rt = G.raceTarget; v.rd = G.round;
@@ -9005,6 +9238,7 @@ const Net = {
       cp: st.cpu || null,
       rc: st.race || null,
       nv: st.nightVision || 0,
+      th: st.theme,
     };
     st.netDiff = [];
     // the corridor moved down a section: the whole terrain goes again
@@ -9102,7 +9336,7 @@ const Net = {
 
   applyView(v) {
     const G = Game;
-    if (v.c !== COLS || v.r !== ROWS || v.vc * 16 !== VIEW_W || v.vr * 16 !== VIEW_H) setFieldSize(v.c, v.r, v.vc || v.c, v.vr || v.r);
+    if (v.c !== COLS || v.r !== ROWS || v.vc * 16 !== VIEW_W || v.vr * 16 !== VIEW_H || (v.bs || 'bottom') !== BASE_SIDE) setFieldSize(v.c, v.r, v.vc || v.c, v.vr || v.r, v.bs || 'bottom');
     G.players = v.pl.map((o, k) => Object.assign(G.players[k] && G.players[k].i === o.i ? G.players[k] : newPlayer(o.i), o, { tank: null }));
     if (v.base) G.base = v.base;
     if (v.as !== undefined && AutoSkill.rating !== v.as) { AutoSkill.rating = v.as; AutoSkill.cache = null; }
@@ -9166,6 +9400,7 @@ const Net = {
     st.cpu = sv.cp || null;
     st.race = sv.rc || null;
     st.nightVision = sv.nv || 0;
+    if (sv.th && st.theme !== sv.th) { st.theme = sv.th; st.dirty = true; }
     if (sv.cr) {
       // the host's world moved down: so does this screen's window
       if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();
@@ -9397,15 +9632,6 @@ const STORE = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
 };
 
-// construction palette: the 14 patterns of the original editor (as 2x2 blocks)
-const CONSTRUCT_PATS = [
-  ['.#', '.#'], ['..', '##'], ['#.', '#.'], ['##', '..'], ['##', '##'],
-  ['.@', '.@'], ['..', '@@'], ['@.', '@.'], ['@@', '..'], ['@@', '@@'],
-  ['~~', '~~'], ['%%', '%%'], ['__', '__'],
-  // additions: mud, conveyor belts (up, right, down, left) and a teleporter pad (pads pair up in the order placed)
-  ['mm', 'mm'], ['^^', '^^'], ['>>', '>>'], ['vv', 'vv'], ['<<', '<<'], ['TT', 'TT'],
-  ['..', '..'],
-];
 
 function newPlayer(i) {
   return {
@@ -9416,10 +9642,12 @@ function newPlayer(i) {
   };
 }
 
+
+// a blank custom level: just the eagle's brick fortress (classic 13x13 layout; the editor is in editor.js)
 function defaultCustomMap() {
   const rows = [];
   for (let y = 0; y < 26; y++) rows.push('.'.repeat(26).split(''));
-  for (const [bx, by] of BASE_WALL) rows[by][bx] = '#';
+  for (const [bx, by] of [[11, 23], [12, 23], [13, 23], [14, 23], [11, 24], [14, 24], [11, 25], [14, 25]]) rows[by][bx] = '#';
   return rows.map(r => r.join(''));
 }
 
@@ -9721,7 +9949,8 @@ const Game = {
         : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score
         : mi.key === 'eagles' ? '1P: VS CPU' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '') + '  2-4P: VS'
         : mi.key === 'dm' ? '1P: VS ' + DM_BOTS + ' BOTS  2-4P: VS EACH OTHER'
-        : mi.key === 'race' ? 'FIRST TO ' + Config.get('raceTarget') + '  1P: VS ' + DM_BOTS + ' BOTS' : '< > CHANGE MODE';
+        : mi.key === 'race' ? 'FIRST TO ' + Config.get('raceTarget') + '  1P: VS ' + DM_BOTS + ' BOTS'
+        : mi.key === 'custom' ? (Customs.used().length ? Customs.used().length + ' OF ' + CUSTOM_SLOTS + ' SLOTS FILLED' : 'MAKE SOME IN CONSTRUCTION') : '< > CHANGE MODE';
       Font.drawCenter(ctx, best, SW / 2, 213, COL.lgrey);
     } else if (cur && cur.daily && this.titleY === 0) {
       const d = dailyToday(), best = STORE.get(DAILY_KEY, {});
@@ -9817,7 +10046,7 @@ const Game = {
     else if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
     this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
-    if (this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu' || this.mode === 'race') this.stageNum = 1;
+    if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides'].includes(this.mode)) this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
     // KILL RACE: the first curtain picks how many points win the game (race.js)
     if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
@@ -9825,6 +10054,8 @@ const Game = {
 
   toCurtain(selectable) {
     Sound.setEngine(0);
+    // ANY SIDE: the edge the eagle will be on this time (never the bottom)
+    if (this.mode === 'sides') this.nextSide = ['left', 'right', 'top'][rnd(3)];
     this.curtain = { selectable, h: 0, phase: 'close' };
     this.setState('curtain');
   },
@@ -9871,6 +10102,11 @@ const Game = {
         if (c.raceSel && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + 42, '#3C3C3C');
       }
       // against the computer: what their HQ got for this round
+      if (this.mode === 'sides' && this.nextSide) Font.drawCenter(ctx, 'YOUR EAGLE: ' + this.nextSide.toUpperCase(), cx, cy + 24, '#A00000');
+      if (this.mode === 'custom' && !this.customPending) {
+        const used = Customs.used();
+        Font.drawCenter(ctx, 'YOUR LEVEL ' + (used[(this.stageNum - 1) % used.length] + 1), cx, cy + 14, '#3C3C3C');
+      }
       if (this.mode === 'cpu') {
         const news = cpuNews(this.stageNum);
         if (news.length) Font.drawCenter(ctx, 'ENEMY HQ UPGRADED', cx, cy + 14, '#A00000');
@@ -9879,7 +10115,14 @@ const Game = {
       }
       const boss = bossForStage(this.stageNum);
       if (boss) Font.drawCenter(ctx, 'BOSS: ' + BOSSES[boss.idx].name, cx, cy + 10, '#A00000');
-      const wx = !this.customPending && stageWeather(this.stageNum, !!boss);
+      // the season (when it's known in advance)
+      let lvTheme;
+      if (this.mode === 'custom' && !this.customPending) { const u = Customs.used(); lvTheme = Customs.level(u[(this.stageNum - 1) % u.length]).theme; }
+      else if (this.customPending) lvTheme = this.customTheme;
+      if (lvTheme === 'auto') lvTheme = undefined;
+      const ss = Config.get('seasons'), th = lvTheme ? THEMES[lvTheme] : ss === 'RANDOM' || ss === 'OFF' ? null : THEMES[stageTheme(this.stageNum)];
+      if (th && th.name && !(this.mode === 'race' && c.raceSel)) Font.drawCenter(ctx, th.name, cx, cy - 36, '#3C3C3C');
+      const wx = !this.customPending && this.mode !== 'custom' && stageWeather(this.stageNum, !!boss);
       if (wx) Font.drawCenter(ctx, wx === 'night' ? 'NIGHT' : 'FOG', cx, cy + (boss ? 34 : c.selectable ? 24 : 10), wx === 'night' ? '#00006C' : '#ADADAD');
       if (Config.get('skill') !== 2) Font.drawCenter(ctx, Config.skill().name, cx, cy - 24, '#3C3C3C');
       if (c.selectable && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + (boss ? 24 : 12), '#3C3C3C');
@@ -9890,9 +10133,15 @@ const Game = {
   stageLimit() { return Math.max(LEVELS.length, Math.min(99, STORE.get('tank1990_bestStage', 1) | 0)); },
 
   beginStage() {
-    let map, custom = false;
-    if (this.customPending) { map = this.custom; custom = true; this.customPending = false; }
-    else map = LEVELS[(this.stageNum - 1) % LEVELS.length];
+    let map, custom = false, theme;
+    if (this.customPending) { map = this.custom; custom = true; this.customPending = false; theme = this.customTheme; }
+    else if (this.mode === 'custom') {
+      // CUSTOM LEVELS: your saved levels in turn (editor.js), on the classic field they were made for
+      const used = Customs.used(), lv = Customs.level(used[(this.stageNum - 1) % used.length]);
+      map = lv.blocks; custom = true; theme = lv.theme;
+      this.applyLayout(13, 13);
+    } else map = LEVELS[(this.stageNum - 1) % LEVELS.length];
+    if (theme === 'auto') theme = undefined;   // the stage's usual season
     const boss = custom || this.mode !== 'classic' ? null : bossForStage(this.stageNum);
     if (boss) map = BOSS_ARENAS[boss.idx];
     const vs = modeInfo(this.mode).vs ? this.mode : null;
@@ -9911,11 +10160,16 @@ const Game = {
       setFieldSize(SX * SECTOR, SY * SECTOR, vc, vr);
       blocks = bigWorldBlocks(this.stageNum, SX, SY);
       objective = Math.floor(this.stageNum / (this.mode === 'bigmaps' ? 1 : 4)) % 2 ? 'outposts' : 'factories';
+    } else if (!custom && this.mode === 'sides') {
+      // ANY SIDE: the classic field, turned so the eagle's edge is the chosen one
+      const side = this.nextSide || 'left';
+      setFieldSize(13, 13, 13, 13, side);
+      blocks = turnBlocks(mapToBlocks(map), side);
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
       custom, boss, base: vs || corridor || this.mode === 'race' ? newBase() : this.base, corridor, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
       race: this.mode === 'race' && !custom ? { target: this.raceTarget, round: this.round } : null, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
-      blocks, big: objective,
+      blocks, big: objective, theme,
     });
     this.paused = false;
     this.openH = SCREEN_H / 2;
@@ -10186,6 +10440,7 @@ const Game = {
   startGame(n) {
     const mi = modeInfo(Config.get('gameMode'));
     if (mi.vs && !mi.cpu && n < 2) { this.toast('VERSUS NEEDS 2-4 PLAYERS'); Sound.play('steel'); return; }
+    if (mi.key === 'custom' && !Customs.used().length) { this.toast('NO LEVELS YET: TRY CONSTRUCTION'); Sound.play('steel'); return; }
     this.newGame(n, false);
   },
 
@@ -10407,104 +10662,7 @@ const Game = {
     ctx.restore();
   },
 
-  // ---------------------------------------------------------------- construction
-  toConstruct() {
-    this.applyLayout(13, 13); // the editor works on the classic 13x13 field
-    this.ed = {
-      tx: 0, ty: 0, pat: -1, last: null, rep: 0,
-      stage: new Stage(1, this.custom, [], { custom: true }),
-    };
-    this.setState('construct');
-  },
-
-  editTile(tx, ty, patIdx) {
-    if (tx === 6 && ty === 12) return; // the eagle itself
-    const p = CONSTRUCT_PATS[patIdx];
-    const rows = this.custom.map(r => r.split(''));
-    for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
-      const bx = tx * 2 + x, by = ty * 2 + y;
-      rows[by][bx] = p[y][x];
-      this.ed.stage.setBlock(bx, by, BLOCK_TYPE[p[y][x]]);
-    }
-    this.custom = rows.map(r => r.join(''));
-    this.ed.stage.pads = padsFromBlocks(this.custom);
-    STORE.set('tank1990_custom', this.custom);
-    Sound.play('build');
-  },
-
-  updateConstruct() {
-    const ed = this.ed, m = Input.menu();
-    const moveCursor = d => {
-      ed.tx = Math.max(0, Math.min(12, ed.tx + DXY[d][0]));
-      ed.ty = Math.max(0, Math.min(12, ed.ty + DXY[d][1]));
-    };
-    const tapped = m.up ? 0 : m.right ? 1 : m.down ? 2 : m.left ? 3 : -1;
-    if (tapped >= 0) {
-      moveCursor(tapped);
-      ed.rep = 14; // auto-repeat after a short delay
-    } else {
-      const held = Input.heldDir();
-      if (held >= 0 && --ed.rep <= 0) { moveCursor(held); ed.rep = 5; }
-    }
-
-    const here = ed.tx + ',' + ed.ty;
-    if (m.fire && !m.start) {
-      if (ed.pat < 0) ed.pat = 0;
-      else if (ed.last === here) ed.pat = (ed.pat + 1) % CONSTRUCT_PATS.length;
-      ed.last = here;
-      this.editTile(ed.tx, ed.ty, ed.pat);
-    } else if (m.alt) {
-      ed.pat = ed.pat < 0 ? CONSTRUCT_PATS.length - 1 : (ed.pat + CONSTRUCT_PATS.length - 1) % CONSTRUCT_PATS.length;
-      ed.last = here;
-      this.editTile(ed.tx, ed.ty, ed.pat);
-    }
-    if (m.start) this.newGame(1, true);
-    else if (m.back) this.toTitle();
-    else if (Input.just.has('Delete')) { this.custom = defaultCustomMap(); STORE.set('tank1990_custom', this.custom); this.toConstruct(); }
-  },
-
-  renderConstruct(ctx) {
-    const st = this.ed.stage;
-    ctx.fillStyle = COL.bg;
-    ctx.fillRect(0, 0, SW, SH);
-    ctx.fillStyle = COL.black;
-    ctx.fillRect(FX, FY, FW, FH);
-    if (st.dirty) st.buildLayers();
-    ctx.save();
-    ctx.translate(FX, FY);
-    ctx.drawImage(st.bgLayer, 0, 0);
-    for (const i of st.waterCells) {
-      const cx = i % GW, cy = (i / GW) | 0;
-      ctx.drawImage(Sprites.tex.water0, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
-    }
-    st.frame = this.t;
-    st.renderBelts(ctx);
-    st.renderPads(ctx);
-    ctx.drawImage(Sprites.eagle, BASE_X, BASE_Y);
-    ctx.drawImage(st.forestLayer, 0, 0);
-    if (((this.t >> 3) & 1) === 0) ctx.drawImage(Sprites.tank('p0', 0, 0, Config.playerPal(0)), this.ed.tx * 16, this.ed.ty * 16);
-    ctx.restore();
-    // current pattern preview
-    Font.draw(ctx, 'PAT', 228, 16, COL.black);
-    ctx.fillStyle = COL.black;
-    ctx.fillRect(231, 26, 18, 18);
-    if (this.ed.pat >= 0) {
-      const p = CONSTRUCT_PATS[this.ed.pat];
-      const tex = { '#': 'brick', '@': 'steel', '~': 'water0', '%': 'forest', '_': 'ice' };
-      for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
-        const c = p[y][x], k = tex[c];
-        if (k) ctx.drawImage(Sprites.tex[k], 232 + x * 8, 27 + y * 8);
-        else if (c === 'm') ctx.drawImage(Sprites.mudTex, 232 + x * 8, 27 + y * 8);
-      }
-      const arrow = { '^': '^', '>': '>', v: 'V', '<': '<' }[p[0][0]];
-      if (arrow) { ctx.fillStyle = '#383838'; ctx.fillRect(232, 27, 16, 16); Font.draw(ctx, arrow, 236, 31, '#9C9C9C'); }
-      if (p[0][0] === 'T') { ctx.strokeStyle = PAD_COLORS[0]; ctx.strokeRect(234.5, 29.5, 11, 11); ctx.fillStyle = PAD_COLORS[0]; ctx.fillRect(238, 33, 4, 4); }
-    }
-    Font.draw(ctx, 'A', 228, 60, COL.black); Font.draw(ctx, '+', 236, 60, COL.black);
-    Font.draw(ctx, 'B', 228, 72, COL.black); Font.draw(ctx, '-', 236, 72, COL.black);
-    Font.draw(ctx, 'GO', 228, 180, COL.black);
-    Font.draw(ctx, 'ENT', 228, 190, COL.black);
-  },
+  // ---------------------------------------------------------------- construction: see editor.js
 
   // ---------------------------------------------------------------- shop
   toShop() {
@@ -10929,6 +11087,7 @@ const Game = {
   pointer(x, y) {
     Sound.unlock();
     if (this.state === 'ranks') { this.setState('settings'); return; }
+    if (this.state === 'construct') { this.constructPointer(x, y, false); return; }
     if (this.state === 'title' || this.state === 'settings' || this.state === 'shop') { x -= menuOX(); y -= menuOY(); }
     if (this.state === 'shop') {
       const r = Math.floor((y - SHOP_TOP + 4) / SHOP_ROW_H), i = this.shop.scroll + r;
@@ -11066,6 +11225,8 @@ function toggleFullscreen() {
     return [(e.clientX - r.left) * canvas.width / r.width, (e.clientY - r.top) * canvas.height / r.height];
   };
   canvas.addEventListener('pointerdown', e => { const [x, y] = toScreen(e); Game.pointer(x, y); });
+  // drag to paint in the editor
+  canvas.addEventListener('pointermove', e => { if ((e.buttons & 1) && Game.state === 'construct') { const [x, y] = toScreen(e); Game.constructPointer(x, y, true); } });
   canvas.addEventListener('wheel', e => {
     if (Game.state !== 'settings' && Game.state !== 'shop') return;
     e.preventDefault();
@@ -11123,6 +11284,349 @@ function toggleFullscreen() {
   }
   requestAnimationFrame(frame);
 })();
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  Construction: the level editor, and the levels you make with it.
+//    8 save slots, each a level and its season (AUTO: whatever the stage would have); every change is saved at once.
+//    A tile palette on the right (every terrain: brick, steel, water, trees, ice, mud, bridges, belts, teleporters),
+//    and a random level generator: a symmetric map like the classic ones, checked so every entry point and both
+//    players can reach the eagle.
+//    CUSTOM LEVELS (on the title screen's MODE row) plays the slots you've filled, one after another, as a normal game
+//    with tally, shop and all.
+//  Keys: arrows move · A / Space place (again on the same spot: the next tile) · B place the previous tile
+//        Q / E pick a tile · R random level · T season · 1-8 or PgUp / PgDn slot · Del clear · H help
+//        Enter play it · Esc back. Mouse / touch: tap the palette, tap or drag on the field; tap RND, the season or the
+//        slot on the side panel.
+// =====================================================================
+
+const CUSTOM_KEY = 'tank1990_customs', CUSTOM_SLOTS = 8;
+const EDIT_THEMES = ['auto', 'classic'].concat(THEME_ORDER);
+const EDIT_THEME_TAGS = { auto: 'ANY', classic: 'BLK', spring: 'SPR', summer: 'SUM', autumn: 'AUT', winter: 'WIN', nuclear: 'NUC', desert: 'DES' };
+
+// the palette: the 14 patterns of the original editor (as 2x2 blocks), then the newer terrain
+const CONSTRUCT_PATS = [
+  ['.#', '.#'], ['..', '##'], ['#.', '#.'], ['##', '..'], ['##', '##'],
+  ['.@', '.@'], ['..', '@@'], ['@.', '@.'], ['@@', '..'], ['@@', '@@'],
+  ['~~', '~~'], ['%%', '%%'], ['__', '__'],
+  // mud, a bridge, conveyor belts (up, right, down, left) and a teleporter pad (pads pair up in the order placed)
+  ['mm', 'mm'], ['==', '=='], ['^^', '^^'], ['>>', '>>'], ['vv', 'vv'], ['<<', '<<'], ['TT', 'TT'],
+  ['..', '..'],
+];
+const PAT_BRICK = 4;
+
+// the saved levels
+const Customs = {
+  data: null,
+  load() {
+    if (this.data) return this.data;
+    let d = STORE.get(CUSTOM_KEY, null);
+    if (!d || !Array.isArray(d.levels)) {
+      d = { slot: 0, levels: [] };
+      const old = STORE.get('tank1990_custom', null);   // the single level of older versions goes into slot 1
+      if (Array.isArray(old) && old.length === 26) d.levels[0] = { blocks: old, theme: 'auto' };
+    }
+    for (let i = 0; i < CUSTOM_SLOTS; i++) {
+      const l = d.levels[i];
+      if (!l || !Array.isArray(l.blocks) || l.blocks.length !== 26) d.levels[i] = { blocks: defaultCustomMap(), theme: 'auto' };
+      else if (!EDIT_THEMES.includes(l.theme)) l.theme = 'auto';
+    }
+    if (!(d.slot >= 0 && d.slot < CUSTOM_SLOTS)) d.slot = 0;
+    this.data = d;
+    return d;
+  },
+  save() { STORE.set(CUSTOM_KEY, this.data); },
+  level(i) { return this.load().levels[i]; },
+  // slots with something in them
+  used() {
+    const blank = defaultCustomMap().join('');
+    return this.load().levels.map((l, i) => i).filter(i => this.data.levels[i].blocks.join('') !== blank);
+  },
+};
+
+// ------------------------------------------------------------------ random levels
+// tiles a tank can't get through (brick can be shot away)
+const LEVEL_WALL = { '@': 1, '~': 1 };
+
+// can a tank get from every entry point and both player starts to the eagle? (2x2-block footprint, 1 block steps)
+function levelReachable(g) {
+  const ok = (x, y) => x >= 0 && y >= 0 && x < 25 && y < 25 && !LEVEL_WALL[g[y][x]] && !LEVEL_WALL[g[y][x + 1]] && !LEVEL_WALL[g[y + 1][x]] && !LEVEL_WALL[g[y + 1][x + 1]];
+  const seen = new Uint8Array(25 * 25), q = [[12, 24]];
+  seen[24 * 25 + 12] = 1;
+  while (q.length) {
+    const [x, y] = q.pop();
+    for (const [dx, dy] of DXY) {
+      const nx = x + dx, ny = y + dy;
+      if (!ok(nx, ny) || seen[ny * 25 + nx]) continue;
+      seen[ny * 25 + nx] = 1;
+      q.push([nx, ny]);
+    }
+  }
+  return [[0, 0], [12, 0], [24, 0], [8, 24], [16, 24]].every(([x, y]) => seen[y * 25 + x]);
+}
+
+// a random level: built on the left half and mirrored, like the classic maps
+function randomLevel(rnd01 = Math.random) {
+  const ri = n => Math.floor(rnd01() * n);
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const g = Array.from({ length: 26 }, () => Array(26).fill('.'));
+    const put = (bx, by, c) => { if (bx >= 0 && by >= 0 && bx < 13 && by < 26) g[by][bx] = c; };
+    // a rectangle in 16px tiles (tx 0-6: the left half and the middle column)
+    const rect = (tx, ty, tw, th, c) => { for (let y = ty * 2; y < (ty + th) * 2; y++) for (let x = tx * 2; x < (tx + tw) * 2; x++) put(x, y, c); };
+    const dens = 0.7 + rnd01() * 0.8;
+    // walls: brick mostly, some steel; full tiles or half-thick lines
+    for (let k = 0, n = 5 + ri(6 * dens); k < n; k++) {
+      const tx = ri(7), ty = 1 + ri(10), horiz = rnd01() < 0.5, len = 1 + ri(4), mat = rnd01() < 0.82 ? '#' : '@';
+      const half = rnd01() < 0.35 ? ri(2) : -1;
+      for (let i = 0; i < len; i++) {
+        const x = horiz ? tx + i : tx, y = horiz ? ty : ty + i;
+        if (x > 6 || y > 11) break;
+        for (let by = y * 2; by < y * 2 + 2; by++) for (let bx = x * 2; bx < x * 2 + 2; bx++) {
+          if (half >= 0 && (horiz ? by - y * 2 : bx - x * 2) !== half) continue;
+          put(bx, by, mat);
+        }
+      }
+    }
+    // ponds, trees, ice and the odd patch of mud
+    if (rnd01() < 0.7) for (let k = 0, n = 1 + ri(3); k < n; k++) rect(ri(6), 2 + ri(8), 1 + ri(3), 1 + ri(2), '~');
+    for (let k = 0, n = 1 + ri(3); k < n; k++) rect(ri(7), 1 + ri(10), 1 + ri(3), 1 + ri(3), '%');
+    if (rnd01() < 0.4) rect(ri(6), 2 + ri(8), 1 + ri(3), 1 + ri(2), '_');
+    if (rnd01() < 0.35) rect(ri(6), 2 + ri(8), 1 + ri(2), 1 + ri(2), 'm');
+    // a bridge across a pond now and then
+    if (rnd01() < 0.25) { const tx = ri(6), ty = 2 + ri(8); rect(tx, ty, 2, 1, '~'); rect(tx + ri(2), ty, 1, 1, '='); }
+    // a conveyor belt, a teleporter pair (its twin comes from the mirror)
+    if (rnd01() < 0.25) {
+      const horiz = rnd01() < 0.5, tx = ri(5), ty = 2 + ri(8), len = 2 + ri(3), c = horiz ? (rnd01() < 0.5 ? '>' : '<') : (rnd01() < 0.5 ? '^' : 'v');
+      for (let i = 0; i < len; i++) rect(horiz ? Math.min(6, tx + i) : tx, horiz ? ty : Math.min(10, ty + i), 1, 1, c);
+    }
+    if (rnd01() < 0.25) rect(ri(5), 2 + ri(8), 1, 1, 'T');
+    // the right half mirrors the left (belts turn round too)
+    const flip = { '<': '>', '>': '<' };
+    for (let by = 0; by < 26; by++) for (let bx = 0; bx < 13; bx++) g[by][25 - bx] = flip[g[by][bx]] || g[by][bx];
+    // entry points, player starts and the eagle stay clear; the fortress goes round the eagle
+    const clear = (x0, y0, w, h) => { for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) g[y][x] = '.'; };
+    clear(0, 0, 2, 2); clear(12, 0, 2, 2); clear(24, 0, 2, 2);
+    clear(8, 24, 2, 2); clear(16, 24, 2, 2); clear(10, 21, 6, 5);
+    for (const [bx, by] of [[11, 23], [12, 23], [13, 23], [14, 23], [11, 24], [14, 24], [11, 25], [14, 25]]) g[by][bx] = '#';
+    if (levelReachable(g)) return g.map(r => r.join(''));
+  }
+  return defaultCustomMap();
+}
+
+// a pattern drawn small (palette) or large (preview): s = size of one block
+function drawPattern(ctx, p, x, y, s, theme) {
+  const tex = themeTex(theme || 'classic');
+  const src = { '#': tex.brick, '@': tex.steel, '~': tex.water0, '%': tex.forest, '_': tex.ice, m: Sprites.mudTex, '=': Sprites.bridgeTex };
+  ctx.fillStyle = COL.black;
+  ctx.fillRect(x, y, s * 2, s * 2);
+  for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) {
+    const c = p[j][i], im = src[c];
+    if (im) ctx.drawImage(im, 0, 0, 8, 8, x + i * s, y + j * s, s, s);
+  }
+  const arrow = { '^': [0, -1], '>': [1, 0], v: [0, 1], '<': [-1, 0] }[p[0][0]];
+  if (arrow) {
+    ctx.fillStyle = '#383838'; ctx.fillRect(x, y, s * 2, s * 2);
+    ctx.fillStyle = '#9C9C9C';
+    const cx = x + s, cy = y + s;
+    for (let k = -1; k <= 1; k++) ctx.fillRect(cx + arrow[0] * k * s / 3 - 1, cy + arrow[1] * k * s / 3 - 1, 2, 2);
+    ctx.fillRect(cx + arrow[0] * s * 0.6 - 1, cy + arrow[1] * s * 0.6 - 1, 2, 2);
+  }
+  if (p[0][0] === 'T') { ctx.strokeStyle = PAD_COLORS[0]; ctx.strokeRect(x + s * 0.3 + 0.5, y + s * 0.3 + 0.5, s * 1.4 - 1, s * 1.4 - 1); }
+}
+
+// side panel layout (screen coordinates)
+const ED_PANEL_X = () => FX + VIEW_W + 4;
+const ED_PAL_Y = 6, ED_PAL_STEP = 10;
+const ED_ROWS = { rnd: 122, theme: 136, slot: 150, help: 192, go: 206 };
+
+Object.assign(Game, {
+  toConstruct() {
+    this.applyLayout(13, 13);   // the editor works on the classic 13x13 field
+    const d = Customs.load();
+    this.ed = { tx: 6, ty: 6, pat: PAT_BRICK, last: null, rep: 0, help: !STORE.get('tank1990_edhelp', false) };
+    STORE.set('tank1990_edhelp', true);
+    this.loadSlot(d.slot);
+    this.setState('construct');
+  },
+
+  loadSlot(i) {
+    const d = Customs.load();
+    d.slot = i;
+    Customs.save();
+    const lv = d.levels[i];
+    this.custom = lv.blocks.slice();
+    this.customTheme = lv.theme;
+    this.rebuildEdStage();
+  },
+
+  rebuildEdStage() {
+    const th = this.customTheme === 'auto' ? 'classic' : this.customTheme;
+    this.ed.stage = new Stage(1, this.custom, [], { custom: true, theme: th, editor: true });
+  },
+
+  saveSlot() {
+    const lv = Customs.level(Customs.load().slot);
+    lv.blocks = this.custom.slice();
+    lv.theme = this.customTheme;
+    Customs.save();
+    STORE.set('tank1990_custom', this.custom);   // older versions' single level
+  },
+
+  editTile(tx, ty, patIdx) {
+    if (tx === 6 && ty === 12) return; // the eagle itself
+    const p = CONSTRUCT_PATS[patIdx];
+    const rows = this.custom.map(r => r.split(''));
+    for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
+      const bx = tx * 2 + x, by = ty * 2 + y;
+      rows[by][bx] = p[y][x];
+      this.ed.stage.setBlock(bx, by, BLOCK_TYPE[p[y][x]]);
+    }
+    this.custom = rows.map(r => r.join(''));
+    this.ed.stage.pads = padsFromBlocks(this.custom);
+    this.saveSlot();
+    Sound.play('build');
+  },
+
+  edRandom() {
+    this.custom = randomLevel();
+    this.saveSlot();
+    this.rebuildEdStage();
+    Sound.play('pickup');
+  },
+
+  edTheme(dir) {
+    const i = EDIT_THEMES.indexOf(this.customTheme);
+    this.customTheme = EDIT_THEMES[(i + dir + EDIT_THEMES.length) % EDIT_THEMES.length];
+    this.saveSlot();
+    this.rebuildEdStage();
+    Sound.play('select');
+  },
+
+  edSlot(i) {
+    this.saveSlot();
+    this.loadSlot((i + CUSTOM_SLOTS) % CUSTOM_SLOTS);
+    Sound.play('select');
+  },
+
+  edPick(dir) {
+    const n = CONSTRUCT_PATS.length;
+    this.ed.pat = (this.ed.pat + dir + n) % n;
+    this.ed.last = null;
+    Sound.play('select');
+  },
+
+  updateConstruct() {
+    const ed = this.ed, m = Input.menu(), just = k => Input.just.has(k);
+    if (ed.help) { if (m.ok || m.back || m.fire || just('KeyH')) { ed.help = false; Sound.play('select'); } return; }
+    const moveCursor = d => {
+      ed.tx = Math.max(0, Math.min(12, ed.tx + DXY[d][0]));
+      ed.ty = Math.max(0, Math.min(12, ed.ty + DXY[d][1]));
+    };
+    const tapped = m.up ? 0 : m.right ? 1 : m.down ? 2 : m.left ? 3 : -1;
+    if (tapped >= 0) {
+      moveCursor(tapped);
+      ed.rep = 14; // auto-repeat after a short delay
+    } else {
+      const held = Input.heldDir();
+      if (held >= 0 && --ed.rep <= 0) { moveCursor(held); ed.rep = 5; }
+    }
+    const here = ed.tx + ',' + ed.ty;
+    if (m.fire && !m.start) {
+      if (ed.last === here) ed.pat = (ed.pat + 1) % CONSTRUCT_PATS.length;   // again on the same spot: the next tile
+      ed.last = here;
+      this.editTile(ed.tx, ed.ty, ed.pat);
+    } else if (m.alt) {
+      ed.pat = (ed.pat + CONSTRUCT_PATS.length - 1) % CONSTRUCT_PATS.length;
+      ed.last = here;
+      this.editTile(ed.tx, ed.ty, ed.pat);
+    }
+    if (just('KeyQ') || just('BracketLeft')) this.edPick(-1);
+    if (just('KeyE') || just('BracketRight')) this.edPick(1);
+    if (just('KeyR')) this.edRandom();
+    if (just('KeyT')) this.edTheme(1);
+    if (just('KeyH')) { ed.help = true; Sound.play('select'); }
+    if (just('PageUp')) this.edSlot(Customs.load().slot - 1);
+    if (just('PageDown')) this.edSlot(Customs.load().slot + 1);
+    for (let k = 1; k <= CUSTOM_SLOTS; k++) if (just('Digit' + k)) this.edSlot(k - 1);
+    if (m.start) { this.saveSlot(); this.newGame(1, true); }
+    else if (m.back) { this.saveSlot(); this.toTitle(); }
+    else if (just('Delete')) { this.custom = defaultCustomMap(); this.saveSlot(); this.rebuildEdStage(); Sound.play('steel'); }
+  },
+
+  // mouse / touch: the palette, the side panel's buttons, or paint on the field (drag: true while moving)
+  constructPointer(x, y, drag) {
+    const ed = this.ed, px = ED_PANEL_X();
+    if (ed.help) { if (!drag) ed.help = false; return; }
+    if (x >= FX && y >= FY && x < FX + 208 && y < FY + 208) {
+      const tx = Math.floor((x - FX) / 16), ty = Math.floor((y - FY) / 16);
+      if (drag && ed.tx === tx && ed.ty === ty) return;
+      ed.tx = tx; ed.ty = ty; ed.last = tx + ',' + ty;
+      this.editTile(tx, ty, ed.pat);
+      return;
+    }
+    if (drag || x < px - 2) return;
+    const i = Math.floor((y - ED_PAL_Y) / ED_PAL_STEP) * 2 + (x >= px + 12 ? 1 : 0);
+    if (y >= ED_PAL_Y && i >= 0 && i < CONSTRUCT_PATS.length) { ed.pat = i; ed.last = null; Sound.play('select'); return; }
+    const near = r => Math.abs(y - (r + 3)) <= 6;
+    if (near(ED_ROWS.rnd)) this.edRandom();
+    else if (near(ED_ROWS.theme)) this.edTheme(1);
+    else if (near(ED_ROWS.slot)) this.edSlot(Customs.load().slot + 1);
+    else if (near(ED_ROWS.help)) { ed.help = true; Sound.play('select'); }
+    else if (near(ED_ROWS.go)) { this.saveSlot(); this.newGame(1, true); }
+  },
+
+  renderConstruct(ctx) {
+    const ed = this.ed, st = ed.stage, th = st.theme;
+    ctx.fillStyle = COL.bg;
+    ctx.fillRect(0, 0, SW, SH);
+    if (st.dirty) st.buildLayers();
+    ctx.save();
+    ctx.translate(FX, FY);
+    ctx.drawImage(st.groundLayer(), 0, 0);
+    ctx.drawImage(st.bgLayer, 0, 0);
+    const wt = themeTex(th).water0;
+    for (const i of st.waterCells) {
+      const cx = i % GW, cy = (i / GW) | 0;
+      ctx.drawImage(wt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
+    }
+    st.frame = this.t;
+    st.renderBelts(ctx);
+    st.renderPads(ctx);
+    ctx.drawImage(Sprites.eagle, BASE_X, BASE_Y);
+    ctx.drawImage(st.forestLayer, 0, 0);
+    if (((this.t >> 3) & 1) === 0) ctx.drawImage(Sprites.tank('p0', 0, 0, Config.playerPal(0)), ed.tx * 16, ed.ty * 16);
+    ctx.restore();
+    // the side panel: palette, then RND, the season, the slot, help and play
+    const px = ED_PANEL_X();
+    CONSTRUCT_PATS.forEach((p, i) => {
+      const x = px + (i & 1) * 12, y = ED_PAL_Y + (i >> 1) * ED_PAL_STEP;
+      drawPattern(ctx, p, x, y, 4, th);
+      if (i === ed.pat) { ctx.strokeStyle = (this.t >> 3) & 1 ? COL.white : COL.gold; ctx.strokeRect(x - 0.5, y - 0.5, 9, 9); }
+    });
+    Font.draw(ctx, 'RND', px, ED_ROWS.rnd, COL.gold);
+    const tt = THEMES[this.customTheme] || {};
+    Font.draw(ctx, EDIT_THEME_TAGS[this.customTheme], px, ED_ROWS.theme, this.customTheme === 'auto' ? COL.black : tt.color || COL.white);
+    Font.draw(ctx, 'S' + (Customs.load().slot + 1), px, ED_ROWS.slot, COL.black);
+    Font.draw(ctx, 'H?', px + 4, ED_ROWS.help, COL.black);
+    Font.draw(ctx, 'GO', px + 4, ED_ROWS.go, COL.black);
+    if (ed.help) this.renderConstructHelp(ctx);
+  },
+
+  renderConstructHelp(ctx) {
+    const x = FX + 4, y = FY + 4, w = 200, lines = [
+      ['ARROWS', 'MOVE'], ['A SPACE', 'PLACE TILE'], ['', 'AGAIN: NEXT ONE'], ['B', 'PREVIOUS TILE'], ['Q E', 'PICK A TILE'],
+      ['R', 'RANDOM LEVEL'], ['T', 'SEASON'], ['1-8', 'SAVE SLOT'], ['DEL', 'CLEAR'], ['ENTER', 'PLAY IT'], ['ESC', 'BACK'],
+      ['MOUSE', 'PICK, PAINT'],
+    ];
+    ctx.fillStyle = 'rgba(0,0,0,0.88)';
+    ctx.fillRect(x, y, w, 200);
+    Font.drawCenter(ctx, 'CONSTRUCTION', x + w / 2, y + 6, COL.orange);
+    lines.forEach(([k, v], i) => { Font.draw(ctx, k, x + 6, y + 22 + i * 13, COL.gold); Font.draw(ctx, v, x + 70, y + 22 + i * 13, COL.white); });
+    Font.drawCenter(ctx, 'SAVED AS YOU GO', x + w / 2, y + 186, '#7C7C7C');
+  },
+});
 
 </script>
 </body>

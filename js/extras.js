@@ -243,12 +243,12 @@ Object.assign(Stage.prototype, {
     const targets = this.tanks.filter(t => t.alive && t.isPlayer !== byPlayer);
     let y = -1, bestN = 0, bestOff = Infinity;
     for (let row = 0; row <= FH - 16; row += 8) {
-      if (row > BASE_Y - 40) break;
+      if (Math.abs(row - BASE_Y) < 40) continue;   // never the rows by the eagle
       const hit = targets.filter(t => Math.abs(t.y - row) < 12);
       const off = hit.reduce((a, t) => a + Math.abs(t.y - row), 0);   // ties: the row they sit on exactly
       if (hit.length > bestN || (hit.length === bestN && hit.length && off < bestOff)) { bestN = hit.length; bestOff = off; y = row; }
     }
-    if (y < 0) y = Math.min(BASE_Y - 48, 32 + rnd(Math.max(1, (FH >> 1) - 32)));
+    if (y < 0) y = BASE_Y > FH / 2 ? Math.min(BASE_Y - 48, 32 + rnd(Math.max(1, (FH >> 1) - 32))) : Math.max(BASE_Y + 48, FH / 2 + rnd(Math.max(1, (FH >> 1) - 48)));
     const dir = Math.random() < 0.5 ? 1 : 3;
     this.strikes.push({ x: dir === 1 ? -24 : FW + 8, y, dir, byPlayer, owner, drop: 0 });
     Sound.play('plane');

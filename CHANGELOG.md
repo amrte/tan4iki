@@ -3,6 +3,20 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.27
+
+- **Seasons:** every stage has one of six: spring (blossom, petals), summer (deep green, fireflies), autumn (orange
+  trees, falling leaves), winter (snow on everything, snowfall, most lakes frozen to ice), nuclear winter (ash, dead
+  trees, toxic water, some lakes frozen) and desert (sand, sandstone, cacti, ponds dried into mud). A new one every
+  stage by default; Settings → GAME → SEASONS for random, off or a fixed one.
+- **Level editor upgraded:** a clickable palette with every terrain (now with bridges), drag painting, a **random
+  level** generator (symmetric, checked so every entry point and both players can reach the eagle), 8 save slots,
+  a season per level, and a help screen.
+- **Custom levels mode:** plays every filled editor slot in turn, as a full game.
+- **Any side mode:** the eagle sits on the left, right or top edge (a new one each stage), players start beside it,
+  enemies come from the edge across; base upgrades, minefield, eagle gun and supply drops turn with it.
+- Air strikes no longer assume the eagle is at the bottom.
+
 ## 0.26
 
 - **Skill during the game:** the side panel shows the current skill (ITY / NTR / HMP / UV / NM, coloured; on AUTO the

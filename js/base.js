@@ -62,20 +62,14 @@ Object.assign(Stage.prototype, {
     this.placeMinefield(this.base.field * 2);
   },
 
-  // the extra ring of blocks around the classic fortress
-  outerRing() {
-    const bx = BASE_X / 8, by = BASE_Y / 8, out = [];
-    for (let y = by - 2; y <= by + 1; y++) for (let x = bx - 2; x <= bx + 3; x++) {
-      if ((x === bx - 2 || x === bx + 3 || y === by - 2) && x >= 0 && x < COLS * 2 && y >= 0) out.push([x, y]);
-    }
-    return out;
-  },
+  // the extra ring of blocks around the classic fortress (whichever edge the eagle is on)
+  outerRing() { return baseRing(2); },
 
   // the outer ring: brick, steel corners at level 4, all steel at level 5
   outerWallType(x, y) {
-    const w = this.base ? this.base.walls : 0, bx = BASE_X / 8, by = BASE_Y / 8;
+    const w = this.base ? this.base.walls : 0, [u, v] = baseRel(x, y);
     if (w >= 5) return T_STEEL;
-    if (w >= 4 && y === by - 2 && (x === bx - 2 || x === bx + 3)) return T_STEEL;
+    if (w >= 4 && v === -2 && (u === -2 || u === 3)) return T_STEEL;
     return T_BRICK;
   },
 
@@ -84,18 +78,24 @@ Object.assign(Stage.prototype, {
     const w = this.base ? this.base.walls : 0;
     if (w >= 3) return T_STEEL;
     if (w >= 2) {
-      const [x, y] = BASE_WALL[i], bx = BASE_X / 8, by = BASE_Y / 8;
-      if ((x === bx - 1 || x === bx + 2) && (y === by - 1 || y === by + 1)) return T_STEEL;
+      const [u, v] = baseRel(...BASE_WALL[i]);
+      if ((u === -1 || u === 2) && (v === -1 || v === 1)) return T_STEEL;
     }
     return T_BRICK;
   },
 
+  // a point in front of the eagle: `ahead` px into the field, `side` px across (from the eagle's centre)
+  baseAhead(ahead, side) {
+    const [fx, fy] = DXY[BASE_FWD];
+    return [BASE_X + 8 + fx * ahead - fy * side, BASE_Y + 8 + fy * ahead + fx * side];
+  },
+
   placeMinefield(n) {
     const spots = [];
-    for (const dy of [48, 72, 96]) for (const dx of [0, -24, 24, -48, 48, -72, 72]) spots.push([BASE_X + 8 + dx, BASE_Y + 8 - dy]);
+    for (const dy of [48, 72, 96]) for (const dx of [0, -24, 24, -48, 48, -72, 72]) spots.push(this.baseAhead(dy, dx));
     for (const [x, y] of spots) {
       if (n <= 0) break;
-      if (x < 8 || x > FW - 8 || y < 8) continue;
+      if (x < 8 || x > FW - 8 || y < 8 || y > FH - 8) continue;
       // any ground a tank can drive on: open, trees, ice, mud, bridges, belts
       const t = this.get(x >> 2, y >> 2);
       if (t === T_BRICK || t === T_STEEL || t === T_WATER || t < 0) continue;
@@ -147,9 +147,9 @@ Object.assign(Stage.prototype, {
   supplyDrop() {
     this.spawnPowerup();
     if (!this.powerup) return;
-    for (const dy of [-40, -56, -32, -72]) for (const dx of [0, -24, 24, -48, 48]) {
-      const x = BASE_X + dx, y = BASE_Y + dy;
-      if (x < 0 || y < 0 || x > FW - 16) continue;
+    for (const dy of [40, 56, 32, 72]) for (const dx of [0, -24, 24, -48, 48]) {
+      const [cx, cy] = this.baseAhead(dy, dx), x = cx - 8, y = cy - 8;
+      if (x < 0 || y < 0 || x > FW - 16 || y > FH - 16) continue;
       let bad = false;
       for (let cy = y >> 2; cy < (y + 16) >> 2; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
         const v = this.get(cx, cy);
@@ -188,11 +188,11 @@ Object.assign(Stage.prototype, {
     for (const t of this.tanks) {
       if (!t.alive || t.isPlayer) continue;
       const dx = t.x + 8 - ex, dy = t.y + 8 - ey;
-      let dir = -1;
-      if (Math.abs(dx) < 8 && dy < 0) dir = 0;
-      else if (Math.abs(dy) < 8) dir = dx > 0 ? 1 : 3;
+      // straight out into the field, or along the eagle's own edge (never into the wall behind it)
+      const dir = Math.abs(dx) < 8 ? (dy < 0 ? 0 : 2) : Math.abs(dy) < 8 ? (dx > 0 ? 1 : 3) : -1;
+      if (dir < 0 || dir === (BASE_FWD + 2) % 4) continue;
       const d = Math.abs(dx) + Math.abs(dy);
-      if (dir >= 0 && d < bd) { bd = d; best = dir; }
+      if (d < bd) { bd = d; best = dir; }
     }
     if (best === null) return;
     // the shell starts outside the fortress so it never breaks its own walls
@@ -224,10 +224,11 @@ Object.assign(Stage.prototype, {
     const b = this.base;
     if (!b || !this.baseAlive) return;
     const ex = BASE_X + 8, ey = BASE_Y + 8;
+    const a0 = Math.atan2(DXY[BASE_FWD][1], DXY[BASE_FWD][0]) - Math.PI / 2;
     const ring = (r, color, n) => {
       ctx.fillStyle = color;
       for (let a = 0; a < n; a++) {
-        const ang = Math.PI + (a / (n - 1)) * Math.PI;   // the half circle above the eagle
+        const ang = a0 + (a / (n - 1)) * Math.PI;   // the half circle in front of the eagle
         ctx.fillRect(Math.round(ex + Math.cos(ang) * r), Math.round(ey + Math.sin(ang) * r), 1, 1);
       }
     };
