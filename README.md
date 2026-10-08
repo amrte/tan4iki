@@ -267,6 +267,10 @@ Settings → BOSSES: boss rounds on/off, boss every 5–30 stages, boss HP 25%�
 
 Pause the game (Enter, P or Esc) and choose **SAVE GAME** to save exactly where you are: the stage, terrain,
 tanks, scores, lives, upgrades and mines. The game also saves automatically at the start of every stage.
+
+**RESTART ROUND** in the pause menu (press it twice) starts the stage over, with everyone's score, lives, stars and
+weapons as they were when it began. In Fortress it's **RESTART WAVE**: back to the build phase before the current wave,
+with the towers, gold and eagle HP you had then. Not in the daily challenge.
 Choose **CONTINUE** on the title screen to resume; the game opens paused so you can get ready.
 There is one save slot, kept in the browser.
 
@@ -298,6 +302,7 @@ high score) keeps every point you earned. In 2-player games player I shops first
 | Mines | 1500 | adds mines (3 by default) for the B button |
 | Shovel | 2000 | steel walls around the eagle at the start of the next stage |
 | Helmet, turbo, rapid, spread, rocket, pierce | 1000–3000 | that effect is active when your tank first appears in the next stage |
+| Cannon, machine gun, laser, flamethrower, mortar, tesla, missiles | 0 / 1500–5000 | the next MK of that weapon, in hand (see [Weapons](#weapons)); the cannon, and a weapon you have at MK IV, are free to take back |
 | Turret | 4000 | one turret to place with **B** |
 | Claude | 6000 | Claude joins you at the start of the next stage |
 | Wingman | 5000 | an AI tank fights beside you next stage |
@@ -326,7 +331,7 @@ turns them off.
 
 ## New power-ups
 
-These 14 were not in the original game. They're marked with `*` in Settings and can be switched off there.
+These 16 were not in the original game. They're marked with `*` in Settings and can be switched off there.
 
 | Power-up | You get | If an enemy grabs it |
 |---|---|---|
@@ -345,6 +350,32 @@ These 14 were not in the original game. They're marked with `*` in Settings and 
 | **Smoke** (cloud) | enemies lose track of you for 15 s | that tank fades into smoke |
 | **Night vision** (goggles) | night stages only, as every second power-up there: the whole team sees the whole field (in green) for 20 s, flickering back to dark in the last 2 s | can't take it |
 | **Airstrike** (plane) | a plane flies along the row with the most enemies (never the rows by your eagle) and bombs it | the plane bombs your row |
+| **Weapon** (a crate with a letter) | the weapon on the crate, or its next MK if it's the one in hand (see [Weapons](#weapons)) | can't take it |
+
+## Weapons
+
+Every tank starts with the classic **cannon** (made better by stars, as always). Six more weapons come from **WEAPON
+crates** (a power-up with the weapon's letter on it; half the time it's the one a player has in hand, so it can level
+up) and from the shop. Each has four levels, **MK I – MK IV**. Fire (A, or B when you carry no mines or turrets) uses
+the weapon in hand; its letter and level pips show in the left border, in your colour.
+
+| Weapon | How it works | Higher MKs |
+|---|---|---|
+| **M** Machine gun | hold fire: a stream of light bullets, half a hit each | faster, more bullets; a twin stream from MK III |
+| **L** Laser | an instant beam through every tank in line; it burns enemy shells in its way while it shows | cuts brick from MK II, more damage and through front shields from MK III; wide and endless at MK IV |
+| **F** Flamethrower | hold fire: a short cone of fire that burns tanks, trees (sets them alight in summer) and shells | longer and hotter |
+| **G** Mortar | lobs a shell over walls onto the first tank lined up ahead (or as far as it reaches); a blast that breaks brick | further, bigger blasts; breaks steel at MK IV |
+| **T** Tesla | lightning to the nearest enemy in reach: no aiming, walls don't stop it | longer reach, jumps on to 1 / 2 / 3 more tanks |
+| **H** Missiles | homing missiles that fly over walls, pick their own targets and blow up | more damage; 2 at once at MK III, 3 at MK IV |
+
+A crate with the weapon you have raises its level; a different one swaps to it (each weapon remembers its level, so
+you can buy or find your way back). Losing a tank costs a level of the weapon in hand, and at MK I you're back to the
+cannon (unless KEEP STARS ON DEATH is on). Weapons hurt bosses, the enemy HQ and factories too, and in versus the other
+players (lighter weapons add up: two machine-gun bullets make a hit).
+
+Balance: with a bot that plays whole stages holding fire, each MK I does about as well as the bare cannon (a sidegrade
+with its own trick) and each MK IV about as well as a 3-star cannon, so the difficulty curve and the skill levels
+still mean what they did.
 
 ## Wingman, decoy eagle, smoke and bridges
 
@@ -613,6 +644,7 @@ js/extras.js      turrets, Claude, airstrikes, revival, wingman, decoy eagle, sm
 js/terrain.js     mud, conveyor belts, teleporter pads, night and fog stages
 js/seasons.js     seasons: themed ground, textures and particles; frozen lakes, dried ponds
 js/secrets.js     hidden power-ups in walls, ? blocks (coins, the guardian mushroom)
+js/weapons.js     player weapons: machine gun, laser, flamethrower, mortar, tesla, missiles (MK I-IV), crates
 js/seasonal.js    each season's twist (showers, wildfire, gusts, blizzards, hot spots, mirages) and its own enemy
 js/editor.js      construction: the level editor, random levels, save slots, custom levels
 js/intro.js       mode title screens: a pixel-art picture per mode; what music plays when

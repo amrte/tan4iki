@@ -180,6 +180,7 @@ Object.assign(Stage.prototype, {
     if (td.won) { if (++td.wonT > 300) this.result = 'tdwin'; return; }
     for (const k in td.cool) if (td.cool[k] > 0) td.cool[k]--;
     if (Input.anyJust(['Tab']) && td.phase === 'build') this.tdSendWave();
+    if (td.phase === 'build' && (!this.tdSave || this.tdSave.wave !== td.wave)) this.tdCheckpoint();
     if (td.phase === 'build') {
       if (--td.timer <= 0) this.tdStartWave();
     } else {
@@ -202,6 +203,41 @@ Object.assign(Stage.prototype, {
     this.tdBeams = this.tdBeams.filter(b => b.t > 0);
     for (const s of this.tdSparks) { s.x += s.vx; s.y += s.vy; s.t--; }
     this.tdSparks = this.tdSparks.filter(s => s.t > 0);
+  },
+
+  // RESTART WAVE (pause menu): the state at the start of each build phase, and going back to it
+  tdCheckpoint() {
+    const clone = o => JSON.parse(JSON.stringify(o));
+    this.tdSave = {
+      wave: this.td.wave, td: clone(this.td), eagleArmor: this.eagleArmor, terrain: this.terrain.slice(), built: [...(this.tdBuilt || [])],
+      towers: this.towers.map(tw => Object.assign(clone(Object.assign({}, tw, { owner: null })), { owner: tw.owner })),
+      turrets: this.turrets.map(tu => Object.assign({}, tu)),
+      players: this.players.map(p => clone(Object.assign({}, p, { tank: null, tdMenu: null }))),
+    };
+  },
+
+  tdRestartWave() {
+    const sv = this.tdSave;
+    if (!sv) return false;
+    this.td = JSON.parse(JSON.stringify(sv.td));
+    this.td.timer = TD_BUILD;
+    this.eagleArmor = sv.eagleArmor; this.eagleFlash = 0; this.eagleInv = 0;
+    this.terrain.set(sv.terrain); this.dirty = true;
+    this.tdBuilt = new Set(sv.built);
+    this.towers = sv.towers.map(tw => Object.assign({}, tw, { cd: 30, flash: 0, busy: false }));
+    this.turrets = sv.turrets.map(tu => Object.assign({}, tu));
+    this.tanks = []; this.bullets = []; this.spawns = []; this.mines = []; this.fx = []; this.popups = [];
+    this.tdShots = []; this.tdBeams = []; this.tdSparks = []; this.wfx = []; this.wshots = [];
+    this.flames = []; this.shells = []; this.heals = []; this.strikes = []; this.claudes = [];
+    this.powerup = null; this.freezeE = 0; this.freezeP = 0; this.mark = null;
+    this.baseAlive = true; this.over = false; this.overTimer = 0; this.result = null;
+    if (this.fires) this.fires.clear();
+    this.players.forEach((p, i) => {
+      Object.assign(p, JSON.parse(JSON.stringify(sv.players[i])), { tank: null, tdMenu: null });
+      if (!p.out) this.spawnPlayer(p, 0);
+    });
+    this.popups.push({ x: (this.camX || 0) + VIEW_W / 2, y: (this.camY || 0) + 40, text: 'WAVE ' + (this.td.wave + 1) + ' AGAIN', label: true, color: COL.gold, t: 0, delay: 0, life: 120 });
+    return true;
   },
 
   // the enemy fights back: heavy tanks stop and shell a tower lined up with them; anything that reaches the fortress

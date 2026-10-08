@@ -3,6 +3,20 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.37
+
+- **Weapons.** Six new player weapons, each with four levels (MK I – IV): **machine gun** (hold fire: a stream of
+  bullets, twin from MK III), **laser** (an instant beam through every tank in line that burns shells, cuts brick from
+  MK II, wide and endless at MK IV), **flamethrower** (a cone of fire that burns tanks, trees and shells), **mortar**
+  (shells over walls, a blast; steel at MK IV), **tesla** (lightning to the nearest enemy, jumping on to more) and
+  **missiles** (homing, over walls, up to 3 at once). They come from the new WEAPON crate power-up (the letter on it
+  says which; the weapon you have raises its level) and from the shop, where the cannon is free to take back. The
+  weapon in hand shows in the left border. Losing a tank costs a level.
+- **Balance:** measured with a bot over whole stages, MK I is about the bare cannon and MK IV about a 3-star cannon,
+  so the difficulty curve holds; the laser and the flamethrower stop enemy shells (as cannon shells do).
+- **RESTART ROUND** in the pause menu (press twice): the stage again, with score, lives and weapons as they were at its
+  start. Fortress: **RESTART WAVE**, back to the build phase before the current wave.
+
 ## 0.36
 
 - **Secrets, platformer style.** A few brick blocks on each stage hide a power-up (break most of the block and it pops

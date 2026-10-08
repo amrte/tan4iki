@@ -871,6 +871,9 @@ const PLANE_GRID = [
 ];
 // Power-up icons for the newest additions (shapes only, framed like the others)
 const EXTRA_POWERUP_MASKS = {
+  // a weapon crate: the weapon's letter is drawn inside (weapons.js)
+  weapon: ['XXXXXXXXXXXX', 'XX........XX', 'X..........X', 'X..........X', 'X..........X', 'X..........X',
+    'X..........X', 'X..........X', 'X..........X', 'XX........XX', 'XXXXXXXXXXXX'],
   turret: ['.....XX.....', '.....XX.....', '....XXXX....', '...XXXXXX...', '...XXXXXX...', '....XXXX....',
     '...X.XX.X...', '..X..XX..X..', '.X...XX...X.', 'X....XX....X', '............'],
   revive: ['............', '.XXX...XXX..', 'XXXXX.XXXXX.', 'XXXXXXXXXXX.', 'XXXXXXXXXXX.', '.XXXXXXXXX..',

@@ -46,6 +46,7 @@ const POWERUPS = [
   { name: 'SMOKE', weight: 2, isNew: true, desc: 'ENEMIES LOSE TRACK OF YOU' },
   // night stages only: every second power-up there (weight 0 = never picked at random)
   { name: 'NIGHT VISION', weight: 0, isNew: true, desc: 'SEE IN THE DARK FOR 20 S', who: 'PLAYER' },
+  { name: 'WEAPON', weight: 3, isNew: true, desc: 'A NEW WEAPON OR ITS NEXT MK', who: 'PLAYER' },
 ];
 
 // XP ranks: total XP needed for each level (1-10), and the perk it unlocks (descriptions max 22 chars)

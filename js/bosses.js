@@ -326,7 +326,7 @@ Object.assign(Stage.prototype, {
         this.bossHit(bo, 1, b.owner, b.x + 2);
         return 'pass';
       }
-      this.bossHit(bo, 1, b.owner, b.x + 2);
+      if (b.dmg !== undefined) this.weaponBosses(b.owner, b.x, b.y, 4, 4, b.dmg, bo); else this.bossHit(bo, 1, b.owner, b.x + 2);
       this.killBullet(b, true, null, bo);
       return 'stop';
     }

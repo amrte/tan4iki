@@ -32,7 +32,7 @@ const modeInfo = key => MODES.find(m => m.key === key) || MODES[0];
 const TA_STAGES = 5, VS_ROUNDS = 2, DM_FRAGS = 10, DM_TIME = 3 * 60 * 60, CTF_CAPS = 3;
 const VS_RESPAWN = 90, VS_PU_EVERY = 900, WAVE_BREAK = 240;
 // power-ups that make sense between players
-const VS_POWERUPS = [PU.HELMET, PU.STAR, PU.SHIP, PU.TURBO, PU.RAPID, PU.SPREAD, PU.PIERCE, PU.ROCKET, PU.MINES, PU.GHOST, PU.SMOKE, PU.GUN];
+const VS_POWERUPS = [PU.HELMET, PU.STAR, PU.SHIP, PU.TURBO, PU.RAPID, PU.SPREAD, PU.PIERCE, PU.ROCKET, PU.MINES, PU.GHOST, PU.SMOKE, PU.GUN, PU.WEAPON];
 
 // survival: what wave w brings
 function waveQueue(w) {

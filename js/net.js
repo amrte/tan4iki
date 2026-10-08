@@ -195,6 +195,7 @@ const Net = {
       i: p.i, score: p.score, lives: p.lives, level: p.level, mines: p.mines, kills: p.kills, out: p.out,
       ship: p.ship, cutter: p.cutter, kit: p.kit, shopShovel: p.shopShovel, xp: p.xp, rank: p.rank, stageXp: p.stageXp,
       vsKills: p.vsKills, caps: p.caps, spent: p.spent, racePts: p.racePts, bot: p.bot, rad: p.rad || 0, tdMenu: p.tdMenu || null,
+      weapon: p.weapon, wlv: p.wlv,
     }));
     v.base = G.base;
     v.snd = this.sndQueue.splice(0);
@@ -223,7 +224,10 @@ const Net = {
       tk: st.tanks.filter(t => t.alive).map(t => [t.x, t.y, t.dir, t.isPlayer ? 1 : 0, t.player ? t.player.i : -1, t.type, t.hp,
         t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow, t.reveal, t.ai, t.vet, t.segs ? t.segs.map(p => p[0] + ',' + p[1]).join(';') : 0,
         t.ally ? 1 : 0, t.boost.smoke ? 1 : 0, (t.burrow > 0 ? 1 : 0) | (t.mirage ? 2 : 0) | (t.blowing ? 4 : 0) | (t.iced > 0 ? 8 : 0) | (t.titan ? 16 : 0), t.hopT || 0]),
-      bu: st.bullets.filter(b => b.alive).map(b => [r(b.x), r(b.y), b.dir, b.rocket ? 1 : 0, b.pierce ? 1 : 0]),
+      bu: st.bullets.filter(b => b.alive).map(b => [r(b.x), r(b.y), b.dir, b.rocket ? 1 : 0, b.pierce ? 1 : 0, b.light ? 1 : 0]),
+      // player weapons: beams and smoke, mortar shells and missiles, flamethrower cones (weapons.js)
+      wp: st.wfx.length || st.wshots.length || st.tanks.some(t => t.flame) ? [st.wfx.map(f => (f.kind === 'smoke' ? [r(f.x), r(f.y), f.t] : [f.pts, f.t, f.color, f.w, f.zig ? 1 : 0])),
+        st.wshots.map(m => [r(m.x), r(m.y), m.kind === 'mortar' ? 1 : 0, r(m.tx || 0), r(m.ty || 0), r(m.p || 0)]), st.tanks.filter(t => t.flame && t.alive).map(t => [t.flame.x, t.flame.y, t.flame.w, t.flame.h])] : null,
       fx: st.fx.map(f => [r(f.x), r(f.y), fxKind(f), f.per, f.tick]),
       pp: st.popups,
       pu: st.powerup,
@@ -460,7 +464,11 @@ const Net = {
     const mp = G.players.find(p => p.i === sv.mk);
     st.mark = mp ? { p: mp, t: 1 } : null;
         st.rankMsg = sv.rm ? { p: G.players.find(p => p.i === sv.rm[0]) || G.players[0], r: sv.rm[1], t: sv.rm[2] } : null;
-    st.bullets = sv.bu.map(a => ({ x: a[0], y: a[1], dir: a[2], rocket: !!a[3], pierce: !!a[4], alive: true }));
+    st.bullets = sv.bu.map(a => ({ x: a[0], y: a[1], dir: a[2], rocket: !!a[3], pierce: !!a[4], light: !!a[5], alive: true }));
+    const wp = sv.wp || [[], [], []];
+    st.wfx = wp[0].map(a => (a.length === 3 ? { kind: 'smoke', x: a[0], y: a[1], t: a[2] } : { kind: 'beam', pts: a[0], t: a[1], color: a[2], w: a[3], zig: !!a[4] }));
+    st.wshots = wp[1].map(a => ({ x: a[0], y: a[1], kind: a[2] ? 'mortar' : 'missile', tx: a[3], ty: a[4], p: a[5] }));
+    st.netFlames = wp[2].map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     const FX = { s: () => Sprites.smallExp, b: () => Sprites.bigExp, B: BIG_EXPLOSION };
     st.fx = sv.fx.map(a => ({ x: a[0], y: a[1], frames: FX[a[2]](), per: a[3], tick: a[4] }));
     st.popups = sv.pp;

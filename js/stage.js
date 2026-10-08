@@ -70,6 +70,7 @@ const PU = {
   TURBO: 8, RAPID: 9, SPREAD: 10, PIERCE: 11, ROCKET: 12, MINES: 13, GHOST: 14, COIN: 15,
   TURRET: 16, CLAUDE: 17, REVIVE: 18, AIRSTRIKE: 19, BRIDGE: 20, SMOKE: 21,   // see extras.js
   NIGHT: 22,   // night vision (terrain.js)
+  WEAPON: 23,   // a weapon crate (weapons.js)
 };
 // timed effects granted by the new power-ups (stored per tank in t.boost)
 const TIMED_BOOSTS = { [PU.TURBO]: 'turbo', [PU.RAPID]: 'rapid', [PU.SPREAD]: 'spread', [PU.PIERCE]: 'pierce', [PU.ROCKET]: 'rocket', [PU.GHOST]: 'ghost', [PU.SMOKE]: 'smoke' };
@@ -331,6 +332,7 @@ class Stage {
     this.flames = []; this.shells = []; this.heals = []; this.mark = null; this.jamList = [];   // see enemies.js
     this.turrets = []; this.claudes = []; this.strikes = []; this.reviveWait = 0;              // see extras.js
     this.snakeList = [];
+    this.wfx = []; this.wshots = [];   // player weapons: beams and shells in flight (weapons.js)
     this.decoy = null;
     this.applyBase(opts.base);                 // base upgrades from the shop (base.js)
     this.origTerrain = this.terrain.slice();   // what a mason rebuilds
@@ -608,6 +610,7 @@ class Stage {
     if (!this.over || this.reviveWait > 0) this.updateRevival();
     this.updateBosses();
     this.updateBullets();
+    this.updateWeapons();
     this.updateMines();
     this.tanks = this.tanks.filter(t => t.alive);
     this.checkPickups();
@@ -701,6 +704,7 @@ class Stage {
     else if (hasMines && inp.altPressed) { this.dropMine(t); p.mines--; }
     const firePressed = inp.firePressed || (!hasB && inp.altPressed);
     const fireHeld = inp.fire || (!hasB && inp.alt);
+    if (p.weapon && p.weapon !== 'cannon') { this.fireWeapon(t, p, firePressed, fireHeld); return; }   // weapons.js
     if (firePressed || (fireHeld && t.cool === 0)) {
       if (this.fire(t)) t.cool = t.boost.rapid ? 5 : t.reload || 14;
     }
@@ -1028,7 +1032,7 @@ class Stage {
         return;
       }
       if (b.isPlayer) {
-        if (t.isPlayer && this.vs) { this.hitPlayer(t, b.owner); this.killBullet(b, true, t); return; }   // versus: for real
+        if (t.isPlayer && this.vs) { if (b.dmg !== undefined) this.weaponHit(b.owner, t, b.dmg); else this.hitPlayer(t, b.owner); this.killBullet(b, true, t); return; }   // versus: for real
         if (t.isPlayer) {
           // friendly fire freezes the other player for a few seconds
           if (Config.get('friendlyFire') === 'OFF') continue;
@@ -1036,7 +1040,7 @@ class Stage {
           if (t.shield <= 0) t.frozen = 180;
           return;
         }
-        this.hitEnemy(t, b.owner, b.rocket);
+        if (b.dmg !== undefined) this.weaponHit(b.owner, t, b.dmg, { dir: b.dir }); else this.hitEnemy(t, b.owner, b.rocket);
         this.killBullet(b, true, t);
         return;
       }
@@ -1248,6 +1252,7 @@ class Stage {
       p.level = Config.get('startStars');
       p.cutter = false;
     }
+    this.weaponOnDeath(p);
     // optional: lose part of the progress towards the next level (never a whole level)
     const loss = Config.get('xpLoss');
     if (Config.xpOn() && loss) {
@@ -1348,6 +1353,7 @@ class Stage {
       if (bad <= 4) break;
     }
     this.powerup = { type, x, y, t: 0 };
+    if (type === PU.WEAPON) this.powerup.weapon = this.crateWeapon();   // which one: its letter is on the crate
     Sound.play('puAppear');
     this.encounter('p' + type);   // cards.js
   }
@@ -1378,7 +1384,7 @@ class Stage {
       let snd = 'pickup';
       this.addScore(p, 500);
       this.addXp(p, 5);
-      if (POWERUPS[pu.type].isNew) this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: POWERUPS[pu.type].name, label: true, color: COL.white, t: 0, delay: 0 });
+      if (pu.type === PU.WEAPON) { /* giveWeapon names it */ } else if (POWERUPS[pu.type].isNew) this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: POWERUPS[pu.type].name, label: true, color: COL.white, t: 0, delay: 0 });
       else this.popups.push({ x: pu.x + 8, y: pu.y + 8, text: '500', t: 0, delay: 0 });
       if (TIMED_BOOSTS[pu.type]) t.boost[TIMED_BOOSTS[pu.type]] = Config.frames('newTime');
       this.noteTimedPickup(p, pu.type, pu.x + 8, pu.y);   // late ones carry over (extras.js)
@@ -1413,6 +1419,7 @@ class Stage {
         case PU.AIRSTRIKE: this.callAirstrike(true, gunner(p)); break;
         case PU.BRIDGE: p.bridges = (p.bridges || 0) + 2; break;
         case PU.NIGHT: this.nightVision = NIGHT_VISION_TIME; break;
+        case PU.WEAPON: this.giveWeapon(p, pu.weapon || randomWeapon()); break;
         case PU.REVIVE: {
           const fallen = this.players.filter(q => q.out);
           if (fallen.length) fallen.forEach(q => this.revive(q, null));
@@ -1640,6 +1647,7 @@ class Stage {
       ctx.drawImage(Sprites.sparkle[[0, 1, 2, 3, 2, 1][k]], s.x, s.y);
     }
     for (const b of this.bullets) {
+      if (b.light) { ctx.fillStyle = '#F8D878'; ctx.fillRect(Math.round(b.x) + 1, Math.round(b.y) + 1, 2, 2); continue; }   // a machine-gun bullet
       const spr = b.rocket ? Sprites.bulletRocket : b.pierce ? Sprites.bulletPierce : Sprites.bullet;
       ctx.drawImage(spr[b.dir], Math.round(b.x), Math.round(b.y));
     }
@@ -1649,9 +1657,10 @@ class Stage {
     this.renderMines(ctx, true);    // yours, over the trees, so you always see where you laid them
 
     if (this.powerup && ((this.powerup.t >> 3) & 1) === 0) {
-      ctx.drawImage(Sprites.powerups[this.powerup.type], this.powerup.x, this.powerup.y);
+      drawPowerup(ctx, this.powerup, this.powerup.x, this.powerup.y);
     }
     this.renderSpecialsOver(ctx);
+    this.renderWeapons(ctx);   // beams, flames, mortar shells, missiles (weapons.js)
     this.renderTdOver(ctx);
     this.renderStrikes(ctx);
     for (const f of this.fx) {
@@ -1689,6 +1698,7 @@ class Stage {
     this.renderCard(ctx);
     ctx.restore();
     this.renderHud(ctx);
+    this.renderWeaponBadges(ctx);
   }
 
   // promotion banner at the top of the field: "II-PLAYER LEVEL 5" / rank name / new perk

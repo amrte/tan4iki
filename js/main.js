@@ -20,6 +20,7 @@ function newPlayer(i) {
     i, score: 0, lives: Config.startLives(), level: Config.get('startStars'), ship: false, cutter: false,
     kills: zeroKills(), out: false, extraGiven: false, extraCount: 0, mines: 0, turrets: 0, bridges: 0, tank: null,
     kit: null, shopShovel: false, spent: 0,   // spent: points paid out in the shop (score keeps everything earned)
+    weapon: 'cannon', wlv: {},   // the weapon in hand and each one's level (weapons.js)
     rank: Config.get('startLevel'), xp: RANKS[Config.get('startLevel') - 1].xp, stageXp: 0,   // XP level (1-10)
   };
 }
@@ -36,7 +37,8 @@ function defaultCustomMap() {
 const TITLE_MENU_Y = 126;
 const ROMAN = ['I', 'II', 'III', 'IV'];
 // the pause menu; SKILL changes the difficulty on the spot (not in the daily challenge, where it's part of the rules)
-const pauseMenu = () => ['CONTINUE'].concat(Game.daily ? [] : ['SKILL'], Game.mode === 'fortress' ? ['SPEED'] : [], ['MUSIC', 'MUSIC VOL', 'SAVE GAME'], Net.role ? ['ONLINE PLAYERS'] : [], ['QUIT']);
+const pauseMenu = () => ['CONTINUE'].concat(Game.daily ? [] : ['SKILL'], Game.mode === 'fortress' ? ['SPEED'] : [], ['MUSIC', 'MUSIC VOL'],
+  Game.daily ? [] : [Game.mode === 'fortress' ? 'RESTART WAVE' : 'RESTART ROUND'], ['SAVE GAME'], Net.role ? ['ONLINE PLAYERS'] : [], ['QUIT']);
 // pause rows changed with left/right (or fire): the setting each one steps
 const PAUSE_STEP = { MUSIC: 'music', 'MUSIC VOL': 'musicVol', SPEED: 'tdSpeed' };
 const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
@@ -79,6 +81,9 @@ const SHOP_ITEMS = [
   { id: 'spread', name: 'SPREAD', price: 2000, icon: PU.SPREAD, desc: '3-WAY FIRE AT STAGE START' },
   { id: 'rocket', name: 'ROCKET', price: 3000, icon: PU.ROCKET, desc: 'ROCKETS AT STAGE START' },
   { id: 'pierce', name: 'PIERCE', price: 3000, icon: PU.PIERCE, desc: 'PIERCING SHELLS AT START' },
+  // weapons (weapons.js): the next MK of one, which goes in hand; the cannon is free to go back to
+  { id: 'w_cannon', weapon: 'cannon', name: 'CANNON', price: 0, icon: PU.STAR, desc: 'BACK TO THE CLASSIC GUN' },
+  ...WEAPON_KEYS.map(k => ({ id: 'w_' + k, weapon: k, name: WEAPONS[k].name, icon: PU.WEAPON, desc: WEAPONS[k].desc })),
   { id: 'turret', name: 'TURRET', price: 4000, icon: PU.TURRET, desc: 'PLACE IT ANYWHERE WITH B' },
   { id: 'claude', name: 'CLAUDE', price: 6000, icon: PU.CLAUDE, desc: 'CLAUDE JOINS NEXT STAGE' },
   // makes every Claude better (team-wide, kept between stages like the base upgrades; extras.js)
@@ -134,9 +139,15 @@ function dailyToday(when = new Date()) {
   return { date, stage, mods: [a, b] };
 }
 
-function shopPrice(item) {
+function shopPrice(item, p) {
   const discount = Game.shopDiscount ? 0.75 : 1;
   if (item.id === 'revive') return reviveCost();   // the REVIVE COST setting, as during play
+  if (item.weapon) {
+    // the next MK; one you have at MK IV is free to take back in hand
+    const lv = (p && p.wlv && p.wlv[item.weapon]) || 0;
+    if (item.weapon === 'cannon' || lv >= WEAPON_MAX) return 0;
+    return Math.round((WEAPON_PRICES[item.weapon][lv] * Config.scale('shopPrices') * discount) / 100) * 100;
+  }
   const price = item.prices ? item.prices[Math.min(item.prices.length - 1, Game.base[item.base || item.up] || 0)] : item.price;
   return Math.round((price * Config.scale('shopPrices') * discount) / 100) * 100;
 }
@@ -161,6 +172,12 @@ function shopStatus(item, p) {
     const lv = Game.base[item.base] || 0, top = item.prices.length;
     return { text: lv >= top ? 'MAX' : 'L' + lv + '/' + top, max: lv >= top };
   }
+  if (item.weapon) {
+    const inHand = (p.weapon || 'cannon') === item.weapon, lv = (p.wlv || {})[item.weapon] || 0;
+    if (item.weapon === 'cannon') return inHand ? { text: 'IN HAND', max: true } : { text: 'TAKE' };
+    if (inHand) return lv >= WEAPON_MAX ? { text: 'MK IV', max: true } : { text: 'MK ' + MK[lv - 1] };
+    return lv ? { text: lv >= WEAPON_MAX ? 'TAKE' : 'MK ' + MK[lv - 1] } : { text: '' };
+  }
   switch (item.id) {
     case 'life': return Config.infiniteLives() ? { text: 'INF', max: true } : { text: 'X' + p.lives, max: p.lives >= 99 };
     case 'star': return { text: p.level + '/3', max: p.level >= 3 };
@@ -182,6 +199,13 @@ function shopApply(item, p) {
     return;
   }
   if (item.id === 'turret') { p.turrets = (p.turrets || 0) + 1; return; }
+  if (item.weapon) {
+    // its next MK (MK IV stays MK IV), and it goes in hand
+    p.wlv = p.wlv || {};
+    if (item.weapon !== 'cannon') p.wlv[item.weapon] = Math.min(WEAPON_MAX, (p.wlv[item.weapon] || 0) + 1);
+    p.weapon = item.weapon;
+    return;
+  }
   if (item.base || item.up) { const k = item.base || item.up; Game.base[k] = (Game.base[k] || 0) + 1; return; }
   switch (item.id) {
     case 'life': p.lives++; break;
@@ -540,6 +564,10 @@ const Game = {
   stageLimit() { return Math.max(LEVELS.length, Math.min(99, STORE.get('tank1990_bestStage', 1) | 0)); },
 
   beginStage() {
+    // what RESTART ROUND (pause menu) goes back to
+    const keep = o => JSON.parse(JSON.stringify(o));
+    this.roundSave = { players: this.players.map(p => keep(Object.assign({}, p, { tank: null }))), base: keep(this.base),
+      customPending: this.customPending, taFrames: this.taFrames, taCleared: this.taCleared };
     let map, custom = false, theme;
     if (this.customPending) { map = this.custom; custom = true; this.customPending = false; theme = this.customTheme; }
     else if (this.mode === 'custom') {
@@ -661,6 +689,11 @@ const Game = {
       this.pauseMsg = ok ? 'GAME SAVED' : this.daily ? 'NO SAVES IN DAILY' : this.mode !== 'classic' ? 'NO SAVES IN THIS MODE' : 'SAVE FAILED';
       this.pauseMsgT = 120;
       Sound.play(ok ? 'pickup' : 'steel');
+    } else if (action === 'RESTART ROUND' || action === 'RESTART WAVE') {
+      // press twice: it throws away the round so far
+      if (this.pauseMsg !== 'PRESS AGAIN TO RESTART' || this.pauseMsgT <= 0) { this.pauseMsg = 'PRESS AGAIN TO RESTART'; this.pauseMsgT = 120; Sound.play('select'); return; }
+      this.pauseMsgT = 0;
+      this.restartRound();
     } else if (action === 'ONLINE PLAYERS') {
       Net.openPanel('ingame');
     } else if (action === 'QUIT') {
@@ -670,6 +703,17 @@ const Game = {
       this.stage = null;
       this.toTitle();
     }
+  },
+
+  // back to how things stood when the stage began (FORTRESS: the start of the current wave's build phase)
+  restartRound() {
+    if (this.mode === 'fortress' && this.stage && this.stage.tdRestartWave()) { this.paused = false; Sound.play('start'); return; }
+    const sv = this.roundSave;
+    if (!sv) return;
+    this.players.forEach((p, i) => Object.assign(p, JSON.parse(JSON.stringify(sv.players[i])), { tank: null }));
+    this.base = JSON.parse(JSON.stringify(sv.base));
+    this.customPending = sv.customPending; this.taFrames = sv.taFrames; this.taCleared = sv.taCleared;
+    this.beginStage();
   },
 
   renderPlay(ctx) {
@@ -1141,7 +1185,7 @@ const Game = {
   shopBuy() {
     const sh = this.shop, p = sh.order[sh.turn], item = SHOP_ITEMS[sh.idx];
     if (item.id === 'done') { this.shopNext(); return; }
-    const price = shopPrice(item), st = shopStatus(item, p);
+    const price = shopPrice(item, p), st = shopStatus(item, p);
     if (st.max) {
       sh.msg = item.id === 'revive' ? (reviveCost() ? 'NOBODY TO REVIVE' : 'REVIVE IS OFF') : p.out ? 'REVIVE FIRST' : st.text === 'N/A' ? 'NO EAGLE IN THE MAZE' : 'YOU ALREADY HAVE IT';
       sh.msgT = 90; Sound.play('steel'); return;
@@ -1149,7 +1193,7 @@ const Game = {
     if (wallet(p) < price) { sh.msg = 'NOT ENOUGH POINTS'; sh.msgT = 90; Sound.play('steel'); return; }
     spend(p, price);
     shopApply(item, p);
-    sh.msg = 'BOUGHT ' + item.name;
+    sh.msg = 'BOUGHT ' + item.name + (item.weapon && item.weapon !== 'cannon' ? ' MK ' + MK[p.wlv[item.weapon] - 1] : '');
     sh.msgT = 60;
     Sound.play(item.id === 'life' || item.id === 'revive' ? 'life' : 'pickup');
   },
@@ -1202,8 +1246,8 @@ const Game = {
         Font.draw(ctx, item.name + ' ' + this.stageNum, 34, y, COL.white);
         continue;
       }
-      ctx.drawImage(item.base ? Sprites.baseIcons[item.bicon] : Sprites.powerups[item.icon], 12, y - 4);
-      const price = shopPrice(item), st = shopStatus(item, p);
+      if (item.base) ctx.drawImage(Sprites.baseIcons[item.bicon], 12, y - 4); else drawPowerup(ctx, { type: item.icon, weapon: item.weapon }, 12, y - 4);
+      const price = shopPrice(item, p), st = shopStatus(item, p);
       Font.draw(ctx, item.name, 34, y, st.max ? COL.lgrey : COL.white);
       if (!st.max) Font.drawRight(ctx, price, 190, y, wallet(p) >= price ? COL.gold : '#7C3C3C');
       Font.drawRight(ctx, st.text, 250, y, COL.lgrey);
@@ -1503,7 +1547,7 @@ const Game = {
     // footer: what the selected power-up / enemy does, otherwise the controls
     const cur = items[f.idx];
     if (cur.powerup !== undefined) {
-      ctx.drawImage(Sprites.powerups[cur.powerup], 8, 207);
+      drawPowerup(ctx, { type: cur.powerup }, 8, 207);
       Font.draw(ctx, POWERUPS[cur.powerup].desc, 28, 212, COL.white);
     } else if (cur.enemy !== undefined && ENEMY[cur.enemy].desc) {
       ctx.drawImage(Sprites.tank('e' + cur.enemy, (this.t >> 3) & 1, 1, ENEMY[cur.enemy].pal || 'silver'), 8, 207);
