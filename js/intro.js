@@ -522,8 +522,14 @@ Object.assign(Game, {
     const st = this.stage, s = this.state;
     let mode = null;
     if (s === 'modeIntro') mode = this.mode;
-    else if (st && st.bossDefeated && (s === 'play' || s === 'score')) mode = 'victory';   // a boss beaten: celebrate
-    else if (s === 'play' && st && !st.over && st.frame > MUSIC_DELAY) mode = this.mode;
+    else if (s === 'bossIntro') mode = 'bossWarn';   // a boss's picture (bossart.js)
+    else if (st && st.bossDefeated && (s === 'play' || s === 'score' || s === 'bossOutro')) mode = BOSSES[st.bossIdx] && BOSSES[st.bossIdx].kind === 'ufo' ? 'ending' : 'victory';   // a boss beaten: celebrate
+    else if (s === 'play' && st && !st.over && st.frame > MUSIC_DELAY) {
+      mode = this.mode;
+      // a boss stage: the boss's own theme, faster in its last phase
+      const b = st.bossIdx !== undefined && st.mainBoss && st.mainBoss();
+      if (b && BOSS_SONGS[b.kind]) mode = BOSS_SONGS[b.kind] + (b.phase === 3 ? '+' : '');
+    }
     // paused: the music pauses too, except while you're setting its volume in the pause menu (so you can hear it)
     const tuning = s === 'play' && this.paused && ['MUSIC', 'MUSIC VOL'].includes(pauseMenu()[this.pauseIdx]);
     Music.want(mode, Music.skillLevel(), s === 'play' && this.paused && !tuning);

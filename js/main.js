@@ -622,7 +622,10 @@ const Game = {
     this.paused = false;
     this.openH = SCREEN_H / 2;
     this.setState('play');
-    Sound.play('start');
+    // a boss stage: its picture first (bossart.js); the start jingle comes when the fight does
+    const bossPic = boss && this.bossScreensWanted() && !this.noBossIntro;
+    this.noBossIntro = false;
+    if (bossPic) this.toBossIntro(); else Sound.play('start');
     if (this.mode === 'classic' || this.mode === 'bigmaps') this.saveGame(); // autosave at every stage start
     if (!custom && Net.role !== 'client' && !this.daily && this.mode === 'classic') {
       STORE.set('tank1990_lastStage', this.stageNum);
@@ -668,6 +671,8 @@ const Game = {
       // beating a boss earns 25% off in the next shop
       this.shopDiscount = this.stage.result === 'clear' && this.stage.bossIdx !== undefined;
       this.saveHi();
+      // a boss beaten: its victory picture first (bossart.js)
+      if (this.stage.result === 'clear' && this.stage.bossDefeated && this.bossScreensWanted()) { this.toBossOutro(); return; }
       this.toScore(this.stage.result === 'gameover');
     }
   },
@@ -713,6 +718,7 @@ const Game = {
     this.players.forEach((p, i) => Object.assign(p, JSON.parse(JSON.stringify(sv.players[i])), { tank: null }));
     this.base = JSON.parse(JSON.stringify(sv.base));
     this.customPending = sv.customPending; this.taFrames = sv.taFrames; this.taCleared = sv.taCleared;
+    this.noBossIntro = true;   // you've seen it
     this.beginStage();
   },
 
@@ -1642,6 +1648,7 @@ const Game = {
       case 'vsResult': this.updateVsResult(); break;
       case 'modeResult': this.updateModeResult(); break;
       case 'modeIntro': this.updateModeIntro(); break;
+      case 'bossIntro': case 'bossOutro': this.updateBossScreen(); break;
     }
   },
 
@@ -1691,6 +1698,7 @@ const Game = {
       case 'modeResult': this.renderModeResult(ctx); break;
       case 'netwait': this.renderNetWait(ctx); break;
       case 'modeIntro': this.renderModeIntro(ctx); break;
+      case 'bossIntro': case 'bossOutro': this.renderBossScreen(ctx); break;
     }
   },
 };

@@ -8,8 +8,9 @@
 //    HURT ME PLENTY        dorian, full drums
 //    ULTRA-VIOLENCE        harmonic minor, faster, a thin lead over racing arpeggios, busier drums
 //    NIGHTMARE!            phrygian dominant, fastest, a shadow voice a tritone below, double kicks and crashes
-//  It plays during the stages (after the start jingle) and on the mode's intro screen; pausing pauses it. Beat a boss
-//  and VICTORY! plays instead, on through the score tally.
+//  It plays during the stages (after the start jingle) and on the mode's intro screen; pausing pauses it.
+//  Boss stages have their own tracks instead (WARNING! on the boss's picture, then the boss's theme, a notch faster
+//  in its last phase); beat a boss and VICTORY! plays, on through the score tally (THE EARTH IS SAVED for the UFO).
 //  Settings -> GAME -> MUSIC and MUSIC VOLUME.
 // =====================================================================
 
@@ -47,7 +48,23 @@ const SONGS = {
     mel: '0-0-0-4---3-4-5-' + '5-5-5-7---6-5-4-' + '4-5-7-9-7-5-4-2-' + '0-4-7-9-A-----.-' },
   cpu: { name: 'MACHINE WAR', root: 57, bpm: 140, groove: 'robot', prog: [0, 3, 5, 4],
     mel: '0707070704040404' + '3A3A3A3A29292929' + '5C5C5C5C4B4B4B4B' + '0-0-z-z-0-------' },
+  // boss stages (not modes; see BOSS_SONGS)
+  bossWarn: { name: 'WARNING!', root: 57, bpm: 132, groove: 'alarm', prog: [0, 0, 1, 1],
+    mel: '4-3-4-3-4-3-4-3-' + '5-4-5-4-5-4-5-4-' + '6-5-6-5-6-5-6-5-' + '7---6---5---4---' },
+  bossIron: { name: 'IRON FIST', root: 57, bpm: 148, groove: 'stomp', prog: [0, 0, 5, 4],
+    mel: '0-z-0-2-3---2-0-' + '0-z-0-2-4---3-2-' + '7-6-5-4-3-4-5-3-' + '4-4-3-2-0---z---' },
+  bossDeep: { name: 'DEEP WATERS', root: 50, bpm: 100, groove: 'lurk', prog: [0, 1, 0, 4],
+    mel: '0---1---0---z---' + '0---2---1---0---' + '3---4---3---1---' + '2---1---z-------' },
+  bossWar: { name: 'WAR MACHINE', root: 55, bpm: 120, groove: 'warmarch', prog: [0, 5, 3, 4],
+    mel: '0---0-0-2---0---' + '3-2-1-0-z---0---' + '4---4-4-5---4---' + '3-4-5-6-7-------' },
+  bossUfo: { name: 'CLOSE ENCOUNTER', root: 64, bpm: 126, groove: 'space', prog: [0, 1, 5, 4], scale: [0, 2, 4, 6, 8, 9, 11],
+    mel: '0.2.4.6.8.6.4.2.' + '1.3.5.7.9.7.5.3.' + '0---6---4---2---' + '7-6-5-4-3-2-1-0-' },
+  ending: { name: 'THE EARTH IS SAVED', root: 60, bpm: 128, groove: 'anthem', prog: [0, 3, 4, 0], scale: [0, 2, 4, 5, 7, 9, 11],
+    mel: '0---4---7---4-5-' + '7---9---7-------' + '5---4---3---2-3-' + '4---2---0-------' },
 };
+// each boss's theme
+const BOSS_SONGS = { bear: 'bossIron', mole: 'bossIron', harvester: 'bossIron', train: 'bossIron', hydra: 'bossDeep', phantom: 'bossDeep',
+  scorpion: 'bossDeep', gunship: 'bossWar', dread: 'bossWar', ufo: 'bossUfo' };
 
 // drums (k kick, s snare, h hat, o open hat) and bass (r root, t third, f fifth, s sixth, o octave, - hold, . rest)
 const GROOVES = {
@@ -65,6 +82,12 @@ const GROOVES = {
   siege: { drums: 'k..k..s.k.k.s..h', bass: 'r.r.f.r.r.o.f.t.' },
   creep: { drums: 'k.....h.k..s..h.', bass: 'r..r..t.f..f..t.' },
   robot: { drums: 'k.k.s...k.k.s.k.', bass: 'rororororororoor' },
+  alarm: { drums: 'k...k...k...k.s.', bass: 'r.r.r.r.r.r.r.r.' },
+  stomp: { drums: 'k.k.s..kk.k.s.ks', bass: 'r.r.r.ror.r.r.of' },
+  lurk: { drums: 'k.......s..k....', bass: 'r---.--.f---.---' },
+  warmarch: { drums: 'k.ss.k.sk.ss.ks.', bass: 'r...r.r.r...f.f.' },
+  space: { drums: 'k...h.h.s...h.hh', bass: 'r.o.r.o.f.o.f.o.' },
+  anthem: { drums: 'k...s...k.k.s.ss', bass: 'r---f---o---f---' },
 };
 
 // what each skill does to the tune
@@ -83,7 +106,8 @@ const Music = {
 
   // the track for a mode and a skill (0-4)
   build(mode, skill) {
-    const song = SONGS[mode] || SONGS.classic, gr = GROOVES[song.groove];
+    const fast = mode.endsWith('+'), base = SONGS[fast ? mode.slice(0, -1) : mode] || SONGS.classic;
+    const song = fast ? Object.assign({}, base, { bpm: base.bpm * 1.15 }) : base, gr = GROOVES[song.groove];
     const sk = Object.assign({}, MUSIC_SKILLS[skill] || MUSIC_SKILLS[2], song.scale ? { scale: song.scale } : {});
     const steps = song.steps || 16;
     return { song, sk, gr, steps, total: steps * song.prog.length, stepDur: 60 / (song.bpm * sk.tempo) / 4, key: mode + '/' + skill };
@@ -116,7 +140,7 @@ const Music = {
 
   start(mode, skill) {
     // the same tune in another skill's version (AUTO moved, or SKILL changed in the pause menu) carries on from where it was
-    const same = this.track && this.track.key.split('/')[0] === mode, step = this.step;
+    const same = this.track && this.track.key.split('/')[0].replace('+', '') === mode.replace('+', ''), step = this.step;
     this.stop();
     if (!this.ready()) return;
     this.track = this.build(mode, skill);

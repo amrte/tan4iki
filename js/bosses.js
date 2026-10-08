@@ -126,8 +126,8 @@ const BOSS_ARENAS = [
     '%%%..@.@..%%%',
     '%%%.......%%%',
     '.............',
-    '.%%.#...#.%%.',
-    '.............',
+    '.%%.#.#.#.%%.',
+    '.....###.....',
     '.............',
   ],
   [ // GUNSHIP: a compound: steel blocks to hide behind, a pond it flies over
@@ -186,7 +186,7 @@ const BOSS_ARENAS = [
     '.#..##.##..#.',
     '....#...#....',
     '.@.........@.',
-    '.............',
+    '.....###.....',
     '.............',
     '.............',
   ],
@@ -602,6 +602,7 @@ Object.assign(Stage.prototype, {
     const def = BOSSES[this.bossIdx];
     const p = this.lastBossHitter || this.players.find(q => !q.out) || this.players[0];
     const pts = def.pts * (1 + this.bossLoop);
+    this.bossPts = pts;
     this.addScore(p, pts);
     this.popups.push({ x: bo.x + bo.w / 2, y: bo.y + bo.h / 2, text: String(pts), t: 0, delay: 50 });
     // XP: 200 for the final blow, 100 for everyone else still in the fight

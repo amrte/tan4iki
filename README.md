@@ -252,6 +252,11 @@ the stage; its escorts blow up with it. There are ten bosses, so with the defaul
 on stage 100. After that they come round again with +50% HP each time. In 2-player games boss HP is 50% higher.
 Beating a boss scores 5,000–20,000 points and gives 25% off in the next shop. A power-up drops at 75%, 50% and 25% HP.
 
+**Boss screens.** Before each boss there's a picture of it in its own scenery ("WARNING! BOSS APPROACHING", its
+name, two lines on how it fights) and after it falls a victory picture (the wreck, your tank with a flag, a last
+word and the points). Enter or fire moves on; they move on by themselves after 7 seconds. They don't come up again
+when you restart the round. Settings → GAME → BOSS SCREENS.
+
 **Phases.** Every boss has three: above 2/3 of its HP, above 1/3, and the rest. Marks on the HP bar show where they
 change, and the bar turns orange, then flashing red and yellow. At each change the boss reels for a moment, the new phase's
 name comes up ("IRON BEAR: BERSERK"), its hull shows the damage (scorched plates, then holes, missing parts, smoke and
@@ -525,7 +530,20 @@ pulse leads, a triangle bass and noise drums, and every skill plays it different
 | Ultra-violence | harmonic minor | 110% | a thin lead over racing arpeggios, busier drums |
 | Nightmare! | phrygian dominant | 122% | a shadow voice a tritone below, double kicks and crashes |
 
-Beat a boss and VICTORY! (always in a major key) plays instead, on through the score tally.
+Boss stages have their own music:
+
+| When | Tune | Feel |
+|---|---|---|
+| a boss's picture, before the fight | Warning! | a siren |
+| Iron Bear, Mole, Harvester, Armored Train | Iron Fist | a heavy driving riff |
+| Hydra, Phantom, Scorpion | Deep Waters | slow, creeping menace |
+| Gunship, Dreadnought | War Machine | a military march |
+| UFO | Close Encounter | eerie, in a sci-fi scale |
+| a boss beaten | Victory! | a fanfare (always major) |
+| the UFO beaten | The Earth Is Saved | an anthem |
+
+A boss's theme plays in the skill's mood like the others, and speeds up 15% in its last phase. The victory tune plays
+on through the boss's victory picture and the score tally.
 
 The music starts after the stage's start jingle, pauses with the game and stops on game over; on AUTO it follows the
 level AUTO is at. Settings → GAME → MUSIC (on/off) and MUSIC VOLUME (50%).
@@ -631,7 +649,7 @@ the browser, and **RESET TO DEFAULTS** (top level) restores the classic game.
 | Players | III / IV-PLAYER COLOR (blue / pink), gamepad rumble (on), key and pad setup |
 | Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
 | Screen | field width (13), field height (13), FIT, scaling (sharp / fill), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
-| Game | game mode (classic), skill (hurt me plenty), kill race first to (3 points), mud, belts, pads (on), seasons (cycle), season effects (on), secrets (on), fortress speed (1x), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on), music (on), music volume (50%), mode title screens (on), first-meet cards (on), *show all cards again* |
+| Game | game mode (classic), skill (hurt me plenty), kill race first to (3 points), mud, belts, pads (on), seasons (cycle), season effects (on), secrets (on), fortress speed (1x), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on), music (on), music volume (50%), mode title screens (on), boss screens (on), first-meet cards (on), *show all cards again* |
 
 ## Code layout
 
@@ -657,6 +675,7 @@ js/weapons.js     player weapons: machine gun, laser, flamethrower, mortar, tesl
 js/seasonal.js    each season's twist (showers, wildfire, gusts, blizzards, hot spots, mirages) and its own enemy
 js/editor.js      construction: the level editor, random levels, save slots, custom levels
 js/intro.js       mode title screens: a pixel-art picture per mode; what music plays when
+js/bossart.js     boss screens: a picture before each boss and one after it
 js/modes.js       game modes: survival waves, time attack, versus eagles, deathmatch, capture the flag
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go

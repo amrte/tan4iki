@@ -3,6 +3,19 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.39
+
+- **Boss screens.** Before every boss there's a picture of it in its own scenery: the Iron Bear smashing through a
+  wall at sunset, the Mole drilling up under your tank, the Harvester racing through wheat, the Hydra in a storm,
+  the Gunship over a night city, the Phantom in a foggy forest, the Armored Train out of a tunnel, the Scorpion in the
+  desert, the Dreadnought under a burning sky, the UFO beaming up a tank. Each has its name and two lines on how it
+  fights. After it falls there's a victory picture: the wreck, your tank with a flag, the points (the UFO's pilot
+  waves a white flag). Settings → GAME → BOSS SCREENS.
+- **Boss music:** WARNING! on the boss picture; IRON FIST (Iron Bear, Mole, Harvester, Train), DEEP WATERS (Hydra,
+  Phantom, Scorpion), WAR MACHINE (Gunship, Dreadnought) and CLOSE ENCOUNTER (UFO) during the fights, 15% faster in a
+  boss's last phase; THE EARTH IS SAVED after the UFO.
+- The Harvester's and UFO's arenas have brick cover over the eagle (a tank could drive straight down and shoot it).
+
 ## 0.38
 
 - **Boss phases.** Every boss now has three phases by the HP it has left (marked on the HP bar). At each change it

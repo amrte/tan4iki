@@ -355,6 +355,7 @@ const SETTINGS_DEF = [
   { key: 'music', label: 'MUSIC', values: ONOFF, def: 'ON' },
   { key: 'musicVol', label: 'MUSIC VOLUME', values: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 50, fmt: fmtPct },
   { key: 'modeIntro', label: 'MODE TITLE SCREENS', values: ONOFF, def: 'ON' },
+  { key: 'bossScreens', label: 'BOSS SCREENS', values: ONOFF, def: 'ON' },
   // a one-line card the first time you meet each enemy, boss and power-up (cards.js)
   { key: 'newCards', label: 'FIRST-MEET CARDS', values: ONOFF, def: 'ON' },
   { action: 'resetCards', label: 'SHOW ALL CARDS AGAIN' },
