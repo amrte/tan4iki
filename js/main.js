@@ -314,7 +314,8 @@ const Game = {
         : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack)
         : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score
         : mi.key === 'eagles' ? '1P: VS CPU' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '') + '  2-4P: VS'
-        : mi.key === 'dm' ? '1P: VS ' + DM_BOTS + ' BOTS  2-4P: VS EACH OTHER' : '< > CHANGE MODE';
+        : mi.key === 'dm' ? '1P: VS ' + DM_BOTS + ' BOTS  2-4P: VS EACH OTHER'
+        : mi.key === 'race' ? 'FIRST TO ' + Config.get('raceTarget') + '  1P: VS ' + DM_BOTS + ' BOTS' : '< > CHANGE MODE';
       Font.drawCenter(ctx, best, SW / 2, 213, COL.lgrey);
     } else if (cur && cur.daily && this.titleY === 0) {
       const d = dailyToday(), best = STORE.get(DAILY_KEY, {});
@@ -406,12 +407,14 @@ const Game = {
     this.mode = custom || this.daily ? 'classic' : Config.get('gameMode');
     // VS EAGLES alone: against the computer (cpuvs.js); other versus modes need at least two players
     if (this.mode === 'eagles' && n < 2) this.mode = 'cpu';
-    else if (this.mode === 'dm' && n < 2) for (let i = 1; i <= DM_BOTS; i++) this.players.push(Object.assign(newPlayer(i), { bot: true }));   // bots.js
+    else if ((this.mode === 'dm' || this.mode === 'race') && n < 2) for (let i = 1; i <= DM_BOTS; i++) this.players.push(Object.assign(newPlayer(i), { bot: true }));   // bots.js
     else if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
     this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
-    if (this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu') this.stageNum = 1;
+    if (this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu' || this.mode === 'race') this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
+    // KILL RACE: the first curtain picks how many points win the game (race.js)
+    if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
   },
 
   toCurtain(selectable) {
@@ -428,7 +431,12 @@ const Game = {
       return;
     }
     const m = Input.menu();
-    if (c.selectable) {
+    if (c.raceSel) {
+      const dir = m.up || m.right ? 1 : m.down || m.left ? -1 : 0;
+      if (dir) { Config.step('raceTarget', dir); this.raceTarget = Config.get('raceTarget'); Sound.play('select'); }
+      if (m.ok) { c.raceSel = false; this.beginStage(); }
+      if (m.back) this.toTitle();
+    } else if (c.selectable) {
       const n = this.stageLimit();
       if (m.up || m.right) { this.stageNum = this.stageNum % n + 1; Sound.play('select'); }
       if (m.down || m.left) { this.stageNum = (this.stageNum + n - 2) % n + 1; Sound.play('select'); }
@@ -448,8 +456,14 @@ const Game = {
     ctx.fillRect(0, SCREEN_H - c.h, SCREEN_W, c.h);
     if (c.phase === 'show') {
       const cx = SCREEN_W / 2, cy = SCREEN_H / 2;
-      Font.draw(ctx, this.mode === 'cpu' ? 'ROUND' : 'STAGE', cx - 32, cy - 8, COL.black);
-      Font.drawRight(ctx, this.stageNum, cx + 32, cy - 8, COL.black);
+      const race = this.mode === 'race';
+      Font.draw(ctx, this.mode === 'cpu' || race ? 'ROUND' : 'STAGE', cx - 32, cy - 8, COL.black);
+      Font.drawRight(ctx, race ? this.round : this.stageNum, cx + 32, cy - 8, COL.black);
+      if (race) {
+        Font.drawCenter(ctx, 'MOST KILLS WINS THE ROUND', cx, cy + 14, '#A00000');
+        Font.drawCenter(ctx, 'FIRST TO ' + this.raceTarget + (this.raceTarget > 1 ? ' POINTS' : ' POINT'), cx, cy + 28, c.raceSel ? COL.black : '#3C3C3C');
+        if (c.raceSel && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + 42, '#3C3C3C');
+      }
       // against the computer: what their HQ got for this round
       if (this.mode === 'cpu') {
         const news = cpuNews(this.stageNum);
@@ -493,7 +507,8 @@ const Game = {
       objective = Math.floor(this.stageNum / (this.mode === 'bigmaps' ? 1 : 4)) % 2 ? 'outposts' : 'factories';
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
-      custom, boss, base: vs || corridor ? newBase() : this.base, corridor, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
+      custom, boss, base: vs || corridor || this.mode === 'race' ? newBase() : this.base, corridor, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
+      race: this.mode === 'race' && !custom ? { target: this.raceTarget, round: this.round } : null, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
       blocks, big: objective,
     });
     this.paused = false;
@@ -533,6 +548,7 @@ const Game = {
     if (this.mode === 'timeattack' && !this.stage.over && !this.stage.clearTimer) this.taFrames++;
     const r = this.stage.result;
     if (r === 'vsRound') { this.vsRoundEnd(); return; }
+    if (r === 'clear' && this.mode === 'race') { this.saveHi(); this.raceRoundEnd(); return; }
     if (r && this.mode === 'timeattack' && r === 'clear') { this.saveHi(); this.taNext(); return; }
     if (r === 'gameover') AutoSkill.event('gameOver');
     if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu')) { this.saveHi(); this.toModeResult(false); return; }
@@ -801,6 +817,20 @@ const Game = {
     this.setState('vsResult');
   },
 
+  // KILL RACE: the round's done; the most kills scores a point (race.js)
+  raceRoundEnd() {
+    const w = raceWinner(this.players);
+    if (w >= 0) this.players[w].racePts = (this.players[w].racePts || 0) + 1;
+    const final = w >= 0 && this.players[w].racePts >= this.raceTarget;
+    this.vsRes = {
+      mode: 'race', winner: w >= 0 ? this.players[w].i : -1, final, round: this.round, target: this.raceTarget,
+      rows: this.players.map(p => Object.assign({ i: p.i, bot: !!p.bot, wins: p.racePts || 0 }, raceTally(p))),
+    };
+    Sound.setEngine(0);
+    Sound.play(final ? 'bonus' : 'pickup');
+    this.setState('vsResult');
+  },
+
   updateVsResult() {
     if (this.t < 90 || !(Input.menu().ok || this.t > 600)) return;
     if (this.vsRes.final) { this.stage = null; this.toTitle(); this.titleY = 0; return; }
@@ -814,16 +844,21 @@ const Game = {
     const r = this.vsRes;
     ctx.fillStyle = COL.black;
     ctx.fillRect(0, 0, SW, SH);
-    Font.drawCenter(ctx, modeInfo(r.mode).name + (r.mode === 'eagles' ? '  ROUND ' + r.round : ''), SW / 2, 30, COL.red);
+    Font.drawCenter(ctx, modeInfo(r.mode).name + (r.mode === 'eagles' || r.mode === 'race' ? '  ROUND ' + r.round : ''), SW / 2, 30, COL.red);
     const msg = r.winner >= 0 ? playerName(r.rows.find(row => row.i === r.winner)) + ' ' + (r.final ? 'WINS THE MATCH!' : 'WINS THE ROUND') : 'DRAW!';
     if ((this.t >> 4) & 1 || this.t > 90) Font.drawCenter(ctx, msg, SW / 2, 60, COL.gold);
-    const head = r.mode === 'eagles' ? 'ROUNDS' : r.mode === 'dm' ? 'KILLS' : 'FLAGS';
-    Font.draw(ctx, head, 136, 92, COL.lgrey);
+    if (r.mode === 'race') {
+      // kills this round, and points towards the target
+      Font.draw(ctx, 'KILLS', 136, 92, COL.lgrey);
+      Font.draw(ctx, 'PTS', 200, 92, COL.lgrey);
+      Font.drawCenter(ctx, 'FIRST TO ' + r.target, SW / 2, 76, COL.lgrey);
+    } else Font.draw(ctx, r.mode === 'eagles' ? 'ROUNDS' : r.mode === 'dm' ? 'KILLS' : 'FLAGS', 136, 92, COL.lgrey);
     r.rows.forEach((row, k) => {
       const y = 110 + k * 18;
-      ctx.drawImage(Sprites.playerIcon(Config.playerPal(row.i)), 64, y);
-      Font.draw(ctx, playerName(row), 76, y, COL.white);
-      Font.drawRight(ctx, r.mode === 'eagles' ? row.wins : r.mode === 'dm' ? row.kills : row.caps, 184, y, COL.white);
+      ctx.drawImage(Sprites.playerIcon(Config.playerPal(row.i)), 48, y);
+      Font.draw(ctx, playerName(row), 60, y, row.i === r.winner ? COL.gold : COL.white);
+      if (r.mode === 'race') { Font.drawRight(ctx, row.kills, 176, y, COL.white); Font.drawRight(ctx, row.wins, 224, y, COL.gold); }
+      else Font.drawRight(ctx, r.mode === 'eagles' ? row.wins : r.mode === 'dm' ? row.kills : row.caps, 184, y, COL.white);
     });
     if (this.t > 90) Font.drawCenter(ctx, r.final ? 'PRESS ENTER' : 'PRESS ENTER: NEXT ROUND', SW / 2, 200, COL.lgrey);
   },

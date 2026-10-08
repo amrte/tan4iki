@@ -296,6 +296,7 @@ class Stage {
     if (opts.survival) this.setupSurvival();
     if (opts.corridor) this.setupCorridor();   // corridor.js
     if (opts.cpu) this.setupCpu(opts.cpu);      // VS EAGLES against the computer (cpuvs.js)
+    if (opts.race) this.setupRace(opts.race.target, opts.race.round);   // KILL RACE (race.js)
     if (opts.timeAttack) this.spawnInterval = Math.round(this.spawnInterval / 2);
     for (const p of players) {
       p.kills = zeroKills();
@@ -465,7 +466,7 @@ class Stage {
         this.tanks.push(new Tank({
           x: s.x, y: s.y, dir: 2, type, hp: st.hp + vr.hp, bonus: s.enemy.bonus, vet,
           speed: st.speed * vr.speed * Config.skill().speed, bulletSpeed: st.bullet * vr.shell * Config.skill().shell, maxBullets: 1,
-          ai: s.enemy.ai !== undefined ? s.enemy.ai : pickPersonality(type, this.num),
+          ai: s.enemy.ai !== undefined ? s.enemy.ai : this.noBase ? [AI.WANDER, AI.HUNT, AI.HUNT, AI.SNIPE][rnd(4)] : pickPersonality(type, this.num),
           aiBase: !this.noBase && type !== 4 && Math.random() < 0.3,  // some snipers shell the eagle instead of you (not rocket tanks)
           rocketGun: type === 4, frontShield: type === 5, crusher: type === 6, stealth: type === 7,
           mines: type === 6 ? 3 : 0, hover: type === 10,
@@ -565,7 +566,7 @@ class Stage {
   }
 
   updateShovel() {
-    if (this.shovel <= 0) return;
+    if (this.shovel <= 0 || this.noBase) return;
     this.shovel--;
     if (this.shovel === 0) this.setBaseWalls(T_BRICK);
     else if (this.shovel <= 240) {
@@ -1098,6 +1099,7 @@ class Stage {
     }
     p.tank = null;
     if (this.vs) { this.vsDeath(t, by); return; }
+    if (this.race) { p.tank = null; this.spawnPlayer(p, RACE_RESPAWN); return; }   // KILL RACE: back after a moment
     AutoSkill.event('death', this.players.length);
     if (Config.infiniteLives()) {
       this.spawnPlayer(p, 30);
@@ -1214,13 +1216,13 @@ class Stage {
       switch (pu.type) {
         case PU.HELMET: t.shield = Config.frames('helmetTime'); break;
         case PU.CLOCK: this.freezeE = Config.frames('clockTime'); snd = 'freeze'; break;
-        case PU.SHOVEL: this.shovel = Config.frames('shovelTime'); this.setBaseWalls(T_STEEL); break;
+        case PU.SHOVEL: if (!this.noBase) { this.shovel = Config.frames('shovelTime'); this.setBaseWalls(T_STEEL); } break;
         case PU.STAR:
           if (p.level < 3) p.level++; else p.cutter = true;
           t.applyLevel();
           break;
         case PU.GRENADE:
-          enemies.forEach(e => this.killEnemy(e, null, false, true));
+          enemies.forEach(e => this.killEnemy(e, this.race ? t : null, !!this.race, true));   // in the race they count for you
           // bosses take a heavy hit instead (decoys pop)
           for (const bo of this.bosses.slice()) {
             if (!this.bossTangible(bo)) continue;
@@ -1252,7 +1254,7 @@ class Stage {
       switch (pu.type) {
         case PU.HELMET: enemies.forEach(e => { e.shield = Config.frames('helmetTime'); }); break;
         case PU.CLOCK: this.freezeP = Config.frames('clockTime'); break;
-        case PU.SHOVEL: this.shovel = 0; this.setBaseWalls(T_EMPTY); break;
+        case PU.SHOVEL: if (!this.noBase) { this.shovel = 0; this.setBaseWalls(T_EMPTY); } break;
         case PU.STAR: enemies.forEach(e => { e.hp = Math.min(Math.max(4, Config.enemy(e.type).hp), e.hp + 1); e.bulletSpeed = 4.5; }); break;
         case PU.GRENADE: this.tanks.filter(o => o.isPlayer).forEach(o => this.hitPlayer(o)); break;
         case PU.TANK: t.hp = Math.max(t.hp, 4); break;
@@ -1505,6 +1507,7 @@ class Stage {
 
   renderHud(ctx) {
     if (this.vs) { this.renderVsHud(ctx, HUD_X); return; }
+    if (this.race) { this.renderRaceLine(ctx); this.renderRaceHud(ctx, HUD_X); return; }
     if (this.corridor) this.renderCorridorLine(ctx); else if (this.cpu) this.renderCpuLine(ctx); else this.renderObjectiveLine(ctx);
     const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
     if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);

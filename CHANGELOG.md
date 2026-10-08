@@ -3,6 +3,14 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.22
+
+- **Kill race mode:** no eagles; each round the player who destroys the most enemy tanks scores a point (ties go to
+  points scored, then nobody). The points needed to win are picked on the first round's curtain (1-10). Players
+  respawn instead of losing lives. Alone you race 3 bots that hunt the enemy tanks. Online too.
+- Enemies never pick the "rush the eagle" personality where there's no eagle (kill race, corridor), and the shovel no
+  longer builds walls around a missing eagle.
+
 ## 0.21
 
 - **VS EAGLES against the computer:** start VS EAGLES with 1 player to play VS CPU. Their HQ is at the top, its tanks

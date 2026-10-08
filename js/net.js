@@ -188,13 +188,13 @@ const Net = {
     const G = Game, v = { t: 'v', s: G.state, gt: G.t, c: COLS, r: ROWS, vc: VIEW_W / 16, vr: VIEW_H / 16, stn: G.stageNum, hi: G.hi, eng: Sound.engineState };
     if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover', 'vsResult', 'modeResult'].includes(G.state)) v.s = 'wait';
     v.as = AutoSkill.rating;
-    v.mode = G.mode; v.ta = G.taFrames; v.tac = G.taCleared; v.vw = G.vsWins;
+    v.mode = G.mode; v.ta = G.taFrames; v.tac = G.taCleared; v.vw = G.vsWins; v.rt = G.raceTarget; v.rd = G.round;
     if (v.s === 'vsResult') v.vsr = G.vsRes;
     if (v.s === 'modeResult') v.mr = G.modeRes;
     v.pl = G.players.map(p => ({
       i: p.i, score: p.score, lives: p.lives, level: p.level, mines: p.mines, kills: p.kills, out: p.out,
       ship: p.ship, cutter: p.cutter, kit: p.kit, shopShovel: p.shopShovel, xp: p.xp, rank: p.rank, stageXp: p.stageXp,
-      vsKills: p.vsKills, caps: p.caps, spent: p.spent,
+      vsKills: p.vsKills, caps: p.caps, spent: p.spent, racePts: p.racePts, bot: p.bot,
     }));
     v.base = G.base;
     v.snd = this.sndQueue.splice(0);
@@ -249,6 +249,7 @@ const Net = {
       cr: st.corridor ? [st.corridor.shifts, st.corridor.climbed, st.corridor.startY] : null,
       cd: st.card || null,
       cp: st.cpu || null,
+      rc: st.race || null,
     };
     st.netDiff = [];
     // the corridor moved down a section: the whole terrain goes again
@@ -350,7 +351,7 @@ const Net = {
     G.players = v.pl.map((o, k) => Object.assign(G.players[k] && G.players[k].i === o.i ? G.players[k] : newPlayer(o.i), o, { tank: null }));
     if (v.base) G.base = v.base;
     if (v.as !== undefined && AutoSkill.rating !== v.as) { AutoSkill.rating = v.as; AutoSkill.cache = null; }
-    G.mode = v.mode; G.taFrames = v.ta; G.taCleared = v.tac; G.vsWins = v.vw || [];
+    G.mode = v.mode; G.taFrames = v.ta; G.taCleared = v.tac; G.vsWins = v.vw || []; G.raceTarget = v.rt; G.round = v.rd;
     if (v.vsr) G.vsRes = v.vsr;
     if (v.mr) G.modeRes = v.mr;
     G.twoP = G.players.length > 1;
@@ -408,6 +409,7 @@ const Net = {
     st.weather = sv.wx || null;
     st.card = sv.cd || null;
     st.cpu = sv.cp || null;
+    st.race = sv.rc || null;
     if (sv.cr) {
       // the host's world moved down: so does this screen's window
       if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();

@@ -3,7 +3,8 @@
 //  Computer bots for DEATHMATCH with one player: players II-IV are driven by the computer instead of a keyboard.
 //  A bot heads for the nearest rival along the route field, lines up and fires once it has had a moment to aim
 //  (quicker on harder skills), grabs a power-up when one lands close by, shoots bricks in its way, and backs out of
-//  dead ends. Bots play the same rules as you: same tanks, frags, power-ups and respawns.
+//  dead ends. Bots play the same rules as you: same tanks, frags, power-ups and respawns. In KILL RACE they go
+//  after the enemy tanks instead, racing you for kills.
 // =====================================================================
 
 const DM_BOTS = 3, BOT_RANGE = 176, BOT_PU_RANGE = 80;
@@ -16,10 +17,11 @@ Object.assign(Stage.prototype, {
     // stuck against something: drive off somewhere else for a bit
     if (t.x === b.lx && t.y === b.ly) b.stuck++; else { b.stuck = 0; b.lx = t.x; b.ly = t.y; }
     if (b.stuck > 24) { b.wander = 30 + rnd(30); b.dir = rnd(4); b.stuck = 0; }
-    // the nearest rival you can see (smoke hides you from bots too)
+    // the nearest rival you can see (smoke hides you from bots too); in KILL RACE the rivals are the enemy tanks
+    const rival = o => (this.race ? !o.isPlayer : o.isPlayer && !o.ally && o.player !== t.player);
     let tgt = null, bd = Infinity;
     for (const o of this.tanks) {
-      if (!o.alive || !o.isPlayer || o.ally || o === t || o.player === t.player || o.boost.smoke) continue;
+      if (!o.alive || o === t || !rival(o) || (o.boost && o.boost.smoke)) continue;
       const d = Math.abs(o.x - t.x) + Math.abs(o.y - t.y);
       if (d < bd) { bd = d; tgt = o; }
     }
