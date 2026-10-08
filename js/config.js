@@ -339,6 +339,8 @@ const SETTINGS_DEF = [
   { key: 'seasons', label: 'SEASONS', values: ['CYCLE', 'RANDOM', 'OFF', 'SPRING', 'SUMMER', 'AUTUMN', 'WINTER', 'NUCLEAR', 'DESERT'], def: 'CYCLE' },
   // seasonal.js: showers, wildfire, gusts, blizzards, hot spots, mirages
   { key: 'seasonFx', label: 'SEASON EFFECTS', values: ONOFF, def: 'ON' },
+  // secrets.js: power-ups hidden in walls, ? blocks with coins or a guardian mushroom
+  { key: 'secrets', label: 'SECRETS', values: ONOFF, def: 'ON' },
   // fortress.js: fast forward (also in the pause menu during a FORTRESS game)
   { key: 'tdSpeed', label: 'FORTRESS SPEED', values: [1, 2, 3], def: 1, fmt: v => v + 'X' },
   // classic games: every 4th stage (not a boss stage) a big scrolling map

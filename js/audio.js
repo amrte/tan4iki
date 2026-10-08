@@ -251,6 +251,24 @@ const Sound = {
       case 'build':
         this.noise(4000, t, [[0, 0.35], [0.04, 0]]);
         break;
+      // secrets.js: question blocks and hidden power-ups
+      case 'coin': // the classic two-note coin
+        this.note(83, t, 0.07, { vol: 0.14, flat: true });
+        this.note(88, t + 0.07, 0.4, { vol: 0.14, decayTo: 0.05 });
+        break;
+      case 'bump': // a shell knocks a block
+        this.note(55, t, 0.09, { vol: 0.3, wave: 'tri', slideTo: 70, flat: true });
+        this.noise(900, t, [[0, 0.25], [0.05, 0]]);
+        break;
+      case 'mushroom': // something grows out of the block
+        this.seq([60, 64, 67, 72, 64, 67, 72, 76, 67, 72, 76, 79], 0.035, t, { vol: 0.12, decayTo: 0.5, wave: 'p25' });
+        break;
+      case 'secret': // found it
+        this.seq([79, 78, 75, 69, 68, 76, 80, 84], 0.075, t, { vol: 0.12, decayTo: 0.5 });
+        break;
+      case 'boing': // the mushroom bounces a shell away
+        this.note(60, t, 0.16, { vol: 0.15, wave: 'p25', slideTo: 700, flat: true });
+        break;
     }
   },
 

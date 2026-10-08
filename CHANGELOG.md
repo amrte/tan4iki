@@ -3,6 +3,15 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.36
+
+- **Secrets, platformer style.** A few brick blocks on each stage hide a power-up (break most of the block and it pops
+  out; a wall hiding something glints now and then). Now and then a golden **? block** takes a brick block's place:
+  shoot it for coins (200 each, up to 8, then it's an empty block), or, from a mushroom block, a **mushroom** that
+  grows out, walks to your eagle and guards it to the end of the stage, bouncing every shell aimed at it. With the
+  coin and power-up sounds you'd expect. In the classic game and the modes where it makes sense (not versus,
+  Fortress or boss stages); Settings → GAME → SECRETS.
+
 ## 0.35
 
 - **FORTRESS is much harder.** Tanks that reach the fortress ram it and blow up (1-6 eagle HP); heavy tanks stop to

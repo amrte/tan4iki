@@ -490,6 +490,21 @@ Beat a boss and VICTORY! (always in a major key) plays instead, on through the s
 The music starts after the stage's start jingle, pauses with the game and stops on game over; on AUTO it follows the
 level AUTO is at. Settings → GAME → MUSIC (on/off) and MUSIC VOLUME (50%).
 
+## Secrets: hidden power-ups and ? blocks
+
+In the classic game, Any side, Big maps, Survival, Time attack, Maze, Kill race, Custom levels and VS CPU:
+
+- **Hidden power-ups**: a few brick blocks on every stage hide a power-up. Break most of the block and it pops out
+  ("SECRET!"). A wall hiding something gives the odd glint.
+- **? blocks**: now and then (about one stage in three) a golden question block takes a brick block's place. It's
+  solid; shoot it:
+  - **coin block**: every hit pops a spinning coin (200 points), up to 8; then it's an empty brown block
+  - **mushroom block**: one hit and a mushroom grows out of it, walks the route to your eagle and stands guard beside
+    it until the end of the stage, bouncing every shell aimed at the eagle (only where there is an eagle)
+  Enemy shells just stop on a ? block.
+
+Not in versus, Fortress or boss stages. Settings → GAME → SECRETS turns them off.
+
 ## Terrain: mud, conveyor belts, teleporters; night and fog
 
 - **Mud** (brown, lumpy): any tank on it moves at half speed; shells pass over it; hovering skimmers glide across.
@@ -576,7 +591,7 @@ the browser, and **RESET TO DEFAULTS** (top level) restores the classic game.
 | Players | III / IV-PLAYER COLOR (blue / pink), gamepad rumble (on), key and pad setup |
 | Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
 | Screen | field width (13), field height (13), FIT, scaling (sharp / fill), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
-| Game | game mode (classic), skill (hurt me plenty), kill race first to (3 points), mud, belts, pads (on), seasons (cycle), season effects (on), fortress speed (1x), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on), music (on), music volume (50%), mode title screens (on), first-meet cards (on), *show all cards again* |
+| Game | game mode (classic), skill (hurt me plenty), kill race first to (3 points), mud, belts, pads (on), seasons (cycle), season effects (on), secrets (on), fortress speed (1x), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on), music (on), music volume (50%), mode title screens (on), first-meet cards (on), *show all cards again* |
 
 ## Code layout
 
@@ -597,6 +612,7 @@ js/base.js        base upgrades: fortress walls, eagle armor, repair crew, eagle
 js/extras.js      turrets, Claude, airstrikes, revival, wingman, decoy eagle, smoke, bridges
 js/terrain.js     mud, conveyor belts, teleporter pads, night and fog stages
 js/seasons.js     seasons: themed ground, textures and particles; frozen lakes, dried ponds
+js/secrets.js     hidden power-ups in walls, ? blocks (coins, the guardian mushroom)
 js/seasonal.js    each season's twist (showers, wildfire, gusts, blizzards, hot spots, mirages) and its own enemy
 js/editor.js      construction: the level editor, random levels, save slots, custom levels
 js/intro.js       mode title screens: a pixel-art picture per mode; what music plays when

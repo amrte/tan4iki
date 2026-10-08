@@ -376,6 +376,7 @@ class Stage {
       }
     }
     this.setupSeason(opts);   // the season's twist and its own enemy (seasonal.js)
+    this.setupSecrets(opts);   // hidden power-ups and ? blocks (secrets.js)
     if (opts.boss) this.initBoss(opts.boss);
     if (opts.snapshot) this.restore(opts.snapshot);
     else if (this.claudeLevel() >= 5 && !this.vs) this.claudeAtStart();   // CLAUDE LEVEL 5 (extras.js)
@@ -598,6 +599,7 @@ class Stage {
     this.updateTerrainFx();
     this.updateSpecials();
     this.updateSeason();
+    this.updateSecrets();
     this.updateBase();
     if (this.cpu) this.updateCpu();
     this.updateTurrets();
@@ -898,6 +900,7 @@ class Stage {
       if (tu && !overlap(t.x, t.y, 16, 16, tu.x, tu.y, 16, 16)) return false;
     }
     if (this.towers && this.towers.length && this.towers.some(q => overlap(nx, ny, 16, 16, q.x, q.y, 16, 16) && !overlap(t.x, t.y, 16, 16, q.x, q.y, 16, 16))) return false;
+    if (this.qblocks && this.qblocks.length && this.qblocks.some(q => overlap(nx, ny, 16, 16, q.x, q.y, 16, 16) && !overlap(t.x, t.y, 16, 16, q.x, q.y, 16, 16))) return false;
     if (t.burrow > 0 || t.mirage) return true;   // under the sand, or not really there: nothing in the way
     for (const o of this.tanks) {
       if (o === t || !o.alive || o.burrow > 0 || o.mirage || o.hopT > 0) continue;
@@ -983,6 +986,7 @@ class Stage {
     if (b.mirage) { this.mirageShell(b); return; }   // a mirage's shell harms nothing
     if (b.frost || b.fire) this.specialShell(b);
     if (this.bulletTerrain(b)) return;
+    if (this.qblocks && this.qblocks.length && this.bulletQBlock(b)) return;   // ? blocks (secrets.js)
     if (this.turrets.length && this.bulletTurret(b)) return;
     if (b.isPlayer && this.snakeList.length && this.bulletSnakeBody(b)) return;
     if (this.bosses.length && this.bossShell(b) === 'stop') return;
@@ -1271,6 +1275,7 @@ class Stage {
   }
 
   destroyBase() {
+    if (this.mushroomGuards && this.mushroomGuards()) return;   // a mushroom on guard (secrets.js)
     if (this.eagleArmorHit()) return;
     this.baseAlive = false;
     this.addFx(BASE_X + 8, BASE_Y + 8, BIG_EXPLOSION(), 6);
@@ -1615,6 +1620,7 @@ class Stage {
     this.renderPads(ctx);
     if (this.maze) this.renderMazeExit(ctx);
     this.renderSeasonUnder(ctx);   // hot spots, ghoul wrecks (seasonal.js)
+    this.renderSecrets(ctx);   // ? blocks, the mushroom, coins (secrets.js)
     if (!this.noBase) this.renderEagle(ctx);
     this.renderVs(ctx);
     this.renderDecoy(ctx);

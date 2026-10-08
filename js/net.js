@@ -254,6 +254,8 @@ const Net = {
       tw: st.towers ? st.towers.map(t => [t.x, t.y, t.kind, t.lv, t.spec === undefined ? -1 : t.spec, t.hp, t.max, r(t.ang || 0), t.flash, t.target || 0, t.busy ? 1 : 0, t.spent, t.stier || 0]) : null,
       ts: st.tdShots ? st.tdShots.map(s => [r(s.x), r(s.y), s.kind === 'shell' ? (s.bomblet ? 3 : 2) : s.kind === 'rocket' ? 1 : 0, s.p !== undefined ? r(s.p) : 0]) : null,
       tb: st.tdBeams ? st.tdBeams.map(b => [b.pts, b.t, b.color]) : null,
+      sx: st.qblocks && (st.qblocks.length || st.secrets.length) ? [st.qblocks.map(q => [q.x, q.y, q.kind === 'coin' ? 0 : 1, q.left, q.bump]), st.mushroom ? [r(st.mushroom.x), r(st.mushroom.y), st.mushroom.state, st.mushroom.rise, st.mushroom.bounce, st.mushroom.hop] : null,
+        st.coinPops.map(c => [c.x, c.y, c.t]), st.secrets.map(s => [s.x, s.y, s.found ? 1 : 0, s.glint])] : null,
       mz: st.maze ? [st.maze.sx, st.maze.sy, st.maze.ex, st.maze.ey, st.maze.hintAt, st.maze.escaped ? 1 : 0, st.maze.MW, st.maze.MH] : null,
       cd: st.card || null,
       cp: st.cpu || null,
@@ -445,6 +447,12 @@ const Net = {
       st.tdBeams = sv.tb.map(q => ({ pts: q[0], t: q[1], color: q[2] }));
       st.tdSparks = st.tdSparks || [];
     } else { st.td = null; st.towers = null; }
+    // secrets (secrets.js)
+    const sx = sv.sx || [[], null, [], []];
+    st.qblocks = sx[0].map(a => ({ x: a[0], y: a[1], kind: a[2] ? 'mushroom' : 'coin', left: a[3], bump: a[4] }));
+    st.mushroom = sx[1] ? { x: sx[1][0], y: sx[1][1], state: sx[1][2], rise: sx[1][3], bounce: sx[1][4], hop: sx[1][5] } : null;
+    st.coinPops = sx[2].map(a => ({ x: a[0], y: a[1], t: a[2] }));
+    st.secrets = sx[3].map(a => ({ x: a[0], y: a[1], found: !!a[2], glint: a[3] }));
     st.maze = sv.mz ? { sx: sv.mz[0], sy: sv.mz[1], ex: sv.mz[2], ey: sv.mz[3], hintAt: sv.mz[4], escaped: !!sv.mz[5], MW: sv.mz[6], MH: sv.mz[7] } : null;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
