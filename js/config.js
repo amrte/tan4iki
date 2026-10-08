@@ -324,6 +324,7 @@ const SETTINGS_DEF = [
   { key: 'fieldW', label: 'FIELD WIDTH', values: range(13, 60).concat(['FIT']), def: 13 },
   { key: 'fieldH', label: 'FIELD HEIGHT', values: range(13, 40).concat(['FIT']), def: 13 },
   { key: 'scaling', label: 'SCALING', values: ['SHARP', 'FILL'], def: 'SHARP' },
+  { key: 'minimap', label: 'MINIMAP', values: ONOFF, def: 'ON' },
   { key: 'controls', label: 'CONTROLS', values: ['AUTO', 'PC', 'MAC'], def: 'AUTO' },
   { action: 'keys', label: 'SET UP KEYS AND PADS' },
   { key: 'rumble', label: 'GAMEPAD RUMBLE', values: ONOFF, def: 'ON' },

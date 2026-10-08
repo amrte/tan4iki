@@ -204,6 +204,81 @@ Object.assign(Stage.prototype, {
     }
   },
 
+  // can you see this enemy? (not one that's underground, a mirage, cloaked, or in the dark unless it gives itself away)
+  enemySeen(t) {
+    if (!t.alive || t.isPlayer || t.mirage || t.burrow > 0) return false;
+    if (t.reveal > 0) return true;
+    if (t.stealth) return false;
+    return !((this.weather === 'night' && !(this.nightVision > 0)) || this.weather === 'fog');
+  },
+
+  // big maps: an arrow at the edge of the screen for each enemy out of sight (and a bigger one for a boss)
+  renderEnemyArrows(ctx, camX, camY) {
+    if (VIEW_W >= FW && VIEW_H >= FH) return;
+    const cx = VIEW_W / 2, cy = VIEW_H / 2;
+    const marks = this.tanks.filter(t => this.enemySeen(t)).map(t => [t.x + 8, t.y + 8, false])
+      .concat(this.bosses.filter(b => b.main && b.alive && this.bossTangible(b)).map(b => [b.x + b.w / 2, b.y + b.h / 2, true]));
+    for (const [wx, wy, big] of marks) {
+      const sx = wx - camX, sy = wy - camY;
+      if (sx >= -4 && sy >= -4 && sx < VIEW_W + 4 && sy < VIEW_H + 4) continue;
+      const a = Math.atan2(sy - cy, sx - cx), ca = Math.cos(a), sa = Math.sin(a);
+      // where the line from the middle of the screen leaves it
+      const k = Math.min(Math.abs((VIEW_W / 2 - 6) / (ca || 1e-6)), Math.abs((VIEW_H / 2 - 6) / (sa || 1e-6)));
+      const x = cx + ca * k, y = cy + sa * k, far = Math.hypot(sx - cx, sy - cy) > Math.max(VIEW_W, VIEW_H) * 1.2;
+      const n = big ? 6 : 4, col = big ? '#F8B800' : far ? '#A83000' : '#F83800';
+      for (let r = 0; r <= n; r++) for (let j = -r; j <= r; j++) {
+        const px = Math.round(x - ca * r - sa * j * 0.8), py = Math.round(y - sa * r + ca * j * 0.8);
+        ctx.fillStyle = r === n || Math.abs(j) === r ? '#100808' : col;
+        ctx.fillRect(px, py, 1, 1);
+      }
+    }
+  },
+
+  // big maps: a little map in the corner: the ground, where you are, the enemies, the eagle and the objectives.
+  // In the maze it shows no walls (finding the way is the point). Settings -> SCREEN -> MINIMAP.
+  renderMinimap(ctx, camX, camY) {
+    if ((VIEW_W >= FW && VIEW_H >= FH) || !Config.on('minimap') || this.td) return;
+    const s = Math.min(64 / FW, 48 / FH), mw = Math.max(8, Math.round(FW * s)), mh = Math.max(8, Math.round(FH * s)), x0 = VIEW_W - mw - 3, y0 = 3;
+    if (!this.miniMap || this.miniMap.width !== mw || this.miniMap.height !== mh || this.frame - this.miniAt >= 30 || this.miniAt > this.frame) {
+      this.miniMap = this.miniMap && this.miniMap.width === mw && this.miniMap.height === mh ? this.miniMap : makeCanvas(mw, mh);
+      this.miniAt = this.frame;
+      const c = this.miniMap.getContext('2d'), img = c.createImageData(mw, mh);
+      const COLS4 = { [T_BRICK]: [168, 72, 16], [T_STEEL]: [180, 180, 188], [T_WATER]: [32, 64, 200], [T_FOREST]: [28, 108, 28], [T_ICE]: [168, 200, 232], [T_MUD]: [108, 72, 32], [T_BRIDGE]: [140, 100, 50] };
+      for (let py = 0; py < mh; py++) for (let px = 0; px < mw; px++) {
+        const o = (py * mw + px) * 4;
+        const col = this.maze ? null : COLS4[this.get(Math.floor((px + 0.5) / s / 4), Math.floor((py + 0.5) / s / 4))];
+        if (col) { img.data[o] = col[0]; img.data[o + 1] = col[1]; img.data[o + 2] = col[2]; img.data[o + 3] = 230; }
+        else { img.data[o + 3] = 150; }
+      }
+      c.putImageData(img, 0, 0);
+    }
+    // out of the way: faint while one of you drives under it
+    const under = this.tanks.some(t => t.isPlayer && t.alive && overlap(t.x - camX, t.y - camY, 16, 16, x0 - 4, y0 - 4, mw + 8, mh + 8));
+    ctx.globalAlpha = under ? 0.3 : 0.9;
+    ctx.fillStyle = '#7C7C7C'; ctx.fillRect(x0 - 1, y0 - 1, mw + 2, mh + 2);
+    ctx.clearRect(x0, y0, mw, mh); ctx.fillStyle = '#000000'; ctx.fillRect(x0, y0, mw, mh);
+    ctx.drawImage(this.miniMap, x0, y0);
+    const dot = (wx, wy, col, r = 1) => { ctx.fillStyle = col; ctx.fillRect(Math.round(x0 + wx * s) - (r >> 1), Math.round(y0 + wy * s) - (r >> 1), r + 1, r + 1); };
+    // the screen you see
+    ctx.fillStyle = '#F8F8F8';
+    const vx = Math.round(x0 + camX * s), vy = Math.round(y0 + camY * s), vw = Math.max(2, Math.round(VIEW_W * s)), vh = Math.max(2, Math.round(VIEW_H * s));
+    ctx.fillRect(vx, vy, vw, 1); ctx.fillRect(vx, vy + vh - 1, vw, 1); ctx.fillRect(vx, vy, 1, vh); ctx.fillRect(vx + vw - 1, vy, 1, vh);
+    if (!this.noBase && this.baseAlive) dot(BASE_X + 8, BASE_Y + 8, COL.gold, 2);
+    for (const o of this.outposts || []) if (o.alive) dot(o.x + 8, o.y + 8, '#58F8F8', 2);
+    for (const f of this.factories || []) if (f.hp > 0) dot(f.x + 16, f.y + 16, '#F87830', 2);
+    if (this.maze && this.frame >= this.maze.hintAt) dot(this.maze.ex + 16, this.maze.ey + 16, (this.frame >> 3) & 1 ? '#58F898' : '#F8F8F8', 2);
+    for (const t of this.tanks) if (this.enemySeen(t)) dot(t.x + 8, t.y + 8, '#F83800');
+    for (const b of this.bosses) if (b.main && b.alive && this.bossTangible(b)) dot(b.x + b.w / 2, b.y + b.h / 2, (this.frame >> 2) & 1 ? '#F8B800' : '#F83800', 2);
+    for (const t of this.tanks) if (t.alive && t.isPlayer) dot(t.x + 8, t.y + 8, t.ally ? '#BCBCBC' : PALS[Config.playerPal(t.player ? t.player.i : 0)][1]);
+    ctx.globalAlpha = 1;
+  },
+
+  // how many enemies are still to beat: on the field, appearing, and waiting (null where it doesn't apply)
+  enemiesLeft() {
+    if (this.vs || this.race) return null;
+    return this.queue.length + this.spawns.filter(sp => sp.enemy).length + this.tanks.filter(t => t.alive && !t.isPlayer && !t.mirage).length;
+  },
+
   // objective line in the border above the field
   renderObjectiveLine(ctx) {
     if (!this.big) return;

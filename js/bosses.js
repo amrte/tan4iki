@@ -598,7 +598,7 @@ Object.assign(Stage.prototype, {
       // BABA GALYA doesn't blow up: she gives up, goes home, and puts the lights back on (galya.js)
       this.weather = bo.oldWeather || null;
       for (let i = 0; i < 6; i++) this.fx.push({ x: bo.x + 4 + Math.random() * 24, y: bo.y + 4 + Math.random() * 24, frames: [Sprites.sparkle[0], Sprites.sparkle[1], Sprites.sparkle[2], Sprites.sparkle[3]], per: 4, tick: -i * 6 });
-      this.popups.push({ x: bo.x + 16, y: bo.y - 6, text: "FINE! I'M GOING HOME!", label: true, color: COL.white, t: 0, delay: 0, life: 200 });
+      this.popups.push({ x: bo.x + 16, y: bo.y - 6, text: 'VSE! PIDU DODOMU!', label: true, color: COL.white, t: 0, delay: 0, life: 200 });   // that's it, I'm going home!
       Sound.play('bossDie');
     } else {
       // a chain of explosions over the hull

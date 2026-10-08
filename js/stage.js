@@ -1686,7 +1686,9 @@ class Stage {
     this.renderBigMap(ctx);
     this.renderCpu(ctx);
     ctx.restore();   // back to screen positions inside the field window
+    this.renderEnemyArrows(ctx, camX, camY);   // big maps (bigmap.js)
     this.renderObjectiveArrows(ctx, camX, camY);
+    this.renderMinimap(ctx, camX, camY);
     this.renderFortressUI(ctx);
     if (this.over) {
       const y = Math.max(VIEW_H / 2 - 8, VIEW_H - this.overTimer * 1.3);
@@ -1753,11 +1755,21 @@ class Stage {
     if (this.td) { this.renderFortressHud(ctx, HUD_X); return; }
     if (this.race) { this.renderRaceLine(ctx); this.renderRaceHud(ctx, HUD_X); return; }
     if (this.corridor) this.renderCorridorLine(ctx); else if (this.maze) this.renderMazeLine(ctx); else if (this.cpu) this.renderCpuLine(ctx); else this.renderObjectiveLine(ctx);
-    const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
+    // the tanks still to come, one icon each (more than 20: 18 icons and the number)
+    const H = HUD_X, many = this.queue.length > 20, n = this.bossIdx === undefined ? Math.min(many ? 18 : 20, this.queue.length) : 0;
     if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);
-    // more than 20 waiting: show how many in total
-    if (n && this.queue.length > 20) Font.drawCenter(ctx, String(this.queue.length), H + 8, 106, COL.black);
+    if (n && many) Font.drawCenter(ctx, String(this.queue.length), H + 8, 97, COL.black);
+    // and all the enemies left to beat (on the field too), by a red crosshair
+    const left = this.bossIdx === undefined ? this.enemiesLeft() : null;
+    if (left !== null) {
+      const y = 108;
+      if (left < 100) {
+        ctx.fillStyle = '#D82800';   // a target: a ring with a dot in it
+        ['..XXX..', '.X...X.', 'X.....X', 'X..X..X', 'X.....X', '.X...X.', '..XXX..'].forEach((row, j) => { for (let i = 0; i < 7; i++) if (row[i] === 'X') ctx.fillRect(H + i, y + j, 1, 1); });
+        Font.drawRight(ctx, String(left), H + 24, y, '#A80000');
+      } else Font.drawCenter(ctx, String(left), H + 12, y, '#A80000');
+    }
     const lives = p => (Config.infiniteLives() ? '~' : String(Math.min(99, p.lives)));
     const xp = Config.xpOn();
     if (this.players.length > 2) {

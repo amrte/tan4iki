@@ -1,7 +1,7 @@
 'use strict';
 // =====================================================================
 //  BABA GALYA: the real last boss, a secret. She waits on the stage after the UFO (stage 101 with a boss every 10
-//  stages). An old janitor, never happy, always swearing (#@%*!):
+//  stages). An old Ukrainian janitor, never happy, always grumbling (in Ukrainian) and swearing (#@%*!):
 //    ON DUTY       she mops the floor as she goes (the wet floor is as slippery as ice and dries after a while);
 //                  drive on her clean floor and a slipper comes flying (it homes in; you can shoot it down); come
 //                  too close and she swings her mop; a wall of dirty water from her bucket now and then
@@ -38,14 +38,20 @@ bossForStage = function (num) {   // eslint-disable-line no-func-assign
   return bossForStageTen(num);
 };
 
-// what she says (the font has no rude words, only #@%*!)
+// what she says, in Ukrainian (in Latin letters; the font has no rude words, only #@%*!):
+//   SHO TSE TAKE = what's this, KHULIHANY = hooligans, OY LYSHENKO = oh, the misery, HOSPODY = Lord,
+//   MATERI VASHII SKAZHU = I'll tell your mother, BODAI VAM = curse you, YA Z RANKU MYLA = I've been mopping since
+//   morning, OT ZHE BANDA = what a gang, ZACHYNENO = closed, HET VSI DODOMU = everybody out, home, HASHU SVITLO =
+//   I'm turning off the light, YA VAS BACHU = I see you, KUDY PO POMYTOMU = where are you going on my clean floor,
+//   NE TOPCHY = don't tread, VYTRY NOHY = wipe your feet, KYSH = shoo, HET ZVIDSY = get out of here,
+//   OT YA TOBI = I'll show you, SPYNA = my back, KOLINA = my knees
 const GALYA_SAYS = {
-  grumble: [['WHO MADE THIS MESS?!', 'HOOLIGANS!', 'OY, BLIN!', 'NOBODY WIPES THEIR TRACKS!', "I'LL CALL YOUR MOTHER!"],
-    ['#@%*!!', 'BLIN! #@%*!', 'I JUST MOPPED HERE!', 'YOU ANIMALS!', "I'M TOO OLD FOR THIS #@%*!"],
-    ["WE'RE CLOSED!", 'EVERYBODY OUT!', 'LIGHTS OUT! GO HOME!', '#@%*! #@%*!!', 'I SEE YOU!']],
-  floor: ['NOT ON MY CLEAN FLOOR!', 'WHERE ARE YOU GOING?!', 'I JUST MOPPED THAT!', 'WIPE YOUR TRACKS!'],
-  near: ['SHOO! SHOO!', 'GET OUT OF HERE!', 'TAKE THAT!', 'HOOLIGAN!'],
-  hurt: ['OY!', 'MY BACK!', 'MY KNEES!', 'OY-OY-OY!', 'BLIN!'],
+  grumble: [['SHO TSE TAKE?!', 'KHULIHANY!', 'OY LYSHENKO!', 'HOSPODY, SHO ZA LYUDY!', 'MATERI VASHII SKAZHU!'],
+    ['#@%*!!', 'BODAI VAM! #@%*!', 'YA Z RANKU MYLA!', 'OT ZHE BANDA!', 'NU VSE! #@%*!'],
+    ['ZACHYNENO!', 'HET VSI DODOMU!', 'HASHU SVITLO!', '#@%*! #@%*!!', 'YA VAS BACHU!']],
+  floor: ['KUDY PO POMYTOMU?!', 'NE TOPCHY!', 'VYTRY NOHY!', 'YA Z RANKU MYLA!'],
+  near: ['KYSH! KYSH!', 'HET ZVIDSY!', 'OT YA TOBI!', 'A NU HET!'],
+  hurt: ['OY!', 'OY, SPYNA!', 'OY, KOLINA!', 'OY-OY-OY!', 'BODAI TOBI!'],
 };
 const galyaPick = a => a[rnd(a.length)];
 
@@ -66,7 +72,7 @@ BOSS_DRAW.galya = function (f, ph) {
   for (let y = 15; y <= 27; y++) { const hw = 6 + (y - 15) * 0.35; for (let x = Math.round(16 - hw); x <= Math.round(15 + hw); x++) P.px(x, y, x <= 16 - hw + 1.5 || x >= 15 + hw - 1.5 ? 6 : 5); }
   for (const y of [17, 20, 23]) P.px(16, y, 4);
   P.rect(18, 22, 20, 24, 6); P.px(19, 21, 4); P.px(20, 21, 10);
-  P.rect(13, 15, 19, 15, 4);   // collar
+  P.rect(13, 15, 19, 15, 4); P.px(14, 15, 3); P.px(16, 15, 3); P.px(18, 15, 3);   // the embroidered collar (a vyshyvanka)
   // arms: the right one on the mop, the left one shaking a fist when she shouts
   P.rect(22, 17, 25, 19, 5); P.rect(25, 17, 26, 19, 1);
   if (shout) { P.rect(7, 12, 9, 17, 5); P.rect(6, 10, 9, 12, 1); } else { P.rect(7, 17, 9, 22, 5); P.rect(7, 22, 9, 23, 1); }
@@ -95,12 +101,12 @@ BOSS_INIT.galya = function (b, def, hp) {
 };
 
 BOSS_PHASE.galya = function (b, ph) {
-  if (ph === 2) this.galyaSay(b, '#@%*!! THAT IS IT!', 150);
+  if (ph === 2) this.galyaSay(b, '#@%*!! NU VSE, DOSYT!', 150);   // that's it, enough!
   if (ph === 3) {
     // closing time: the lights go off
     b.oldWeather = this.weather || null;
     this.weather = 'night';
-    this.galyaSay(b, "WE'RE CLOSED! LIGHTS OUT!", 160);
+    this.galyaSay(b, 'ZACHYNENO! HASHU SVITLO!', 160);   // closed! lights out!
     Sound.play('bossWarn');
   }
 };
@@ -155,7 +161,7 @@ BOSS_AI.galya = function (b) {
     if (ph === 2 && b.hasBucket) this.galyaKick(b, d);
     else if (b.hasBucket) {
       for (const off of [-12, -4, 4, 12]) { const [x, y] = this.bossMuzzle(b, d, off); this.bossFire(b, x, y, d, { speed: 2.2 }); }
-      this.galyaSay(b, 'HERE, HAVE A WASH!', 60);
+      this.galyaSay(b, 'NA, POMYISYA!', 60);   // here, have a wash!
       Sound.play('splash');
     }
     b.waveT = [300, 240, 200][ph - 1];
@@ -216,7 +222,7 @@ Object.assign(Stage.prototype, {
     const [cx, cy] = this.bossCenter(b);
     b.bucket = { x: Math.round(cx - 5 + DXY[d][0] * 20), y: Math.round(cy - 5 + DXY[d][1] * 20), d, t: 0 };
     b.hasBucket = false;
-    this.galyaSay(b, 'CATCH! #@%*!', 70);
+    this.galyaSay(b, 'LOVY! #@%*!', 70);   // catch!
     Sound.play('charge');
   },
 
@@ -324,7 +330,7 @@ function artGalya(c, x, y, t, mood) {
   // the coat
   const top = y + 18, bot = sit ? y + 34 : y + 39;
   for (let yy = top; yy <= bot; yy++) { const hw = 8 + (yy - top) * 0.3; Pix.rect(c, Math.round(x + 13 - hw), yy, Math.round(hw * 2), 1, blue); Pix.rect(c, Math.round(x + 13 - hw), yy, 2, 1, blue2); Pix.rect(c, Math.round(x + 11 + hw), yy, 2, 1, blue2); }
-  Pix.rect(c, x + 8, top, 11, 2, '#F8F8F8');
+  Pix.rect(c, x + 8, top, 11, 3, '#F8F8F8'); for (let k = 0; k < 5; k++) { Pix.rect(c, x + 9 + k * 2, top + (k & 1), 1, 1, red); Pix.rect(c, x + 9 + k * 2, top + 2 - (k & 1), 1, 1, '#100808'); }   // a vyshyvanka collar
   for (const yy of [top + 4, top + 9, top + 14]) Pix.rect(c, x + 13, yy, 1, 1, '#F8F8F8');
   Pix.rect(c, x + 16, top + 10, 5, 5, blue2); Pix.rect(c, x + 17, top + 9, 3, 1, '#C8C8C8');   // pocket, a rag
   // arms
@@ -362,6 +368,10 @@ function artCorridor(c, clean, t) {
   Pix.rect(c, 84, 8, 20, 38, '#8C5C24'); Pix.rect(c, 86, 10, 16, 14, '#A86C34'); Pix.rect(c, 86, 27, 16, 17, '#A86C34'); Pix.rect(c, 99, 28, 2, 2, '#F8D878');
   Pix.rect(c, 40, 6, 10, 12, '#C8A040'); Pix.rect(c, 41, 7, 8, 10, '#5C5C5C'); Pix.disc(c, 45, 11, 2, '#E8C8A8');
   for (let k = 0; k < 6; k++) Pix.rect(c, 58 + k * 3, 34, 2, 9, '#E8E8E8');
+  // a sunflower in a pot on the windowsill
+  Pix.rect(c, 29, 18, 1, 6, '#3C8C1C'); Pix.rect(c, 27, 21, 2, 1, '#58A838');
+  for (let k = 0; k < 8; k++) Pix.rect(c, 29 + Math.round(Math.cos(k * 0.785) * 3), 15 + Math.round(Math.sin(k * 0.785) * 3), 1, 1, '#F8D800');
+  Pix.disc(c, 29, 15, 1, '#5C3C08'); Pix.rect(c, 27, 23, 5, 3, '#B85820');
 }
 
 BOSS_ART.galya = {
@@ -382,13 +392,14 @@ BOSS_ART.galya = {
     Art.tank(c, 86, 50, 0, true, t >> 3); Art.flag(c, 98, 40, t);
   },
   // what she's saying in the picture (drawn at full size over it, by the screen)
-  bubble(t, outro) { return outro ? { text: 'HOOLIGANS...', x: 18, y: 6 } : (t >> 5) & 1 ? { text: '#@%*!!', x: 52, y: 4 } : { text: 'NOT ON MY FLOOR!', x: 30, y: 4 }; },
+  bubble(t, outro) { return outro ? { text: 'KHULIHANY...', x: 18, y: 6 } : (t >> 5) & 1 ? { text: '#@%*!!', x: 52, y: 4 } : { text: 'KUDY PO POMYTOMU?!', x: 26, y: 4 }; },
 };
 BOSS_TALES.galya = { intro: ['THE SCARIEST THING IN THE WORLD', "DON'T STEP ON THE WET FLOOR!"], outro: "SHE'LL BE BACK ON MONDAY" };
 
-// ------------------------------------------------------------------ her music: the old folk song KOROBEINIKI
-SONGS.galya = { name: 'KOROBEINIKI', root: 69, bpm: 136, groove: 'polka', prog: [4, 0, 4, 0, 3, 0, 4, 0], scale: [0, 2, 3, 5, 7, 8, 10],
-  mel: '4---1-2-3---2-1-' + '0---0-2-4---3-2-' + '1-----2-3---4---' + '2---0---0-------'
-    + '3-----5-7---6-5-' + '4-----2-4---3-2-' + '1---1-2-3---4---' + '2---0---0-------' };
-GROOVES.polka = { drums: 'k...s...k...s.s.', bass: 'r...f...r...f...' };
+// ------------------------------------------------------------------ her music: SHCHEDRYK
+// Mykola Leontovych's Ukrainian carol (1916; known abroad as Carol of the Bells): in 3/4, the four-note bell figure
+// over and over, then a third higher, then the falling runs
+SONGS.galya = { name: 'SHCHEDRYK', root: 67, bpm: 132, groove: 'waltz', steps: 12, prog: [0, 0, 0, 0, 2, 2, 2, 2, 5, 5, 3, 4], scale: [0, 2, 3, 5, 7, 8, 10],
+  mel: '2---1-2-0---'.repeat(4) + '4---3-4-2---'.repeat(4) + '6---5-6-4---'.repeat(2) + '7-7-7-6-5-4-' + '3-3-3-2-1-0-' };
+GROOVES.waltz = { drums: 'k...s...s...', bass: 'r...f...f...' };
 BOSS_SONGS.galya = 'galya';

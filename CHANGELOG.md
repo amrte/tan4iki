@@ -3,6 +3,25 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.41
+
+- **Finding the enemy on big maps** (big maps, the corridor, the maze):
+  - Arrows at the edge of the screen point to every enemy out of sight (a big gold one for a boss).
+  - A minimap in the corner shows the whole map, where you're looking, your team, the enemies, the eagle and the
+    objectives. It fades while you drive under it; the maze's has no walls. Settings → SCREEN → MINIMAP.
+  - Hidden enemies get no arrow or dot: underground, cloaked, mirages, or in the dark.
+- **Enemies left:** the side panel now shows how many enemies are left to beat in all, the ones on the field included,
+  by a red target under the reserve icons (in every mode with enemies to count).
+- **Baba Galya is Ukrainian.** She grumbles in Ukrainian:
+  - "KUDY PO POMYTOMU?!" (where are you going on my clean floor?!)
+  - "KHULIHANY!" (hooligans!), "OY LYSHENKO!" (oh, the misery!)
+  - "HET ZVIDSY!" (get out of here!), "BODAI TOBI!" (curse you!)
+  - "ZACHYNENO! HASHU SVITLO!" (closed! lights out!)
+  - "VSE! PIDU DODOMU!" (that's it, I'm going home!)
+
+  She wears an embroidered vyshyvanka collar, keeps a sunflower on the windowsill, and her theme is now SHCHEDRYK,
+  Leontovych's Ukrainian carol (Carol of the Bells), in 3/4.
+
 ## 0.40
 
 - **Surprise: the UFO is not the last boss.** (Spoilers.) On the stage after it (101 with a boss every 10 stages)
@@ -16,7 +35,7 @@ The version lives in `js/version.js` and is shown on the title screen as `tanb4i
   - She doesn't blow up: beaten, she goes home ("FINE! I'M GOING HOME!"), and you have beaten the game.
   - Her own screens: the intro reads "THE REAL FINAL BOSS"; the victory screen shows her with a glass of tea:
     "SHE'LL BE BACK ON MONDAY".
-  - Her own music: the Russian folk song KOROBEINIKI, faster in her last phase.
+  - Her own music, faster in her last phase.
   - The stage curtain only says "BOSS: ???".
 - The font gets # and @.
 

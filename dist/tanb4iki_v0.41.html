@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.40</title>
+  <title>tanb4iki_v0.41</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.40';
+const APP_VERSION = '0.41';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2651,6 +2651,7 @@ const SETTINGS_DEF = [
   { key: 'fieldW', label: 'FIELD WIDTH', values: range(13, 60).concat(['FIT']), def: 13 },
   { key: 'fieldH', label: 'FIELD HEIGHT', values: range(13, 40).concat(['FIT']), def: 13 },
   { key: 'scaling', label: 'SCALING', values: ['SHARP', 'FILL'], def: 'SHARP' },
+  { key: 'minimap', label: 'MINIMAP', values: ONOFF, def: 'ON' },
   { key: 'controls', label: 'CONTROLS', values: ['AUTO', 'PC', 'MAC'], def: 'AUTO' },
   { action: 'keys', label: 'SET UP KEYS AND PADS' },
   { key: 'rumble', label: 'GAMEPAD RUMBLE', values: ONOFF, def: 'ON' },
@@ -5528,7 +5529,9 @@ class Stage {
     this.renderBigMap(ctx);
     this.renderCpu(ctx);
     ctx.restore();   // back to screen positions inside the field window
+    this.renderEnemyArrows(ctx, camX, camY);   // big maps (bigmap.js)
     this.renderObjectiveArrows(ctx, camX, camY);
+    this.renderMinimap(ctx, camX, camY);
     this.renderFortressUI(ctx);
     if (this.over) {
       const y = Math.max(VIEW_H / 2 - 8, VIEW_H - this.overTimer * 1.3);
@@ -5595,11 +5598,21 @@ class Stage {
     if (this.td) { this.renderFortressHud(ctx, HUD_X); return; }
     if (this.race) { this.renderRaceLine(ctx); this.renderRaceHud(ctx, HUD_X); return; }
     if (this.corridor) this.renderCorridorLine(ctx); else if (this.maze) this.renderMazeLine(ctx); else if (this.cpu) this.renderCpuLine(ctx); else this.renderObjectiveLine(ctx);
-    const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
+    // the tanks still to come, one icon each (more than 20: 18 icons and the number)
+    const H = HUD_X, many = this.queue.length > 20, n = this.bossIdx === undefined ? Math.min(many ? 18 : 20, this.queue.length) : 0;
     if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);
-    // more than 20 waiting: show how many in total
-    if (n && this.queue.length > 20) Font.drawCenter(ctx, String(this.queue.length), H + 8, 106, COL.black);
+    if (n && many) Font.drawCenter(ctx, String(this.queue.length), H + 8, 97, COL.black);
+    // and all the enemies left to beat (on the field too), by a red crosshair
+    const left = this.bossIdx === undefined ? this.enemiesLeft() : null;
+    if (left !== null) {
+      const y = 108;
+      if (left < 100) {
+        ctx.fillStyle = '#D82800';   // a target: a ring with a dot in it
+        ['..XXX..', '.X...X.', 'X.....X', 'X..X..X', 'X.....X', '.X...X.', '..XXX..'].forEach((row, j) => { for (let i = 0; i < 7; i++) if (row[i] === 'X') ctx.fillRect(H + i, y + j, 1, 1); });
+        Font.drawRight(ctx, String(left), H + 24, y, '#A80000');
+      } else Font.drawCenter(ctx, String(left), H + 12, y, '#A80000');
+    }
     const lives = p => (Config.infiniteLives() ? '~' : String(Math.min(99, p.lives)));
     const xp = Config.xpOn();
     if (this.players.length > 2) {
@@ -8904,6 +8917,81 @@ Object.assign(Stage.prototype, {
     }
   },
 
+  // can you see this enemy? (not one that's underground, a mirage, cloaked, or in the dark unless it gives itself away)
+  enemySeen(t) {
+    if (!t.alive || t.isPlayer || t.mirage || t.burrow > 0) return false;
+    if (t.reveal > 0) return true;
+    if (t.stealth) return false;
+    return !((this.weather === 'night' && !(this.nightVision > 0)) || this.weather === 'fog');
+  },
+
+  // big maps: an arrow at the edge of the screen for each enemy out of sight (and a bigger one for a boss)
+  renderEnemyArrows(ctx, camX, camY) {
+    if (VIEW_W >= FW && VIEW_H >= FH) return;
+    const cx = VIEW_W / 2, cy = VIEW_H / 2;
+    const marks = this.tanks.filter(t => this.enemySeen(t)).map(t => [t.x + 8, t.y + 8, false])
+      .concat(this.bosses.filter(b => b.main && b.alive && this.bossTangible(b)).map(b => [b.x + b.w / 2, b.y + b.h / 2, true]));
+    for (const [wx, wy, big] of marks) {
+      const sx = wx - camX, sy = wy - camY;
+      if (sx >= -4 && sy >= -4 && sx < VIEW_W + 4 && sy < VIEW_H + 4) continue;
+      const a = Math.atan2(sy - cy, sx - cx), ca = Math.cos(a), sa = Math.sin(a);
+      // where the line from the middle of the screen leaves it
+      const k = Math.min(Math.abs((VIEW_W / 2 - 6) / (ca || 1e-6)), Math.abs((VIEW_H / 2 - 6) / (sa || 1e-6)));
+      const x = cx + ca * k, y = cy + sa * k, far = Math.hypot(sx - cx, sy - cy) > Math.max(VIEW_W, VIEW_H) * 1.2;
+      const n = big ? 6 : 4, col = big ? '#F8B800' : far ? '#A83000' : '#F83800';
+      for (let r = 0; r <= n; r++) for (let j = -r; j <= r; j++) {
+        const px = Math.round(x - ca * r - sa * j * 0.8), py = Math.round(y - sa * r + ca * j * 0.8);
+        ctx.fillStyle = r === n || Math.abs(j) === r ? '#100808' : col;
+        ctx.fillRect(px, py, 1, 1);
+      }
+    }
+  },
+
+  // big maps: a little map in the corner: the ground, where you are, the enemies, the eagle and the objectives.
+  // In the maze it shows no walls (finding the way is the point). Settings -> SCREEN -> MINIMAP.
+  renderMinimap(ctx, camX, camY) {
+    if ((VIEW_W >= FW && VIEW_H >= FH) || !Config.on('minimap') || this.td) return;
+    const s = Math.min(64 / FW, 48 / FH), mw = Math.max(8, Math.round(FW * s)), mh = Math.max(8, Math.round(FH * s)), x0 = VIEW_W - mw - 3, y0 = 3;
+    if (!this.miniMap || this.miniMap.width !== mw || this.miniMap.height !== mh || this.frame - this.miniAt >= 30 || this.miniAt > this.frame) {
+      this.miniMap = this.miniMap && this.miniMap.width === mw && this.miniMap.height === mh ? this.miniMap : makeCanvas(mw, mh);
+      this.miniAt = this.frame;
+      const c = this.miniMap.getContext('2d'), img = c.createImageData(mw, mh);
+      const COLS4 = { [T_BRICK]: [168, 72, 16], [T_STEEL]: [180, 180, 188], [T_WATER]: [32, 64, 200], [T_FOREST]: [28, 108, 28], [T_ICE]: [168, 200, 232], [T_MUD]: [108, 72, 32], [T_BRIDGE]: [140, 100, 50] };
+      for (let py = 0; py < mh; py++) for (let px = 0; px < mw; px++) {
+        const o = (py * mw + px) * 4;
+        const col = this.maze ? null : COLS4[this.get(Math.floor((px + 0.5) / s / 4), Math.floor((py + 0.5) / s / 4))];
+        if (col) { img.data[o] = col[0]; img.data[o + 1] = col[1]; img.data[o + 2] = col[2]; img.data[o + 3] = 230; }
+        else { img.data[o + 3] = 150; }
+      }
+      c.putImageData(img, 0, 0);
+    }
+    // out of the way: faint while one of you drives under it
+    const under = this.tanks.some(t => t.isPlayer && t.alive && overlap(t.x - camX, t.y - camY, 16, 16, x0 - 4, y0 - 4, mw + 8, mh + 8));
+    ctx.globalAlpha = under ? 0.3 : 0.9;
+    ctx.fillStyle = '#7C7C7C'; ctx.fillRect(x0 - 1, y0 - 1, mw + 2, mh + 2);
+    ctx.clearRect(x0, y0, mw, mh); ctx.fillStyle = '#000000'; ctx.fillRect(x0, y0, mw, mh);
+    ctx.drawImage(this.miniMap, x0, y0);
+    const dot = (wx, wy, col, r = 1) => { ctx.fillStyle = col; ctx.fillRect(Math.round(x0 + wx * s) - (r >> 1), Math.round(y0 + wy * s) - (r >> 1), r + 1, r + 1); };
+    // the screen you see
+    ctx.fillStyle = '#F8F8F8';
+    const vx = Math.round(x0 + camX * s), vy = Math.round(y0 + camY * s), vw = Math.max(2, Math.round(VIEW_W * s)), vh = Math.max(2, Math.round(VIEW_H * s));
+    ctx.fillRect(vx, vy, vw, 1); ctx.fillRect(vx, vy + vh - 1, vw, 1); ctx.fillRect(vx, vy, 1, vh); ctx.fillRect(vx + vw - 1, vy, 1, vh);
+    if (!this.noBase && this.baseAlive) dot(BASE_X + 8, BASE_Y + 8, COL.gold, 2);
+    for (const o of this.outposts || []) if (o.alive) dot(o.x + 8, o.y + 8, '#58F8F8', 2);
+    for (const f of this.factories || []) if (f.hp > 0) dot(f.x + 16, f.y + 16, '#F87830', 2);
+    if (this.maze && this.frame >= this.maze.hintAt) dot(this.maze.ex + 16, this.maze.ey + 16, (this.frame >> 3) & 1 ? '#58F898' : '#F8F8F8', 2);
+    for (const t of this.tanks) if (this.enemySeen(t)) dot(t.x + 8, t.y + 8, '#F83800');
+    for (const b of this.bosses) if (b.main && b.alive && this.bossTangible(b)) dot(b.x + b.w / 2, b.y + b.h / 2, (this.frame >> 2) & 1 ? '#F8B800' : '#F83800', 2);
+    for (const t of this.tanks) if (t.alive && t.isPlayer) dot(t.x + 8, t.y + 8, t.ally ? '#BCBCBC' : PALS[Config.playerPal(t.player ? t.player.i : 0)][1]);
+    ctx.globalAlpha = 1;
+  },
+
+  // how many enemies are still to beat: on the field, appearing, and waiting (null where it doesn't apply)
+  enemiesLeft() {
+    if (this.vs || this.race) return null;
+    return this.queue.length + this.spawns.filter(sp => sp.enemy).length + this.tanks.filter(t => t.alive && !t.isPlayer && !t.mirage).length;
+  },
+
   // objective line in the border above the field
   renderObjectiveLine(ctx) {
     if (!this.big) return;
@@ -11294,7 +11382,7 @@ Object.assign(Stage.prototype, {
       // BABA GALYA doesn't blow up: she gives up, goes home, and puts the lights back on (galya.js)
       this.weather = bo.oldWeather || null;
       for (let i = 0; i < 6; i++) this.fx.push({ x: bo.x + 4 + Math.random() * 24, y: bo.y + 4 + Math.random() * 24, frames: [Sprites.sparkle[0], Sprites.sparkle[1], Sprites.sparkle[2], Sprites.sparkle[3]], per: 4, tick: -i * 6 });
-      this.popups.push({ x: bo.x + 16, y: bo.y - 6, text: "FINE! I'M GOING HOME!", label: true, color: COL.white, t: 0, delay: 0, life: 200 });
+      this.popups.push({ x: bo.x + 16, y: bo.y - 6, text: 'VSE! PIDU DODOMU!', label: true, color: COL.white, t: 0, delay: 0, life: 200 });   // that's it, I'm going home!
       Sound.play('bossDie');
     } else {
       // a chain of explosions over the hull
@@ -16973,7 +17061,7 @@ Object.assign(Game, {
 'use strict';
 // =====================================================================
 //  BABA GALYA: the real last boss, a secret. She waits on the stage after the UFO (stage 101 with a boss every 10
-//  stages). An old janitor, never happy, always swearing (#@%*!):
+//  stages). An old Ukrainian janitor, never happy, always grumbling (in Ukrainian) and swearing (#@%*!):
 //    ON DUTY       she mops the floor as she goes (the wet floor is as slippery as ice and dries after a while);
 //                  drive on her clean floor and a slipper comes flying (it homes in; you can shoot it down); come
 //                  too close and she swings her mop; a wall of dirty water from her bucket now and then
@@ -17010,14 +17098,20 @@ bossForStage = function (num) {   // eslint-disable-line no-func-assign
   return bossForStageTen(num);
 };
 
-// what she says (the font has no rude words, only #@%*!)
+// what she says, in Ukrainian (in Latin letters; the font has no rude words, only #@%*!):
+//   SHO TSE TAKE = what's this, KHULIHANY = hooligans, OY LYSHENKO = oh, the misery, HOSPODY = Lord,
+//   MATERI VASHII SKAZHU = I'll tell your mother, BODAI VAM = curse you, YA Z RANKU MYLA = I've been mopping since
+//   morning, OT ZHE BANDA = what a gang, ZACHYNENO = closed, HET VSI DODOMU = everybody out, home, HASHU SVITLO =
+//   I'm turning off the light, YA VAS BACHU = I see you, KUDY PO POMYTOMU = where are you going on my clean floor,
+//   NE TOPCHY = don't tread, VYTRY NOHY = wipe your feet, KYSH = shoo, HET ZVIDSY = get out of here,
+//   OT YA TOBI = I'll show you, SPYNA = my back, KOLINA = my knees
 const GALYA_SAYS = {
-  grumble: [['WHO MADE THIS MESS?!', 'HOOLIGANS!', 'OY, BLIN!', 'NOBODY WIPES THEIR TRACKS!', "I'LL CALL YOUR MOTHER!"],
-    ['#@%*!!', 'BLIN! #@%*!', 'I JUST MOPPED HERE!', 'YOU ANIMALS!', "I'M TOO OLD FOR THIS #@%*!"],
-    ["WE'RE CLOSED!", 'EVERYBODY OUT!', 'LIGHTS OUT! GO HOME!', '#@%*! #@%*!!', 'I SEE YOU!']],
-  floor: ['NOT ON MY CLEAN FLOOR!', 'WHERE ARE YOU GOING?!', 'I JUST MOPPED THAT!', 'WIPE YOUR TRACKS!'],
-  near: ['SHOO! SHOO!', 'GET OUT OF HERE!', 'TAKE THAT!', 'HOOLIGAN!'],
-  hurt: ['OY!', 'MY BACK!', 'MY KNEES!', 'OY-OY-OY!', 'BLIN!'],
+  grumble: [['SHO TSE TAKE?!', 'KHULIHANY!', 'OY LYSHENKO!', 'HOSPODY, SHO ZA LYUDY!', 'MATERI VASHII SKAZHU!'],
+    ['#@%*!!', 'BODAI VAM! #@%*!', 'YA Z RANKU MYLA!', 'OT ZHE BANDA!', 'NU VSE! #@%*!'],
+    ['ZACHYNENO!', 'HET VSI DODOMU!', 'HASHU SVITLO!', '#@%*! #@%*!!', 'YA VAS BACHU!']],
+  floor: ['KUDY PO POMYTOMU?!', 'NE TOPCHY!', 'VYTRY NOHY!', 'YA Z RANKU MYLA!'],
+  near: ['KYSH! KYSH!', 'HET ZVIDSY!', 'OT YA TOBI!', 'A NU HET!'],
+  hurt: ['OY!', 'OY, SPYNA!', 'OY, KOLINA!', 'OY-OY-OY!', 'BODAI TOBI!'],
 };
 const galyaPick = a => a[rnd(a.length)];
 
@@ -17038,7 +17132,7 @@ BOSS_DRAW.galya = function (f, ph) {
   for (let y = 15; y <= 27; y++) { const hw = 6 + (y - 15) * 0.35; for (let x = Math.round(16 - hw); x <= Math.round(15 + hw); x++) P.px(x, y, x <= 16 - hw + 1.5 || x >= 15 + hw - 1.5 ? 6 : 5); }
   for (const y of [17, 20, 23]) P.px(16, y, 4);
   P.rect(18, 22, 20, 24, 6); P.px(19, 21, 4); P.px(20, 21, 10);
-  P.rect(13, 15, 19, 15, 4);   // collar
+  P.rect(13, 15, 19, 15, 4); P.px(14, 15, 3); P.px(16, 15, 3); P.px(18, 15, 3);   // the embroidered collar (a vyshyvanka)
   // arms: the right one on the mop, the left one shaking a fist when she shouts
   P.rect(22, 17, 25, 19, 5); P.rect(25, 17, 26, 19, 1);
   if (shout) { P.rect(7, 12, 9, 17, 5); P.rect(6, 10, 9, 12, 1); } else { P.rect(7, 17, 9, 22, 5); P.rect(7, 22, 9, 23, 1); }
@@ -17067,12 +17161,12 @@ BOSS_INIT.galya = function (b, def, hp) {
 };
 
 BOSS_PHASE.galya = function (b, ph) {
-  if (ph === 2) this.galyaSay(b, '#@%*!! THAT IS IT!', 150);
+  if (ph === 2) this.galyaSay(b, '#@%*!! NU VSE, DOSYT!', 150);   // that's it, enough!
   if (ph === 3) {
     // closing time: the lights go off
     b.oldWeather = this.weather || null;
     this.weather = 'night';
-    this.galyaSay(b, "WE'RE CLOSED! LIGHTS OUT!", 160);
+    this.galyaSay(b, 'ZACHYNENO! HASHU SVITLO!', 160);   // closed! lights out!
     Sound.play('bossWarn');
   }
 };
@@ -17127,7 +17221,7 @@ BOSS_AI.galya = function (b) {
     if (ph === 2 && b.hasBucket) this.galyaKick(b, d);
     else if (b.hasBucket) {
       for (const off of [-12, -4, 4, 12]) { const [x, y] = this.bossMuzzle(b, d, off); this.bossFire(b, x, y, d, { speed: 2.2 }); }
-      this.galyaSay(b, 'HERE, HAVE A WASH!', 60);
+      this.galyaSay(b, 'NA, POMYISYA!', 60);   // here, have a wash!
       Sound.play('splash');
     }
     b.waveT = [300, 240, 200][ph - 1];
@@ -17188,7 +17282,7 @@ Object.assign(Stage.prototype, {
     const [cx, cy] = this.bossCenter(b);
     b.bucket = { x: Math.round(cx - 5 + DXY[d][0] * 20), y: Math.round(cy - 5 + DXY[d][1] * 20), d, t: 0 };
     b.hasBucket = false;
-    this.galyaSay(b, 'CATCH! #@%*!', 70);
+    this.galyaSay(b, 'LOVY! #@%*!', 70);   // catch!
     Sound.play('charge');
   },
 
@@ -17296,7 +17390,7 @@ function artGalya(c, x, y, t, mood) {
   // the coat
   const top = y + 18, bot = sit ? y + 34 : y + 39;
   for (let yy = top; yy <= bot; yy++) { const hw = 8 + (yy - top) * 0.3; Pix.rect(c, Math.round(x + 13 - hw), yy, Math.round(hw * 2), 1, blue); Pix.rect(c, Math.round(x + 13 - hw), yy, 2, 1, blue2); Pix.rect(c, Math.round(x + 11 + hw), yy, 2, 1, blue2); }
-  Pix.rect(c, x + 8, top, 11, 2, '#F8F8F8');
+  Pix.rect(c, x + 8, top, 11, 3, '#F8F8F8'); for (let k = 0; k < 5; k++) { Pix.rect(c, x + 9 + k * 2, top + (k & 1), 1, 1, red); Pix.rect(c, x + 9 + k * 2, top + 2 - (k & 1), 1, 1, '#100808'); }   // a vyshyvanka collar
   for (const yy of [top + 4, top + 9, top + 14]) Pix.rect(c, x + 13, yy, 1, 1, '#F8F8F8');
   Pix.rect(c, x + 16, top + 10, 5, 5, blue2); Pix.rect(c, x + 17, top + 9, 3, 1, '#C8C8C8');   // pocket, a rag
   // arms
@@ -17334,6 +17428,10 @@ function artCorridor(c, clean, t) {
   Pix.rect(c, 84, 8, 20, 38, '#8C5C24'); Pix.rect(c, 86, 10, 16, 14, '#A86C34'); Pix.rect(c, 86, 27, 16, 17, '#A86C34'); Pix.rect(c, 99, 28, 2, 2, '#F8D878');
   Pix.rect(c, 40, 6, 10, 12, '#C8A040'); Pix.rect(c, 41, 7, 8, 10, '#5C5C5C'); Pix.disc(c, 45, 11, 2, '#E8C8A8');
   for (let k = 0; k < 6; k++) Pix.rect(c, 58 + k * 3, 34, 2, 9, '#E8E8E8');
+  // a sunflower in a pot on the windowsill
+  Pix.rect(c, 29, 18, 1, 6, '#3C8C1C'); Pix.rect(c, 27, 21, 2, 1, '#58A838');
+  for (let k = 0; k < 8; k++) Pix.rect(c, 29 + Math.round(Math.cos(k * 0.785) * 3), 15 + Math.round(Math.sin(k * 0.785) * 3), 1, 1, '#F8D800');
+  Pix.disc(c, 29, 15, 1, '#5C3C08'); Pix.rect(c, 27, 23, 5, 3, '#B85820');
 }
 
 BOSS_ART.galya = {
@@ -17354,15 +17452,16 @@ BOSS_ART.galya = {
     Art.tank(c, 86, 50, 0, true, t >> 3); Art.flag(c, 98, 40, t);
   },
   // what she's saying in the picture (drawn at full size over it, by the screen)
-  bubble(t, outro) { return outro ? { text: 'HOOLIGANS...', x: 18, y: 6 } : (t >> 5) & 1 ? { text: '#@%*!!', x: 52, y: 4 } : { text: 'NOT ON MY FLOOR!', x: 30, y: 4 }; },
+  bubble(t, outro) { return outro ? { text: 'KHULIHANY...', x: 18, y: 6 } : (t >> 5) & 1 ? { text: '#@%*!!', x: 52, y: 4 } : { text: 'KUDY PO POMYTOMU?!', x: 26, y: 4 }; },
 };
 BOSS_TALES.galya = { intro: ['THE SCARIEST THING IN THE WORLD', "DON'T STEP ON THE WET FLOOR!"], outro: "SHE'LL BE BACK ON MONDAY" };
 
-// ------------------------------------------------------------------ her music: the old folk song KOROBEINIKI
-SONGS.galya = { name: 'KOROBEINIKI', root: 69, bpm: 136, groove: 'polka', prog: [4, 0, 4, 0, 3, 0, 4, 0], scale: [0, 2, 3, 5, 7, 8, 10],
-  mel: '4---1-2-3---2-1-' + '0---0-2-4---3-2-' + '1-----2-3---4---' + '2---0---0-------'
-    + '3-----5-7---6-5-' + '4-----2-4---3-2-' + '1---1-2-3---4---' + '2---0---0-------' };
-GROOVES.polka = { drums: 'k...s...k...s.s.', bass: 'r...f...r...f...' };
+// ------------------------------------------------------------------ her music: SHCHEDRYK
+// Mykola Leontovych's Ukrainian carol (1916; known abroad as Carol of the Bells): in 3/4, the four-note bell figure
+// over and over, then a third higher, then the falling runs
+SONGS.galya = { name: 'SHCHEDRYK', root: 67, bpm: 132, groove: 'waltz', steps: 12, prog: [0, 0, 0, 0, 2, 2, 2, 2, 5, 5, 3, 4], scale: [0, 2, 3, 5, 7, 8, 10],
+  mel: '2---1-2-0---'.repeat(4) + '4---3-4-2---'.repeat(4) + '6---5-6-4---'.repeat(2) + '7-7-7-6-5-4-' + '3-3-3-2-1-0-' };
+GROOVES.waltz = { drums: 'k...s...s...', bass: 'r...f...f...' };
 BOSS_SONGS.galya = 'galya';
 
 </script>

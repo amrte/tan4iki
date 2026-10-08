@@ -63,7 +63,9 @@ fire buttons appear on screen.
   the eagle's walls, armor up, gain steel-breaking shells, take to the water, or set off a grenade on you.
 - **4 enemy types:** basic, fast, power (fast shells) and armor (4 hits, changes color
   as it's damaged). The 4th, 11th and 18th enemies flash red and drop a power-up when hit.
-- 20 enemies per stage, with at most 4 on screen (6 in 2-player). The enemy reserve is shown in the side panel.
+- 20 enemies per stage, with at most 4 on screen (6 in 2-player). The enemy reserve is shown in the side panel (an
+  icon per tank still to come), and under it, by a red target, how many enemies are left to beat in all, the ones on
+  the field included.
 - **2-player co-op:** friendly fire briefly freezes your partner, and the player with more kills
   in a stage earns a 1000-point bonus.
 - Spawn sparkles, shields, explosions, score pop-ups, the rising "GAME OVER", the tallied score screen
@@ -137,7 +139,16 @@ the side panel shows each player's wins, kills or captures. Round and match resu
 A big stage stitches several classic maps together (3 across and 2 down, more on wide screens). Your screen keeps its
 usual field size and follows your tanks (online, each guest's view follows their own tank). Blinking squares at the
 edge point to objectives off screen (gold: your HQ, cyan: outposts, red: factories), and the border above the field
-shows how the objective stands. Big stages bring twice the tanks and two more on screen at once. Each has an objective,
+shows how the objective stands.
+
+Finding the enemy on a map bigger than the screen (big maps, the corridor, the maze):
+
+- **Arrows** at the edge of the screen point to every enemy out of sight (darker red when it's far, a big gold one
+  for a boss).
+- **A minimap** in the top right corner shows the whole map: walls, water and trees, the part you're looking at
+  (white frame), you and your team, the enemies (red), the eagle and the objectives. It fades while you drive under
+  it. In the maze it shows no walls, since finding the way is the point. Settings → SCREEN → MINIMAP.
+- Enemies you couldn't see anyway get no arrow or dot: underground, cloaked, mirages, or hidden in the dark. Big stages bring twice the tanks and two more on screen at once. Each has an objective,
 taking turns:
 
 - **Outposts**: two more eagles with fortresses stand beside your HQ. Enemies go for whichever eagle is nearest.
@@ -651,7 +662,7 @@ the browser, and **RESET TO DEFAULTS** (top level) restores the classic game.
 | Shop | shop after stages (on), shop prices (100%), base upgrades (on) |
 | Players | III / IV-PLAYER COLOR (blue / pink), gamepad rumble (on), key and pad setup |
 | Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
-| Screen | field width (13), field height (13), FIT, scaling (sharp / fill), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
+| Screen | field width (13), field height (13), FIT, scaling (sharp / fill), minimap (on), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
 | Game | game mode (classic), skill (hurt me plenty), kill race first to (3 points), mud, belts, pads (on), seasons (cycle), season effects (on), secrets (on), fortress speed (1x), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on), music (on), music volume (50%), mode title screens (on), boss screens (on), first-meet cards (on), *show all cards again* |
 
 ## Code layout
