@@ -79,6 +79,8 @@ Object.assign(Stage.prototype, {
       if (!this.noBase && overlap(bx * 8, by * 8, 16, 16, BASE_X, BASE_Y, 16, 16)) cost = -1;
       c[by * NX + bx] = cost;
     }
+    // FORTRESS towers stand in the way like steel
+    for (const tw of this.towers || []) for (let by = Math.max(0, (tw.y >> 3) - 1); by <= Math.min(NY - 1, (tw.y >> 3) + 1); by++) for (let bx = Math.max(0, (tw.x >> 3) - 1); bx <= Math.min(NX - 1, (tw.x >> 3) + 1); bx++) if (overlap(bx * 8, by * 8, 16, 16, tw.x, tw.y, 16, 16)) c[by * NX + bx] = -1;
     cache[mode] = { c, ver: this.terrainVer };
     return c;
   },

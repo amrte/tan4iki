@@ -36,9 +36,9 @@ function defaultCustomMap() {
 const TITLE_MENU_Y = 126;
 const ROMAN = ['I', 'II', 'III', 'IV'];
 // the pause menu; SKILL changes the difficulty on the spot (not in the daily challenge, where it's part of the rules)
-const pauseMenu = () => ['CONTINUE'].concat(Game.daily ? [] : ['SKILL'], ['MUSIC', 'MUSIC VOL', 'SAVE GAME'], Net.role ? ['ONLINE PLAYERS'] : [], ['QUIT']);
+const pauseMenu = () => ['CONTINUE'].concat(Game.daily ? [] : ['SKILL'], Game.mode === 'fortress' ? ['SPEED'] : [], ['MUSIC', 'MUSIC VOL', 'SAVE GAME'], Net.role ? ['ONLINE PLAYERS'] : [], ['QUIT']);
 // pause rows changed with left/right (or fire): the setting each one steps
-const PAUSE_STEP = { MUSIC: 'music', 'MUSIC VOL': 'musicVol' };
+const PAUSE_STEP = { MUSIC: 'music', 'MUSIC VOL': 'musicVol', SPEED: 'tdSpeed' };
 const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
 
 // The settings as a menu tree: each section of SETTINGS_DEF becomes a page on the top level, the per-enemy sections
@@ -330,6 +330,8 @@ const Game = {
         : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack)
         : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score
         : mi.key === 'maze' && rec.maze ? 'BEST: ' + rec.maze.escaped + ' MAZES ESCAPED  ' + rec.maze.score
+        : mi.key === 'fortress' && rec.fortress ? 'STARS: ' + TD_MAPS.map(m => (rec.fortress[m.key] || {}).stars || 0).reduce((a, b) => a + b, 0) + '/' + TD_MAPS.length * 3 + '  1-4 PLAYERS'
+        : mi.key === 'coop' ? '1-4 PLAYERS TOGETHER' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '')
         : mi.key === 'eagles' ? '1P: VS CPU' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '') + '  2-4P: VS'
         : mi.key === 'dm' ? '1P: VS ' + DM_BOTS + ' BOTS  2-4P: VS EACH OTHER'
         : mi.key === 'race' ? 'FIRST TO ' + Config.get('raceTarget') + '  1P: VS ' + DM_BOTS + ' BOTS'
@@ -424,15 +426,18 @@ const Game = {
     // game mode (modes.js); versus needs at least two players
     this.mode = custom || this.daily ? 'classic' : Config.get('gameMode');
     // VS EAGLES alone: against the computer (cpuvs.js); other versus modes need at least two players
+    if (this.mode === 'coop') this.mode = 'cpu';   // CO-OP VS CPU: everyone together against the enemy HQ
     if (this.mode === 'eagles' && n < 2) this.mode = 'cpu';
     else if ((this.mode === 'dm' || this.mode === 'race') && n < 2) for (let i = 1; i <= DM_BOTS; i++) this.players.push(Object.assign(newPlayer(i), { bot: true }));   // bots.js
     else if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
     this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
-    if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides', 'maze'].includes(this.mode)) this.stageNum = 1;
+    if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides', 'maze', 'fortress'].includes(this.mode)) this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
     // KILL RACE: the first curtain picks how many points win the game (race.js)
     if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
+    // FORTRESS: the first curtain picks the map (fortress.js)
+    if (this.mode === 'fortress') { this.tdMap = Math.max(0, Math.min(TD_MAPS.length - 1, STORE.get('tank1990_tdmap', 0) | 0)); this.curtain.tdSel = true; }
     // the mode's title screen first (intro.js)
     if (this.introWanted && this.introWanted(custom)) this.toModeIntro();
   },
@@ -453,7 +458,12 @@ const Game = {
       return;
     }
     const m = Input.menu();
-    if (c.raceSel) {
+    if (c.tdSel) {
+      const dir = m.up || m.right ? 1 : m.down || m.left ? -1 : 0;
+      if (dir) { this.tdMap = (this.tdMap + dir + TD_MAPS.length) % TD_MAPS.length; STORE.set('tank1990_tdmap', this.tdMap); Sound.play('select'); }
+      if (m.ok && this.t > 10) { c.tdSel = false; this.beginStage(); }
+      if (m.back) this.toTitle();
+    } else if (c.raceSel) {
       const dir = m.up || m.right ? 1 : m.down || m.left ? -1 : 0;
       if (dir) { Config.step('raceTarget', dir); this.raceTarget = Config.get('raceTarget'); Sound.play('select'); }
       if (m.ok) { c.raceSel = false; this.beginStage(); }
@@ -479,8 +489,8 @@ const Game = {
     if (c.phase === 'show') {
       const cx = SCREEN_W / 2, cy = SCREEN_H / 2;
       const race = this.mode === 'race';
-      Font.draw(ctx, this.mode === 'cpu' || race ? 'ROUND' : this.mode === 'maze' ? 'MAZE' : 'STAGE', cx - 32, cy - 8, COL.black);
-      Font.drawRight(ctx, race ? this.round : this.stageNum, cx + 32, cy - 8, COL.black);
+      Font.draw(ctx, this.mode === 'cpu' || race ? 'ROUND' : this.mode === 'maze' ? 'MAZE' : this.mode === 'fortress' ? 'FORTRESS' : 'STAGE', cx - (this.mode === 'fortress' ? 31 : 32), cy - 8, COL.black);
+      if (this.mode !== 'fortress') Font.drawRight(ctx, race ? this.round : this.stageNum, cx + 32, cy - 8, COL.black);
       if (race) {
         Font.drawCenter(ctx, 'MOST KILLS WINS THE ROUND', cx, cy + 14, '#A00000');
         Font.drawCenter(ctx, 'FIRST TO ' + this.raceTarget + (this.raceTarget > 1 ? ' POINTS' : ' POINT'), cx, cy + 28, c.raceSel ? COL.black : '#3C3C3C');
@@ -488,6 +498,12 @@ const Game = {
       }
       // against the computer: what their HQ got for this round
       if (this.mode === 'maze') Font.drawCenter(ctx, 'FIND THE EXIT', cx, cy + 14, '#A00000');
+      if (this.mode === 'fortress') {
+        const mp = TD_MAPS[this.tdMap], best = (STORE.get(MODE_KEY, {}).fortress || {})[mp.key];
+        Font.drawCenter(ctx, mp.name + ' (' + mp.diff + ')', cx, cy + 14, '#A00000');
+        Font.drawCenter(ctx, best ? (best.stars ? '*'.repeat(best.stars) + ' ' : '') + 'BEST WAVE ' + best.wave : 'HOLD 30 WAVES', cx, cy + 26, '#3C3C3C');
+        if ((this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + 40, '#3C3C3C');
+      }
       if (this.mode === 'sides' && this.nextSide) Font.drawCenter(ctx, 'YOUR EAGLE: ' + this.nextSide.toUpperCase(), cx, cy + 24, '#A00000');
       if (this.mode === 'custom' && !this.customPending) {
         const used = Customs.used();
@@ -537,9 +553,16 @@ const Game = {
     // big scrolling maps: every stage in BIG MAPS, every 4th classic stage with BIG MAP STAGES on
     const big = !custom && !boss && (this.mode === 'bigmaps'
       || (this.mode === 'classic' && !this.daily && Config.get('bigStages') === 'SOME' && this.stageNum % 4 === 0));
-    let blocks = null, objective = null, maze = null;
+    let blocks = null, objective = null, maze = null, fortress = null;
     const corridor = !custom && this.mode === 'corridor';
-    if (!custom && this.mode === 'maze') {
+    if (!custom && this.mode === 'fortress') {
+      // FORTRESS: the chosen map, a little bigger than the screen (fortress.js)
+      const [vc, vr] = this.desiredField(), mp = TD_MAPS[this.tdMap || 0], md = tdMapBlocks(mp);
+      setFieldSize(TD_W, TD_H, vc, vr);
+      blocks = md.blocks;
+      fortress = { map: mp.key, spawns: md.spawns };
+      if (Config.get('seasons') !== 'OFF') theme = mp.theme;
+    } else if (!custom && this.mode === 'maze') {
       // MAZE: a fresh labyrinth, bigger every stage (maze.js)
       const [vc, vr] = this.desiredField(), [MW, MH] = mazeCells(this.stageNum, vc, vr);
       setFieldSize(MW * MAZE_PITCH + 1, MH * MAZE_PITCH + 1, vc, vr);
@@ -562,7 +585,7 @@ const Game = {
       blocks = turnBlocks(mapToBlocks(map), side);
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
-      custom, boss, base: vs || corridor || maze || this.mode === 'race' ? newBase() : this.base, corridor, maze, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
+      custom, boss, base: vs || corridor || maze || fortress || this.mode === 'race' ? newBase() : this.base, corridor, maze, fortress, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
       race: this.mode === 'race' && !custom ? { target: this.raceTarget, round: this.round } : null, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
       blocks, big: objective, theme,
     });
@@ -609,7 +632,8 @@ const Game = {
     if (r === 'clear' && this.mode === 'race') { this.saveHi(); this.raceRoundEnd(); return; }
     if (r && this.mode === 'timeattack' && r === 'clear') { this.saveHi(); this.taNext(); return; }
     if (r === 'gameover') AutoSkill.event('gameOver');
-    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu' || this.mode === 'maze')) { this.saveHi(); this.toModeResult(false); return; }
+    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu' || this.mode === 'maze' || this.mode === 'fortress')) { this.saveHi(); this.toModeResult(false); return; }
+    if (r === 'tdwin') { this.saveHi(); this.toModeResult(true); return; }
     if (this.stage.result) {
       // beating a boss earns 25% off in the next shop
       this.shopDiscount = this.stage.result === 'clear' && this.stage.bossIdx !== undefined;
@@ -879,6 +903,11 @@ const Game = {
       const b = rec.cpu;
       if (!b || res.rounds > b.rounds || (res.rounds === b.rounds && score > b.score)) { rec.cpu = { rounds: res.rounds, score }; res.newBest = true; }
       res.best = rec.cpu;
+    } else if (this.mode === 'fortress') {
+      const td = this.stage.td, all = rec.fortress || {}, b = all[td.map];
+      res.map = td.map; res.wave = done ? TD_WAVES : Math.max(0, td.wave - 1); res.stars = done ? td.stars : 0;
+      if (!b || res.stars > (b.stars || 0) || (res.stars === (b.stars || 0) && (res.wave > b.wave || (res.wave === b.wave && score > b.score)))) { all[td.map] = { wave: res.wave, stars: res.stars, score }; res.newBest = true; }
+      rec.fortress = all; res.best = all[td.map];
     } else if (this.mode === 'maze') {
       res.escaped = this.stageNum - 1;
       const b = rec.maze;
@@ -978,6 +1007,11 @@ const Game = {
       Font.drawCenter(ctx, r.rounds === 1 ? 'YOU WON 1 ROUND' : 'YOU WON ' + r.rounds + ' ROUNDS', SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
       Font.drawCenter(ctx, 'BEST: ' + r.best.rounds + ' ROUNDS  ' + r.best.score, SW / 2, 124, COL.lgrey);
+    } else if (r.mode === 'fortress') {
+      const name = (TD_MAPS.find(m => m.key === r.map) || TD_MAPS[0]).name;
+      Font.drawCenter(ctx, r.done ? name + ' HELD! ' + '*'.repeat(r.stars) : name + ': FELL AFTER ' + r.wave + (r.wave === 1 ? ' WAVE' : ' WAVES'), SW / 2, 80, r.done ? COL.gold : COL.white);
+      Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
+      Font.drawCenter(ctx, 'BEST: ' + (r.best.stars ? '*'.repeat(r.best.stars) + ' ' : '') + 'WAVE ' + r.best.wave + '  ' + r.best.score, SW / 2, 124, COL.lgrey);
     } else if (r.mode === 'maze') {
       Font.drawCenter(ctx, r.escaped === 1 ? 'YOU ESCAPED 1 MAZE' : 'YOU ESCAPED ' + r.escaped + ' MAZES', SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
@@ -1698,7 +1732,8 @@ function toggleFullscreen() {
     acc += now - last;
     last = now;
     if (acc > 200) acc = 200;
-    const STEP = BASE_STEP / Config.scale('gameSpeed');
+    // FORTRESS can be fast-forwarded (pause menu -> SPEED)
+    const STEP = BASE_STEP / Config.scale('gameSpeed') / (Game.state === 'play' && Game.mode === 'fortress' && !Game.paused ? Config.get('tdSpeed') : 1);
     while (acc >= STEP) {
       Input.poll();
       if (!Net.panelOpen || Net.role === 'host') Game.update();

@@ -32,6 +32,8 @@ const SONGS = {
     mel: '0.2.4.7.2.4.7.9.' + '1.3.5.8.3.5.8.A.' + '2.4.6.9.4.6.9.B.' + '4-3-4-5-7-------' },
   maze: { name: 'LOST IN THE LABYRINTH', root: 59, bpm: 112, groove: 'creep', prog: [0, 5, 3, 4],
     mel: '0..2..1.0..4-3..' + '5..4..3.2..1-z..' + '3..4..5.7..6-5..' + '4..3..2.1..0---' + '.' },
+  fortress: { name: 'HOLD THE LINE', root: 62, bpm: 132, groove: 'siege', prog: [0, 5, 3, 4],
+    mel: '0-0-4-0-7---5-4-' + '5-5-4-2-0---z---' + '3-3-4-5-7---9-7-' + '5-4-2-4-0-------' },
   race: { name: 'KILL RACE SHUFFLE', root: 58, bpm: 150, groove: 'shuffle', prog: [0, 0, 3, 4], swing: 0.62,
     mel: '0-2-4-2-5-4-2-0-' + '0-2-4-2-6-5-4-2-' + '3-5-7-5-4-2-0-2-' + '4-4-5-6-7---.---' },
   eagles: { name: 'EAGLE DUEL', root: 62, bpm: 136, groove: 'duel', prog: [0, 0, 5, 4],
@@ -60,6 +62,7 @@ const GROOVES = {
   duel: { drums: 'k..k..s.k.k..s..', bass: 'r..r..r.r.f..f..' },
   aggro: { drums: 'k.k.s.k.k.ksk.s.', bass: 'r.r.o.r.r.r.o.r.' },
   fanfare: { drums: 'k...s...k.k.s...', bass: 'r---f---r-f-o---' },
+  siege: { drums: 'k..k..s.k.k.s..h', bass: 'r.r.f.r.r.o.f.t.' },
   creep: { drums: 'k.....h.k..s..h.', bass: 'r..r..t.f..f..t.' },
   robot: { drums: 'k.k.s...k.k.s.k.', bass: 'rororororororoor' },
 };

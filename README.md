@@ -120,9 +120,11 @@ Maze and VS CPU, and no saving outside Classic and Big maps.
 | **Big maps** | 1-4 | every stage is a big scrolling map (see below); shop and saves work as in Classic |
 | **Corridor** | 1-4 | the usual width, endless height: no eagle, just climb. The world is three map sections stacked (random classic maps, mirrored outwards on wider fields); once the whole team has climbed out of the bottom section it drops away and a fresh section appears on top, so the climb never ends and nobody gets left behind. Enemies keep arriving just above the screen, faster and tougher the higher you get (the flag shows the level: one per section climbed). The enemy grows slowly with the climb: only basic tanks at first, then fast (10 tiles), power (26) and armor (45), then the newer types one at a time every 20 tiles from 52 (rocket first), each starting rare and taking 40 tiles to reach its full share; veterans from about 100 tiles and elites from 230. A gold *NAME AHEAD!* tells you when a new kind joins; ones left far below drop out. A destroyed tank comes back at the bottom of the screen; every 5 sections everyone gets a tank. The border above the field shows how far you've climbed (in tiles) and your best; ends when everyone is out |
 | **Maze** | 1-4 | a huge labyrinth, a new one every stage and bigger each time (17 x 11 cells at first, growing by 3 x 2 a stage up to 34 x 22; a cell is a 2-tile passage). You start in the bottom-left corner; the one way out, a chequered **EXIT** gate, is on the outer edge as far from the start as the maze allows. The walls are steel that nothing can break (not power shells, rockets or blasts), with the odd stretch of brick you can shoot through for a shortcut; trees and ice fill some passages. Enemy tanks (26 in the first maze, 6 more each maze, up to 100) patrol along the way, half of them from the start (none near the start), and come for you once you get close or shoot them; more turn up out of sight as you go (the side panel counts them). Lost for too long (1 minute on the easiest skill, 3 on the hardest) and the exit sends a signal: a blinking green marker at the edge of the screen. Reaching the exit is worth 2000 plus a time bonus, and every enemy left goes up in smoke; then the tally, the shop and the next maze. A destroyed tank comes back where it was a few seconds before. The border shows the maze number and the time; the best run (mazes escaped) is kept |
+| **Fortress** | 1-4 | tower defense: hold your eagle through 30 waves (see *Fortress* below) |
 | **Time attack** | 1-4 | clear stages 1-5 as fast as you can; enemies arrive twice as fast, no tally between stages, the clock runs in the border above the field; best time is kept |
 | **Kill race** | 1-4 | no eagles, just the enemy: each round is a normal stage of enemy tanks (they appear at random free spots all over the map, never within 4 tiles of a player, instead of along the top), and whoever destroys the most of them wins the round and scores 1 point (a tie on kills goes to whoever scored more with them; still tied, nobody scores). How many points win the game is picked on the first round's curtain with left/right (1, 2, 3, 5, 7 or 10; also Settings → GAME → RACE: FIRST TO). A destroyed tank comes back after a moment, no lives lost; a grenade's kills count for whoever took it; the shovel does nothing without an eagle. The side panel shows each player's kills this round and their points as gold pips; the round result shows kills and points. Alone, you race 3 bots that hunt the enemy tanks. No shop |
 | **VS CPU** | 1 | VS eagles with one player: you against the computer. Their HQ (an eagle with a red glow, in its own fortress) is at the top centre, yours at the bottom; their tanks keep coming until the HQ falls. Destroy it (2000 + 500 per round) to win the round: every enemy tank goes up with it, then the tally, the shop and the next round on a new map. Their HQ grows a little stronger each round, as yours does in the shop: round 2 repair crew, 3 walls and armor (the top border shows the armor left), 4 eagle gun (shoots you when you line up with it), 5 minefield, 6 tesla coil, 7 tank traps, then each grows to level 5. The round curtain lists what they added. The way in from below always stays brick. Ends when your eagle falls or you're out of tanks; the most rounds won is kept |
+| **Co-op VS CPU** | 1-4 | VS CPU for the whole team: up to four players together against the enemy HQ, round after round, with the shop in between (alone it's plain VS CPU) |
 | **VS eagles** | 2-4 | everyone has an eagle and a fortress (I bottom, II top, III left, IV right). Your shells, rockets and mines now destroy other players; you respawn while your eagle stands, and your own shells can't hurt it. Lose your eagle and you're out; the last eagle standing wins the round. Best of 3 |
 | **Deathmatch** | 1-4 | no eagles; players start in the corners and respawn; first to 10 kills, or the most kills after 3 minutes (the clock is in the side panel). Alone, you play against 3 computer bots (BOT II-IV): they hunt the nearest rival (each other too), take a moment to aim (quicker on harder skills), grab nearby power-ups and shoot through bricks. Bots never set the high score |
 | **Flags** | 2-4 | each player has a flag at home (marked by a square). Drive over another player's flag to grab it and bring it to your own home flag (yours must be at home) to score. Destroying a carrier drops the flag where it fell; touching your own dropped flag sends it home. First to 3 captures |
@@ -395,6 +397,49 @@ keep the look but not the twist.
 | Nuclear winter | ash-grey ground, scorched bricks, dead trees, toxic green water, falling ash, a sickly tint | some lakes are frozen. **Hot spots**: glowing radioactive patches (3 or more, never at the start points); stand in one and your Geiger counter fills (a bar over your tank, clicking faster); full, and your tank is gone (3 s on Ultra-violence, twice that on the easiest skill). Out of them it drains away. A shield protects you | **Ghoul** (skull turret): destroyed, it leaves a glowing wreck that rises again 4 s later with full strength, once, unless you shoot the wreck (100). The stage isn't clear while a wreck lies there. 2 hits, 500 |
 | Desert | sand, sandstone bricks, cacti, drifting sand | many ponds have dried into mud (it slows you). **Mirages**: phantom tanks shimmer into view now and then; their shells can't hurt, and a shot or a touch makes them vanish (no points); they never hold up the end of a stage | **Burrower** (a drill nose): dives under the sand for a few seconds (a moving mound; shells fly over it, it can't fire), runs faster down there and surfaces somewhere else to fire. 2 hits, 500 |
 
+## Fortress (tower defense)
+
+Pick **FORTRESS** on the MODE row (1-4 players together). The first curtain picks the map with left/right:
+
+| Map | Difficulty | What it's like |
+|---|---|---|
+| Meadow | easy | open grass, one entry at the top |
+| River | normal | a river with two bridges; two entries (the second opens at wave 6) |
+| Canyon | normal | a long winding steel canyon from the top left |
+| Crossroads | hard | three entries (top, then the two top corners from waves 6 and 11) |
+
+Maps with several entries open them one at a time (marked on the map; closed ones show the wave they open on).
+Hold the eagle through **30 waves**. The eagle has HP (30 / 25 / 20 / 15 / 10 by skill): every hit costs 1.
+
+**Building.** Your tank is the builder. Drive up and press **B**: a menu opens for the tile in front of you (left/right
+choose, fire builds, B closes; the tank stays put meanwhile). On one of your towers the menu upgrades it, picks its
+specialisation, sets what it aims at (FIRST, LAST, STRONG, CLOSE), repairs it or sells it (70% back). You still fight
+with your tank, and a destroyed tank comes back after 2 seconds. Range circles show what a tower covers.
+
+| Tower | Price | What it does | Specialisations at level 3 |
+|---|---|---|---|
+| Gun tower | 60 | quick shots at one tank | **Gatling** (a hail of bullets) · **Sniper** (huge range and damage, sees stealth) |
+| Cannon | 90 | lobbed shells with splash; can't hit too close | **Howitzer** (huge blasts from afar) · **Cluster** (bursts into bomblets) |
+| Tesla | 110 | lightning that jumps from tank to tank | **Storm** (chains to 9) · **EMP** (stuns what it hits) |
+| Frost | 80 | slows every tank around it | **Blizzard** (slower still, and it hurts) · **Shatter** (chilled tanks take double damage) |
+| Flamer | 100 | burns everything in a short cone | **Inferno** (twice the heat) · **Napalm** (leaves the ground burning) |
+| Rockets | 130 | far, homing, good against armor | **Swarm** (4 rockets at once) · **Buster** (one huge hit that pierces shield plates) |
+| Radar | 70 | shows stealth tanks (shades) to every tower, +15-30% range for towers within 3 tiles | |
+| Gold mine | 100 | 25 / 50 / 90 gold after every wave | |
+
+Levels 2 and 3 cost more (and add range, speed and damage); a tower has HP too: enemy shells and blasts wear it down
+(an HP bar shows) and it's lost at 0. **Walls**: a brick wall (5) makes them stop and shoot through it; a steel wall
+(20) makes them go round. Towers and steel reroute the enemy, but you can never shut every way to the eagle (the
+build is refused). **Abilities**: AIR STRIKE (150, every 30 s) and WINGMAN (100, every 45 s).
+
+**Gold**: start with 260 (more on easier skills), get gold for every kill, 20 + 3 per wave for every wave held, 5%
+interest on what you've saved (up to 40), and a bonus for calling a wave early: SEND WAVE in the menu, or **Tab**.
+**Waves** grow and toughen; every few are themed (SWARM, HEAVY, FAST) and every 10th is a BOSS wave with snakes. The
+counter-picks matter: skimmers cross water, shades hide from towers without a radar, shield tanks take a quarter
+from the front, sappers crush brick walls, medics heal, splitters split. The side panel shows what the next wave
+brings. **Pause menu → SPEED** runs the game at 1x, 2x or 3x. Clear wave 30 for 1-3 stars (by the eagle's HP left);
+the best per map is kept, and the title screen shows your stars.
+
 ## Mode title screens and music
 
 Starting a game shows its mode's own pixel-art title screen before the first stage (Enter to go on, Esc back to the
@@ -411,6 +456,7 @@ pulse leads, a triangle bass and noise drums, and every skill plays it different
 | Any side | Turned Around | 7/8, off balance |
 | Corridor | The Climb | rising arpeggios |
 | Maze | Lost in the Labyrinth | slow and creeping |
+| Fortress | Hold the Line | a siege march |
 | Kill race | Kill Race Shuffle | swing |
 | VS eagles | Eagle Duel | a stand-off |
 | Deathmatch | No Mercy | aggressive |
@@ -516,7 +562,7 @@ the browser, and **RESET TO DEFAULTS** (top level) restores the classic game.
 | Players | III / IV-PLAYER COLOR (blue / pink), gamepad rumble (on), key and pad setup |
 | Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
 | Screen | field width (13), field height (13), FIT, scaling (sharp / fill), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
-| Game | game mode (classic), skill (hurt me plenty), kill race first to (3 points), mud, belts, pads (on), seasons (cycle), season effects (on), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on), music (on), music volume (50%), mode title screens (on), first-meet cards (on), *show all cards again* |
+| Game | game mode (classic), skill (hurt me plenty), kill race first to (3 points), mud, belts, pads (on), seasons (cycle), season effects (on), fortress speed (1x), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on), music (on), music volume (50%), mode title screens (on), first-meet cards (on), *show all cards again* |
 
 ## Code layout
 
@@ -544,6 +590,7 @@ js/modes.js       game modes: survival waves, time attack, versus eagles, deathm
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go
 js/maze.js        maze mode: the maze generator, patrols, reinforcements, the exit
+js/fortress.js    fortress mode (tower defense): towers, upgrades and specialisations, waves, gold, the build menu, maps
 js/cards.js       first-meet cards for new enemies, bosses and power-ups
 js/cpuvs.js       VS EAGLES against the computer: the enemy HQ and its upgrades round by round
 js/bots.js        deathmatch and kill-race bots: computer-driven players

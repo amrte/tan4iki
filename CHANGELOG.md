@@ -3,6 +3,18 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.34
+
+- **New mode: FORTRESS (tower defense).** Hold your eagle through 30 waves on one of four maps (Meadow, River,
+  Canyon, Crossroads). Your tank builds: B opens a menu for the tile in front of you. 8 towers (gun, cannon, tesla,
+  frost, flamer, rockets, radar, gold mine), 3 levels each, and 2 specialisations at the top for 6 of them (gatling /
+  sniper, howitzer / cluster, storm / EMP, blizzard / shatter, inferno / napalm, swarm / buster). Brick and steel
+  walls to reroute the enemy (never shutting the way), targeting (first / last / strong / close), repair and sell,
+  air strike and wingman abilities, gold for kills, waves, interest and calling waves early, themed and boss waves,
+  a next-wave preview, entries that open as the waves go on, eagle HP and 1-3 stars per map, 1x/2x/3x speed in the
+  pause menu. Its own title screen and tune (Hold the Line). 1-4 players together, online too.
+- **New mode: CO-OP VS CPU:** up to four players together against the enemy HQ.
+
 ## 0.33
 
 - **Maze walls can't be broken:** in MAZE the steel walls now stop everything (power shells, rockets, piercing

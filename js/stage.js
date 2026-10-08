@@ -316,8 +316,8 @@ class Stage {
     this.theme = stageTheme(num, opts);
     if (!opts.snapshot && !opts.editor) this.applyThemeTerrain(num);   // the editor shows what you drew
     // mud, teleporters and belts in the normal stages; night and fog on some (terrain.js)
-    if (!opts.boss && !opts.custom && !opts.snapshot && !opts.corridor && !opts.maze && Config.on('terrainExtras')) this.addTerrainExtras(num);
-    this.weather = opts.corridor ? null : stageWeather(opts.custom ? 1 : num, !!opts.boss);
+    if (!opts.boss && !opts.custom && !opts.snapshot && !opts.corridor && !opts.maze && !opts.fortress && Config.on('terrainExtras')) this.addTerrainExtras(num);
+    this.weather = opts.corridor || opts.fortress ? null : stageWeather(opts.custom ? 1 : num, !!opts.boss);
     this.outposts = []; this.factories = [];
     if (opts.big) this.setupBigMap(opts.big);   // bigmap.js
     this.tanks = [];
@@ -361,6 +361,7 @@ class Stage {
     if (opts.cpu) this.setupCpu(opts.cpu);      // VS EAGLES against the computer (cpuvs.js)
     if (opts.race) this.setupRace(opts.race.target, opts.race.round);   // KILL RACE (race.js)
     if (opts.maze) this.setupMaze(opts.maze);   // MAZE (maze.js)
+    if (opts.fortress) this.setupFortress(opts.fortress);   // FORTRESS (fortress.js)
     if (opts.timeAttack) this.spawnInterval = Math.round(this.spawnInterval / 2);
     for (const p of players) {
       p.kills = zeroKills();
@@ -539,7 +540,7 @@ class Stage {
         const st = Config.enemy(s.enemy.type);
         const type = s.enemy.type, vet = s.enemy.rank || 0, vr = ENEMY_RANKS[vet] || { hp: 0, shell: 1, speed: 1 };
         this.tanks.push(new Tank({
-          x: s.x, y: s.y, dir: ENEMY_SPAWN_DIR, type, hp: st.hp + vr.hp, bonus: s.enemy.bonus, vet,
+          x: s.x, y: s.y, dir: ENEMY_SPAWN_DIR, type, hp: s.enemy.hp || st.hp + vr.hp, bonus: s.enemy.bonus, vet,
           speed: st.speed * vr.speed * Config.skill().speed, bulletSpeed: st.bullet * vr.shell * Config.skill().shell, maxBullets: 1,
           ai: s.enemy.ai !== undefined ? s.enemy.ai : this.noBase ? noBasePersonality() : pickPersonality(type, this.num),
           aiBase: !this.noBase && type !== 4 && Math.random() < 0.3 * Config.skill().baseAim,  // some snipers shell the eagle instead of you (not rocket tanks)
@@ -627,6 +628,8 @@ class Stage {
       this.updateCorridor();
     } else if (this.maze && !this.maze.escaped) {
       this.updateMaze();
+    } else if (this.td) {
+      this.updateFortress();
     } else if (this.cpu && this.cpu.alive) {
       // against the computer the round goes on until their HQ falls
     } else if (this.big && this.factoriesAlive()) {
@@ -673,6 +676,7 @@ class Stage {
     if (t.frozen > 0) { t.frozen--; t.moving = false; return; }
     if (this.over || this.freezeP > 0) { t.moving = false; t.slide = 0; return; }
     const inp = p.bot ? this.botInput(t) : Input.player(p.i);   // deathmatch bots (bots.js)
+    if (this.td && this.fortressInput(t, p, inp)) return;   // B: the build menu (fortress.js)
     if (inp.dir >= 0) {
       this.turn(t, inp.dir);
       // a bridge kit lays a bridge when you drive into water
@@ -702,6 +706,7 @@ class Stage {
     if (t.shield > 0) t.shield--;
     if (t.reveal > 0) t.reveal--;
     if (this.freezeE > 0) return;
+    if (t.stun > 0) { t.stun--; return; }   // an EMP tower's jolt (fortress.js)
     if (t.hopT > 0) { this.hopStep(t); return; }   // in the air (hopper)
     if (t.cool > 0) t.cool--;
     const smart = t.ai > 0;
@@ -813,7 +818,7 @@ class Stage {
   }
 
   move(t, d) {
-    t.acc += t.speed * (t.boost.turbo ? TURBO_MULT : 1) * (t.isPlayer ? (this.cpu ? this.cpuTrap(t) : 1) : this.trapFactor(t)) * this.mudFactor(t);
+    t.acc += t.speed * (t.boost.turbo ? TURBO_MULT : 1) * (t.isPlayer ? (this.cpu ? this.cpuTrap(t) : 1) : this.trapFactor(t) * (t.chill || 1)) * this.mudFactor(t);
     let ok = true;
     while (t.acc >= 1) {
       t.acc -= 1;
@@ -890,6 +895,7 @@ class Stage {
       const tu = this.turretAt(nx, ny, 16, 16);
       if (tu && !overlap(t.x, t.y, 16, 16, tu.x, tu.y, 16, 16)) return false;
     }
+    if (this.towers && this.towers.length && this.towers.some(q => overlap(nx, ny, 16, 16, q.x, q.y, 16, 16) && !overlap(t.x, t.y, 16, 16, q.x, q.y, 16, 16))) return false;
     if (t.burrow > 0 || t.mirage) return true;   // under the sand, or not really there: nothing in the way
     for (const o of this.tanks) {
       if (o === t || !o.alive || o.burrow > 0 || o.mirage || o.hopT > 0) continue;
@@ -992,6 +998,7 @@ class Stage {
       return;
     }
     if (b.isPlayer && this.wrecks && this.wrecks.length && this.bulletWreck(b)) return;
+    if (this.td && !b.isPlayer && this.towers.length && this.bulletTower(b)) return;
     for (const t of this.tanks) {
       if (!t.alive || t === b.owner || ((b.eagle || b.passPlayers) && t.isPlayer)) continue;
       if (t.burrow > 0 || t.hopT > 0) continue;   // under the sand, or in the air: the shell flies past
@@ -1119,6 +1126,7 @@ class Stage {
       }
     }
     if (byPlayer) this.wreckPoints(owner, wrecked, cx, cy);
+    if (this.td && !byPlayer) for (const tw of this.towers.slice()) if (Math.hypot(tw.x + 8 - cx, tw.y + 8 - cy) < r + 8) this.damageTower(tw, 2);
     const reaches = (x, y, w, h) => Math.hypot(Math.max(x, Math.min(cx, x + w)) - cx, Math.max(y, Math.min(cy, y + h)) - cy) < r - 2;
     for (const t of this.tanks) {
       if (!t.alive || t === exclude || !reaches(t.x, t.y, 16, 16)) continue;
@@ -1182,13 +1190,14 @@ class Stage {
     if (t.mirage) { this.vanishMirage(t, false); return; }
     t.alive = false;
     this.killed++;
+    if (this.td) this.tdKillGold(t);
     this.addFx(t.x + 8, t.y + 8, BIG_EXPLOSION(), 5);
     this.explosionHeat(t.x + 8, t.y + 8, 10);   // summer: the trees round it catch fire
     if (award && kindOf(t) === 'ghoul') this.ghoulDown(t);   // only one you destroyed rises again
     if (!silent) Sound.play('explode');
     if (award && by && by.isPlayer) {
       // NIGHTMARE!: destroyed enemies may come back, as in DOOM
-      if (Config.skill().respawn && !ENEMY[t.type].mini && Math.random() < Config.skill().respawn) {
+      if (Config.skill().respawn && !this.td && !ENEMY[t.type].mini && Math.random() < Config.skill().respawn) {
         this.queue.push({ type: t.type, rank: t.vet });
         this.total++;
       }
@@ -1242,6 +1251,7 @@ class Stage {
     p.tank = null;
     if (this.vs) { this.vsDeath(t, by); return; }
     if (this.race) { p.tank = null; this.spawnPlayer(p, RACE_RESPAWN); return; }   // KILL RACE: back after a moment
+    if (this.td) { this.spawnPlayer(p, 120); return; }   // FORTRESS: the eagle's HP is what counts
     AutoSkill.event('death', this.players.length);
     if (Config.infiniteLives()) {
       this.spawnPlayer(p, 30);
@@ -1568,7 +1578,7 @@ class Stage {
   // tough enemies (5+ hits, like the flamer and the snake) show what's left once they've been hit
   drawHpBar(ctx, t) {
     const max = t.maxHp || Config.enemy(t.type).hp;   // an online guest only knows the type's usual hits
-    if (max < 5 || t.hp >= max || t.hp <= 0) return;
+    if (max < (this.td ? 2 : 5) || t.hp >= max || t.hp <= 0) return;
     const w = Math.max(1, Math.round(14 * t.hp / max));
     ctx.fillStyle = COL.black; ctx.fillRect(t.x, t.y - 4, 16, 3);
     ctx.fillStyle = t.hp / max > 0.34 ? '#F8B800' : '#F83800'; ctx.fillRect(t.x + 1, t.y - 3, w, 1);
@@ -1612,6 +1622,7 @@ class Stage {
     this.renderSpecialsUnder(ctx);
     this.renderBaseZones(ctx);
     this.renderTurrets(ctx);
+    this.renderTowers(ctx);   // FORTRESS (fortress.js)
     for (const t of this.tanks) if (!this.drawSeasonTank(ctx, t)) this.drawTank(ctx, t);
     this.renderClaudes(ctx);
     this.renderBosses(ctx);
@@ -1633,6 +1644,7 @@ class Stage {
       ctx.drawImage(Sprites.powerups[this.powerup.type], this.powerup.x, this.powerup.y);
     }
     this.renderSpecialsOver(ctx);
+    this.renderTdOver(ctx);
     this.renderStrikes(ctx);
     for (const f of this.fx) {
       if (f.tick < 0) continue;
@@ -1656,6 +1668,7 @@ class Stage {
     this.renderCpu(ctx);
     ctx.restore();   // back to screen positions inside the field window
     this.renderObjectiveArrows(ctx, camX, camY);
+    this.renderFortressUI(ctx);
     if (this.over) {
       const y = Math.max(VIEW_H / 2 - 8, VIEW_H - this.overTimer * 1.3);
       Font.draw(ctx, 'GAME', VIEW_W / 2 - 15, y, COL.red);
@@ -1717,6 +1730,7 @@ class Stage {
   renderHud(ctx) {
     this.renderSkillTag(ctx, HUD_X);
     if (this.vs) { this.renderVsHud(ctx, HUD_X); return; }
+    if (this.td) { this.renderFortressHud(ctx, HUD_X); return; }
     if (this.race) { this.renderRaceLine(ctx); this.renderRaceHud(ctx, HUD_X); return; }
     if (this.corridor) this.renderCorridorLine(ctx); else if (this.maze) this.renderMazeLine(ctx); else if (this.cpu) this.renderCpuLine(ctx); else this.renderObjectiveLine(ctx);
     const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;

@@ -330,7 +330,7 @@ const SETTINGS_DEF = [
   { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
   { section: 'GAME' },
-  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'custom', 'survival', 'timeattack', 'bigmaps', 'sides', 'corridor', 'maze', 'race', 'eagles', 'dm', 'ctf'], def: 'classic',
+  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'custom', 'survival', 'timeattack', 'bigmaps', 'sides', 'corridor', 'maze', 'fortress', 'coop', 'race', 'eagles', 'dm', 'ctf'], def: 'classic',
     fmt: v => modeInfo(v).name },
   { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4, 5], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!', 'AUTO'][v] },
   { key: 'raceTarget', label: 'RACE: FIRST TO', values: [1, 2, 3, 5, 7, 10], def: 3, fmt: v => v + ' PTS' },
@@ -339,6 +339,8 @@ const SETTINGS_DEF = [
   { key: 'seasons', label: 'SEASONS', values: ['CYCLE', 'RANDOM', 'OFF', 'SPRING', 'SUMMER', 'AUTUMN', 'WINTER', 'NUCLEAR', 'DESERT'], def: 'CYCLE' },
   // seasonal.js: showers, wildfire, gusts, blizzards, hot spots, mirages
   { key: 'seasonFx', label: 'SEASON EFFECTS', values: ONOFF, def: 'ON' },
+  // fortress.js: fast forward (also in the pause menu during a FORTRESS game)
+  { key: 'tdSpeed', label: 'FORTRESS SPEED', values: [1, 2, 3], def: 1, fmt: v => v + 'X' },
   // classic games: every 4th stage (not a boss stage) a big scrolling map
   { key: 'bigStages', label: 'BIG MAP STAGES', values: ['OFF', 'SOME'], def: 'OFF' },
   { key: 'darkStages', label: 'NIGHT AND FOG', values: ['SOME', 'OFF', 'ALWAYS NIGHT', 'ALWAYS FOG'], def: 'SOME',

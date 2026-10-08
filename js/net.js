@@ -194,7 +194,7 @@ const Net = {
     v.pl = G.players.map(p => ({
       i: p.i, score: p.score, lives: p.lives, level: p.level, mines: p.mines, kills: p.kills, out: p.out,
       ship: p.ship, cutter: p.cutter, kit: p.kit, shopShovel: p.shopShovel, xp: p.xp, rank: p.rank, stageXp: p.stageXp,
-      vsKills: p.vsKills, caps: p.caps, spent: p.spent, racePts: p.racePts, bot: p.bot, rad: p.rad || 0,
+      vsKills: p.vsKills, caps: p.caps, spent: p.spent, racePts: p.racePts, bot: p.bot, rad: p.rad || 0, tdMenu: p.tdMenu || null,
     }));
     v.base = G.base;
     v.snd = this.sndQueue.splice(0);
@@ -249,6 +249,11 @@ const Net = {
       cr: st.corridor ? [st.corridor.shifts, st.corridor.climbed, st.corridor.startY] : null,
       se: st.seasonFx || (st.wrecks && st.wrecks.length) || (st.fires && st.fires.size) ? [Array.from(st.fires.keys()), st.wind ? st.wind.dir : -1, st.blizzard, st.shower,
         st.zones.map(z => [z.x, z.y, z.r]), st.wrecks.map(w => [w.x, w.y, w.dir, w.t])] : null,
+      td: st.td ? [st.td.wave, st.td.phase, st.td.timer, st.td.gold, st.td.maxHp, st.td.won ? 1 : 0, st.td.next ? st.td.next.list.map(e => e.type) : null,
+        st.td.next ? st.td.next.kind : '', st.td.cool, st.td.spawns, st.td.map, [...(st.tdBuilt || [])]] : null,
+      tw: st.towers ? st.towers.map(t => [t.x, t.y, t.kind, t.lv, t.spec === undefined ? -1 : t.spec, t.hp, t.max, r(t.ang || 0), t.flash, t.target || 0, t.busy ? 1 : 0, t.spent]) : null,
+      ts: st.tdShots ? st.tdShots.map(s => [r(s.x), r(s.y), s.kind === 'shell' ? (s.bomblet ? 3 : 2) : s.kind === 'rocket' ? 1 : 0, s.p !== undefined ? r(s.p) : 0]) : null,
+      tb: st.tdBeams ? st.tdBeams.map(b => [b.pts, b.t, b.color]) : null,
       mz: st.maze ? [st.maze.sx, st.maze.sy, st.maze.ex, st.maze.ey, st.maze.hintAt, st.maze.escaped ? 1 : 0, st.maze.MW, st.maze.MH] : null,
       cd: st.card || null,
       cp: st.cpu || null,
@@ -430,6 +435,16 @@ const Net = {
     st.blizzard = se[2]; st.shower = se[3];
     st.zones = se[4].map(a => ({ x: a[0], y: a[1], r: a[2] }));
     st.wrecks = se[5].map(a => ({ x: a[0], y: a[1], dir: a[2], t: a[3] }));
+    // FORTRESS (fortress.js)
+    if (sv.td) {
+      const a = sv.td;
+      st.td = { wave: a[0], phase: a[1], timer: a[2], gold: a[3], maxHp: a[4], won: !!a[5], next: a[6] ? { list: a[6].map(type => ({ type })), kind: a[7] } : null, cool: a[8], spawns: a[9], map: a[10] };
+      st.tdBuilt = new Set(a[11]);
+      st.towers = sv.tw.map(q => ({ x: q[0], y: q[1], kind: q[2], lv: q[3], spec: q[4] < 0 ? undefined : q[4], hp: q[5], max: q[6], ang: q[7], flash: q[8], target: q[9], busy: !!q[10], spent: q[11] }));
+      st.tdShots = sv.ts.map(q => ({ x: q[0], y: q[1], kind: q[2] >= 2 ? 'shell' : q[2] ? 'rocket' : 'bullet', bomblet: q[2] === 3, p: q[3] }));
+      st.tdBeams = sv.tb.map(q => ({ pts: q[0], t: q[1], color: q[2] }));
+      st.tdSparks = st.tdSparks || [];
+    } else { st.td = null; st.towers = null; }
     st.maze = sv.mz ? { sx: sv.mz[0], sy: sv.mz[1], ex: sv.mz[2], ey: sv.mz[3], hintAt: sv.mz[4], escaped: !!sv.mz[5], MW: sv.mz[6], MH: sv.mz[7] } : null;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));

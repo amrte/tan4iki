@@ -304,6 +304,52 @@ const INTRO_SCENES = {
     if (pos >= run && (t >> 3) & 1) { Pix.rect(c, 30, 26, 52, 11, '#000000'); Font.draw(c, 'ESCAPED', 29, 28, COL.gold); }
   },
 
+  // the fortress: towers along a winding road, tanks marching on the eagle, shells and lightning flying
+  fortress(c, t) {
+    Pix.rect(c, 0, 0, INTRO_W, INTRO_H, '#14280C');
+    const r = seeded(31);
+    for (let k = 0; k < 50; k++) Pix.rect(c, Math.floor(r() * INTRO_W), Math.floor(r() * INTRO_H), 1, 1, '#1C3814');
+    // the road: in from the left, down, and on to the eagle
+    const road = [[-16, 8], [52, 8], [52, 40], [100, 40]];
+    for (let k = 1; k < road.length; k++) {
+      const [x0, y0] = road[k - 1], [x1, y1] = road[k];
+      Pix.rect(c, Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0) + 16, Math.abs(y1 - y0) + 16, '#4C3C1C');
+    }
+    Pix.tiles(c, Sprites.tex.brick, 92, 32, 20, 4); Pix.tiles(c, Sprites.tex.brick, 92, 36, 4, 28);
+    c.drawImage(Sprites.eagle, 96, 44);
+    const fake = { frame: t, towers: [] }, tower = (kind, x, y, ang, spec) => Stage.prototype.drawTower.call(fake, c, { kind, lv: 3, spec, ang, hp: 1, max: 1, busy: true }, x, y);
+    // tanks along the road
+    const pos = s => {
+      let left = s;
+      for (let k = 1; k < road.length; k++) {
+        const [x0, y0] = road[k - 1], [x1, y1] = road[k], len = Math.abs(x1 - x0) + Math.abs(y1 - y0);
+        if (left <= len) { const f = left / len; return [x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, x1 > x0 ? 1 : y1 > y0 ? 2 : 3]; }
+        left -= len;
+      }
+      return null;
+    };
+    const tanks = [];
+    for (let k = 0; k < 4; k++) {
+      const s = ((t * 0.35 + k * 34) % 150), p = pos(s);
+      if (!p) continue;
+      tanks.push(p);
+      c.drawImage(Sprites.tank('e' + [0, 1, 3, 2][k], (t >> 2) & 1, p[2], k === 2 ? 'green' : 'silver'), Math.round(p[0]), Math.round(p[1]));
+    }
+    const near = (x, y) => tanks.reduce((b, p) => (!b || Math.hypot(p[0] - x, p[1] - y) < Math.hypot(b[0] - x, b[1] - y) ? p : b), null);
+    // the towers and what they fire
+    const T = [['gun', 30, 28, 0], ['tesla', 72, 18], ['cannon', 30, 46], ['frost', 72, 58 - 8], ['rocket', 4, 30, 1]];
+    for (const [kind, x, y, spec] of T) {
+      const p = near(x, y), ang = p ? Math.atan2(p[1] - y, p[0] - x) : 0;
+      tower(kind, x, y, ang, spec);
+      if (!p) continue;
+      if (kind === 'tesla' && (t >> 2) % 6 < 2) Pix.line(c, x + 8, y + 2, p[0] + 8, p[1] + 8, (t & 2) ? '#F8F8A0' : '#FFFFFF');
+      if (kind === 'gun' && (t >> 1) % 8 < 4) { const f = ((t >> 1) % 8) / 4; Pix.rect(c, x + 8 + (p[0] - x) * f, y + 8 + (p[1] - y) * f, 2, 2, '#F8F8F8'); }
+      if (kind === 'frost') for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2 + t * 0.02; Pix.rect(c, x + 8 + Math.cos(a) * 18, y + 8 + Math.sin(a) * 18, 1, 1, '#7CC8F8'); }
+    }
+    // gold
+    if ((t >> 3) & 1) { Pix.rect(c, 1, 1, 34, 9, '#000000'); Font.draw(c, '$' + (120 + (t >> 4) * 5), 2, 2, COL.gold); }
+  },
+
   // the race: a chequered finish line, the cup, four tanks flat out for it
   race(c, t) {
     Pix.rect(c, 0, 0, INTRO_W, INTRO_H, '#3C3C3C');
@@ -479,7 +525,7 @@ Object.assign(Game, {
     else if (st && st.bossDefeated && (s === 'play' || s === 'score')) mode = 'victory';   // a boss beaten: celebrate
     else if (s === 'play' && st && !st.over && st.frame > MUSIC_DELAY) mode = this.mode;
     // paused: the music pauses too, except while you're setting its volume in the pause menu (so you can hear it)
-    const tuning = s === 'play' && this.paused && PAUSE_STEP[pauseMenu()[this.pauseIdx]];
+    const tuning = s === 'play' && this.paused && ['MUSIC', 'MUSIC VOL'].includes(pauseMenu()[this.pauseIdx]);
     Music.want(mode, Music.skillLevel(), s === 'play' && this.paused && !tuning);
   },
 });

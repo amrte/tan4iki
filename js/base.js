@@ -208,7 +208,7 @@ Object.assign(Stage.prototype, {
     if (this.eagleArmor <= 0) return false;
     AutoSkill.event('eagleHit');
     this.eagleArmor--;
-    this.eagleInv = 40;
+    this.eagleInv = this.td ? 8 : 40;   // FORTRESS: the eagle's HP counts every hit
     this.eagleFlash = 30;
     this.addFx(BASE_X + 8, BASE_Y + 8, Sprites.smallExp, 3);
     Sound.play('armor');

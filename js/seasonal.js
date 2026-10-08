@@ -169,18 +169,19 @@ Object.assign(Stage.prototype, {
 
   // ------------------------------------------------------------ summer: fire
   // set a 4px cell burning (trees burn longer and spread; open ground only flickers a moment)
-  ignite(i, ground) {
+  ignite(i, ground, safe) {
     if (this.fires.has(i) || this.fires.size > 500) return;
     const v = this.terrain[i];
-    if (v === T_FOREST) this.fires.set(i, { life: 150, tree: true });
-    else if (ground && (v === T_EMPTY || v === T_ICE || v === T_MUD)) this.fires.set(i, { life: 90, tree: false });
+    // safe: started by your own napalm tower, it doesn't burn you (fortress.js)
+    if (v === T_FOREST) this.fires.set(i, { life: 150, tree: true, safe });
+    else if (ground && (v === T_EMPTY || v === T_ICE || v === T_MUD)) this.fires.set(i, { life: 90, tree: false, safe });
   },
 
-  igniteAt(x, y, r, ground) {
+  igniteAt(x, y, r, ground, safe) {
     for (let cy = Math.floor((y - r) / 4); cy <= Math.floor((y + r) / 4); cy++) {
       for (let cx = Math.floor((x - r) / 4); cx <= Math.floor((x + r) / 4); cx++) {
         if (cx < 0 || cy < 0 || cx >= GW || cy >= GH || Math.hypot(cx * 4 + 2 - x, cy * 4 + 2 - y) > r) continue;
-        this.ignite(cy * GW + cx, ground);
+        this.ignite(cy * GW + cx, ground, safe);
       }
     }
   },
@@ -208,7 +209,7 @@ Object.assign(Stage.prototype, {
     for (const t of this.tanks.slice()) {
       if (!t.alive || t.burrow > 0 || t.hopT > 0 || t.mirage || (!t.isPlayer && kindOf(t) === 'firebug')) continue;
       let hot = false;
-      for (let cy = (t.y + 2) >> 2; cy <= (t.y + 13) >> 2 && !hot; cy++) for (let cx = (t.x + 2) >> 2; cx <= (t.x + 13) >> 2; cx++) if (this.fires.has(cy * GW + cx)) { hot = true; break; }
+      for (let cy = (t.y + 2) >> 2; cy <= (t.y + 13) >> 2 && !hot; cy++) for (let cx = (t.x + 2) >> 2; cx <= (t.x + 13) >> 2; cx++) { const f = this.fires.get(cy * GW + cx); if (f && !(f.safe && t.isPlayer)) { hot = true; break; } }
       if (!hot) { t.heat = 0; continue; }
       if ((t.burnAt || 0) > this.frame) continue;
       // you get a moment to drive out (longer on easier skills); enemies burn at once

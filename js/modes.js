@@ -19,7 +19,9 @@ const MODES = [
   { key: 'sides', name: 'ANY SIDE', desc: 'YOUR EAGLE ON ANOTHER EDGE' },   // the map turned: eagle left, right or top
   { key: 'corridor', name: 'CORRIDOR', desc: 'ENDLESS CLIMB, HOW FAR?' },
   { key: 'maze', name: 'MAZE', desc: 'FIND THE ONE WAY OUT' },   // maze.js
+  { key: 'fortress', name: 'FORTRESS', desc: 'BUILD TOWERS, HOLD 30 WAVES' },   // fortress.js: tower defense
   { key: 'race', name: 'KILL RACE', cpu: true, desc: 'MOST KILLS WINS THE ROUND' },   // race.js; 1 player races bots
+  { key: 'coop', name: 'CO-OP VS CPU', desc: 'TEAM UP AGAINST THE CPU' },   // VS CPU (cpuvs.js) for 1-4 players together
   { key: 'eagles', name: 'VS EAGLES', vs: true, cpu: true, desc: 'GUARD YOURS, HIT THEIRS' },   // cpu: 1 player plays the computer
   { key: 'dm', name: 'DEATHMATCH', vs: true, cpu: true, desc: 'FIRST TO 10 KILLS' },   // 1 player: against bots
   { key: 'ctf', name: 'FLAGS', vs: true, desc: 'BRING THEIR FLAG HOME' },
