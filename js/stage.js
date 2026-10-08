@@ -548,7 +548,9 @@ class Stage {
           mines: type === 6 ? 3 : 0, hover: type === 10,
           slither: ENEMY[type].kind === 'snake', segN: 4, trail: ENEMY[type].kind === 'snake' ? [] : null,
         }));
-        this.enemySpawned(this.tanks[this.tanks.length - 1]);
+        const nt = this.tanks[this.tanks.length - 1];
+        if (s.enemy.extra) { Object.assign(nt, s.enemy.extra); if (nt.speedMul) nt.speed *= nt.speedMul; }   // fortress waves (titans, faster tanks)
+        this.enemySpawned(nt);
       } else if (s.ally) {
         if (this.tanks.some(t => overlap(t.x, t.y, 16, 16, s.x, s.y, 16, 16))) { s.t = 1; continue; }
         this.makeWingman(s);

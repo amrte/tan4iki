@@ -222,7 +222,7 @@ const Net = {
       df: st.netDiff || [],
       tk: st.tanks.filter(t => t.alive).map(t => [t.x, t.y, t.dir, t.isPlayer ? 1 : 0, t.player ? t.player.i : -1, t.type, t.hp,
         t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow, t.reveal, t.ai, t.vet, t.segs ? t.segs.map(p => p[0] + ',' + p[1]).join(';') : 0,
-        t.ally ? 1 : 0, t.boost.smoke ? 1 : 0, (t.burrow > 0 ? 1 : 0) | (t.mirage ? 2 : 0) | (t.blowing ? 4 : 0) | (t.iced > 0 ? 8 : 0), t.hopT || 0]),
+        t.ally ? 1 : 0, t.boost.smoke ? 1 : 0, (t.burrow > 0 ? 1 : 0) | (t.mirage ? 2 : 0) | (t.blowing ? 4 : 0) | (t.iced > 0 ? 8 : 0) | (t.titan ? 16 : 0), t.hopT || 0]),
       bu: st.bullets.filter(b => b.alive).map(b => [r(b.x), r(b.y), b.dir, b.rocket ? 1 : 0, b.pierce ? 1 : 0]),
       fx: st.fx.map(f => [r(f.x), r(f.y), fxKind(f), f.per, f.tick]),
       pp: st.popups,
@@ -250,8 +250,8 @@ const Net = {
       se: st.seasonFx || (st.wrecks && st.wrecks.length) || (st.fires && st.fires.size) ? [Array.from(st.fires.keys()), st.wind ? st.wind.dir : -1, st.blizzard, st.shower,
         st.zones.map(z => [z.x, z.y, z.r]), st.wrecks.map(w => [w.x, w.y, w.dir, w.t])] : null,
       td: st.td ? [st.td.wave, st.td.phase, st.td.timer, st.td.gold, st.td.maxHp, st.td.won ? 1 : 0, st.td.next ? st.td.next.list.map(e => e.type) : null,
-        st.td.next ? st.td.next.kind : '', st.td.cool, st.td.spawns, st.td.map, [...(st.tdBuilt || [])]] : null,
-      tw: st.towers ? st.towers.map(t => [t.x, t.y, t.kind, t.lv, t.spec === undefined ? -1 : t.spec, t.hp, t.max, r(t.ang || 0), t.flash, t.target || 0, t.busy ? 1 : 0, t.spent]) : null,
+        st.td.next ? st.td.next.kind : '', st.td.cool, st.td.spawns, st.td.map, [...(st.tdBuilt || [])], st.td.waves] : null,
+      tw: st.towers ? st.towers.map(t => [t.x, t.y, t.kind, t.lv, t.spec === undefined ? -1 : t.spec, t.hp, t.max, r(t.ang || 0), t.flash, t.target || 0, t.busy ? 1 : 0, t.spent, t.stier || 0]) : null,
       ts: st.tdShots ? st.tdShots.map(s => [r(s.x), r(s.y), s.kind === 'shell' ? (s.bomblet ? 3 : 2) : s.kind === 'rocket' ? 1 : 0, s.p !== undefined ? r(s.p) : 0]) : null,
       tb: st.tdBeams ? st.tdBeams.map(b => [b.pts, b.t, b.color]) : null,
       mz: st.maze ? [st.maze.sx, st.maze.sy, st.maze.ex, st.maze.ey, st.maze.hintAt, st.maze.escaped ? 1 : 0, st.maze.MW, st.maze.MH] : null,
@@ -403,7 +403,7 @@ const Net = {
       type: a[5], hp: a[6], bonus: !!a[7], shield: a[8], frozen: a[9], ship: !!a[10], anim: a[11], boost: Object.assign(a[12] ? { ghost: 1 } : {}, a[20] ? { smoke: 1 } : {}),
       plates: a[13] || 0, glow: a[14] || 0, reveal: a[15] || 0, ai: a[16] || 0, vet: a[17] || 0, stealth: a[5] === 7,
       segs: a[18] ? a[18].split(';').map(p => p.split(',').map(Number)) : null, ally: !!a[19],
-      burrow: a[21] & 1 ? 1 : 0, mirage: a[21] & 2 ? 1 : 0, blowing: !!(a[21] & 4), iced: a[21] & 8 ? 2 : 0, hopT: a[22] || 0,
+      burrow: a[21] & 1 ? 1 : 0, mirage: a[21] & 2 ? 1 : 0, blowing: !!(a[21] & 4), iced: a[21] & 8 ? 2 : 0, titan: !!(a[21] & 16), hopT: a[22] || 0,
     }));
     if (sv.ea) { st.eagleArmor = sv.ea[0]; st.eagleFlash = sv.ea[1]; st.gunDir = sv.ea[2]; st.teslaT = sv.ea[4]; st.zaps = sv.ea[5] || []; st.base = Object.assign(newBase(), G.base || {}); }
     st.turrets = (sv.tu || []).map(a => ({ x: a[0], y: a[1], dir: a[2], hp: a[3], owner: G.players.find(p => p.i === a[4]) || null, enemy: !!a[5] }));
@@ -438,9 +438,9 @@ const Net = {
     // FORTRESS (fortress.js)
     if (sv.td) {
       const a = sv.td;
-      st.td = { wave: a[0], phase: a[1], timer: a[2], gold: a[3], maxHp: a[4], won: !!a[5], next: a[6] ? { list: a[6].map(type => ({ type })), kind: a[7] } : null, cool: a[8], spawns: a[9], map: a[10] };
+      st.td = { waves: a[12], wave: a[0], phase: a[1], timer: a[2], gold: a[3], maxHp: a[4], won: !!a[5], next: a[6] ? { list: a[6].map(type => ({ type })), kind: a[7] } : null, cool: a[8], spawns: a[9], map: a[10] };
       st.tdBuilt = new Set(a[11]);
-      st.towers = sv.tw.map(q => ({ x: q[0], y: q[1], kind: q[2], lv: q[3], spec: q[4] < 0 ? undefined : q[4], hp: q[5], max: q[6], ang: q[7], flash: q[8], target: q[9], busy: !!q[10], spent: q[11] }));
+      st.towers = sv.tw.map(q => ({ x: q[0], y: q[1], kind: q[2], lv: q[3], spec: q[4] < 0 ? undefined : q[4], hp: q[5], max: q[6], ang: q[7], flash: q[8], target: q[9], busy: !!q[10], spent: q[11], stier: q[12] || undefined }));
       st.tdShots = sv.ts.map(q => ({ x: q[0], y: q[1], kind: q[2] >= 2 ? 'shell' : q[2] ? 'rocket' : 'bullet', bomblet: q[2] === 3, p: q[3] }));
       st.tdBeams = sv.tb.map(q => ({ pts: q[0], t: q[1], color: q[2] }));
       st.tdSparks = st.tdSparks || [];

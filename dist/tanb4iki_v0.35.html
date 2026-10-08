@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.34</title>
+  <title>tanb4iki_v0.35</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.34';
+const APP_VERSION = '0.35';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -4308,7 +4308,9 @@ class Stage {
           mines: type === 6 ? 3 : 0, hover: type === 10,
           slither: ENEMY[type].kind === 'snake', segN: 4, trail: ENEMY[type].kind === 'snake' ? [] : null,
         }));
-        this.enemySpawned(this.tanks[this.tanks.length - 1]);
+        const nt = this.tanks[this.tanks.length - 1];
+        if (s.enemy.extra) { Object.assign(nt, s.enemy.extra); if (nt.speedMul) nt.speed *= nt.speedMul; }   // fortress waves (titans, faster tanks)
+        this.enemySpawned(nt);
       } else if (s.ally) {
         if (this.tanks.some(t => overlap(t.x, t.y, 16, 16, s.x, s.y, 16, 16))) { s.t = 1; continue; }
         this.makeWingman(s);
@@ -8693,80 +8695,118 @@ Object.assign(Stage.prototype, {
   <script>
 'use strict';
 // =====================================================================
-//  FORTRESS: tower defense. Hold your eagle through 30 waves on one of four maps (picked on the curtain).
+//  FORTRESS: tower defense. A campaign of 8 maps (25 to 50 waves each; winning one opens the next), picked on the curtain.
 //  Your tank is the builder: drive up to a spot and press B to open the build menu for the tile in front of you
 //  (left/right choose, fire builds, B closes). Point it at one of your towers to upgrade it, choose what it aims
 //  at, repair or sell it. You fight too, and a destroyed tank comes back after a moment.
 //  Gold: for every kill, a bonus for every wave, 5% interest on what you save (up to 40), gold mines, and a bonus for
 //  calling a wave early (SEND WAVE in the menu, or Tab). The eagle has HP (20 on Hurt me plenty): every hit costs 1.
-//  Towers: 8 kinds, 3 levels each, and at the top most of them can specialise one of two ways. Enemy shells and
+//  Towers: 8 kinds, 4 levels each, then most of them specialise one of two ways, with 3 tiers (the third adds a trick);
+//  radar and gold mine have 5 levels. Heavy enemies stop to shell towers in line with them, and anything that reaches
+//  the fortress rams it (1-6 HP). Enemy shells and
 //  blasts damage towers; towers fire over walls. Walls (brick, steel) and towers reroute the enemy, but you can
 //  never shut every way to the eagle. Pause menu -> SPEED: 1X / 2X / 3X. Clear wave 30 for 1-3 stars (by eagle HP).
 // =====================================================================
 
-const TD_WAVES = 30, TD_FIRST_BUILD = 1800, TD_BUILD = 900, TD_INTEREST = 0.05, TD_INTEREST_MAX = 40, TD_SELL = 0.7;
-const TD_START_GOLD = [400, 325, 260, 230, 200], TD_EAGLE_HP = [30, 25, 20, 15, 10], TD_HP_MULT = [0.7, 0.85, 1, 1.15, 1.3];
-const TD_BUFF_RANGE = 48;
+const TD_FIRST_BUILD = 1800, TD_BUILD = 900, TD_INTEREST = 0.03, TD_INTEREST_MAX = 25, TD_SELL = 0.7;
+const TD_START_GOLD = [400, 300, 200, 180, 160], TD_EAGLE_HP = [30, 25, 20, 15, 10], TD_HP_MULT = [0.6, 0.8, 1, 1.15, 1.3];
+const TD_GOLD_MULT = [1.4, 1.2, 1, 1, 0.9];   // kill gold by skill
+const TD_BUFF_RANGE = 48, TD_SIEGE_RANGE = 120, TD_BREACH_RANGE = 30;
 const TD_TARGETS = ['FIRST', 'LAST', 'STRONG', 'CLOSE'];
+const TD_TIER_NAMES = ['I', 'II', 'III'];
+// how a specialisation grows through its tiers (tier III also gets its trick, t3)
+const TD_TIER = [null, { dmg: 1, range: 0, cd: 1, slow: 1, splash: 0, chain: 0 }, { dmg: 1.45, range: 8, cd: 0.88, slow: 0.88, splash: 4, chain: 2 },
+  { dmg: 2.1, range: 16, cd: 0.75, slow: 0.75, splash: 8, chain: 4 }];
 
+// 4 levels, then (at level 4) a specialisation one of two ways with 3 tiers: 7 steps in all. Radar and gold mine: 5 levels.
 const TOWERS = {
-  gun: { name: 'GUN TOWER', desc: 'QUICK SHOTS, ONE TARGET', cost: [60, 70, 100], hp: 6,
-    lv: [{ range: 56, cd: 36, dmg: 1 }, { range: 64, cd: 30, dmg: 1.5 }, { range: 72, cd: 24, dmg: 2 }],
-    specs: [{ key: 'gatling', name: 'GATLING', desc: 'A HAIL OF BULLETS', cost: 220, range: 72, cd: 7, dmg: 1 },
-      { key: 'sniper', name: 'SNIPER', desc: 'FAR, HEAVY, SEES STEALTH', cost: 240, range: 168, cd: 75, dmg: 9, seeStealth: true, fast: true }] },
-  cannon: { name: 'CANNON', desc: 'SPLASH; NOT TOO CLOSE', cost: [90, 100, 140], hp: 8,
-    lv: [{ range: 72, min: 20, cd: 90, dmg: 2, splash: 14 }, { range: 76, min: 20, cd: 80, dmg: 3, splash: 16 }, { range: 84, min: 20, cd: 70, dmg: 4, splash: 18 }],
-    specs: [{ key: 'howitzer', name: 'HOWITZER', desc: 'HUGE BLASTS FROM AFAR', cost: 300, range: 136, min: 32, cd: 110, dmg: 7, splash: 28 },
-      { key: 'cluster', name: 'CLUSTER', desc: 'SHELLS BURST INTO BOMBLETS', cost: 280, range: 88, min: 20, cd: 80, dmg: 3, splash: 14, cluster: 4 }] },
-  tesla: { name: 'TESLA', desc: 'LIGHTNING JUMPS ON', cost: [110, 110, 160], hp: 6,
-    lv: [{ range: 44, cd: 60, dmg: 1.5, chain: 2 }, { range: 48, cd: 52, dmg: 2, chain: 3 }, { range: 56, cd: 44, dmg: 3, chain: 4 }],
-    specs: [{ key: 'storm', name: 'STORM', desc: 'CHAINS TO 9 TANKS', cost: 320, range: 64, cd: 44, dmg: 3, chain: 9 },
-      { key: 'emp', name: 'EMP', desc: 'STUNS WHAT IT HITS', cost: 300, range: 56, cd: 60, dmg: 2.5, chain: 4, stun: 70 }] },
-  frost: { name: 'FROST', desc: 'SLOWS ALL AROUND IT', cost: [80, 80, 120], hp: 6,
-    lv: [{ range: 36, slow: 0.6 }, { range: 44, slow: 0.5 }, { range: 52, slow: 0.4 }],
-    specs: [{ key: 'blizzard', name: 'BLIZZARD', desc: 'SLOWER STILL, AND IT HURTS', cost: 260, range: 60, slow: 0.3, dps: 0.8 },
-      { key: 'shatter', name: 'SHATTER', desc: 'CHILLED TANKS: DOUBLE DAMAGE', cost: 240, range: 52, slow: 0.45, brittle: true }] },
-  flame: { name: 'FLAMER', desc: 'BURNS ALL IN A SHORT CONE', cost: [100, 100, 150], hp: 8,
-    lv: [{ range: 32, dps: 2.5 }, { range: 36, dps: 3.5 }, { range: 40, dps: 5 }],
-    specs: [{ key: 'inferno', name: 'INFERNO', desc: 'TWICE THE HEAT', cost: 300, range: 44, dps: 10 },
-      { key: 'napalm', name: 'NAPALM', desc: 'LEAVES THE GROUND BURNING', cost: 260, range: 44, dps: 5, napalm: true }] },
-  rocket: { name: 'ROCKETS', desc: 'FAR, HOMING, BEATS ARMOR', cost: [130, 130, 180], hp: 6,
-    lv: [{ range: 96, cd: 100, dmg: 4 }, { range: 104, cd: 90, dmg: 5 }, { range: 112, cd: 80, dmg: 7 }],
-    specs: [{ key: 'swarm', name: 'SWARM', desc: '4 ROCKETS AT ONCE', cost: 320, range: 112, cd: 90, dmg: 3, salvo: 4 },
-      { key: 'buster', name: 'BUSTER', desc: 'ONE HUGE HIT, PIERCES SHIELDS', cost: 340, range: 128, cd: 110, dmg: 16, pierce: true }] },
-  radar: { name: 'RADAR', desc: 'SHOWS STEALTH, +RANGE NEAR', cost: [70, 80, 110], hp: 5,
-    lv: [{ range: 72, boost: 0.15 }, { range: 88, boost: 0.22 }, { range: 104, boost: 0.3 }], specs: [] },
-  mine: { name: 'GOLD MINE', desc: 'GOLD AFTER EVERY WAVE', cost: [100, 120, 160], hp: 6,
-    lv: [{ income: 25 }, { income: 50 }, { income: 90 }], specs: [] },
+  gun: { name: 'GUN TOWER', desc: 'QUICK SHOTS, ONE TARGET', cost: [60, 70, 110, 160], hp: 6,
+    lv: [{ range: 56, cd: 36, dmg: 1 }, { range: 64, cd: 30, dmg: 1.5 }, { range: 72, cd: 26, dmg: 2 }, { range: 80, cd: 22, dmg: 3 }],
+    specs: [{ key: 'gatling', name: 'GATLING', desc: 'A HAIL OF BULLETS', cost: [240, 320, 450], range: 76, cd: 7, dmg: 1, t3: { shred: true }, t3desc: 'SHREDS ARMOR: +30% DAMAGE' },
+      { key: 'sniper', name: 'SNIPER', desc: 'FAR, HEAVY, SEES STEALTH', cost: [260, 340, 480], range: 168, cd: 75, dmg: 10, seeStealth: true, fast: true, t3: { crit: 0.2 }, t3desc: '1 IN 5 SHOTS HITS X4' }] },
+  cannon: { name: 'CANNON', desc: 'SPLASH; NOT TOO CLOSE', cost: [90, 100, 150, 210], hp: 8,
+    lv: [{ range: 72, min: 20, cd: 90, dmg: 2, splash: 14 }, { range: 76, min: 20, cd: 80, dmg: 3, splash: 16 }, { range: 84, min: 20, cd: 72, dmg: 4, splash: 18 }, { range: 92, min: 20, cd: 64, dmg: 6, splash: 20 }],
+    specs: [{ key: 'howitzer', name: 'HOWITZER', desc: 'HUGE BLASTS FROM AFAR', cost: [320, 420, 600], range: 140, min: 32, cd: 110, dmg: 9, splash: 28, t3: { stunBoom: 30 }, t3desc: 'BLASTS STUN TOO' },
+      { key: 'cluster', name: 'CLUSTER', desc: 'SHELLS BURST INTO BOMBLETS', cost: [300, 400, 560], range: 92, min: 20, cd: 80, dmg: 4, splash: 14, cluster: 4, t3: { cluster: 8 }, t3desc: '8 BOMBLETS' }] },
+  tesla: { name: 'TESLA', desc: 'LIGHTNING JUMPS ON', cost: [110, 110, 170, 230], hp: 6,
+    lv: [{ range: 44, cd: 60, dmg: 1.5, chain: 2 }, { range: 48, cd: 52, dmg: 2, chain: 3 }, { range: 56, cd: 46, dmg: 3, chain: 4 }, { range: 60, cd: 40, dmg: 4, chain: 5 }],
+    specs: [{ key: 'storm', name: 'STORM', desc: 'CHAINS TO 9 TANKS', cost: [340, 440, 620], range: 64, cd: 44, dmg: 3.5, chain: 9, t3: { chain: 16 }, t3desc: 'CHAINS TO 16' },
+      { key: 'emp', name: 'EMP', desc: 'STUNS WHAT IT HITS', cost: [320, 420, 580], range: 60, cd: 60, dmg: 3, chain: 4, stun: 70, t3: { stun: 120 }, t3desc: 'LONGER STUNS' }] },
+  frost: { name: 'FROST', desc: 'SLOWS ALL AROUND IT', cost: [80, 80, 130, 180], hp: 6,
+    lv: [{ range: 36, slow: 0.6 }, { range: 44, slow: 0.5 }, { range: 52, slow: 0.42 }, { range: 58, slow: 0.36 }],
+    specs: [{ key: 'blizzard', name: 'BLIZZARD', desc: 'SLOWER STILL, AND IT HURTS', cost: [280, 380, 520], range: 62, slow: 0.32, dps: 1, t3: { freeze: true }, t3desc: 'FREEZES TANKS SOLID' },
+      { key: 'shatter', name: 'SHATTER', desc: 'CHILLED TANKS: DOUBLE DAMAGE', cost: [260, 360, 500], range: 56, slow: 0.42, brittle: 2, t3: { brittle: 3 }, t3desc: 'TRIPLE DAMAGE' }] },
+  flame: { name: 'FLAMER', desc: 'BURNS ALL IN A SHORT CONE', cost: [100, 100, 160, 220], hp: 8,
+    lv: [{ range: 32, dps: 2.5 }, { range: 36, dps: 3.5 }, { range: 40, dps: 5 }, { range: 44, dps: 7 }],
+    specs: [{ key: 'inferno', name: 'INFERNO', desc: 'TWICE THE HEAT', cost: [320, 420, 600], range: 46, dps: 12, t3: { afterburn: true }, t3desc: 'THEY KEEP BURNING' },
+      { key: 'napalm', name: 'NAPALM', desc: 'LEAVES THE GROUND BURNING', cost: [280, 380, 540], range: 46, dps: 6, napalm: 6, t3: { napalm: 12 }, t3desc: 'WIDER FIRES' }] },
+  rocket: { name: 'ROCKETS', desc: 'FAR, HOMING, BEATS ARMOR', cost: [130, 130, 190, 260], hp: 6,
+    lv: [{ range: 96, cd: 100, dmg: 4 }, { range: 104, cd: 90, dmg: 5 }, { range: 112, cd: 80, dmg: 7 }, { range: 120, cd: 72, dmg: 9 }],
+    specs: [{ key: 'swarm', name: 'SWARM', desc: '4 ROCKETS AT ONCE', cost: [340, 440, 620], range: 116, cd: 90, dmg: 3.5, salvo: 4, t3: { salvo: 6 }, t3desc: '6 ROCKETS' },
+      { key: 'buster', name: 'BUSTER', desc: 'ONE HUGE HIT, PIERCES SHIELDS', cost: [360, 460, 650], range: 132, cd: 110, dmg: 18, pierce: true, t3: { blast: 22 }, t3desc: 'A BIG BLAST AROUND IT' }] },
+  radar: { name: 'RADAR', desc: 'SHOWS STEALTH, +RANGE NEAR', cost: [70, 80, 110, 150, 200], hp: 5,
+    lv: [72, 84, 96, 108, 120].map((range, i) => ({ range, boost: [0.12, 0.17, 0.22, 0.27, 0.32][i] })), specs: [] },
+  mine: { name: 'GOLD MINE', desc: 'GOLD AFTER EVERY WAVE', cost: [100, 120, 160, 220, 300], hp: 6,
+    lv: [20, 40, 65, 95, 130].map(income => ({ income })), specs: [] },
 };
 const TOWER_KINDS = Object.keys(TOWERS);
 const TD_WALLS = { brick: { name: 'BRICK WALL', desc: 'SLOWS THEM: THEY SHOOT THROUGH', cost: 5 }, steel: { name: 'STEEL WALL', desc: 'THEY MUST GO ROUND', cost: 20 } };
 const TD_ABILITIES = { strike: { name: 'AIR STRIKE', desc: 'BOMBS THE BUSIEST ROW', cost: 150, cool: 1800 }, wing: { name: 'WINGMAN', desc: 'A TANK FIGHTS BESIDE YOU', cost: 100, cool: 2700 } };
+// what a tank that reaches the fortress costs the eagle when it rams it (by type; a titan 6)
+const TD_BREACH = { 2: 1, 3: 2, 5: 2, 11: 2, 17: 4 };
 
-// the maps: 21 x 17 tiles; @ steel, ~ water, % trees, _ ice, # brick, S an enemy entry
+// the maps (a campaign: winning one unlocks the next): 21 x 17 tiles; @ steel, ~ water, % trees, _ ice, # brick,
+// S an enemy entry (several open one at a time). waves: to hold; k: how tough its tanks are
 const TD_MAPS = [
-  { key: 'meadow', name: 'MEADOW', diff: 'EASY', theme: 'spring', rows: [
+  { key: 'meadow', name: 'MEADOW', diff: 'EASY', waves: 25, k: 1, theme: 'spring', rows: [
     '..........S..........', '.....................', '...%%..........%%....', '...%%...@@@....%%....', '.........@...........',
     '..@@...........@@....', '.....................', '.......%%...%%.......', '~~.....%%...%%.....~~', '~~.................~~',
     '.....@@.......@@.....', '.....................', '...%%...........%%...', '...%%...........%%...', '.....................',
     '.....................', '.....................'] },
-  { key: 'river', name: 'RIVER', diff: 'NORMAL', theme: 'summer', rows: [
-    '...S.............S...', '.....................', '..%%.............%%..', '..%%....@...@....%%..', '.....................',
-    '.....................', '~~~~~~~~..~~~..~~~~~~', '~~~~~~~~..~~~..~~~~~~', '.....................', '....@@.........@@....',
-    '.....................', '..%%.............%%..', '..%%.............%%..', '.....................', '......@.......@......',
-    '.....................', '.....................'] },
-  { key: 'canyon', name: 'CANYON', diff: 'NORMAL', theme: 'desert', rows: [
+  { key: 'canyon', name: 'CANYON', diff: 'NORMAL', waves: 30, k: 1.15, theme: 'desert', rows: [
     'S....................', '.....................', '@@@@@@@@@@@@@@@@@....', '.....................', '.....................',
     '....@@@@@@@@@@@@@@@@@', '.....................', '.....................', '@@@@@@@@@@@@@@@@@....', '.....................',
     '.....................', '....@@@@@@@@@@@@@@@@@', '.....................', '.....................', '.....................',
     '.....................', '.....................'] },
-  { key: 'crossroads', name: 'CROSSROADS', diff: 'HARD', theme: 'winter', rows: [
+  { key: 'spiral', name: 'SPIRAL', diff: 'NORMAL', waves: 35, k: 1.35, theme: 'nuclear', rows: [
+    'S....................', '@@@@@@@@@@@@@@@@@@...', '.....................', '.....................', '...@@@@@@@@@@@@@@@@@@',
+    '.....................', '.....................', '@@@@@@@@@@@@@@@@@@...', '.....................', '.....................',
+    '...@@@@@@@@@@@@@@@@@@', '.....................', '.....................', '.....................', '.....................',
+    '.....................', '.....................'] },
+  { key: 'river', name: 'RIVER', diff: 'HARD', waves: 30, k: 1, theme: 'summer', rows: [
+    '...S.............S...', '.....................', '..%%.............%%..', '..%%....@...@....%%..', '.....................',
+    '.....................', '~~~~~~~~..~~~..~~~~~~', '~~~~~~~~..~~~..~~~~~~', '.....................', '....@@.........@@....',
+    '.....................', '..%%.............%%..', '..%%.............%%..', '.....................', '......@.......@......',
+    '.....................', '.....................'] },
+  { key: 'islands', name: 'ISLANDS', diff: 'HARD', waves: 35, k: 1.1, theme: 'autumn', rows: [
+    '.....S.........S.....', '.....................', '~~~~~..~~~~~..~~~~~~~', '~~~~~..~~~~~..~~~~~~~', '.....................',
+    '..%%...........%%....', '~~~~~~~~~..~~~~~~~~~~', '~~~~~~~~~..~~~~~~~~~~', '.....................', '....@@.......@@......',
+    '~~~..~~~~~~~~~~~..~~~', '~~~..~~~~~~~~~~~..~~~', '.....................', '.....................', '..%%.............%%..',
+    '.....................', '.....................'] },
+  { key: 'crossroads', name: 'CROSSROADS', diff: 'VERY HARD', waves: 35, k: 1, theme: 'winter', rows: [
     '..........S..........', 'S...................S', '...@@...........@@...', '...@.............@...', '.......%%...%%.......',
     '.......%%...%%.......', '.....................', '..........@..........', '.....................', '.......%%...%%.......',
     '.......%%...%%.......', '...@.............@...', '...@@...........@@...', '.....................', '.....................',
     '.....................', '.....................'] },
+  { key: 'gates', name: 'TWIN GATES', diff: 'VERY HARD', waves: 40, k: 1, theme: 'winter', rows: [
+    'S...................S', '.....................', '..%%.............%%..', '.....................', '.....@.........@.....',
+    '.....................', '~~.....%%...%%.....~~', '~~.................~~', '.....................', '@@@..@@@@@@@@@@@..@@@',
+    '.....................', '.....................', '...%.............%...', '.....................', '.....................',
+    '.....................', '.....................'] },
+  { key: 'gauntlet', name: 'GAUNTLET', diff: 'INSANE', waves: 50, k: 1.05, theme: 'desert', rows: [
+    '..........S..........', 'S...................S', '.@@@@@@@@...@@@@@@@@.', '.....................', '..__.............__..',
+    '@@@@@@@.......@@@@@@@', '.....................', '.....%%.....%%.......', '.....................', '...@@@@@...@@@@@.....',
+    '.....................', '~~~~~...........~~~~~', '.....................', '.....................', '.....................',
+    '.....................', '.....................'] },
 ];
 const TD_W = 21, TD_H = 17;
+
+// map i is open once the one before it has been won (any stars)
+function tdUnlocked(i) {
+  if (i <= 0) return true;
+  const rec = (STORE.get(MODE_KEY, {}).fortress || {})[TD_MAPS[i - 1].key];
+  return !!(rec && rec.stars > 0);
+}
 
 // a map as 8px blocks, and its entry points (px)
 function tdMapBlocks(m) {
@@ -8783,16 +8823,18 @@ function tdMapBlocks(m) {
   return { blocks, spawns };
 }
 
-// what wave w brings: [{type, hp}], how far apart they come, and its kind (for the preview)
-function tdWave(w, lv, season) {
-  const mult = (1 + (w - 1) * 0.16 + Math.max(0, w - 20) * 0.08) * TD_HP_MULT[lv];
+// what wave w brings: [{type, hp, extra}], how far apart they come, and its kind (for the preview); k: the map's toughness
+function tdWave(w, lv, season, k = 1) {
+  const mult = (1 + (w - 1) * 0.22 + Math.max(0, w - 15) * 0.12 + Math.max(0, w - 30) * 0.15) * TD_HP_MULT[lv] * k;
+  const speedMul = Math.min(1.35, 1 + w * 0.012);
   const pool = [[0, 3]];
   const add = (from, type, wt) => { if (w >= from && Config.get('e' + type + 'On') !== 'OFF') pool.push([type, wt]); };
   add(3, 1, 2); add(4, 2, 1.5); add(5, 10, 0.7); add(6, 3, 1); add(7, 4, 0.6); add(8, 7, 0.5); add(9, 13, 0.4);
   add(11, 5, 0.6); add(12, 12, 0.6); add(13, 6, 0.5); add(15, 9, 0.4); add(16, 14, 0.3); add(18, 11, 0.5);
   if (season !== undefined) add(6, season, 0.6);
   const kind = w % 10 === 0 ? 'BOSS' : w % 5 === 3 ? 'SWARM' : w % 5 === 4 ? 'HEAVY' : w % 7 === 2 ? 'FAST' : 'MIXED';
-  let n = Math.min(50, 5 + Math.floor(w * 1.8)), gap = 55, list = [];
+  let n = Math.min(60, 6 + Math.floor(w * 2.2)), gap = 50;
+  const list = [];
   const pick = filter => {
     const p = pool.filter(([t]) => filter(t)), tot = p.reduce((a, q) => a + q[1], 0);
     let r = Math.random() * tot;
@@ -8800,20 +8842,27 @@ function tdWave(w, lv, season) {
     return p.length ? p[0][0] : 0;
   };
   const hp = t => Math.max(1, Math.round(Config.enemy(t).hp * mult));
-  if (kind === 'SWARM') { n = Math.min(60, Math.round(n * 1.6)); gap = 22; for (let i = 0; i < n; i++) { const t = pick(t => t <= 1 || t === 10); list.push({ type: t, hp: Math.max(1, Math.round(hp(t) * 0.6)) }); } }
-  else if (kind === 'HEAVY') { n = Math.max(3, Math.round(n * 0.5)); gap = 95; for (let i = 0; i < n; i++) { const t = pick(t => [3, 5, 11, 2, 4].includes(t)); list.push({ type: t, hp: hp(t) }); } }
-  else if (kind === 'FAST') { gap = 35; for (let i = 0; i < n; i++) { const t = pick(t => [1, 10, 7, 0].includes(t)); list.push({ type: t, hp: hp(t) }); } }
-  else for (let i = 0; i < n; i++) { const t = pick(() => true); list.push({ type: t, hp: hp(t) }); }
-  if (kind === 'BOSS') for (let k = 0; k < w / 10; k++) list.splice(Math.floor(list.length * (k + 1) / (w / 10 + 1)), 0, { type: 17, hp: Math.round(16 * mult) });
+  const one = (t, h = hp(t), extra = {}) => list.push({ type: t, hp: h, extra: Object.assign({ speedMul }, extra) });
+  if (kind === 'SWARM') { n = Math.min(80, Math.round(n * (w < 15 ? 1.3 : 1.6))); gap = 20; for (let i = 0; i < n; i++) { const t = pick(t => t <= 1 || t === 10); one(t, Math.max(1, Math.round(hp(t) * 0.6))); } }
+  else if (kind === 'HEAVY') { n = Math.max(4, Math.round(n * 0.55)); gap = 85; for (let i = 0; i < n; i++) one(pick(t => [3, 5, 11, 2, 4].includes(t))); }
+  else if (kind === 'FAST') { gap = 30; for (let i = 0; i < n; i++) one(pick(t => [1, 10, 7, 0].includes(t))); }
+  else for (let i = 0; i < n; i++) one(pick(() => true));
+  if (kind === 'BOSS') {
+    // snakes, and titans: huge armored tanks that shell your towers and ram the eagle for 6
+    const bosses = [];
+    for (let j = 0; j < w / 10; j++) bosses.push({ type: 17, hp: Math.round(16 * mult), extra: { speedMul } });
+    for (let j = 0; j < Math.ceil(w / 20); j++) bosses.push({ type: 3, hp: Math.round(30 * mult), extra: { titan: true, speedMul: 0.75 } });
+    bosses.forEach((b, j) => list.splice(Math.floor(list.length * (j + 1) / (bosses.length + 1)), 0, b));
+  }
   return { list, gap, kind };
 }
 
 Object.assign(Stage.prototype, {
   setupFortress(o) {
-    const lv = tdSkill();
-    this.td = { map: o.map, spawns: o.spawns, wave: 0, phase: 'build', timer: TD_FIRST_BUILD, gold: TD_START_GOLD[lv], list: [], gap: 55, spawnT: 0,
+    const lv = tdSkill(), mp = TD_MAPS.find(m => m.key === o.map) || TD_MAPS[0];
+    this.td = { map: o.map, waves: mp.waves, k: mp.k, spawns: o.spawns, wave: 0, phase: 'build', timer: TD_FIRST_BUILD, gold: TD_START_GOLD[lv], list: [], gap: 55, spawnT: 0,
       kind: '', won: false, wonT: 0, cool: { strike: 0, wing: 0 }, lv, maxHp: TD_EAGLE_HP[lv], season: SEASON_ENEMY[this.theme] };
-    this.td.next = tdWave(1, lv, this.td.season);
+    this.td.next = tdWave(1, lv, this.td.season, mp.k);
     this.towers = []; this.tdShots = []; this.tdBeams = []; this.tdSparks = [];
     this.queue = []; this.total = 0;
     this.eagleArmor = this.td.maxHp - 1;   // the eagle's HP: each hit costs 1
@@ -8834,19 +8883,61 @@ Object.assign(Stage.prototype, {
         const open = this.tdOpen(), [x, y] = open[(td.spawned++) % open.length];
         if (!this.tanks.some(t => t.alive && overlap(t.x, t.y, 16, 16, x, y, 16, 16)) && !this.spawns.some(s => s.enemy && s.x === x && s.y === y)) {
           const e = td.list.shift();
-          this.spawns.push({ x, y, t: SPARKLE_TIME, enemy: { type: e.type, hp: e.hp, ai: AI.RUSH } });
+          this.spawns.push({ x, y, t: SPARKLE_TIME, enemy: { type: e.type, hp: e.hp, ai: AI.RUSH, extra: e.extra } });
           this.total++;
           td.spawnT = Math.round(td.gap / Config.skill().spawn);
         } else td.spawnT = 10;
       }
       if (!td.list.length && !this.spawns.some(s => s.enemy) && !this.tanks.some(t => t.alive && !t.isPlayer && !t.mirage)) this.tdWaveCleared();
     }
+    this.tdSiege();
     this.updateTowers();
     this.updateTdShots();
     for (const b of this.tdBeams) b.t--;
     this.tdBeams = this.tdBeams.filter(b => b.t > 0);
     for (const s of this.tdSparks) { s.x += s.vx; s.y += s.vy; s.t--; }
     this.tdSparks = this.tdSparks.filter(s => s.t > 0);
+  },
+
+  // the enemy fights back: heavy tanks stop and shell a tower lined up with them; anything that reaches the fortress
+  // rams it and blows up, costing the eagle HP
+  tdSiege() {
+    const ex = BASE_X + 8, ey = BASE_Y + 8;
+    for (const t of this.tanks) {
+      if (!t.alive || t.isPlayer || t.mirage || t.burrow > 0) continue;
+      if (t.siege === undefined) t.siege = !!t.titan || [2, 3, 4, 5, 9].includes(t.type) || Math.random() < 0.3;
+      if (Math.hypot(t.x + 8 - ex, t.y + 8 - ey) < TD_BREACH_RANGE) { this.tdBreach(t); continue; }
+      // a tank that hasn't got anywhere for 20 s (wedged somewhere) goes back to an entry point, so a wave can't stall
+      if (!t.tdLast || Math.abs(t.x - t.tdLast[0]) + Math.abs(t.y - t.tdLast[1]) > 8) t.tdLast = [t.x, t.y, this.frame];
+      else if (this.frame - t.tdLast[2] > 1200 && !(t.stun > 0)) {
+        const [sx, sy] = this.tdOpen()[rnd(this.tdOpen().length)];
+        if (!this.tanks.some(o => o !== t && o.alive && overlap(o.x, o.y, 16, 16, sx, sy, 16, 16))) { t.x = sx; t.y = sy; t.hold = 0; t.nav = null; }
+        t.tdLast = [t.x, t.y, this.frame];
+      }
+      if (!t.siege || t.stun > 0 || t.cool > 0 || t.bullets > 0 || this.freezeE > 0 || (this.frame + t.x) % 15) continue;
+      let best = null, bd = TD_SIEGE_RANGE;
+      for (const tw of this.towers) {
+        const dx = tw.x - t.x, dy = tw.y - t.y, d = Math.abs(dx) + Math.abs(dy);
+        if (d >= bd || (Math.abs(dx) >= 8 && Math.abs(dy) >= 8) || !this.clearLine(t.x + 8, t.y + 8, tw.x + 8, tw.y + 8)) continue;
+        best = Math.abs(dx) < 8 ? (dy < 0 ? 0 : 2) : (dx < 0 ? 3 : 1); bd = d;
+      }
+      if (best === null) continue;
+      this.turn(t, best);
+      t.hold = 24;
+      this.fire(t);
+      t.cool = t.titan ? 30 : 50;
+    }
+  },
+
+  tdBreach(t) {
+    const n = t.titan ? 6 : TD_BREACH[t.type] || 1;
+    this.popups.push({ x: BASE_X + 8, y: BASE_Y - 8, text: '-' + n, label: true, color: COL.red, t: 0, delay: 0, life: 70 });
+    this.killEnemy(t, null, false);
+    const left = this.eagleArmor - n;   // eagleArmor is HP - 1
+    if (left < 0) { this.eagleArmor = 0; this.eagleInv = 0; this.destroyBase(); return; }
+    this.eagleArmor = left; this.eagleFlash = 30;
+    this.addFx(BASE_X + 8, BASE_Y + 8, Sprites.smallExp, 3);
+    Sound.play('armor');
   },
 
   // the entry points in use: a map with several opens them one at a time, a new one every 5 waves
@@ -8862,7 +8953,7 @@ Object.assign(Stage.prototype, {
     const w = td.next;
     td.list = w.list.slice(); td.gap = w.gap; td.kind = w.kind; td.spawnT = 30; td.spawned = 0;
     td.phase = 'wave';
-    td.next = td.wave < TD_WAVES ? tdWave(td.wave + 1, td.lv, td.season) : null;
+    td.next = td.wave < td.waves ? tdWave(td.wave + 1, td.lv, td.season, td.k) : null;
     this.popups.push({ x: (this.camX || 0) + VIEW_W / 2, y: (this.camY || 0) + 40, text: 'WAVE ' + td.wave + (w.kind !== 'MIXED' ? ': ' + w.kind : ''), label: true, color: w.kind === 'BOSS' ? '#F83800' : COL.gold, t: 0, delay: 0, life: 120 });
     Sound.play(w.kind === 'BOSS' ? 'bossWarn' : 'puAppear');
   },
@@ -8878,7 +8969,7 @@ Object.assign(Stage.prototype, {
 
   tdWaveCleared() {
     const td = this.td;
-    let gold = 20 + 3 * td.wave;
+    const gold = 20 + 2 * td.wave;
     const interest = Math.min(TD_INTEREST_MAX, Math.floor(td.gold * TD_INTEREST));
     const mines = this.towers.filter(t => t.kind === 'mine').reduce((a, t) => a + this.towerStat(t).income, 0);
     td.gold += gold + interest + mines;
@@ -8886,7 +8977,7 @@ Object.assign(Stage.prototype, {
     this.popups.push({ x: (this.camX || 0) + VIEW_W / 2, y: (this.camY || 0) + 40, text: 'WAVE ' + td.wave + ' HELD +' + gold + (interest ? '  INTEREST +' + interest : ''), label: true, color: COL.gold, t: 0, delay: 0, life: 150 });
     for (const p of this.players) if (!p.out) this.addXp(p, 10 + td.wave);
     Sound.play('bonus');
-    if (td.wave >= TD_WAVES) {
+    if (td.wave >= td.waves) {
       td.won = true;
       const f = (this.eagleArmor + 1) / td.maxHp;
       td.stars = f >= 0.9 ? 3 : f >= 0.5 ? 2 : 1;
@@ -8899,7 +8990,19 @@ Object.assign(Stage.prototype, {
 
   // ------------------------------------------------------------ towers
   towerStat(tw) {
-    const T = TOWERS[tw.kind], s = Object.assign({}, T.lv[tw.lv - 1], tw.spec !== undefined ? T.specs[tw.spec] : {});
+    const T = TOWERS[tw.kind], s = Object.assign({}, T.lv[Math.min(tw.lv, T.lv.length) - 1]);
+    if (tw.spec !== undefined) {
+      const sp = T.specs[tw.spec], k = TD_TIER[tw.stier || 1];
+      for (const key in sp) if (!['key', 'name', 'desc', 'cost', 't3', 't3desc'].includes(key)) s[key] = sp[key];
+      if (s.dmg) s.dmg *= k.dmg;
+      if (s.dps) s.dps *= k.dmg;
+      if (s.range) s.range += k.range;
+      if (s.cd) s.cd = Math.round(s.cd * k.cd);
+      if (s.slow) s.slow *= k.slow;
+      if (s.splash) s.splash += k.splash;
+      if (s.chain) s.chain += k.chain;
+      if (tw.stier >= 3) Object.assign(s, sp.t3);
+    }
     // a radar nearby stretches the range
     let boost = 0;
     for (const r of this.towers) if (r.kind === 'radar' && r !== tw && Math.hypot(r.x - tw.x, r.y - tw.y) <= TD_BUFF_RANGE) boost = Math.max(boost, TOWERS.radar.lv[r.lv - 1].boost);
@@ -8933,7 +9036,13 @@ Object.assign(Stage.prototype, {
   },
 
   updateTowers() {
-    for (const t of this.tanks) if (!t.isPlayer) { t.chill = 1; t.brittle = false; }
+    for (const t of this.tanks) {
+      if (t.isPlayer) continue;
+      t.chill = 1; t.brittle = 0;
+      if (t.shred > 0) t.shred--;
+      // afterburn (inferno III)
+      if (t.burn > 0 && t.alive) { t.burn--; if (this.frame % 6 === 0) this.tdHit(t, 0.35, t.burnBy, true); }
+    }
     // radars first (they reveal), frost auras next (they slow and make brittle), then the guns
     const order = this.towers.slice().sort((a, b) => (a.kind === 'radar' ? 0 : a.kind === 'frost' ? 1 : 2) - (b.kind === 'radar' ? 0 : b.kind === 'frost' ? 1 : 2));
     for (const tw of order) {
@@ -8950,8 +9059,9 @@ Object.assign(Stage.prototype, {
       const list = this.tdTargets(tw, s, cx, cy);
       if (tw.kind === 'frost') {
         for (const [t] of list) {
-          t.chill = Math.min(t.chill || 1, s.slow);
-          if (s.brittle) t.brittle = true;
+          t.chill = Math.min(t.chill || 1, t.titan ? Math.max(0.7, s.slow) : s.slow);
+          if (s.brittle) t.brittle = Math.max(t.brittle || 0, s.brittle);
+          if (s.freeze && !t.titan && this.frame % 60 === 0 && Math.random() < 0.25) t.stun = 40;   // blizzard III
           if (s.dps && this.frame % 6 === 0) this.tdHit(t, s.dps * 0.1, tw, true);
         }
         tw.busy = list.length > 0;
@@ -8965,9 +9075,9 @@ Object.assign(Stage.prototype, {
         if (this.frame % 6 === 0) {
           for (const [t, d] of list) {
             const a = Math.atan2(t.y + 8 - cy, t.x + 8 - cx), diff = Math.abs(((a - tw.ang + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-            if (diff < 0.5 || d < 12) this.tdHit(t, s.dps * 0.1, tw, true);
+            if (diff < 0.5 || d < 12) { this.tdHit(t, s.dps * 0.1, tw, true); if (s.afterburn) { t.burn = 120; t.burnBy = tw; } }
           }
-          if (s.napalm && this.fires) this.igniteAt(target.x + 8, target.y + 8, 6, true, true);
+          if (s.napalm && this.fires) this.igniteAt(target.x + 8, target.y + 8, s.napalm, true, true);
         }
         for (let k = 0; k < 2; k++) {
           const a = tw.ang + (Math.random() - 0.5) * 0.8, v = 1.5 + Math.random() * 1.5;
@@ -8991,21 +9101,22 @@ Object.assign(Stage.prototype, {
           if (!best) break;
           hit.push(best); pts.push([best.x + 8, best.y + 8]);
         }
-        for (const t of hit) { this.tdHit(t, s.dmg, tw, false); if (s.stun) t.stun = s.stun; }
+        for (const t of hit) { this.tdHit(t, s.dmg, tw, false); if (s.stun && !t.titan) t.stun = s.stun; }
         this.tdBeams.push({ pts, t: 10, color: s.stun ? '#7CB8F8' : '#F8F8A0' });
         Sound.play('zap');
       } else if (tw.kind === 'cannon') {
         const lead = (target.speed || 0.5) * 20, tx = target.x + 8 + DXY[target.dir][0] * lead, ty = target.y + 8 + DXY[target.dir][1] * lead;
-        this.tdShots.push({ kind: 'shell', x: cx, y: cy, x0: cx, y0: cy, tx, ty, p: 0, dp: 2.2 / Math.max(20, Math.hypot(tx - cx, ty - cy)), dmg: s.dmg, splash: s.splash, cluster: s.cluster, tw });
+        this.tdShots.push({ kind: 'shell', x: cx, y: cy, x0: cx, y0: cy, tx, ty, p: 0, dp: 2.2 / Math.max(20, Math.hypot(tx - cx, ty - cy)), dmg: s.dmg, splash: s.splash, cluster: s.cluster, stun: s.stunBoom, tw });
         Sound.play('mortar');
       } else if (tw.kind === 'rocket') {
         const targets = s.salvo ? list.map(q => q[0]).sort(() => Math.random() - 0.5).slice(0, s.salvo) : [target];
         while (s.salvo && targets.length < s.salvo) targets.push(target);
-        targets.forEach((t, k) => this.tdShots.push({ kind: 'rocket', x: cx, y: cy - 4, vx: Math.cos(tw.ang + (k - 1.5) * 0.4) * 0.8, vy: Math.sin(tw.ang + (k - 1.5) * 0.4) * 0.8, target: t, dmg: s.dmg, splash: 8, pierce: s.pierce, tw, life: 240 }));
+        targets.forEach((t, k) => this.tdShots.push({ kind: 'rocket', x: cx, y: cy - 4, vx: Math.cos(tw.ang + (k - 1.5) * 0.4) * 0.8, vy: Math.sin(tw.ang + (k - 1.5) * 0.4) * 0.8, target: t, dmg: s.dmg, splash: s.blast || 8, pierce: s.pierce, tw, life: 240 }));
         Sound.play('mortar');
       } else {
         // gun, gatling, sniper
-        this.tdShots.push({ kind: 'bullet', x: cx + Math.cos(tw.ang) * 7, y: cy + Math.sin(tw.ang) * 7, target, speed: s.fast ? 9 : 5, dmg: s.dmg, tw, life: 90 });
+        const crit = s.crit && Math.random() < s.crit;
+        this.tdShots.push({ kind: 'bullet', x: cx + Math.cos(tw.ang) * 7, y: cy + Math.sin(tw.ang) * 7, target, speed: s.fast ? 9 : 5, dmg: s.dmg * (crit ? 4 : 1), shred: s.shred, crit, tw, life: 90 });
         if (tw.spec !== 0 || this.frame % 3 === 0) Sound.play('shot');
       }
     }
@@ -9016,7 +9127,7 @@ Object.assign(Stage.prototype, {
       if (s.kind === 'shell') {
         s.p += s.dp;
         s.x = s.x0 + (s.tx - s.x0) * s.p; s.y = s.y0 + (s.ty - s.y0) * s.p;
-        if (s.p >= 1) { s.done = true; this.tdBoom(s.tx, s.ty, s.splash, s.dmg, s.tw); if (s.cluster) for (let k = 0; k < s.cluster; k++) { const a = k * Math.PI / 2 + 0.6; this.tdShots.push({ kind: 'shell', bomblet: true, x: s.tx, y: s.ty, x0: s.tx, y0: s.ty, tx: s.tx + Math.cos(a) * 16, ty: s.ty + Math.sin(a) * 16, p: 0, dp: 0.08, dmg: s.dmg * 0.5, splash: 10, tw: s.tw }); } }
+        if (s.p >= 1) { s.done = true; this.tdBoom(s.tx, s.ty, s.splash, s.dmg, s.tw, null, s.stun); if (s.cluster) for (let k = 0; k < s.cluster; k++) { const a = k * Math.PI * 2 / s.cluster + 0.6; this.tdShots.push({ kind: 'shell', bomblet: true, x: s.tx, y: s.ty, x0: s.tx, y0: s.ty, tx: s.tx + Math.cos(a) * 16, ty: s.ty + Math.sin(a) * 16, p: 0, dp: 0.08, dmg: s.dmg * 0.5, splash: 10, tw: s.tw }); } }
         continue;
       }
       if (--s.life <= 0) { s.done = true; continue; }
@@ -9035,18 +9146,23 @@ Object.assign(Stage.prototype, {
         if (Math.hypot(s.tx - s.x, s.ty - s.y) < 5) { s.done = true; if (alive) this.tdHit(t, s.dmg, s.tw, false, s.pierce); this.tdBoom(s.tx, s.ty, s.splash, s.dmg * 0.4, s.tw, t); }
         continue;
       }
-      if (d <= s.speed + 2) { s.done = true; if (alive) this.tdHit(t, s.dmg, s.tw, false); continue; }
+      if (d <= s.speed + 2) {
+        s.done = true;
+        if (alive) { this.tdHit(t, s.dmg, s.tw, false); if (s.shred) t.shred = 120; }
+        if (alive && s.crit) this.popups.push({ x: t.x + 8, y: t.y, text: 'CRIT', label: true, color: COL.gold, t: 0, delay: 0, life: 30 });
+        continue;
+      }
       s.x += dx / d * s.speed; s.y += dy / d * s.speed;
     }
     this.tdShots = this.tdShots.filter(s => !s.done);
   },
 
   // a blast at (x, y): everything within r takes dmg (except skip)
-  tdBoom(x, y, r, dmg, tw, skip) {
+  tdBoom(x, y, r, dmg, tw, skip, stun) {
     this.addFx(x, y, r >= 20 ? BIG_EXPLOSION() : Sprites.smallExp, r >= 20 ? 4 : 3);
     for (const t of this.tanks.slice()) {
       if (!t.alive || t.isPlayer || t === skip || t.burrow > 0 || t.hopT > 0) continue;
-      if (Math.hypot(t.x + 8 - x, t.y + 8 - y) <= r + 6) this.tdHit(t, dmg, tw, true);
+      if (Math.hypot(t.x + 8 - x, t.y + 8 - y) <= r + 6) { this.tdHit(t, dmg, tw, true); if (stun && !t.titan) t.stun = Math.max(t.stun || 0, stun); }
     }
     this.explosionHeat(x, y, r);
   },
@@ -9059,7 +9175,8 @@ Object.assign(Stage.prototype, {
       const [fx, fy] = DXY[t.dir], ax = tw.x - t.x, ay = tw.y - t.y, d = Math.hypot(ax, ay) || 1;
       if ((ax * fx + ay * fy) / d > 0.7) dmg *= 0.25;
     }
-    if (t.brittle) dmg *= 2;
+    if (t.brittle) dmg *= t.brittle;   // shatter: 2x (3x at tier III)
+    if (t.shred > 0) dmg *= 1.3;       // gatling III
     t.reveal = Math.max(t.reveal || 0, 20);
     t.tdAcc = (t.tdAcc || 0) + dmg;
     let n = Math.floor(t.tdAcc);
@@ -9076,7 +9193,7 @@ Object.assign(Stage.prototype, {
   },
 
   // gold for a kill
-  tdKillGold(t) { if (this.td && !t.mirage) this.td.gold += Math.ceil(ENEMY[t.type].pts / 50) + Math.floor(this.td.wave / 4); },
+  tdKillGold(t) { if (this.td && !t.mirage) this.td.gold += Math.round(((t.titan ? 40 : Math.ceil(ENEMY[t.type].pts / 80)) + Math.floor(this.td.wave / 6)) * TD_GOLD_MULT[this.td.lv]); },
 
   // enemy shells on towers (true if the shell stopped there)
   bulletTower(b) {
@@ -9139,11 +9256,15 @@ Object.assign(Stage.prototype, {
     if (td.phase === 'build') items.push({ key: 'send', label: 'SEND WAVE ' + (td.wave + 1), desc: 'NOW: +' + Math.ceil(td.timer / 60) * 2 + ' GOLD', price: 0, icon: '>>' });
     if (tw) {
       const T = TOWERS[tw.kind];
-      if (tw.spec === undefined && tw.lv < 3) items.push({ key: 'up', label: 'LEVEL ' + (tw.lv + 1), desc: T.name, price: T.cost[tw.lv], icon: '^' });
-      if (tw.spec === undefined && tw.lv === 3) T.specs.forEach((s, i) => items.push({ key: 'spec' + i, label: s.name, desc: s.desc, price: s.cost, icon: tw.kind, spec: i }));
+      if (tw.spec === undefined && tw.lv < T.lv.length) items.push({ key: 'up', label: 'LEVEL ' + (tw.lv + 1) + '/' + T.lv.length, desc: T.name, price: T.cost[tw.lv], icon: '^' });
+      if (tw.spec === undefined && tw.lv === T.lv.length) T.specs.forEach((s, i) => items.push({ key: 'spec' + i, label: s.name + ' I', desc: s.desc, price: s.cost[0], icon: tw.kind, spec: i }));
+      if (tw.spec !== undefined && (tw.stier || 1) < 3) {
+        const sp = T.specs[tw.spec], k = tw.stier || 1;
+        items.push({ key: 'sup', label: sp.name + ' ' + TD_TIER_NAMES[k], desc: k === 2 ? sp.t3desc : 'STRONGER, FARTHER, FASTER', price: sp.cost[k], icon: '^' });
+      }
       if (tw.kind !== 'mine' && tw.kind !== 'radar' && tw.kind !== 'frost') items.push({ key: 'target', label: 'AIM: ' + TD_TARGETS[tw.target || 0], desc: 'FIRE: CHANGE', price: 0, icon: '+' });
       if (tw.hp < tw.max) items.push({ key: 'repair', label: 'REPAIR', desc: 'BACK TO FULL STRENGTH', price: Math.ceil((tw.max - tw.hp) / tw.max * tw.spent * 0.3), icon: 'R' });
-      items.push({ key: 'sell', label: 'SELL +' + Math.floor(tw.spent * TD_SELL), desc: T.name + ' L' + tw.lv + (tw.spec !== undefined ? ' ' + T.specs[tw.spec].name : ''), price: 0, icon: 'coin' });
+      items.push({ key: 'sell', label: 'SELL +' + Math.floor(tw.spent * TD_SELL), desc: tw.spec !== undefined ? T.specs[tw.spec].name + ' ' + TD_TIER_NAMES[(tw.stier || 1) - 1] : T.name + ' L' + tw.lv, price: 0, icon: 'coin' });
     } else if (kind === 'wall') {
       items.push({ key: 'remove', label: 'REMOVE WALL', desc: 'GIVES BACK HALF', price: 0, icon: 'X' });
     } else if (kind === 'free' || kind === 'busy') {
@@ -9219,7 +9340,8 @@ Object.assign(Stage.prototype, {
     const tw = this.towerAt(x, y);
     if (!tw) return;
     if (it.key === 'up') { td.gold -= it.price; tw.spent += it.price; tw.lv++; tw.max += 3; tw.hp = tw.max; Sound.play('levelUp'); this.addFx(x + 8, y + 8, [Sprites.sparkle[0], Sprites.sparkle[1]], 4); }
-    else if (it.key.startsWith('spec')) { td.gold -= it.price; tw.spent += it.price; tw.spec = it.spec; tw.max += 6; tw.hp = tw.max; Sound.play('levelUp'); this.addFx(x + 8, y + 8, [Sprites.sparkle[0], Sprites.sparkle[1], Sprites.sparkle[2]], 5); }
+    else if (it.key === 'sup') { td.gold -= it.price; tw.spent += it.price; tw.stier = (tw.stier || 1) + 1; tw.max += 4; tw.hp = tw.max; Sound.play('levelUp'); this.addFx(x + 8, y + 8, [Sprites.sparkle[0], Sprites.sparkle[1], Sprites.sparkle[2]], 5); }
+    else if (it.key.startsWith('spec')) { td.gold -= it.price; tw.spent += it.price; tw.spec = it.spec; tw.stier = 1; tw.max += 6; tw.hp = tw.max; Sound.play('levelUp'); this.addFx(x + 8, y + 8, [Sprites.sparkle[0], Sprites.sparkle[1], Sprites.sparkle[2]], 5); }
     else if (it.key === 'repair') { td.gold -= it.price; tw.hp = tw.max; Sound.play('heal'); }
     else if (it.key === 'sell') {
       td.gold += Math.floor(tw.spent * TD_SELL);
@@ -9236,7 +9358,7 @@ Object.assign(Stage.prototype, {
   // a tower: a steel plate with its kind on top, level pips, a spec star, an HP bar when damaged
   drawTower(ctx, tw, x = tw.x, y = tw.y, ghost) {
     const f = this.frame, a = tw.ang === undefined ? -Math.PI / 2 : tw.ang, cx = x + 8, cy = y + 8, sp = tw.spec !== undefined;
-    const lvCol = ['#ADADAD', '#F0BC3C', '#58D854'][Math.max(0, (tw.lv || 1) - 1)];
+    const lvCol = ['#ADADAD', '#F0BC3C', '#58D854', '#3CBCFC', '#F878F8'][Math.max(0, Math.min(4, (tw.lv || 1) - 1))];
     if (ghost) ctx.globalAlpha = 0.55;
     ctx.drawImage(Sprites.turretBase, x, y);
     const R = (dx, dy, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(cx + dx), Math.round(cy + dy), w, h); };
@@ -9274,7 +9396,7 @@ Object.assign(Stage.prototype, {
     }
     if (ghost) { ctx.globalAlpha = 1; return; }
     for (let k = 0; k < (tw.lv || 1); k++) R(-7 + k * 3, 5, 2, 2, lvCol);
-    if (sp) R(4, 4, 3, 3, (f >> 3) & 1 ? '#F8F8F8' : COL.gold);
+    if (sp) { R(4, 4, 3, 3, (f >> 3) & 1 ? '#F8F8F8' : COL.gold); for (let k = 0; k < (tw.stier || 1); k++) R(6, 2 - k * 3, 2, 2, COL.gold); }
     if (tw.flash > 0 && (tw.flash >> 1) & 1) { ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(x, y, 16, 16); }
     if (tw.hp < tw.max) {
       ctx.fillStyle = COL.black; ctx.fillRect(x, y - 4, 16, 3);
@@ -9290,6 +9412,8 @@ Object.assign(Stage.prototype, {
 
   renderTowers(ctx) {
     if (!this.td) return;
+    // titans glow red
+    for (const t of this.tanks) if (t.alive && t.titan) ctx.drawImage(Sprites.outline(Sprites.tank('e3', t.anim || 0, t.dir, 'green'), (this.frame >> 2) & 1 ? '#F83800' : '#F8B800'), t.x - 1, t.y - 1);
     // the entry points: open ones blink red, the ones still closed are grey (and say when they open)
     const open = this.td.spawns.length && this.td.wave >= 0 ? this.tdOpen(Math.max(1, this.td.wave + (this.td.phase === 'build' ? 1 : 0))).length : 1;
     this.td.spawns.forEach(([x, y], i) => {
@@ -9315,9 +9439,8 @@ Object.assign(Stage.prototype, {
       if (it && it.key === 'build') { this.drawTower(ctx, { kind: it.tower, lv: 1, ang: -Math.PI / 2 }, x, y, true); const r = TOWERS[it.tower].lv[0].range; if (r) this.ring(ctx, x + 8, y + 8, r, '#F8F8F8'); }
       const tw = this.towerAt(x, y);
       if (tw && tw.kind !== 'mine') {
-        let s = this.towerStat(tw);
-        if (it && it.key === 'up') s = Object.assign({}, TOWERS[tw.kind].lv[tw.lv]);
-        if (it && it.spec !== undefined) s = Object.assign({}, s, TOWERS[tw.kind].specs[it.spec]);
+        const next = it && it.key === 'up' ? { lv: tw.lv + 1 } : it && it.spec !== undefined ? { spec: it.spec, stier: 1 } : it && it.key === 'sup' ? { stier: (tw.stier || 1) + 1 } : {};
+        const s = this.towerStat(Object.assign({}, tw, next));
         if (s.range) this.ring(ctx, x + 8, y + 8, s.range, '#F8F8F8');
         if (tw.kind === 'radar') this.ring(ctx, x + 8, y + 8, TD_BUFF_RANGE, '#F8B800');
       }
@@ -9393,7 +9516,7 @@ Object.assign(Stage.prototype, {
   // the border above the field and the side panel: wave, gold, eagle HP, the next wave
   renderFortressHud(ctx, H) {
     const td = this.td;
-    Font.drawCenter(ctx, 'WAVE ' + td.wave + '/' + TD_WAVES + ' GOLD ' + td.gold + ' HP ' + (this.baseAlive ? this.eagleArmor + 1 : 0), FX + VIEW_W / 2, 0, COL.black);
+    Font.drawCenter(ctx, 'WAVE ' + td.wave + '/' + td.waves + ' GOLD ' + td.gold + ' HP ' + (this.baseAlive ? this.eagleArmor + 1 : 0), FX + VIEW_W / 2, 0, COL.black);
     Font.draw(ctx, 'NXT', H, 26, COL.black);
     if (td.next) {
       const counts = new Map();
@@ -11041,7 +11164,7 @@ const Net = {
       df: st.netDiff || [],
       tk: st.tanks.filter(t => t.alive).map(t => [t.x, t.y, t.dir, t.isPlayer ? 1 : 0, t.player ? t.player.i : -1, t.type, t.hp,
         t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow, t.reveal, t.ai, t.vet, t.segs ? t.segs.map(p => p[0] + ',' + p[1]).join(';') : 0,
-        t.ally ? 1 : 0, t.boost.smoke ? 1 : 0, (t.burrow > 0 ? 1 : 0) | (t.mirage ? 2 : 0) | (t.blowing ? 4 : 0) | (t.iced > 0 ? 8 : 0), t.hopT || 0]),
+        t.ally ? 1 : 0, t.boost.smoke ? 1 : 0, (t.burrow > 0 ? 1 : 0) | (t.mirage ? 2 : 0) | (t.blowing ? 4 : 0) | (t.iced > 0 ? 8 : 0) | (t.titan ? 16 : 0), t.hopT || 0]),
       bu: st.bullets.filter(b => b.alive).map(b => [r(b.x), r(b.y), b.dir, b.rocket ? 1 : 0, b.pierce ? 1 : 0]),
       fx: st.fx.map(f => [r(f.x), r(f.y), fxKind(f), f.per, f.tick]),
       pp: st.popups,
@@ -11069,8 +11192,8 @@ const Net = {
       se: st.seasonFx || (st.wrecks && st.wrecks.length) || (st.fires && st.fires.size) ? [Array.from(st.fires.keys()), st.wind ? st.wind.dir : -1, st.blizzard, st.shower,
         st.zones.map(z => [z.x, z.y, z.r]), st.wrecks.map(w => [w.x, w.y, w.dir, w.t])] : null,
       td: st.td ? [st.td.wave, st.td.phase, st.td.timer, st.td.gold, st.td.maxHp, st.td.won ? 1 : 0, st.td.next ? st.td.next.list.map(e => e.type) : null,
-        st.td.next ? st.td.next.kind : '', st.td.cool, st.td.spawns, st.td.map, [...(st.tdBuilt || [])]] : null,
-      tw: st.towers ? st.towers.map(t => [t.x, t.y, t.kind, t.lv, t.spec === undefined ? -1 : t.spec, t.hp, t.max, r(t.ang || 0), t.flash, t.target || 0, t.busy ? 1 : 0, t.spent]) : null,
+        st.td.next ? st.td.next.kind : '', st.td.cool, st.td.spawns, st.td.map, [...(st.tdBuilt || [])], st.td.waves] : null,
+      tw: st.towers ? st.towers.map(t => [t.x, t.y, t.kind, t.lv, t.spec === undefined ? -1 : t.spec, t.hp, t.max, r(t.ang || 0), t.flash, t.target || 0, t.busy ? 1 : 0, t.spent, t.stier || 0]) : null,
       ts: st.tdShots ? st.tdShots.map(s => [r(s.x), r(s.y), s.kind === 'shell' ? (s.bomblet ? 3 : 2) : s.kind === 'rocket' ? 1 : 0, s.p !== undefined ? r(s.p) : 0]) : null,
       tb: st.tdBeams ? st.tdBeams.map(b => [b.pts, b.t, b.color]) : null,
       mz: st.maze ? [st.maze.sx, st.maze.sy, st.maze.ex, st.maze.ey, st.maze.hintAt, st.maze.escaped ? 1 : 0, st.maze.MW, st.maze.MH] : null,
@@ -11222,7 +11345,7 @@ const Net = {
       type: a[5], hp: a[6], bonus: !!a[7], shield: a[8], frozen: a[9], ship: !!a[10], anim: a[11], boost: Object.assign(a[12] ? { ghost: 1 } : {}, a[20] ? { smoke: 1 } : {}),
       plates: a[13] || 0, glow: a[14] || 0, reveal: a[15] || 0, ai: a[16] || 0, vet: a[17] || 0, stealth: a[5] === 7,
       segs: a[18] ? a[18].split(';').map(p => p.split(',').map(Number)) : null, ally: !!a[19],
-      burrow: a[21] & 1 ? 1 : 0, mirage: a[21] & 2 ? 1 : 0, blowing: !!(a[21] & 4), iced: a[21] & 8 ? 2 : 0, hopT: a[22] || 0,
+      burrow: a[21] & 1 ? 1 : 0, mirage: a[21] & 2 ? 1 : 0, blowing: !!(a[21] & 4), iced: a[21] & 8 ? 2 : 0, titan: !!(a[21] & 16), hopT: a[22] || 0,
     }));
     if (sv.ea) { st.eagleArmor = sv.ea[0]; st.eagleFlash = sv.ea[1]; st.gunDir = sv.ea[2]; st.teslaT = sv.ea[4]; st.zaps = sv.ea[5] || []; st.base = Object.assign(newBase(), G.base || {}); }
     st.turrets = (sv.tu || []).map(a => ({ x: a[0], y: a[1], dir: a[2], hp: a[3], owner: G.players.find(p => p.i === a[4]) || null, enemy: !!a[5] }));
@@ -11257,9 +11380,9 @@ const Net = {
     // FORTRESS (fortress.js)
     if (sv.td) {
       const a = sv.td;
-      st.td = { wave: a[0], phase: a[1], timer: a[2], gold: a[3], maxHp: a[4], won: !!a[5], next: a[6] ? { list: a[6].map(type => ({ type })), kind: a[7] } : null, cool: a[8], spawns: a[9], map: a[10] };
+      st.td = { waves: a[12], wave: a[0], phase: a[1], timer: a[2], gold: a[3], maxHp: a[4], won: !!a[5], next: a[6] ? { list: a[6].map(type => ({ type })), kind: a[7] } : null, cool: a[8], spawns: a[9], map: a[10] };
       st.tdBuilt = new Set(a[11]);
-      st.towers = sv.tw.map(q => ({ x: q[0], y: q[1], kind: q[2], lv: q[3], spec: q[4] < 0 ? undefined : q[4], hp: q[5], max: q[6], ang: q[7], flash: q[8], target: q[9], busy: !!q[10], spent: q[11] }));
+      st.towers = sv.tw.map(q => ({ x: q[0], y: q[1], kind: q[2], lv: q[3], spec: q[4] < 0 ? undefined : q[4], hp: q[5], max: q[6], ang: q[7], flash: q[8], target: q[9], busy: !!q[10], spent: q[11], stier: q[12] || undefined }));
       st.tdShots = sv.ts.map(q => ({ x: q[0], y: q[1], kind: q[2] >= 2 ? 'shell' : q[2] ? 'rocket' : 'bullet', bomblet: q[2] === 3, p: q[3] }));
       st.tdBeams = sv.tb.map(q => ({ pts: q[0], t: q[1], color: q[2] }));
       st.tdSparks = st.tdSparks || [];
@@ -11807,7 +11930,7 @@ const Game = {
         : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack)
         : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score
         : mi.key === 'maze' && rec.maze ? 'BEST: ' + rec.maze.escaped + ' MAZES ESCAPED  ' + rec.maze.score
-        : mi.key === 'fortress' && rec.fortress ? 'STARS: ' + TD_MAPS.map(m => (rec.fortress[m.key] || {}).stars || 0).reduce((a, b) => a + b, 0) + '/' + TD_MAPS.length * 3 + '  1-4 PLAYERS'
+        : mi.key === 'fortress' && rec.fortress ? 'STARS ' + TD_MAPS.map(m => (rec.fortress[m.key] || {}).stars || 0).reduce((a, b) => a + b, 0) + '/' + TD_MAPS.length * 3 + '  MAPS ' + TD_MAPS.filter((m, i) => tdUnlocked(i)).length + '/' + TD_MAPS.length
         : mi.key === 'coop' ? '1-4 PLAYERS TOGETHER' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '')
         : mi.key === 'eagles' ? '1P: VS CPU' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '') + '  2-4P: VS'
         : mi.key === 'dm' ? '1P: VS ' + DM_BOTS + ' BOTS  2-4P: VS EACH OTHER'
@@ -11914,7 +12037,7 @@ const Game = {
     // KILL RACE: the first curtain picks how many points win the game (race.js)
     if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
     // FORTRESS: the first curtain picks the map (fortress.js)
-    if (this.mode === 'fortress') { this.tdMap = Math.max(0, Math.min(TD_MAPS.length - 1, STORE.get('tank1990_tdmap', 0) | 0)); this.curtain.tdSel = true; }
+    if (this.mode === 'fortress') { this.tdMap = Math.max(0, Math.min(TD_MAPS.length - 1, STORE.get('tank1990_tdmap', 0) | 0)); if (!tdUnlocked(this.tdMap)) this.tdMap = 0; this.curtain.tdSel = true; }
     // the mode's title screen first (intro.js)
     if (this.introWanted && this.introWanted(custom)) this.toModeIntro();
   },
@@ -11938,7 +12061,7 @@ const Game = {
     if (c.tdSel) {
       const dir = m.up || m.right ? 1 : m.down || m.left ? -1 : 0;
       if (dir) { this.tdMap = (this.tdMap + dir + TD_MAPS.length) % TD_MAPS.length; STORE.set('tank1990_tdmap', this.tdMap); Sound.play('select'); }
-      if (m.ok && this.t > 10) { c.tdSel = false; this.beginStage(); }
+      if (m.ok && this.t > 10) { if (tdUnlocked(this.tdMap)) { c.tdSel = false; this.beginStage(); } else Sound.play('steel'); }   // the campaign: win a map to open the next
       if (m.back) this.toTitle();
     } else if (c.raceSel) {
       const dir = m.up || m.right ? 1 : m.down || m.left ? -1 : 0;
@@ -11977,8 +12100,9 @@ const Game = {
       if (this.mode === 'maze') Font.drawCenter(ctx, 'FIND THE EXIT', cx, cy + 14, '#A00000');
       if (this.mode === 'fortress') {
         const mp = TD_MAPS[this.tdMap], best = (STORE.get(MODE_KEY, {}).fortress || {})[mp.key];
-        Font.drawCenter(ctx, mp.name + ' (' + mp.diff + ')', cx, cy + 14, '#A00000');
-        Font.drawCenter(ctx, best ? (best.stars ? '*'.repeat(best.stars) + ' ' : '') + 'BEST WAVE ' + best.wave : 'HOLD 30 WAVES', cx, cy + 26, '#3C3C3C');
+        Font.drawCenter(ctx, (this.tdMap + 1) + '. ' + mp.name + ' (' + mp.diff + ')', cx, cy + 14, '#A00000');
+        if (!tdUnlocked(this.tdMap)) Font.drawCenter(ctx, 'LOCKED: WIN ' + TD_MAPS[this.tdMap - 1].name, cx, cy + 26, '#3C3C3C');
+        else Font.drawCenter(ctx, best ? (best.stars ? '*'.repeat(best.stars) + ' ' : '') + 'BEST WAVE ' + best.wave + '/' + mp.waves : 'HOLD ' + mp.waves + ' WAVES', cx, cy + 26, '#3C3C3C');
         if ((this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + 40, '#3C3C3C');
       }
       if (this.mode === 'sides' && this.nextSide) Font.drawCenter(ctx, 'YOUR EAGLE: ' + this.nextSide.toUpperCase(), cx, cy + 24, '#A00000');
@@ -11998,6 +12122,7 @@ const Game = {
       let lvTheme;
       if (this.mode === 'custom' && !this.customPending) { const u = Customs.used(); lvTheme = Customs.level(u[(this.stageNum - 1) % u.length]).theme; }
       else if (this.customPending) lvTheme = this.customTheme;
+      else if (this.mode === 'fortress' && Config.get('seasons') !== 'OFF') lvTheme = TD_MAPS[this.tdMap || 0].theme;   // each fortress map has its own season
       if (lvTheme === 'auto') lvTheme = undefined;
       const ss = Config.get('seasons'), th = lvTheme ? THEMES[lvTheme] : ss === 'RANDOM' || ss === 'OFF' ? null : THEMES[stageTheme(this.stageNum)];
       if (th && th.name && !(this.mode === 'race' && c.raceSel)) {
@@ -12382,7 +12507,7 @@ const Game = {
       res.best = rec.cpu;
     } else if (this.mode === 'fortress') {
       const td = this.stage.td, all = rec.fortress || {}, b = all[td.map];
-      res.map = td.map; res.wave = done ? TD_WAVES : Math.max(0, td.wave - 1); res.stars = done ? td.stars : 0;
+      res.map = td.map; res.wave = done ? td.waves : Math.max(0, td.wave - 1); res.stars = done ? td.stars : 0;
       if (!b || res.stars > (b.stars || 0) || (res.stars === (b.stars || 0) && (res.wave > b.wave || (res.wave === b.wave && score > b.score)))) { all[td.map] = { wave: res.wave, stars: res.stars, score }; res.newBest = true; }
       rec.fortress = all; res.best = all[td.map];
     } else if (this.mode === 'maze') {

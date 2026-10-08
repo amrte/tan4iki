@@ -399,46 +399,60 @@ keep the look but not the twist.
 
 ## Fortress (tower defense)
 
-Pick **FORTRESS** on the MODE row (1-4 players together). The first curtain picks the map with left/right:
+Pick **FORTRESS** on the MODE row (1-4 players together). It's a campaign of 8 maps: win a map (any stars) to open the
+next. The first curtain picks the map with left/right; each has its own season, and later maps have more waves and
+tougher tanks.
 
-| Map | Difficulty | What it's like |
-|---|---|---|
-| Meadow | easy | open grass, one entry at the top |
-| River | normal | a river with two bridges; two entries (the second opens at wave 6) |
-| Canyon | normal | a long winding steel canyon from the top left |
-| Crossroads | hard | three entries (top, then the two top corners from waves 6 and 11) |
+| # | Map | Difficulty | Waves | What it's like |
+|---|---|---|---|---|
+| 1 | Meadow | easy | 25 | open grass, one entry at the top |
+| 2 | Canyon | normal | 30 | a long winding steel canyon from the top left |
+| 3 | Spiral | normal | 35 | a steel zig-zag down the whole map (radioactive hot spots) |
+| 4 | River | hard | 30 | a river with two bridges; two entries |
+| 5 | Islands | hard | 35 | three bands of water with narrow land crossings |
+| 6 | Crossroads | very hard | 35 | three entries: top, then both top corners |
+| 7 | Twin Gates | very hard | 40 | entries in both top corners, a steel wall with two gates before the eagle |
+| 8 | Gauntlet | insane | 50 | three entries, broken walls, ice and water |
 
-Maps with several entries open them one at a time (marked on the map; closed ones show the wave they open on).
-Hold the eagle through **30 waves**. The eagle has HP (30 / 25 / 20 / 15 / 10 by skill): every hit costs 1.
+Maps with several entries open them one at a time, a new one every 5 waves (marked on the map; closed ones show the
+wave they open on). The eagle has HP (30 / 25 / 20 / 15 / 10 by skill). **The enemy fights back**: a tank that
+reaches the fortress rams it and blows up (1 HP, 2 for armor, shield and flamer tanks, 4 for a snake, 6 for a titan),
+heavy tanks (power, armor, rocket, shield, mortar, titans, and some others) stop and shell any tower lined up with
+them, and every 10th wave is a BOSS wave with snakes and **titans** (huge armored tanks that glow red, shrug off
+stuns and half of any slowing). Waves grow (up to 60 tanks, 80 in a swarm), toughen fast and speed up.
 
 **Building.** Your tank is the builder. Drive up and press **B**: a menu opens for the tile in front of you (left/right
 choose, fire builds, B closes; the tank stays put meanwhile). On one of your towers the menu upgrades it, picks its
 specialisation, sets what it aims at (FIRST, LAST, STRONG, CLOSE), repairs it or sells it (70% back). You still fight
-with your tank, and a destroyed tank comes back after 2 seconds. Range circles show what a tower covers.
+with your tank, and a destroyed tank comes back after 2 seconds. Range circles show what a tower covers (and what
+the next upgrade will).
 
-| Tower | Price | What it does | Specialisations at level 3 |
+**Upgrades.** Every combat tower has **4 levels**; at level 4 it specialises one of two ways, and each specialisation
+has **3 tiers** (more damage, range and speed each tier; tier III adds a trick): 7 steps in all. Radar and gold mine
+have 5 levels.
+
+| Tower | Price | What it does | Specialisations (tier III trick) |
 |---|---|---|---|
-| Gun tower | 60 | quick shots at one tank | **Gatling** (a hail of bullets) · **Sniper** (huge range and damage, sees stealth) |
-| Cannon | 90 | lobbed shells with splash; can't hit too close | **Howitzer** (huge blasts from afar) · **Cluster** (bursts into bomblets) |
-| Tesla | 110 | lightning that jumps from tank to tank | **Storm** (chains to 9) · **EMP** (stuns what it hits) |
-| Frost | 80 | slows every tank around it | **Blizzard** (slower still, and it hurts) · **Shatter** (chilled tanks take double damage) |
-| Flamer | 100 | burns everything in a short cone | **Inferno** (twice the heat) · **Napalm** (leaves the ground burning) |
-| Rockets | 130 | far, homing, good against armor | **Swarm** (4 rockets at once) · **Buster** (one huge hit that pierces shield plates) |
-| Radar | 70 | shows stealth tanks (shades) to every tower, +15-30% range for towers within 3 tiles | |
-| Gold mine | 100 | 25 / 50 / 90 gold after every wave | |
+| Gun tower | 60 | quick shots at one tank | **Gatling**, a hail of bullets (shreds armor: +30% damage taken) · **Sniper**, huge range and damage, sees stealth (1 shot in 5 hits for x4) |
+| Cannon | 90 | lobbed shells with splash; can't hit too close | **Howitzer**, huge blasts from afar (blasts stun) · **Cluster**, bursts into bomblets (8 of them) |
+| Tesla | 110 | lightning that jumps from tank to tank | **Storm**, chains to 9 (16) · **EMP**, stuns what it hits (longer stuns) |
+| Frost | 80 | slows every tank around it | **Blizzard**, slower still and it hurts (freezes tanks solid) · **Shatter**, chilled tanks take double damage (triple) |
+| Flamer | 100 | burns everything in a short cone | **Inferno**, twice the heat (they keep burning) · **Napalm**, leaves the ground burning (wider fires) |
+| Rockets | 130 | far, homing, good against armor | **Swarm**, 4 rockets at once (6) · **Buster**, one huge hit that pierces shield plates (a big blast) |
+| Radar | 70 | shows stealth tanks (shades) to every tower, +12% to +32% range for towers within 3 tiles | |
+| Gold mine | 100 | 20 / 40 / 65 / 95 / 130 gold after every wave | |
 
-Levels 2 and 3 cost more (and add range, speed and damage); a tower has HP too: enemy shells and blasts wear it down
-(an HP bar shows) and it's lost at 0. **Walls**: a brick wall (5) makes them stop and shoot through it; a steel wall
-(20) makes them go round. Towers and steel reroute the enemy, but you can never shut every way to the eagle (the
-build is refused). **Abilities**: AIR STRIKE (150, every 30 s) and WINGMAN (100, every 45 s).
+A tower has HP too: enemy shells and blasts wear it down (an HP bar shows) and it's lost at 0. **Walls**: a brick wall
+(5) makes them stop and shoot through it; a steel wall (20) makes them go round. Towers and steel reroute the enemy,
+but you can never shut every way to the eagle (the build is refused). **Abilities**: AIR STRIKE (150, every 30 s) and
+WINGMAN (100, every 45 s).
 
-**Gold**: start with 260 (more on easier skills), get gold for every kill, 20 + 3 per wave for every wave held, 5%
-interest on what you've saved (up to 40), and a bonus for calling a wave early: SEND WAVE in the menu, or **Tab**.
-**Waves** grow and toughen; every few are themed (SWARM, HEAVY, FAST) and every 10th is a BOSS wave with snakes. The
-counter-picks matter: skimmers cross water, shades hide from towers without a radar, shield tanks take a quarter
-from the front, sappers crush brick walls, medics heal, splitters split. The side panel shows what the next wave
-brings. **Pause menu → SPEED** runs the game at 1x, 2x or 3x. Clear wave 30 for 1-3 stars (by the eagle's HP left);
-the best per map is kept, and the title screen shows your stars.
+**Gold** is tight: start with 200 (up to 400 on easier skills), a little for every kill (more on easier skills), 20 + 2
+per wave for every wave held, 3% interest on what you've saved (up to 25), gold mines, and a bonus for calling a wave
+early (SEND WAVE in the menu, or **Tab**). The side panel shows what the next wave brings; counter-picks matter:
+skimmers cross water, shades hide from towers without a radar, shield tanks take a quarter from the front, sappers
+crush brick walls, medics heal, splitters split. **Pause menu → SPEED** runs the game at 1x, 2x or 3x. Hold every wave
+for 1-3 stars (by the eagle's HP left); the best per map is kept, and the title screen shows your stars and maps open.
 
 ## Mode title screens and music
 

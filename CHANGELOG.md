@@ -3,6 +3,20 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.35
+
+- **FORTRESS is much harder.** Tanks that reach the fortress ram it and blow up (1-6 eagle HP); heavy tanks stop to
+  shell towers lined up with them; BOSS waves bring titans (huge armored tanks, immune to stuns, half-immune to
+  slowing); waves are bigger (up to 60, swarms 80), toughen faster and speed up; gold is tighter (less per kill and
+  per wave, 3% interest up to 25, 200 to start on Hurt me plenty). Easier skills keep more gold and weaker tanks.
+- **More upgrade levels:** combat towers have 4 levels, then a specialisation with 3 tiers (7 steps); tier III adds a
+  trick (armor shred, critical hits, stunning blasts, 8 bomblets, 16 chains, longer stuns, freezing, triple damage,
+  afterburn, wider napalm, 6-rocket salvos, buster blasts). Radar and gold mine have 5 levels. The range circle
+  previews the next upgrade.
+- **More levels:** a campaign of 8 maps (Meadow, Canyon, Spiral, River, Islands, Crossroads, Twin Gates, Gauntlet),
+  25 to 50 waves each, each with its own season; winning a map opens the next.
+- A tank wedged somewhere for 20 s goes back to an entry point, so a wave can't stall.
+
 ## 0.34
 
 - **New mode: FORTRESS (tower defense).** Hold your eagle through 30 waves on one of four maps (Meadow, River,

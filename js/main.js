@@ -330,7 +330,7 @@ const Game = {
         : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack)
         : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score
         : mi.key === 'maze' && rec.maze ? 'BEST: ' + rec.maze.escaped + ' MAZES ESCAPED  ' + rec.maze.score
-        : mi.key === 'fortress' && rec.fortress ? 'STARS: ' + TD_MAPS.map(m => (rec.fortress[m.key] || {}).stars || 0).reduce((a, b) => a + b, 0) + '/' + TD_MAPS.length * 3 + '  1-4 PLAYERS'
+        : mi.key === 'fortress' && rec.fortress ? 'STARS ' + TD_MAPS.map(m => (rec.fortress[m.key] || {}).stars || 0).reduce((a, b) => a + b, 0) + '/' + TD_MAPS.length * 3 + '  MAPS ' + TD_MAPS.filter((m, i) => tdUnlocked(i)).length + '/' + TD_MAPS.length
         : mi.key === 'coop' ? '1-4 PLAYERS TOGETHER' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '')
         : mi.key === 'eagles' ? '1P: VS CPU' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '') + '  2-4P: VS'
         : mi.key === 'dm' ? '1P: VS ' + DM_BOTS + ' BOTS  2-4P: VS EACH OTHER'
@@ -437,7 +437,7 @@ const Game = {
     // KILL RACE: the first curtain picks how many points win the game (race.js)
     if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
     // FORTRESS: the first curtain picks the map (fortress.js)
-    if (this.mode === 'fortress') { this.tdMap = Math.max(0, Math.min(TD_MAPS.length - 1, STORE.get('tank1990_tdmap', 0) | 0)); this.curtain.tdSel = true; }
+    if (this.mode === 'fortress') { this.tdMap = Math.max(0, Math.min(TD_MAPS.length - 1, STORE.get('tank1990_tdmap', 0) | 0)); if (!tdUnlocked(this.tdMap)) this.tdMap = 0; this.curtain.tdSel = true; }
     // the mode's title screen first (intro.js)
     if (this.introWanted && this.introWanted(custom)) this.toModeIntro();
   },
@@ -461,7 +461,7 @@ const Game = {
     if (c.tdSel) {
       const dir = m.up || m.right ? 1 : m.down || m.left ? -1 : 0;
       if (dir) { this.tdMap = (this.tdMap + dir + TD_MAPS.length) % TD_MAPS.length; STORE.set('tank1990_tdmap', this.tdMap); Sound.play('select'); }
-      if (m.ok && this.t > 10) { c.tdSel = false; this.beginStage(); }
+      if (m.ok && this.t > 10) { if (tdUnlocked(this.tdMap)) { c.tdSel = false; this.beginStage(); } else Sound.play('steel'); }   // the campaign: win a map to open the next
       if (m.back) this.toTitle();
     } else if (c.raceSel) {
       const dir = m.up || m.right ? 1 : m.down || m.left ? -1 : 0;
@@ -500,8 +500,9 @@ const Game = {
       if (this.mode === 'maze') Font.drawCenter(ctx, 'FIND THE EXIT', cx, cy + 14, '#A00000');
       if (this.mode === 'fortress') {
         const mp = TD_MAPS[this.tdMap], best = (STORE.get(MODE_KEY, {}).fortress || {})[mp.key];
-        Font.drawCenter(ctx, mp.name + ' (' + mp.diff + ')', cx, cy + 14, '#A00000');
-        Font.drawCenter(ctx, best ? (best.stars ? '*'.repeat(best.stars) + ' ' : '') + 'BEST WAVE ' + best.wave : 'HOLD 30 WAVES', cx, cy + 26, '#3C3C3C');
+        Font.drawCenter(ctx, (this.tdMap + 1) + '. ' + mp.name + ' (' + mp.diff + ')', cx, cy + 14, '#A00000');
+        if (!tdUnlocked(this.tdMap)) Font.drawCenter(ctx, 'LOCKED: WIN ' + TD_MAPS[this.tdMap - 1].name, cx, cy + 26, '#3C3C3C');
+        else Font.drawCenter(ctx, best ? (best.stars ? '*'.repeat(best.stars) + ' ' : '') + 'BEST WAVE ' + best.wave + '/' + mp.waves : 'HOLD ' + mp.waves + ' WAVES', cx, cy + 26, '#3C3C3C');
         if ((this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + 40, '#3C3C3C');
       }
       if (this.mode === 'sides' && this.nextSide) Font.drawCenter(ctx, 'YOUR EAGLE: ' + this.nextSide.toUpperCase(), cx, cy + 24, '#A00000');
@@ -521,6 +522,7 @@ const Game = {
       let lvTheme;
       if (this.mode === 'custom' && !this.customPending) { const u = Customs.used(); lvTheme = Customs.level(u[(this.stageNum - 1) % u.length]).theme; }
       else if (this.customPending) lvTheme = this.customTheme;
+      else if (this.mode === 'fortress' && Config.get('seasons') !== 'OFF') lvTheme = TD_MAPS[this.tdMap || 0].theme;   // each fortress map has its own season
       if (lvTheme === 'auto') lvTheme = undefined;
       const ss = Config.get('seasons'), th = lvTheme ? THEMES[lvTheme] : ss === 'RANDOM' || ss === 'OFF' ? null : THEMES[stageTheme(this.stageNum)];
       if (th && th.name && !(this.mode === 'race' && c.raceSel)) {
@@ -905,7 +907,7 @@ const Game = {
       res.best = rec.cpu;
     } else if (this.mode === 'fortress') {
       const td = this.stage.td, all = rec.fortress || {}, b = all[td.map];
-      res.map = td.map; res.wave = done ? TD_WAVES : Math.max(0, td.wave - 1); res.stars = done ? td.stars : 0;
+      res.map = td.map; res.wave = done ? td.waves : Math.max(0, td.wave - 1); res.stars = done ? td.stars : 0;
       if (!b || res.stars > (b.stars || 0) || (res.stars === (b.stars || 0) && (res.wave > b.wave || (res.wave === b.wave && score > b.score)))) { all[td.map] = { wave: res.wave, stars: res.stars, score }; res.newBest = true; }
       rec.fortress = all; res.best = all[td.map];
     } else if (this.mode === 'maze') {
