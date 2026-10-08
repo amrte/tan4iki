@@ -20,6 +20,7 @@ const MODES = [
   { key: 'corridor', name: 'CORRIDOR', desc: 'ENDLESS CLIMB, HOW FAR?' },
   { key: 'maze', name: 'MAZE', desc: 'FIND THE ONE WAY OUT' },   // maze.js
   { key: 'fortress', name: 'FORTRESS', desc: 'BUILD TOWERS, HOLD 30 WAVES' },   // fortress.js: tower defense
+  { key: 'galaxy', name: 'GALAXY', desc: 'BLAST ALIEN WAVES IN SPACE' },   // galaxy.js: a shoot-em-up
   { key: 'race', name: 'KILL RACE', cpu: true, desc: 'MOST KILLS WINS THE ROUND' },   // race.js; 1 player races bots
   { key: 'coop', name: 'CO-OP VS CPU', desc: 'TEAM UP AGAINST THE CPU' },   // VS CPU (cpuvs.js) for 1-4 players together
   { key: 'eagles', name: 'VS EAGLES', vs: true, cpu: true, desc: 'GUARD YOURS, HIT THEIRS' },   // cpu: 1 player plays the computer

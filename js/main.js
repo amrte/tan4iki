@@ -140,6 +140,7 @@ function dailyToday(when = new Date()) {
 }
 
 function shopPrice(item, p) {
+  if (item.gxShop) return gxShopPrice(item, p);   // the GALAXY hangar (galaxy.js)
   const discount = Game.shopDiscount ? 0.75 : 1;
   if (item.id === 'revive') return reviveCost();   // the REVIVE COST setting, as during play
   if (item.weapon) {
@@ -154,6 +155,7 @@ function shopPrice(item, p) {
 
 // what the player already has; `max` means it can't be bought again
 function shopStatus(item, p) {
+  if (item.gxShop) return gxShopStatus(item, p);
   if (item.id === 'revive') {
     if (!reviveCost()) return { text: 'OFF', max: true };
     if (p.out) return { text: 'YOU', max: false };
@@ -192,6 +194,7 @@ function shopStatus(item, p) {
 }
 
 function shopApply(item, p) {
+  if (item.gxShop) { gxShopApply(item, p); return; }
   if (item.id === 'revive') {
     const who = p.out ? p : Game.players.find(q => q.out);
     who.out = false;
@@ -355,6 +358,7 @@ const Game = {
         : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score
         : mi.key === 'maze' && rec.maze ? 'BEST: ' + rec.maze.escaped + ' MAZES ESCAPED  ' + rec.maze.score
         : mi.key === 'fortress' && rec.fortress ? 'STARS ' + TD_MAPS.map(m => (rec.fortress[m.key] || {}).stars || 0).reduce((a, b) => a + b, 0) + '/' + TD_MAPS.length * 3 + '  MAPS ' + TD_MAPS.filter((m, i) => tdUnlocked(i)).length + '/' + TD_MAPS.length
+        : mi.key === 'galaxy' ? '1-4 PLAYERS' + (rec.galaxy ? ', BEST SECTOR ' + rec.galaxy.level + '  ' + rec.galaxy.score : '')
         : mi.key === 'coop' ? '1-4 PLAYERS TOGETHER' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '')
         : mi.key === 'eagles' ? '1P: VS CPU' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '') + '  2-4P: VS'
         : mi.key === 'dm' ? '1P: VS ' + DM_BOTS + ' BOTS  2-4P: VS EACH OTHER'
@@ -456,7 +460,7 @@ const Game = {
     else if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
     this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
-    if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides', 'maze', 'fortress'].includes(this.mode)) this.stageNum = 1;
+    if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides', 'maze', 'fortress', 'galaxy'].includes(this.mode)) this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
     // KILL RACE: the first curtain picks how many points win the game (race.js)
     if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
@@ -513,7 +517,8 @@ const Game = {
     if (c.phase === 'show') {
       const cx = SCREEN_W / 2, cy = SCREEN_H / 2;
       const race = this.mode === 'race';
-      Font.draw(ctx, this.mode === 'cpu' || race ? 'ROUND' : this.mode === 'maze' ? 'MAZE' : this.mode === 'fortress' ? 'FORTRESS' : 'STAGE', cx - (this.mode === 'fortress' ? 31 : 32), cy - 8, COL.black);
+      Font.draw(ctx, this.mode === 'cpu' || race ? 'ROUND' : this.mode === 'maze' ? 'MAZE' : this.mode === 'fortress' ? 'FORTRESS' : this.mode === 'galaxy' ? 'SECTOR' : 'STAGE', cx - (this.mode === 'fortress' ? 31 : 32), cy - 8, COL.black);
+      if (this.mode === 'galaxy') Font.drawCenter(ctx, GX_SECTORS[(this.stageNum - 1) % GX_SECTORS.length].name, cx, cy + 14, '#A00000');
       if (this.mode !== 'fortress') Font.drawRight(ctx, race ? this.round : this.stageNum, cx + 32, cy - 8, COL.black);
       if (race) {
         Font.drawCenter(ctx, 'MOST KILLS WINS THE ROUND', cx, cy + 14, '#A00000');
@@ -583,9 +588,13 @@ const Game = {
     // big scrolling maps: every stage in BIG MAPS, every 4th classic stage with BIG MAP STAGES on
     const big = !custom && !boss && (this.mode === 'bigmaps'
       || (this.mode === 'classic' && !this.daily && Config.get('bigStages') === 'SOME' && this.stageNum % 4 === 0));
-    let blocks = null, objective = null, maze = null, fortress = null;
+    let blocks = null, objective = null, maze = null, fortress = null, galaxy = 0;
     const corridor = !custom && this.mode === 'corridor';
-    if (!custom && this.mode === 'fortress') {
+    if (!custom && this.mode === 'galaxy') {
+      // GALAXY: open space, the usual field size (galaxy.js)
+      this.applyLayout();
+      galaxy = this.stageNum;
+    } else if (!custom && this.mode === 'fortress') {
       // FORTRESS: the chosen map, a little bigger than the screen (fortress.js)
       const [vc, vr] = this.desiredField(), mp = TD_MAPS[this.tdMap || 0], md = tdMapBlocks(mp);
       setFieldSize(TD_W, TD_H, vc, vr);
@@ -615,7 +624,7 @@ const Game = {
       blocks = turnBlocks(mapToBlocks(map), side);
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
-      custom, boss, base: vs || corridor || maze || fortress || this.mode === 'race' ? newBase() : this.base, corridor, maze, fortress, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
+      custom, boss, base: vs || corridor || maze || fortress || galaxy || this.mode === 'race' ? newBase() : this.base, corridor, maze, fortress, galaxy, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
       race: this.mode === 'race' && !custom ? { target: this.raceTarget, round: this.round } : null, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
       blocks, big: objective, theme,
     });
@@ -665,7 +674,13 @@ const Game = {
     if (r === 'clear' && this.mode === 'race') { this.saveHi(); this.raceRoundEnd(); return; }
     if (r && this.mode === 'timeattack' && r === 'clear') { this.saveHi(); this.taNext(); return; }
     if (r === 'gameover') AutoSkill.event('gameOver');
-    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu' || this.mode === 'maze' || this.mode === 'fortress')) { this.saveHi(); this.toModeResult(false); return; }
+    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu' || this.mode === 'maze' || this.mode === 'fortress' || this.mode === 'galaxy')) { this.saveHi(); this.toModeResult(false); return; }
+    // GALAXY: a sector cleared: the hangar, then the next one (galaxy.js)
+    if (r === 'clear' && this.mode === 'galaxy') {
+      this.saveHi(); this.lastScores = this.players.map(p => p.score); this.stageNum++;
+      if (Config.on('shop') && this.players.some(p => !p.out)) this.toShop(); else this.toCurtain(false);
+      return;
+    }
     if (r === 'tdwin') { this.saveHi(); this.toModeResult(true); return; }
     if (this.stage.result) {
       // beating a boss earns 25% off in the next shop
@@ -960,6 +975,11 @@ const Game = {
       res.map = td.map; res.wave = done ? td.waves : Math.max(0, td.wave - 1); res.stars = done ? td.stars : 0;
       if (!b || res.stars > (b.stars || 0) || (res.stars === (b.stars || 0) && (res.wave > b.wave || (res.wave === b.wave && score > b.score)))) { all[td.map] = { wave: res.wave, stars: res.stars, score }; res.newBest = true; }
       rec.fortress = all; res.best = all[td.map];
+    } else if (this.mode === 'galaxy') {
+      res.level = this.stageNum; res.wave = this.stage && this.stage.galaxy ? this.stage.galaxy.wave : 0;
+      const b = rec.galaxy;
+      if (!b || res.level > b.level || (res.level === b.level && (res.wave > b.wave || (res.wave === b.wave && score > b.score)))) { rec.galaxy = { level: res.level, wave: res.wave, score }; res.newBest = true; }
+      res.best = rec.galaxy;
     } else if (this.mode === 'maze') {
       res.escaped = this.stageNum - 1;
       const b = rec.maze;
@@ -1064,6 +1084,11 @@ const Game = {
       Font.drawCenter(ctx, r.done ? name + ' HELD! ' + '*'.repeat(r.stars) : name + ': FELL AFTER ' + r.wave + (r.wave === 1 ? ' WAVE' : ' WAVES'), SW / 2, 80, r.done ? COL.gold : COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
       Font.drawCenter(ctx, 'BEST: ' + (r.best.stars ? '*'.repeat(r.best.stars) + ' ' : '') + 'WAVE ' + r.best.wave + '  ' + r.best.score, SW / 2, 124, COL.lgrey);
+    } else if (r.mode === 'galaxy') {
+      const wv = w => (w > GX_WAVES ? 'THE BOSS' : 'WAVE ' + Math.max(1, w));
+      Font.drawCenter(ctx, 'SECTOR ' + r.level + ', ' + wv(r.wave), SW / 2, 80, COL.white);
+      Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
+      Font.drawCenter(ctx, 'BEST: SECTOR ' + r.best.level + ' ' + wv(r.best.wave) + '  ' + r.best.score, SW / 2, 124, COL.lgrey);
     } else if (r.mode === 'maze') {
       Font.drawCenter(ctx, r.escaped === 1 ? 'YOU ESCAPED 1 MAZE' : 'YOU ESCAPED ' + r.escaped + ' MAZES', SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
@@ -1182,14 +1207,14 @@ const Game = {
   },
 
   shopMove(dir) {
-    const sh = this.shop, n = SHOP_ITEMS.length;
+    const sh = this.shop, n = shopItems().length;
     sh.idx = (sh.idx + dir + n) % n;
     if (sh.idx < sh.scroll) sh.scroll = sh.idx;
     if (sh.idx >= sh.scroll + SHOP_ROWS) sh.scroll = sh.idx - SHOP_ROWS + 1;
   },
 
   shopBuy() {
-    const sh = this.shop, p = sh.order[sh.turn], item = SHOP_ITEMS[sh.idx];
+    const sh = this.shop, p = sh.order[sh.turn], item = shopItems()[sh.idx];
     if (item.id === 'done') { this.shopNext(); return; }
     const price = shopPrice(item, p), st = shopStatus(item, p);
     if (st.max) {
@@ -1238,13 +1263,14 @@ const Game = {
     const sh = this.shop, p = sh.order[sh.turn];
     ctx.fillStyle = COL.black;
     ctx.fillRect(0, 0, SW, SH);
-    Font.drawCenter(ctx, this.shopDiscount ? 'SHOP  BOSS BONUS -25%' : 'SHOP', SW / 2, 6, COL.red);
+    const shopName = this.mode === 'galaxy' ? 'HANGAR' : 'SHOP';
+    Font.drawCenter(ctx, this.shopDiscount ? shopName + '  BOSS BONUS -25%' : shopName, SW / 2, 6, COL.red);
     ctx.drawImage(Sprites.rankTank('p' + p.level, (this.t >> 3) & 1, 1, Config.playerPal(p.i), Config.xpOn() ? p.rank : 1, true), 6, 15);
     Font.draw(ctx, ROMAN[p.i] + '-PLAYER', 26, 20, COL.red);
     Font.drawRight(ctx, wallet(p), 214, 20, COL.gold);
     Font.draw(ctx, 'PTS', 220, 20, COL.white);
     for (let r = 0; r < SHOP_ROWS; r++) {
-      const i = sh.scroll + r, item = SHOP_ITEMS[i];
+      const i = sh.scroll + r, item = shopItems()[i];
       if (!item) break;
       const y = SHOP_TOP + r * SHOP_ROW_H;
       if (i === sh.idx) { ctx.fillStyle = '#20206C'; ctx.fillRect(4, y - 4, SW - 8, SHOP_ROW_H); }
@@ -1252,7 +1278,7 @@ const Game = {
         Font.draw(ctx, item.name + ' ' + this.stageNum, 34, y, COL.white);
         continue;
       }
-      if (item.base) ctx.drawImage(Sprites.baseIcons[item.bicon], 12, y - 4); else drawPowerup(ctx, { type: item.icon, weapon: item.weapon }, 12, y - 4);
+      if (item.gxShop) gxShopIcon(ctx, item, 12, y - 4); else if (item.base) ctx.drawImage(Sprites.baseIcons[item.bicon], 12, y - 4); else drawPowerup(ctx, { type: item.icon, weapon: item.weapon }, 12, y - 4);
       const price = shopPrice(item, p), st = shopStatus(item, p);
       Font.draw(ctx, item.name, 34, y, st.max ? COL.lgrey : COL.white);
       if (!st.max) Font.drawRight(ctx, price, 190, y, wallet(p) >= price ? COL.gold : '#7C3C3C');
@@ -1260,8 +1286,8 @@ const Game = {
     }
     ctx.fillStyle = COL.lgrey;
     if (sh.scroll > 0) for (let k = 0; k < 4; k++) ctx.fillRect(SW / 2 - k, 30 + k, 1 + 2 * k, 1);
-    if (sh.scroll + SHOP_ROWS < SHOP_ITEMS.length) for (let k = 0; k < 4; k++) ctx.fillRect(SW / 2 - 3 + k, SHOP_TOP + SHOP_ROWS * SHOP_ROW_H - 3 + k, 7 - 2 * k, 1);
-    const item = SHOP_ITEMS[sh.idx];
+    if (sh.scroll + SHOP_ROWS < shopItems().length) for (let k = 0; k < 4; k++) ctx.fillRect(SW / 2 - 3 + k, SHOP_TOP + SHOP_ROWS * SHOP_ROW_H - 3 + k, 7 - 2 * k, 1);
+    const item = shopItems()[sh.idx];
     if (sh.msgT > 0) Font.drawCenter(ctx, sh.msg, SW / 2, 192, sh.msg.startsWith('BOUGHT') ? COL.gold : COL.red);
     else if (item.base) {
       const lv = Game.base[item.base] || 0;
@@ -1600,7 +1626,7 @@ const Game = {
     if (this.state === 'title' || this.state === 'settings' || this.state === 'shop') { x -= menuOX(); y -= menuOY(); }
     if (this.state === 'shop') {
       const r = Math.floor((y - SHOP_TOP + 4) / SHOP_ROW_H), i = this.shop.scroll + r;
-      if (r < 0 || r >= SHOP_ROWS || !SHOP_ITEMS[i]) return;
+      if (r < 0 || r >= SHOP_ROWS || !shopItems()[i]) return;
       if (i === this.shop.idx) this.shopBuy();
       else { this.shop.idx = i; Sound.play('select'); }
       return;

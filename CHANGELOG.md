@@ -3,6 +3,19 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.42
+
+- **New mode: GALAXY**, a shoot-'em-up in the spirit of the space arcade classics, for 1-4 players (here or online).
+  - Your tanks fly at the bottom of a starfield and shoot up at alien waves; B drops a bomb.
+  - Six sectors (then round again, tougher), each with six waves and a boss.
+  - Waves: formations that dive at you, swarms, asteroid showers, kamikaze drones, bombers and escorts.
+  - Weapons with 8 power levels each: blaster, spread, laser, plasma, lightning and missiles. Gift boxes, power
+    cells, coins, gems, shields, bombs and extra lives drop.
+  - Bosses: Mothership, War Crab, Rock Titan, Frost Queen, Elder Eye and Overmind, three phases each.
+  - The hangar between sectors sells firepower, rapid fire, engine, shield, magnet, wingman drones, armour, bombs,
+    power, weapons and lives.
+  - Its own title picture and music (STARFIGHTER, ALIEN OVERLORD for the bosses); the best sector is kept.
+
 ## 0.41
 
 - **Finding the enemy on big maps** (big maps, the corridor, the maze):

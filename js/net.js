@@ -196,7 +196,7 @@ const Net = {
       i: p.i, score: p.score, lives: p.lives, level: p.level, mines: p.mines, kills: p.kills, out: p.out,
       ship: p.ship, cutter: p.cutter, kit: p.kit, shopShovel: p.shopShovel, xp: p.xp, rank: p.rank, stageXp: p.stageXp,
       vsKills: p.vsKills, caps: p.caps, spent: p.spent, racePts: p.racePts, bot: p.bot, rad: p.rad || 0, tdMenu: p.tdMenu || null,
-      weapon: p.weapon, wlv: p.wlv,
+      weapon: p.weapon, wlv: p.wlv, gx: p.gx,
     }));
     v.base = G.base;
     v.snd = this.sndQueue.splice(0);
@@ -267,6 +267,7 @@ const Net = {
       rc: st.race || null,
       nv: st.nightVision || 0,
       th: st.theme,
+      gx: st.galaxy ? st.galaxyView() : null,
     };
     st.netDiff = [];
     // the corridor moved down a section: the whole terrain goes again
@@ -485,6 +486,7 @@ const Net = {
     st.bossLoop = sv.bl || 0;
     st.bossBanner = sv.bb || 0;
     st.bossNote = sv.bn || null;
+    if (sv.gx) st.applyGalaxyView(sv.gx); else st.galaxy = null;   // GALAXY (galaxy.js)
     st.puffs = (sv.pf || []).map(a => ({ x: a[0], y: a[1], t: a[2], fire: !!a[3] }));
   },
 

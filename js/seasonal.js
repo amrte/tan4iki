@@ -63,7 +63,7 @@ Object.assign(Stage.prototype, {
     this.fires = new Map(); this.puddles = []; this.wrecks = []; this.zones = [];
     this.wind = null; this.blizzard = 0; this.shower = 0;
     // the twist: in the normal game and the modes, not in boss fights or the editor
-    this.seasonFx = Config.on('seasonFx') && !opts.boss && !opts.editor && !opts.snapshot && THEMES[this.theme] && SEASON_FX_NAME[this.theme] ? this.theme : null;
+    this.seasonFx = Config.on('seasonFx') && !opts.boss && !opts.galaxy && !opts.editor && !opts.snapshot && THEMES[this.theme] && SEASON_FX_NAME[this.theme] ? this.theme : null;
     const s = this.seasonFx;
     this.seaT = 600 + rnd(600);   // the first shower, gust, blizzard, mirage or summer fire
     if (s === 'nuclear') this.placeHotSpots();

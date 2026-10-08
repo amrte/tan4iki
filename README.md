@@ -123,6 +123,7 @@ Maze and VS CPU, and no saving outside Classic and Big maps.
 | **Corridor** | 1-4 | the usual width, endless height: no eagle, just climb. The world is three map sections stacked (random classic maps, mirrored outwards on wider fields); once the whole team has climbed out of the bottom section it drops away and a fresh section appears on top, so the climb never ends and nobody gets left behind. Enemies keep arriving just above the screen, faster and tougher the higher you get (the flag shows the level: one per section climbed). The enemy grows slowly with the climb: only basic tanks at first, then fast (10 tiles), power (26) and armor (45), then the newer types one at a time every 20 tiles from 52 (rocket first), each starting rare and taking 40 tiles to reach its full share; veterans from about 100 tiles and elites from 230. A gold *NAME AHEAD!* tells you when a new kind joins; ones left far below drop out. A destroyed tank comes back at the bottom of the screen; every 5 sections everyone gets a tank. The border above the field shows how far you've climbed (in tiles) and your best; ends when everyone is out |
 | **Maze** | 1-4 | a huge labyrinth, a new one every stage and bigger each time (17 x 11 cells at first, growing by 3 x 2 a stage up to 34 x 22; a cell is a 2-tile passage). You start in the bottom-left corner; the one way out, a chequered **EXIT** gate, is on the outer edge as far from the start as the maze allows. The walls are steel that nothing can break (not power shells, rockets or blasts), with the odd stretch of brick you can shoot through for a shortcut; trees and ice fill some passages. Enemy tanks (26 in the first maze, 6 more each maze, up to 100) patrol along the way, half of them from the start (none near the start), and come for you once you get close or shoot them; more turn up out of sight as you go (the side panel counts them). Lost for too long (1 minute on the easiest skill, 3 on the hardest) and the exit sends a signal: a blinking green marker at the edge of the screen. Reaching the exit is worth 2000 plus a time bonus, and every enemy left goes up in smoke; then the tally, the shop and the next maze. A destroyed tank comes back where it was a few seconds before. The border shows the maze number and the time; the best run (mazes escaped) is kept |
 | **Fortress** | 1-4 | tower defense: hold your eagle through 30 waves (see *Fortress* below) |
+| **Galaxy** | 1-4 | a space shoot-'em-up: your tanks against alien waves, sector after sector (see *Galaxy* below) |
 | **Time attack** | 1-4 | clear stages 1-5 as fast as you can; enemies arrive twice as fast, no tally between stages, the clock runs in the border above the field; best time is kept |
 | **Kill race** | 1-4 | no eagles, just the enemy: each round is a normal stage of enemy tanks (they appear at random free spots all over the map, never within 4 tiles of a player, instead of along the top), and whoever destroys the most of them wins the round and scores 1 point (a tie on kills goes to whoever scored more with them; still tied, nobody scores). How many points win the game is picked on the first round's curtain with left/right (1, 2, 3, 5, 7 or 10; also Settings → GAME → RACE: FIRST TO). A destroyed tank comes back after a moment, no lives lost; a grenade's kills count for whoever took it; the shovel does nothing without an eagle. The side panel shows each player's kills this round and their points as gold pips; the round result shows kills and points. Alone, you race 3 bots that hunt the enemy tanks. No shop |
 | **VS CPU** | 1 | VS eagles with one player: you against the computer. Their HQ (an eagle with a red glow, in its own fortress) is at the top centre, yours at the bottom; their tanks keep coming until the HQ falls. Destroy it (2000 + 500 per round) to win the round: every enemy tank goes up with it, then the tally, the shop and the next round on a new map. Their HQ grows a little stronger each round, as yours does in the shop: round 2 repair crew, 3 walls and armor (the top border shows the armor left), 4 eagle gun (shoots you when you line up with it), 5 minefield, 6 tesla coil, 7 tank traps, then each grows to level 5. The round curtain lists what they added. The way in from below always stays brick. Ends when your eagle falls or you're out of tanks; the most rounds won is kept |
@@ -455,6 +456,51 @@ keep the look but not the twist.
 | Nuclear winter | ash-grey ground, scorched bricks, dead trees, toxic green water, falling ash, a sickly tint | some lakes are frozen. **Hot spots**: glowing radioactive patches (3 or more, never at the start points); stand in one and your Geiger counter fills (a bar over your tank, clicking faster); full, and your tank is gone (3 s on Ultra-violence, twice that on the easiest skill). Out of them it drains away. A shield protects you | **Ghoul** (skull turret): destroyed, it leaves a glowing wreck that rises again 4 s later with full strength, once, unless you shoot the wreck (100). The stage isn't clear while a wreck lies there. 2 hits, 500 |
 | Desert | sand, sandstone bricks, cacti, drifting sand | many ponds have dried into mud (it slows you). **Mirages**: phantom tanks shimmer into view now and then; their shells can't hurt, and a shot or a touch makes them vanish (no points); they never hold up the end of a stage | **Burrower** (a drill nose): dives under the sand for a few seconds (a moving mound; shells fly over it, it can't fire), runs faster down there and surfaces somewhere else to fire. 2 hits, 500 |
 
+## Galaxy (a shoot-'em-up)
+
+Your tanks fly at the bottom of a starfield (left/right/up/down within the lower part of the screen) and fire straight
+up; **B** drops a bomb. 1-4 players together, here or online.
+
+- **Sectors:** Moon Orbit, Red Planet, Asteroid Belt, Ice Giant, Nebula and The Core, then round again, tougher. Each
+  has six waves and a boss.
+- **Waves:**
+  - *formation*: they fly in to a grid, sway, and break off to dive at you
+  - *swarm*: streams weaving across the screen
+  - *rocks*: an asteroid shower; big rocks split, then split again
+  - *kamikaze*: drones dropping straight at you
+  - *bombers*: laying bombs as they cross the top
+  - *escort*: armoured ships circled by drones that dive when their ship goes down
+- **Enemies:** drones, bugs, wasps, brutes (aimed shots), splitters, egg-laying bombers, mines that burst into a ring
+  of shots, and armoured tankers.
+- **Weapons**, each with 8 power levels:
+  - **Blaster**: more streams with more power
+  - **Spread**: a fan of 3 to 9
+  - **Laser**: hold fire for a beam through everything in line
+  - **Plasma**: big orbs that go through several enemies
+  - **Lightning**: jumps from enemy to enemy
+  - **Missiles**: homing missiles beside your gun
+- **Pickups:**
+  - A *gift box* gives its weapon (its letter is on it); the same weapon again adds a power level.
+  - A green *power cell* adds a power level.
+  - *Coins* and *gems* are points, which are also your money.
+  - Also *shields*, *bombs* and *extra lives*.
+  - Losing a ship costs two power levels.
+- **Bosses**, each with three phases (a bar at the top marks them):
+  - **Mothership**: fans, rings and spirals of shots, drones
+  - **War Crab**: claw shots, charges down at you
+  - **Rock Titan**: throws asteroids
+  - **Frost Queen**: shards, a freezing beam that stops you, an ice storm
+  - **Elder Eye**: hit it only while it's open; it stares a beam at you
+  - **Overmind**: four orbiting orbs shield it until they're shot down; spirals
+- **The hangar** between sectors (the shop), per player:
+  - firepower (+15% damage a level, 5 levels), rapid fire (5), engine (3)
+  - shield (a shield at every start, 3), magnet (pulls pickups in, 3)
+  - wingman drones (little guns at your sides, 2), armour (plates that soak a hit, 2)
+  - bombs, power, any weapon, extra lives and revivals
+
+The side panel shows each player's lives, weapon, power and bombs; the border above shows the sector and wave. The
+best sector reached is kept.
+
 ## Fortress (tower defense)
 
 Pick **FORTRESS** on the MODE row (1-4 players together). It's a campaign of 8 maps: win a map (any stars) to open the
@@ -534,6 +580,7 @@ pulse leads, a triangle bass and noise drums, and every skill plays it different
 | Deathmatch | No Mercy | aggressive |
 | Flags | Bring It Home | a fanfare |
 | VS CPU | Machine War | robotic octaves |
+| Galaxy | Starfighter (bosses: Alien Overlord) | racing arpeggios |
 
 | Skill | Scale | Tempo | Band |
 |---|---|---|---|
@@ -696,6 +743,7 @@ js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and fact
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go
 js/maze.js        maze mode: the maze generator, patrols, reinforcements, the exit
 js/fortress.js    fortress mode (tower defense): towers, upgrades and specialisations, waves, gold, the build menu, maps
+js/galaxy.js      galaxy mode (a shoot-'em-up): sectors, waves, weapons, pickups, the hangar, its bosses
 js/cards.js       first-meet cards for new enemies, bosses and power-ups
 js/cpuvs.js       VS EAGLES against the computer: the enemy HQ and its upgrades round by round
 js/bots.js        deathmatch and kill-race bots: computer-driven players

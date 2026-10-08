@@ -317,8 +317,8 @@ class Stage {
     this.theme = stageTheme(num, opts);
     if (!opts.snapshot && !opts.editor) this.applyThemeTerrain(num);   // the editor shows what you drew
     // mud, teleporters and belts in the normal stages; night and fog on some (terrain.js)
-    if (!opts.boss && !opts.custom && !opts.snapshot && !opts.corridor && !opts.maze && !opts.fortress && Config.on('terrainExtras')) this.addTerrainExtras(num);
-    this.weather = opts.corridor || opts.fortress ? null : stageWeather(opts.custom ? 1 : num, !!opts.boss);
+    if (!opts.boss && !opts.custom && !opts.snapshot && !opts.corridor && !opts.maze && !opts.fortress && !opts.galaxy && Config.on('terrainExtras')) this.addTerrainExtras(num);
+    this.weather = opts.corridor || opts.fortress || opts.galaxy ? null : stageWeather(opts.custom ? 1 : num, !!opts.boss);
     this.outposts = []; this.factories = [];
     if (opts.big) this.setupBigMap(opts.big);   // bigmap.js
     this.tanks = [];
@@ -364,6 +364,7 @@ class Stage {
     if (opts.race) this.setupRace(opts.race.target, opts.race.round);   // KILL RACE (race.js)
     if (opts.maze) this.setupMaze(opts.maze);   // MAZE (maze.js)
     if (opts.fortress) this.setupFortress(opts.fortress);   // FORTRESS (fortress.js)
+    if (opts.galaxy) this.setupGalaxy(opts.galaxy);   // GALAXY (galaxy.js)
     if (opts.timeAttack) this.spawnInterval = Math.round(this.spawnInterval / 2);
     for (const p of players) {
       p.kills = zeroKills();
@@ -585,6 +586,7 @@ class Stage {
   // ------------------------------------------------------------ main update
   update() {
     this.frame++;
+    if (this.galaxy) { this.updateGalaxy(); return; }   // GALAXY plays by its own rules (galaxy.js)
     if (this.freezeE > 0) this.freezeE--;
     if (this.freezeP > 0) this.freezeP--;
     this.updateShovel();
@@ -1253,6 +1255,7 @@ class Stage {
       p.cutter = false;
     }
     this.weaponOnDeath(p);
+    if (this.galaxy) this.gxOnDeath(p);
     // optional: lose part of the progress towards the next level (never a whole level)
     const loss = Config.get('xpLoss');
     if (Config.xpOn() && loss) {
@@ -1599,6 +1602,7 @@ class Stage {
   }
 
   render(ctx) {
+    if (this.galaxy) { this.renderGalaxy(ctx); return; }   // galaxy.js
     ctx.fillStyle = COL.bg;
     ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
     ctx.fillStyle = COL.black;

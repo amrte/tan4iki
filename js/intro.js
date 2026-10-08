@@ -529,6 +529,7 @@ Object.assign(Game, {
       // a boss stage: the boss's own theme, faster in its last phase
       const b = st.bossIdx !== undefined && st.mainBoss && st.mainBoss();
       if (b && BOSS_SONGS[b.kind]) mode = BOSS_SONGS[b.kind] + (b.phase === 3 ? '+' : '');
+      if (st.galaxy && st.galaxy.boss) mode = 'galaxyBoss' + (st.galaxy.boss.ph === 3 ? '+' : '');   // galaxy.js
     }
     // paused: the music pauses too, except while you're setting its volume in the pause menu (so you can hear it)
     const tuning = s === 'play' && this.paused && ['MUSIC', 'MUSIC VOL'].includes(pauseMenu()[this.pauseIdx]);
