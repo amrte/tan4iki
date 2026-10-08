@@ -449,8 +449,12 @@ class Stage {
       if (!this.bossBlocksSpawn(cand)) x = cand;
     }
     if (x < 0) return;
+    // KILL RACE: anywhere on the map (race.js); the top row if no spot is free
+    let y = 0;
+    const spot = this.race && this.raceSpawnSpot();
+    if (spot) [x, y] = spot;
     const item = this.queue.shift();
-    this.spawns.push({ x, y: 0, t: SPARKLE_TIME, enemy: item });
+    this.spawns.push({ x, y, t: SPARKLE_TIME, enemy: item });
     if (item.bonus) this.powerup = null;
     this.spawnTimer = this.spawnInterval;
   }

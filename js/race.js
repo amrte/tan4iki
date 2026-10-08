@@ -4,9 +4,10 @@
 //  them wins the round and scores 1 point (a tie on kills goes to whoever scored more points with them; still tied,
 //  nobody scores). First to the target wins the game; the target is picked on the first round's curtain (or in
 //  Settings -> GAME). Destroyed players come back after a moment instead of losing lives. Alone, you race 3 bots.
+//  Enemy tanks appear at random free spots all over the map (never right next to a player), not just along the top.
 // =====================================================================
 
-const RACE_TARGETS = [1, 2, 3, 5, 7, 10], RACE_RESPAWN = 90;
+const RACE_TARGETS = [1, 2, 3, 5, 7, 10], RACE_RESPAWN = 90, RACE_SPAWN_GAP = 64;
 
 // one player's round: kills, and the points they were worth (the tie-break)
 function raceTally(p) {
@@ -34,6 +35,26 @@ Object.assign(Stage.prototype, {
     this.noBase = true;
     this.setBaseWalls(T_EMPTY);
     this.clearArea(BASE_X - 8, BASE_Y - 8, 32, 24);
+  },
+
+  // a random 16px spot an enemy can appear on: open ground (trees, ice, mud, bridges are fine), nobody there or
+  // about to be, no teleporter pad, and at least 4 tiles from every player
+  raceSpawnSpot() {
+    const busy = (x, y) => this.tanks.some(t => t.alive && overlap(t.x, t.y, 16, 16, x, y, 16, 16))
+      || this.spawns.some(s => overlap(s.x, s.y, 16, 16, x, y, 16, 16))
+      || (this.pads || []).some(p => overlap(p.x, p.y, 16, 16, x, y, 16, 16))
+      || this.tanks.some(t => t.alive && t.isPlayer && Math.abs(t.x - x) < RACE_SPAWN_GAP && Math.abs(t.y - y) < RACE_SPAWN_GAP)
+      || this.spawns.some(s => s.player && Math.abs(s.x - x) < RACE_SPAWN_GAP && Math.abs(s.y - y) < RACE_SPAWN_GAP);
+    for (let k = 0; k < 40; k++) {
+      const x = rnd(COLS * 2 - 1) * 8, y = rnd(ROWS * 2 - 1) * 8;
+      let solid = false;
+      for (let cy = y >> 2; cy < (y + 16) >> 2 && !solid; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
+        const v = this.get(cx, cy);
+        if (v === T_BRICK || v === T_STEEL || v === T_WATER) { solid = true; break; }
+      }
+      if (!solid && !busy(x, y)) return [x, y];
+    }
+    return null;
   },
 
   // the side panel: per player, kills this round and points (gold pips out of the target)

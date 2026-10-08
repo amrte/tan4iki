@@ -3,6 +3,11 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.24
+
+- **Kill race:** enemy tanks now appear at random free spots all over the map (open ground, never within 4 tiles of a
+  player, never on a teleporter pad) instead of only along the top.
+
 ## 0.23
 
 - **Difficulty rebalance**, measured with simulated games (how long an undefended eagle lasts, and how a computer
