@@ -594,11 +594,19 @@ Object.assign(Stage.prototype, {
   killBoss(bo) {
     bo.alive = false;
     this.bossDefeated = true;
-    // a chain of explosions over the hull
-    for (let i = 0; i < 8; i++) {
-      this.fx.push({ x: bo.x + 4 + Math.random() * (bo.w - 8), y: bo.y + 4 + Math.random() * (bo.h - 8), frames: BIG_EXPLOSION(), per: 5, tick: -i * 8 });
+    if (bo.kind === 'galya') {
+      // BABA GALYA doesn't blow up: she gives up, goes home, and puts the lights back on (galya.js)
+      this.weather = bo.oldWeather || null;
+      for (let i = 0; i < 6; i++) this.fx.push({ x: bo.x + 4 + Math.random() * 24, y: bo.y + 4 + Math.random() * 24, frames: [Sprites.sparkle[0], Sprites.sparkle[1], Sprites.sparkle[2], Sprites.sparkle[3]], per: 4, tick: -i * 6 });
+      this.popups.push({ x: bo.x + 16, y: bo.y - 6, text: "FINE! I'M GOING HOME!", label: true, color: COL.white, t: 0, delay: 0, life: 200 });
+      Sound.play('bossDie');
+    } else {
+      // a chain of explosions over the hull
+      for (let i = 0; i < 8; i++) {
+        this.fx.push({ x: bo.x + 4 + Math.random() * (bo.w - 8), y: bo.y + 4 + Math.random() * (bo.h - 8), frames: BIG_EXPLOSION(), per: 5, tick: -i * 8 });
+      }
+      Sound.play('bossDie');
     }
-    Sound.play('bossDie');
     const def = BOSSES[this.bossIdx];
     const p = this.lastBossHitter || this.players.find(q => !q.out) || this.players[0];
     const pts = def.pts * (1 + this.bossLoop);

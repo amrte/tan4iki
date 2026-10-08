@@ -3,6 +3,23 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.40
+
+- **Surprise: the UFO is not the last boss.** (Spoilers.) On the stage after it (101 with a boss every 10 stages)
+  waits **BABA GALYA**, the old janitor, never happy and always swearing (#@%*!), in a school corridor:
+  - **ON DUTY:** she mops as she goes, and the wet floor is as slippery as ice until it dries. Drive on her clean
+    floor ("NOT ON MY CLEAN FLOOR!") and a homing slipper comes flying, which you can shoot down. Come too close and
+    she swings her mop. Now and then a wall of dirty water from her bucket.
+  - **FURIOUS:** two slippers at a time, and she kicks her bucket at you; it rolls, smashing bricks, and spills.
+  - **CLOSING TIME:** "WE'RE CLOSED! LIGHTS OUT!": the lights go off, only her glasses glint, and three slippers fly
+    at a time.
+  - She doesn't blow up: beaten, she goes home ("FINE! I'M GOING HOME!"), and you have beaten the game.
+  - Her own screens: the intro reads "THE REAL FINAL BOSS"; the victory screen shows her with a glass of tea:
+    "SHE'LL BE BACK ON MONDAY".
+  - Her own music: the Russian folk song KOROBEINIKI, faster in her last phase.
+  - The stage curtain only says "BOSS: ???".
+- The font gets # and @.
+
 ## 0.39
 
 - **Boss screens.** Before every boss there's a picture of it in its own scenery: the Iron Bear smashing through a

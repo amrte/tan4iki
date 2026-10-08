@@ -1682,6 +1682,7 @@ class Stage {
       const c = Sprites.mini(p.text);
       ctx.drawImage(c, Math.round(p.x - c.width / 2), Math.round(p.y - 3));
     }
+    if (this.bosses.length) this.renderBossTalk(ctx);   // BABA GALYA's slippers and what she says, over the dark (galya.js)
     this.renderBigMap(ctx);
     this.renderCpu(ctx);
     ctx.restore();   // back to screen positions inside the field window

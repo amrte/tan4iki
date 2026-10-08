@@ -668,10 +668,10 @@ function drawBossScreen(ctx, idx, t, outro, pts) {
   c.imageSmoothingEnabled = false;
   (outro ? art.outro : art.intro)(c, t);
   ctx.fillStyle = COL.black; ctx.fillRect(0, 0, SW, SH);
-  const final = def.kind === 'ufo';
+  const final = def.kind === 'ufo', last = def.kind === 'galya';
   if (!outro) {
-    if ((t >> 3) & 1 || t < 8) Font.drawCenter(ctx, final ? 'WARNING! FINAL BOSS' : 'WARNING! BOSS APPROACHING', SW / 2, 2, COL.red);
-  } else Font.drawCenter(ctx, 'BOSS DEFEATED!', SW / 2, 2, COL.gold);
+    if ((t >> 3) & 1 || t < 8) Font.drawCenter(ctx, last ? 'WARNING! THE REAL FINAL BOSS' : final ? 'WARNING! FINAL BOSS' : 'WARNING! BOSS APPROACHING', SW / 2, 2, COL.red);
+  } else Font.drawCenter(ctx, last ? 'YOU BEAT THE GAME!' : 'BOSS DEFEATED!', SW / 2, 2, COL.gold);
   let s = 3;
   while (s > 1 && Font.bigWidth(def.name, s) > SW - 16) s--;
   Font.big(ctx, def.name, (SW - Font.bigWidth(def.name, s)) >> 1, 23 - (7 * s >> 1), s, Sprites.bricks(ctx));
@@ -680,6 +680,14 @@ function drawBossScreen(ctx, idx, t, outro, pts) {
   ctx.fillStyle = '#7C7C7C'; ctx.fillRect(INTRO_X - 2, INTRO_Y - 2, INTRO_W * 2 + 4, INTRO_H * 2 + 4);
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(pc, INTRO_X, INTRO_Y, INTRO_W * 2, INTRO_H * 2);
+  // a speech bubble (BABA GALYA has a few words to say), at full size over the picture
+  const bub = art.bubble && art.bubble(t, outro);
+  if (bub) {
+    const w = bub.text.length * 8 + 6, bx = INTRO_X + bub.x * 2, by = INTRO_Y + bub.y * 2;
+    ctx.fillStyle = '#100808'; ctx.fillRect(bx - 1, by - 1, w + 2, 13);
+    ctx.fillStyle = '#F8F8F8'; ctx.fillRect(bx, by, w, 11); ctx.fillRect(bx + w - 14, by + 11, 4, 3); ctx.fillRect(bx + w - 12, by + 14, 2, 2);
+    Font.draw(ctx, bub.text, bx + 3, by + 2, bub.text.includes('#') ? '#D82800' : '#100808');
+  }
   const y = INTRO_Y + INTRO_H * 2 + 8;
   if (!outro) {
     Font.drawCenter(ctx, tale.intro[0], SW / 2, y, '#F8F8F8');

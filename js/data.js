@@ -59,6 +59,8 @@ const FONT_SRC = {
   '~': ['.....', '.....', '.X.X.', 'X.X.X', '.X.X.', '.....', '.....'],
   '%': ['XX...', 'XX..X', '...X.', '..X..', '.X...', 'X..XX', '...XX'],
   '*': ['.....', '..X..', 'X.X.X', '.XXX.', 'X.X.X', '..X..', '.....'],
+  '#': ['.X.X.', '.X.X.', 'XXXXX', '.X.X.', 'XXXXX', '.X.X.', '.X.X.'],
+  '@': ['.XXX.', 'X...X', 'X.XXX', 'X.X.X', 'X.XXX', 'X....', '.XXX.'],
 };
 
 // 8x8 terrain textures. Each 4x4 terrain cell uses one quadrant.

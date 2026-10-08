@@ -523,7 +523,7 @@ Object.assign(Game, {
     let mode = null;
     if (s === 'modeIntro') mode = this.mode;
     else if (s === 'bossIntro') mode = 'bossWarn';   // a boss's picture (bossart.js)
-    else if (st && st.bossDefeated && (s === 'play' || s === 'score' || s === 'bossOutro')) mode = BOSSES[st.bossIdx] && BOSSES[st.bossIdx].kind === 'ufo' ? 'ending' : 'victory';   // a boss beaten: celebrate
+    else if (st && st.bossDefeated && (s === 'play' || s === 'score' || s === 'bossOutro')) mode = BOSSES[st.bossIdx] && ['ufo', 'galya'].includes(BOSSES[st.bossIdx].kind) ? 'ending' : 'victory';   // a boss beaten: celebrate
     else if (s === 'play' && st && !st.over && st.frame > MUSIC_DELAY) {
       mode = this.mode;
       // a boss stage: the boss's own theme, faster in its last phase

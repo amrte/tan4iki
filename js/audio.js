@@ -236,6 +236,15 @@ const Sound = {
         this.note(76, t, 0.5, { vol: 0.14, slideTo: 300, wave: 'p25' });
         this.note(64, t + 0.1, 0.5, { vol: 0.1, slideTo: 150, wave: 'p25' });
         break;
+      case 'slipper': // a slipper whizzing through the air
+        this.noise(6000, t, [[0, 0.12], [0.15, 0.04], [0.2, 0]], 2000);
+        break;
+      case 'splash': // a bucket of water
+        this.noise(3000, t, [[0, 0.35], [0.1, 0.25], [0.45, 0]], 600);
+        break;
+      case 'grawlix': // a grumbling old voice: #@%*!
+        this.seq([52, 50, 55, 49, 53], 0.06, t, { vol: 0.12, wave: 'p25', decayTo: 0.5 });
+        break;
       case 'rotor': // helicopter blades
         for (let i = 0; i < 4; i++) this.noise(900, t + i * 0.1, [[0, 0.22], [0.05, 0]], 400);
         break;

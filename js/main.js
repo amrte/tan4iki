@@ -541,7 +541,7 @@ const Game = {
         if (this.stageNum === 1) Font.drawCenter(ctx, 'DESTROY THE ENEMY HQ', cx, cy + 14, '#A00000');
       }
       const boss = bossForStage(this.stageNum);
-      if (boss) Font.drawCenter(ctx, (BOSSES[boss.idx].kind === 'ufo' ? 'FINAL BOSS: ' : 'BOSS: ') + BOSSES[boss.idx].name, cx, cy + 10, '#A00000');
+      if (boss) Font.drawCenter(ctx, BOSSES[boss.idx].kind === 'galya' ? 'BOSS: ???' : (BOSSES[boss.idx].kind === 'ufo' ? 'FINAL BOSS: ' : 'BOSS: ') + BOSSES[boss.idx].name, cx, cy + 10, '#A00000');
       // the season (when it's known in advance)
       let lvTheme;
       if (this.mode === 'custom' && !this.customPending) { const u = Customs.used(); lvTheme = Customs.level(u[(this.stageNum - 1) % u.length]).theme; }

@@ -252,6 +252,8 @@ the stage; its escorts blow up with it. There are ten bosses, so with the defaul
 on stage 100. After that they come round again with +50% HP each time. In 2-player games boss HP is 50% higher.
 Beating a boss scores 5,000–20,000 points and gives 25% off in the next shop. A power-up drops at 75%, 50% and 25% HP.
 
+*The UFO is the final boss... or is it? Beat it and keep going.*
+
 **Boss screens.** Before each boss there's a picture of it in its own scenery ("WARNING! BOSS APPROACHING", its
 name, two lines on how it fights) and after it falls a victory picture (the wreck, your tank with a flag, a last
 word and the points). Enter or fire moves on; they move on by themselves after 7 seconds. They don't come up again
@@ -541,6 +543,7 @@ Boss stages have their own music:
 | UFO | Close Encounter | eerie, in a sci-fi scale |
 | a boss beaten | Victory! | a fanfare (always major) |
 | the UFO beaten | The Earth Is Saved | an anthem |
+| ??? | ??? | an old folk song |
 
 A boss's theme plays in the skill's mood like the others, and speeds up 15% in its last phase. The victory tune plays
 on through the boss's victory picture and the score tally.
@@ -676,6 +679,7 @@ js/seasonal.js    each season's twist (showers, wildfire, gusts, blizzards, hot 
 js/editor.js      construction: the level editor, random levels, save slots, custom levels
 js/intro.js       mode title screens: a pixel-art picture per mode; what music plays when
 js/bossart.js     boss screens: a picture before each boss and one after it
+js/galya.js       a secret (no spoilers)
 js/modes.js       game modes: survival waves, time attack, versus eagles, deathmatch, capture the flag
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go
