@@ -3,6 +3,19 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.23
+
+- **Difficulty rebalance**, measured with simulated games (how long an undefended eagle lasts, and how a computer
+  player fares). The biggest problem: enemies lined up with the eagle or with you fired on purpose from *any*
+  distance, so on maps with an open centre the eagle could fall in 5-20 seconds even on the easiest skill. Now each
+  skill has a sight range (easiest 4 tiles for you / 2½ for the eagle, default 11 / 7, the two hardest unlimited).
+  Undefended, the eagle now lasts about 2½-4 minutes on the easiest skill, 1-2½ on NOT TOO ROUGH and ½-2 on the default.
+- Easy skills also get: a free repair crew for the fortress, more eagle armour (3 / 2), a longer spawn shield, fewer
+  tanks that rush the eagle, enemies that can't take power-ups (easiest) or the grenade, clock and shovel (NOT TOO
+  ROUGH), slower bosses, and a slower-growing enemy HQ in VS CPU. Corridor and kill race enemies wander more on easy
+  skills. AUTO blends all of it.
+- Deathmatch and kill-race bots never shoot towards their own eagle or into its fortress.
+
 ## 0.22
 
 - **Kill race mode:** no eagles; each round the player who destroys the most enemy tanks scores a point (ties go to

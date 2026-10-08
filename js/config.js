@@ -66,18 +66,31 @@ const RANKS = [
 // newMult / newShift: share of the new enemy types and how many stages later each one first appears;
 // maxOn = change to enemies on screen; plates = free armour plate each life; eagle = free eagle armour each stage;
 // respawn = chance a destroyed enemy comes back.
+// sight / baseSight = how far (px) an enemy notices you / the eagle lined up with it and fires on purpose (beyond
+// that it only fires at random); baseAim scales how often enemies make for the eagle and shell it from range;
+// grab = which power-ups enemies may take (0 none, 1 all but grenade, clock and shovel, 2 all); hqPace = how fast
+// the computer's HQ upgrades in VS CPU; bossPace = share of frames a boss acts on (slower bosses); shield = how much
+// longer your spawn shield lasts; repair = a free REPAIR CREW level (the fortress mends itself).
 const SKILLS = [
   { name: "I'M TOO YOUNG TO DIE", fire: 0.35, speed: 0.75, shell: 0.7, spawn: 0.6, boss: 0.5, lives: 3, vet: -30, aggr: 0.15,
-    newMult: 0.3, newShift: 15, maxOn: -1, plates: 1, eagle: 2, respawn: 0 },
+    newMult: 0.3, newShift: 15, maxOn: -1, plates: 1, eagle: 3, respawn: 0, sight: 64, baseSight: 40, baseAim: 0.4, grab: 0, hqPace: 0.5, bossPace: 0.6, shield: 2, repair: 3 },
   { name: 'HEY, NOT TOO ROUGH', fire: 0.6, speed: 0.88, shell: 0.85, spawn: 0.75, boss: 0.75, lives: 2, vet: -15, aggr: 0.45,
-    newMult: 0.6, newShift: 6, maxOn: 0, plates: 0, eagle: 1, respawn: 0 },
+    newMult: 0.6, newShift: 6, maxOn: 0, plates: 0, eagle: 2, respawn: 0, sight: 104, baseSight: 64, baseAim: 0.65, grab: 1, hqPace: 0.75, bossPace: 0.8, shield: 1.5, repair: 1 },
   { name: 'HURT ME PLENTY', fire: 1, speed: 1, shell: 1, spawn: 1, boss: 1, lives: 0, vet: 0, aggr: 0.85,
-    newMult: 1, newShift: 0, maxOn: 0, plates: 0, eagle: 0, respawn: 0 },
+    newMult: 1, newShift: 0, maxOn: 0, plates: 0, eagle: 0, respawn: 0, sight: 176, baseSight: 112, baseAim: 0.9, grab: 2, hqPace: 1, bossPace: 1, shield: 1, repair: 0 },
   { name: 'ULTRA-VIOLENCE', fire: 1.3, speed: 1.1, shell: 1.15, spawn: 1.25, boss: 1.25, lives: 0, vet: 5, aggr: 1.25,
-    newMult: 1.2, newShift: 0, maxOn: 1, plates: 0, eagle: 0, respawn: 0 },
+    newMult: 1.2, newShift: 0, maxOn: 1, plates: 0, eagle: 0, respawn: 0, sight: 999, baseSight: 999, baseAim: 1.1, grab: 2, hqPace: 1.2, bossPace: 1, shield: 1, repair: 0 },
   { name: 'NIGHTMARE!', fire: 1.6, speed: 1.2, shell: 1.3, spawn: 1.5, boss: 1.5, lives: 0, vet: 10, aggr: 1.5,
-    newMult: 1.5, newShift: 0, maxOn: 2, plates: 0, eagle: 0, respawn: 0.3 },
+    newMult: 1.5, newShift: 0, maxOn: 2, plates: 0, eagle: 0, respawn: 0.3, sight: 999, baseSight: 999, baseAim: 1.25, grab: 2, hqPace: 1.4, bossPace: 1, shield: 1, repair: 0 },
 ];
+
+// enemy personality where there is no eagle to rush (corridor, kill race): calmer skills wander more
+function noBasePersonality() {
+  const a = Config.skill().aggr, w = [Math.max(0.3, 1.2 - 0.5 * a), 0, a, 0.4 * a];
+  let r = Math.random() * w.reduce((x, y) => x + y, 0);
+  for (let i = 0; i < 4; i++) { if (r < w[i]) return i; r -= w[i]; }
+  return 0;
+}
 
 // AUTO skill: a rating from 0 (I'M TOO YOUNG TO DIE) to 4 (NIGHTMARE!) that follows how you play, and enemy
 // strength blended between the two nearest skills. Kills and cleared stages push it up; lost tanks, hits on the eagle
@@ -116,7 +129,7 @@ const AutoSkill = {
     const r = this.rating, lo = SKILLS[Math.floor(r)], hi = SKILLS[Math.min(4, Math.floor(r) + 1)], f = r - Math.floor(r);
     const p = { name: 'AUTO: ' + this.nearest().name };
     for (const k in lo) if (typeof lo[k] === 'number') p[k] = lo[k] + (hi[k] - lo[k]) * f;
-    for (const k of ['lives', 'plates', 'eagle', 'maxOn']) p[k] = Math.round(p[k]);
+    for (const k of ['lives', 'plates', 'eagle', 'maxOn', 'grab', 'repair']) p[k] = Math.round(p[k]);
     this.cache = p;
     return p;
   },

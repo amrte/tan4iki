@@ -152,15 +152,15 @@ Pick the skill on the title screen (the coloured row; left/right changes it). Th
 
 | Skill | What changes |
 |---|---|
-| I'M TOO YOUNG TO DIE | 3 extra tanks; every life starts with an armour plate (like DOOM's half damage); the eagle has 2 free armour each stage; one enemy fewer on screen; enemies mostly wander, fire about a third as often and move and shoot slower; new enemy types come 15 stages later and rarely; no veterans; bosses 50% HP |
-| HEY, NOT TOO ROUGH | 2 extra tanks; the eagle has 1 free armour; enemies gentler and mostly wander; new types 6 stages later and less often; veterans 15 stages later; bosses 75% HP |
-| HURT ME PLENTY | the default: the full mix of enemies, a little less aggressive than before |
-| ULTRA-VIOLENCE | one more enemy on screen; enemies fire 30% more, move and shoot faster, arrive sooner, rush and hunt more; more new types; veterans 5 stages earlier; bosses 125% HP |
+| I'M TOO YOUNG TO DIE | 3 extra tanks; every life starts with an armour plate (like DOOM's half damage) and a spawn shield twice as long; the eagle has 3 free armour each stage and a free repair crew (a fortress block every 5 s); one enemy fewer on screen; enemies mostly wander, rarely make for the eagle, fire about a third as often and move and shoot slower; they only take aim at you within 4 tiles and at the eagle within 2½ (further off they fire at random); they never pick up power-ups; new enemy types come 15 stages later and rarely; no veterans; bosses 50% HP and 40% slower; in VS CPU their HQ upgrades at half pace |
+| HEY, NOT TOO ROUGH | 2 extra tanks; spawn shield 50% longer; the eagle has 2 free armour and a repair crew (every 10 s); enemies gentler, mostly wander, take aim within 6½ tiles (the eagle 4); they can't take a grenade, clock or shovel; new types 6 stages later and less often; veterans 15 stages later; bosses 75% HP and 20% slower; VS CPU HQ at ¾ pace |
+| HURT ME PLENTY | the default: the full mix of enemies; they take aim at you within 11 tiles and at the eagle within 7 |
+| ULTRA-VIOLENCE | one more enemy on screen; enemies fire 30% more, move and shoot faster, arrive sooner, rush and hunt more, and see you and the eagle at any range; more new types; veterans 5 stages earlier; bosses 125% HP; VS CPU HQ upgrades faster |
 | NIGHTMARE! | two more on screen and all of that and more (fire +60%, bosses 150% HP, veterans 10 stages earlier), and as in DOOM, enemies you destroy may come back (about 1 in 3) |
 
 **AUTO** (the sixth choice, in blue) adjusts the enemies to how you play. It keeps a rating from 0
 (I'M TOO YOUNG TO DIE) to 4 (NIGHTMARE!) and blends every number in the table between the two nearest skills, including
-the easy skills' free plates and eagle armour. Each destroyed enemy nudges it up, a cleared stage moves it up more
+the easy skills' free plates, eagle armour and repair crew. Each destroyed enemy nudges it up, a cleared stage moves it up more
 (even more without losing a tank); losing a tank, a hit on the eagle or a lost outpost pull it down, and a game over
 pulls it down further. Enemy fire adapts at once; speed, shells and the rest follow with the next tanks and stages.
 The rating is remembered between games (a new game starts no lower than 0.5 and no higher than 3.5); the title screen

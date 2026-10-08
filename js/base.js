@@ -47,6 +47,7 @@ Object.assign(Stage.prototype, {
   // at stage start (before the stage's terrain is remembered for masons)
   applyBase(base) {
     this.base = Object.assign(newBase(), base || {});
+    this.base.repair = Math.max(this.base.repair, Config.skill().repair || 0);   // easy skills: a free repair crew
     this.eagleArmor = this.base.armor + Config.skill().eagle;   // easy skills: free eagle armour
     this.eagleInv = 0;
     this.eagleFlash = 0;

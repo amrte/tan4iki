@@ -514,7 +514,15 @@ Object.assign(Stage.prototype, {
     for (const d of this.dust) d.t--;
     this.dust = this.dust.filter(d => d.t > 0);
     if (this.freezeE > 0 || this.over) return;
-    for (const b of this.bosses.slice()) if (b.alive) BOSS_AI[b.kind].call(this, b);
+    // easier skills: bosses act on fewer frames (slower moves, fewer attacks)
+    const pace = Config.skill().bossPace || 1;
+    for (const b of this.bosses.slice()) {
+      if (!b.alive) continue;
+      b.pace = (b.pace || 0) + pace;
+      if (b.pace < 1) continue;
+      b.pace -= 1;
+      BOSS_AI[b.kind].call(this, b);
+    }
     this.bosses = this.bosses.filter(b => b.alive || b.main);
     // laser beams: warning line, then a short deadly burst
     for (const bm of this.beams) {

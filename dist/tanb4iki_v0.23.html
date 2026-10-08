@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.22</title>
+  <title>tanb4iki_v0.23</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.22';
+const APP_VERSION = '0.23';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2380,18 +2380,31 @@ const RANKS = [
 // newMult / newShift: share of the new enemy types and how many stages later each one first appears;
 // maxOn = change to enemies on screen; plates = free armour plate each life; eagle = free eagle armour each stage;
 // respawn = chance a destroyed enemy comes back.
+// sight / baseSight = how far (px) an enemy notices you / the eagle lined up with it and fires on purpose (beyond
+// that it only fires at random); baseAim scales how often enemies make for the eagle and shell it from range;
+// grab = which power-ups enemies may take (0 none, 1 all but grenade, clock and shovel, 2 all); hqPace = how fast
+// the computer's HQ upgrades in VS CPU; bossPace = share of frames a boss acts on (slower bosses); shield = how much
+// longer your spawn shield lasts; repair = a free REPAIR CREW level (the fortress mends itself).
 const SKILLS = [
   { name: "I'M TOO YOUNG TO DIE", fire: 0.35, speed: 0.75, shell: 0.7, spawn: 0.6, boss: 0.5, lives: 3, vet: -30, aggr: 0.15,
-    newMult: 0.3, newShift: 15, maxOn: -1, plates: 1, eagle: 2, respawn: 0 },
+    newMult: 0.3, newShift: 15, maxOn: -1, plates: 1, eagle: 3, respawn: 0, sight: 64, baseSight: 40, baseAim: 0.4, grab: 0, hqPace: 0.5, bossPace: 0.6, shield: 2, repair: 3 },
   { name: 'HEY, NOT TOO ROUGH', fire: 0.6, speed: 0.88, shell: 0.85, spawn: 0.75, boss: 0.75, lives: 2, vet: -15, aggr: 0.45,
-    newMult: 0.6, newShift: 6, maxOn: 0, plates: 0, eagle: 1, respawn: 0 },
+    newMult: 0.6, newShift: 6, maxOn: 0, plates: 0, eagle: 2, respawn: 0, sight: 104, baseSight: 64, baseAim: 0.65, grab: 1, hqPace: 0.75, bossPace: 0.8, shield: 1.5, repair: 1 },
   { name: 'HURT ME PLENTY', fire: 1, speed: 1, shell: 1, spawn: 1, boss: 1, lives: 0, vet: 0, aggr: 0.85,
-    newMult: 1, newShift: 0, maxOn: 0, plates: 0, eagle: 0, respawn: 0 },
+    newMult: 1, newShift: 0, maxOn: 0, plates: 0, eagle: 0, respawn: 0, sight: 176, baseSight: 112, baseAim: 0.9, grab: 2, hqPace: 1, bossPace: 1, shield: 1, repair: 0 },
   { name: 'ULTRA-VIOLENCE', fire: 1.3, speed: 1.1, shell: 1.15, spawn: 1.25, boss: 1.25, lives: 0, vet: 5, aggr: 1.25,
-    newMult: 1.2, newShift: 0, maxOn: 1, plates: 0, eagle: 0, respawn: 0 },
+    newMult: 1.2, newShift: 0, maxOn: 1, plates: 0, eagle: 0, respawn: 0, sight: 999, baseSight: 999, baseAim: 1.1, grab: 2, hqPace: 1.2, bossPace: 1, shield: 1, repair: 0 },
   { name: 'NIGHTMARE!', fire: 1.6, speed: 1.2, shell: 1.3, spawn: 1.5, boss: 1.5, lives: 0, vet: 10, aggr: 1.5,
-    newMult: 1.5, newShift: 0, maxOn: 2, plates: 0, eagle: 0, respawn: 0.3 },
+    newMult: 1.5, newShift: 0, maxOn: 2, plates: 0, eagle: 0, respawn: 0.3, sight: 999, baseSight: 999, baseAim: 1.25, grab: 2, hqPace: 1.4, bossPace: 1, shield: 1, repair: 0 },
 ];
+
+// enemy personality where there is no eagle to rush (corridor, kill race): calmer skills wander more
+function noBasePersonality() {
+  const a = Config.skill().aggr, w = [Math.max(0.3, 1.2 - 0.5 * a), 0, a, 0.4 * a];
+  let r = Math.random() * w.reduce((x, y) => x + y, 0);
+  for (let i = 0; i < 4; i++) { if (r < w[i]) return i; r -= w[i]; }
+  return 0;
+}
 
 // AUTO skill: a rating from 0 (I'M TOO YOUNG TO DIE) to 4 (NIGHTMARE!) that follows how you play, and enemy
 // strength blended between the two nearest skills. Kills and cleared stages push it up; lost tanks, hits on the eagle
@@ -2430,7 +2443,7 @@ const AutoSkill = {
     const r = this.rating, lo = SKILLS[Math.floor(r)], hi = SKILLS[Math.min(4, Math.floor(r) + 1)], f = r - Math.floor(r);
     const p = { name: 'AUTO: ' + this.nearest().name };
     for (const k in lo) if (typeof lo[k] === 'number') p[k] = lo[k] + (hi[k] - lo[k]) * f;
-    for (const k of ['lives', 'plates', 'eagle', 'maxOn']) p[k] = Math.round(p[k]);
+    for (const k of ['lives', 'plates', 'eagle', 'maxOn', 'grab', 'repair']) p[k] = Math.round(p[k]);
     this.cache = p;
     return p;
   },
@@ -3928,8 +3941,8 @@ class Stage {
         this.tanks.push(new Tank({
           x: s.x, y: s.y, dir: 2, type, hp: st.hp + vr.hp, bonus: s.enemy.bonus, vet,
           speed: st.speed * vr.speed * Config.skill().speed, bulletSpeed: st.bullet * vr.shell * Config.skill().shell, maxBullets: 1,
-          ai: s.enemy.ai !== undefined ? s.enemy.ai : this.noBase ? [AI.WANDER, AI.HUNT, AI.HUNT, AI.SNIPE][rnd(4)] : pickPersonality(type, this.num),
-          aiBase: !this.noBase && type !== 4 && Math.random() < 0.3,  // some snipers shell the eagle instead of you (not rocket tanks)
+          ai: s.enemy.ai !== undefined ? s.enemy.ai : this.noBase ? noBasePersonality() : pickPersonality(type, this.num),
+          aiBase: !this.noBase && type !== 4 && Math.random() < 0.3 * Config.skill().baseAim,  // some snipers shell the eagle instead of you (not rocket tanks)
           rocketGun: type === 4, frontShield: type === 5, crusher: type === 6, stealth: type === 7,
           mines: type === 6 ? 3 : 0, hover: type === 10,
           slither: ENEMY[type].kind === 'snake', segN: 4, trail: ENEMY[type].kind === 'snake' ? [] : null,
@@ -3940,7 +3953,7 @@ class Stage {
         this.makeWingman(s);
       } else {
         const p = s.player;
-        const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, player: p, shield: Config.frames('spawnShield') });
+        const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, player: p, shield: Math.round(Config.frames('spawnShield') * (Config.skill().shield || 1)) });
         const perk = rankPerks(p.rank || 1);
         p.level = Math.max(p.level, perk.star);
         t.plates = Math.max(perk.plates, Config.skill().plates);   // the easiest skill: a plate every life
@@ -4126,10 +4139,14 @@ class Stage {
     }
   }
 
+  // something worth a shot straight ahead: a player or an eagle in line, close enough to notice (see SKILLS)
   targetInSight(t) {
-    const targets = this.baseGoals().concat(this.tanks.filter(o => o.isPlayer && !o.boost.smoke));
+    const sk = Config.skill();
+    const targets = this.baseGoals().map(g => Object.assign({ range: sk.baseSight }, g))
+      .concat(this.tanks.filter(o => o.isPlayer && !o.boost.smoke).map(o => ({ x: o.x, y: o.y, range: sk.sight })));
     for (const o of targets) {
       const dx = o.x - t.x, dy = o.y - t.y;
+      if (Math.abs(dx) + Math.abs(dy) > o.range) continue;
       if (Math.abs(dx) < 8 && ((t.dir === 0 && dy < 0) || (t.dir === 2 && dy > 0))) return true;
       if (Math.abs(dy) < 8 && ((t.dir === 3 && dx < 0) || (t.dir === 1 && dx > 0))) return true;
     }
@@ -4138,7 +4155,7 @@ class Stage {
 
   chooseDir(t, blocked) {
     const r = Math.random();
-    const pBase = Math.min(0.8, Math.min(0.5, 0.25 + this.num * 0.008) * Config.scale('enemyAim'));
+    const pBase = Math.min(0.8, Math.min(0.5, 0.25 + this.num * 0.008) * Config.scale('enemyAim') * Config.skill().baseAim);
     let target = null;
     if (r < pBase) target = this.baseTarget(t);
     else if (r < pBase + 0.2) {
@@ -4656,12 +4673,18 @@ class Stage {
     if (!pu) return;
     const order = this.tanks.filter(t => t.isPlayer && !t.ally).concat(this.tanks.filter(t => !t.isPlayer));
     for (const t of order) {
-      if (t.alive && Config.canCollect(pu.type, t.isPlayer) && overlap(t.x, t.y, 16, 16, pu.x + 2, pu.y + 2, 12, 12)) {
+      if (t.alive && Config.canCollect(pu.type, t.isPlayer) && (t.isPlayer || this.enemyMayGrab(pu.type)) && overlap(t.x, t.y, 16, 16, pu.x + 2, pu.y + 2, 12, 12)) {
         this.powerup = null;
         this.applyPowerup(t, pu);
         return;
       }
     }
+  }
+
+  // easier skills keep power-ups away from the enemy (the nastiest ones first)
+  enemyMayGrab(type) {
+    const g = Config.skill().grab;
+    return g >= 2 || (g === 1 && type !== PU.GRENADE && type !== PU.CLOCK && type !== PU.SHOVEL);
   }
 
   applyPowerup(t, pu) {
@@ -5042,7 +5065,7 @@ function pickPersonality(type, stageNum) {
   // later stages bring fewer aimless tanks; the first few stages go easy on rushing and hunting
   w[0] *= Math.max(0.35, 1 - (stageNum - 1) * 0.03);
   const ramp = Math.min(1, 0.4 + stageNum * 0.12) * Config.skill().aggr;
-  w[1] *= ramp; w[2] *= ramp; w[3] *= Config.skill().aggr;
+  w[1] *= ramp * Config.skill().baseAim; w[2] *= ramp; w[3] *= Config.skill().aggr;   // fewer rushers on calmer skills
   let r = Math.random() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < 4; i++) { if (r < w[i]) return i; r -= w[i]; }
   return AI.WANDER;
@@ -5607,6 +5630,7 @@ Object.assign(Stage.prototype, {
   // at stage start (before the stage's terrain is remembered for masons)
   applyBase(base) {
     this.base = Object.assign(newBase(), base || {});
+    this.base.repair = Math.max(this.base.repair, Config.skill().repair || 0);   // easy skills: a free repair crew
     this.eagleArmor = this.base.armor + Config.skill().eagle;   // easy skills: free eagle armour
     this.eagleInv = 0;
     this.eagleFlash = 0;
@@ -7160,7 +7184,7 @@ Object.assign(Stage.prototype, {
           }
           if (solid) continue;
           const q = corridorEnemy(this.corridorClimb());
-          q.ai = [AI.HUNT, AI.HUNT, AI.SNIPE, AI.WANDER][Math.floor(Math.random() * 4)];
+          q.ai = noBasePersonality();
           q.bonus = Config.on('bonusTanks') && c.spawned % 7 === 3;
           c.spawned++;
           this.spawns.push({ x, y, t: SPARKLE_TIME, enemy: q });
@@ -7331,16 +7355,19 @@ function cpuBase(r) {
   };
 }
 
+// the upgrade step reached in round r: easier skills climb the table more slowly (SKILLS hqPace)
+function cpuStep(r) { return 1 + Math.floor((r - 1) * Config.skill().hqPace); }
+
 // what's new in round r: ["EAGLE GUN L1", "ARMOR L2", ...]
 function cpuNews(r) {
   if (r <= 1) return [];
-  const a = cpuBase(r - 1), b = cpuBase(r);
+  const a = cpuBase(cpuStep(r - 1)), b = cpuBase(cpuStep(r));
   return CPU_UPGRADES.filter(([k]) => b[k] > a[k]).map(([k, name]) => name + ' L' + b[k]);
 }
 
 Object.assign(Stage.prototype, {
   setupCpu(round) {
-    const base = cpuBase(round);
+    const base = cpuBase(cpuStep(round));
     this.cpu = {
       round, x: BASE_X, y: 0, alive: true, base, armor: base.armor, inv: 0, flash: 0,
       repairT: 0, gunT: 120, gunDir: 2, teslaT: 120, zaps: [],
@@ -7606,9 +7633,16 @@ Object.assign(Stage.prototype, {
       else if (Math.random() < 0.1) b.dir = rnd(4);
     }
     // lined up: face the rival and shoot (and keep coming)
-    if (aimDir >= 0) { b.dir = aimDir; return Object.assign(idle, { dir: aimDir, fire }); }
-    // bricks in the way: shoot through
-    if (t.dir === b.dir && this.brickAhead(t) && Math.random() < 0.1) fire = true;
+    if (aimDir >= 0) {
+      if (fire && !this.noBase && this.eagleInLine(t.x + 8, t.y + 8, tgt.x + 8, tgt.y + 8)) fire = false;
+      b.dir = aimDir;
+      return Object.assign(idle, { dir: aimDir, fire });
+    }
+    // bricks in the way: shoot through (but not your own eagle's fortress)
+    const nearHome = !this.noBase && Math.abs(t.x - BASE_X) < 40 && Math.abs(t.y - BASE_Y) < 40;
+    if (t.dir === b.dir && !nearHome && this.brickAhead(t) && Math.random() < 0.1) fire = true;
+    // never towards your own eagle
+    if (fire && !this.noBase && this.eagleInLine(t.x + 8, t.y + 8, t.x + 8 + DXY[t.dir][0] * FW, t.y + 8 + DXY[t.dir][1] * FH)) fire = false;
     return Object.assign(idle, { dir: b.dir, fire });
   },
 });
@@ -8195,7 +8229,15 @@ Object.assign(Stage.prototype, {
     for (const d of this.dust) d.t--;
     this.dust = this.dust.filter(d => d.t > 0);
     if (this.freezeE > 0 || this.over) return;
-    for (const b of this.bosses.slice()) if (b.alive) BOSS_AI[b.kind].call(this, b);
+    // easier skills: bosses act on fewer frames (slower moves, fewer attacks)
+    const pace = Config.skill().bossPace || 1;
+    for (const b of this.bosses.slice()) {
+      if (!b.alive) continue;
+      b.pace = (b.pace || 0) + pace;
+      if (b.pace < 1) continue;
+      b.pace -= 1;
+      BOSS_AI[b.kind].call(this, b);
+    }
     this.bosses = this.bosses.filter(b => b.alive || b.main);
     // laser beams: warning line, then a short deadly burst
     for (const bm of this.beams) {

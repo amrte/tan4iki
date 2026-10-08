@@ -466,8 +466,8 @@ class Stage {
         this.tanks.push(new Tank({
           x: s.x, y: s.y, dir: 2, type, hp: st.hp + vr.hp, bonus: s.enemy.bonus, vet,
           speed: st.speed * vr.speed * Config.skill().speed, bulletSpeed: st.bullet * vr.shell * Config.skill().shell, maxBullets: 1,
-          ai: s.enemy.ai !== undefined ? s.enemy.ai : this.noBase ? [AI.WANDER, AI.HUNT, AI.HUNT, AI.SNIPE][rnd(4)] : pickPersonality(type, this.num),
-          aiBase: !this.noBase && type !== 4 && Math.random() < 0.3,  // some snipers shell the eagle instead of you (not rocket tanks)
+          ai: s.enemy.ai !== undefined ? s.enemy.ai : this.noBase ? noBasePersonality() : pickPersonality(type, this.num),
+          aiBase: !this.noBase && type !== 4 && Math.random() < 0.3 * Config.skill().baseAim,  // some snipers shell the eagle instead of you (not rocket tanks)
           rocketGun: type === 4, frontShield: type === 5, crusher: type === 6, stealth: type === 7,
           mines: type === 6 ? 3 : 0, hover: type === 10,
           slither: ENEMY[type].kind === 'snake', segN: 4, trail: ENEMY[type].kind === 'snake' ? [] : null,
@@ -478,7 +478,7 @@ class Stage {
         this.makeWingman(s);
       } else {
         const p = s.player;
-        const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, player: p, shield: Config.frames('spawnShield') });
+        const t = new Tank({ x: s.x, y: s.y, dir: 0, isPlayer: true, player: p, shield: Math.round(Config.frames('spawnShield') * (Config.skill().shield || 1)) });
         const perk = rankPerks(p.rank || 1);
         p.level = Math.max(p.level, perk.star);
         t.plates = Math.max(perk.plates, Config.skill().plates);   // the easiest skill: a plate every life
@@ -664,10 +664,14 @@ class Stage {
     }
   }
 
+  // something worth a shot straight ahead: a player or an eagle in line, close enough to notice (see SKILLS)
   targetInSight(t) {
-    const targets = this.baseGoals().concat(this.tanks.filter(o => o.isPlayer && !o.boost.smoke));
+    const sk = Config.skill();
+    const targets = this.baseGoals().map(g => Object.assign({ range: sk.baseSight }, g))
+      .concat(this.tanks.filter(o => o.isPlayer && !o.boost.smoke).map(o => ({ x: o.x, y: o.y, range: sk.sight })));
     for (const o of targets) {
       const dx = o.x - t.x, dy = o.y - t.y;
+      if (Math.abs(dx) + Math.abs(dy) > o.range) continue;
       if (Math.abs(dx) < 8 && ((t.dir === 0 && dy < 0) || (t.dir === 2 && dy > 0))) return true;
       if (Math.abs(dy) < 8 && ((t.dir === 3 && dx < 0) || (t.dir === 1 && dx > 0))) return true;
     }
@@ -676,7 +680,7 @@ class Stage {
 
   chooseDir(t, blocked) {
     const r = Math.random();
-    const pBase = Math.min(0.8, Math.min(0.5, 0.25 + this.num * 0.008) * Config.scale('enemyAim'));
+    const pBase = Math.min(0.8, Math.min(0.5, 0.25 + this.num * 0.008) * Config.scale('enemyAim') * Config.skill().baseAim);
     let target = null;
     if (r < pBase) target = this.baseTarget(t);
     else if (r < pBase + 0.2) {
@@ -1194,12 +1198,18 @@ class Stage {
     if (!pu) return;
     const order = this.tanks.filter(t => t.isPlayer && !t.ally).concat(this.tanks.filter(t => !t.isPlayer));
     for (const t of order) {
-      if (t.alive && Config.canCollect(pu.type, t.isPlayer) && overlap(t.x, t.y, 16, 16, pu.x + 2, pu.y + 2, 12, 12)) {
+      if (t.alive && Config.canCollect(pu.type, t.isPlayer) && (t.isPlayer || this.enemyMayGrab(pu.type)) && overlap(t.x, t.y, 16, 16, pu.x + 2, pu.y + 2, 12, 12)) {
         this.powerup = null;
         this.applyPowerup(t, pu);
         return;
       }
     }
+  }
+
+  // easier skills keep power-ups away from the enemy (the nastiest ones first)
+  enemyMayGrab(type) {
+    const g = Config.skill().grab;
+    return g >= 2 || (g === 1 && type !== PU.GRENADE && type !== PU.CLOCK && type !== PU.SHOVEL);
   }
 
   applyPowerup(t, pu) {

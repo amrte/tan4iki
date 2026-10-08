@@ -28,16 +28,19 @@ function cpuBase(r) {
   };
 }
 
+// the upgrade step reached in round r: easier skills climb the table more slowly (SKILLS hqPace)
+function cpuStep(r) { return 1 + Math.floor((r - 1) * Config.skill().hqPace); }
+
 // what's new in round r: ["EAGLE GUN L1", "ARMOR L2", ...]
 function cpuNews(r) {
   if (r <= 1) return [];
-  const a = cpuBase(r - 1), b = cpuBase(r);
+  const a = cpuBase(cpuStep(r - 1)), b = cpuBase(cpuStep(r));
   return CPU_UPGRADES.filter(([k]) => b[k] > a[k]).map(([k, name]) => name + ' L' + b[k]);
 }
 
 Object.assign(Stage.prototype, {
   setupCpu(round) {
-    const base = cpuBase(round);
+    const base = cpuBase(cpuStep(round));
     this.cpu = {
       round, x: BASE_X, y: 0, alive: true, base, armor: base.armor, inv: 0, flash: 0,
       repairT: 0, gunT: 120, gunDir: 2, teslaT: 120, zaps: [],

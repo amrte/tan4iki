@@ -123,7 +123,7 @@ Object.assign(Stage.prototype, {
           }
           if (solid) continue;
           const q = corridorEnemy(this.corridorClimb());
-          q.ai = [AI.HUNT, AI.HUNT, AI.SNIPE, AI.WANDER][Math.floor(Math.random() * 4)];
+          q.ai = noBasePersonality();
           q.bonus = Config.on('bonusTanks') && c.spawned % 7 === 3;
           c.spawned++;
           this.spawns.push({ x, y, t: SPARKLE_TIME, enemy: q });

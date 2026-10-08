@@ -54,9 +54,16 @@ Object.assign(Stage.prototype, {
       else if (Math.random() < 0.1) b.dir = rnd(4);
     }
     // lined up: face the rival and shoot (and keep coming)
-    if (aimDir >= 0) { b.dir = aimDir; return Object.assign(idle, { dir: aimDir, fire }); }
-    // bricks in the way: shoot through
-    if (t.dir === b.dir && this.brickAhead(t) && Math.random() < 0.1) fire = true;
+    if (aimDir >= 0) {
+      if (fire && !this.noBase && this.eagleInLine(t.x + 8, t.y + 8, tgt.x + 8, tgt.y + 8)) fire = false;
+      b.dir = aimDir;
+      return Object.assign(idle, { dir: aimDir, fire });
+    }
+    // bricks in the way: shoot through (but not your own eagle's fortress)
+    const nearHome = !this.noBase && Math.abs(t.x - BASE_X) < 40 && Math.abs(t.y - BASE_Y) < 40;
+    if (t.dir === b.dir && !nearHome && this.brickAhead(t) && Math.random() < 0.1) fire = true;
+    // never towards your own eagle
+    if (fire && !this.noBase && this.eagleInLine(t.x + 8, t.y + 8, t.x + 8 + DXY[t.dir][0] * FW, t.y + 8 + DXY[t.dir][1] * FH)) fire = false;
     return Object.assign(idle, { dir: b.dir, fire });
   },
 });

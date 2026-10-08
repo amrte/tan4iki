@@ -20,7 +20,7 @@ function pickPersonality(type, stageNum) {
   // later stages bring fewer aimless tanks; the first few stages go easy on rushing and hunting
   w[0] *= Math.max(0.35, 1 - (stageNum - 1) * 0.03);
   const ramp = Math.min(1, 0.4 + stageNum * 0.12) * Config.skill().aggr;
-  w[1] *= ramp; w[2] *= ramp; w[3] *= Config.skill().aggr;
+  w[1] *= ramp * Config.skill().baseAim; w[2] *= ramp; w[3] *= Config.skill().aggr;   // fewer rushers on calmer skills
   let r = Math.random() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < 4; i++) { if (r < w[i]) return i; r -= w[i]; }
   return AI.WANDER;
