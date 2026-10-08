@@ -277,7 +277,7 @@ const Net = {
       sv.tr = st.tracks.map(t => [t.x, t.y, t.t]);
       sv.du = st.dust.map(d => [d.x, d.y, d.t]);
     }
-    if (st.bossIdx !== undefined) { sv.bi = st.bossIdx; sv.bl = st.bossLoop; sv.bb = st.bossBanner; }
+    if (st.bossIdx !== undefined) { sv.bi = st.bossIdx; sv.bl = st.bossLoop; sv.bb = st.bossBanner; sv.bn = st.bossNote; sv.pf = (st.puffs || []).map(p => [Math.round(p.x), Math.round(p.y), p.t, p.fire ? 1 : 0]); }
     return sv;
   },
 
@@ -482,6 +482,8 @@ const Net = {
     st.bossIdx = sv.bi === undefined ? undefined : sv.bi;
     st.bossLoop = sv.bl || 0;
     st.bossBanner = sv.bb || 0;
+    st.bossNote = sv.bn || null;
+    st.puffs = (sv.pf || []).map(a => ({ x: a[0], y: a[1], t: a[2], fire: !!a[3] }));
   },
 
   // ------------------------------------------------------------ panels (HTML, for copy and paste)

@@ -248,18 +248,27 @@ between computers. Try another network (e.g. a home Wi-Fi), or this would need a
 ## Boss rounds
 
 Every 10th stage is a boss stage: the boss plus a smaller group of escort tanks (8 by default). Destroy the boss to clear
-the stage; its escorts blow up with it. The side panel shows the boss's HP bar and how many escorts are left.
-Every big attack flashes a warning first, each boss changes behaviour at half HP, and a power-up drops at 75%, 50% and 25% HP.
-Beating a boss scores 5,000–10,000 points and gives 25% off in the next shop. After stage 50 the bosses repeat with +50% HP each loop.
-In 2-player games boss HP is 50% higher.
+the stage; its escorts blow up with it. There are ten bosses, so with the default setting the last one, the UFO, comes
+on stage 100. After that they come round again with +50% HP each time. In 2-player games boss HP is 50% higher.
+Beating a boss scores 5,000–20,000 points and gives 25% off in the next shop. A power-up drops at 75%, 50% and 25% HP.
 
-| Stage | Boss | How it fights | How to beat it |
-|---|---|---|---|
-| 10 | **Iron Bear** | slow heavy tank with a ram; 3-shell volleys; flashes red, then charges in a straight line, crushing bricks and anything in the way | dodge the charge; it's dazed afterwards (longer if it hit steel) and takes double damage |
-| 20 | **Mole** | moves underground (only a dust trail), surfaces near you or the eagle after a dust swirl, fires 8 shells in a cross, then burrows; breaks the steel ring in front of the eagle | hit it while it's up; at half HP it pops up twice and leaves mines |
-| 30 | **Hydra** | sits on an island; left turret fires gatling bursts, right turret rockets, centre turret a laser beam down the screen | a ship is provided; destroy the turrets one by one, then the exposed core |
-| 40 | **Phantom** | nearly invisible, shows itself only when firing; teleports and leaves decoys (more when angry, and then they fire) | decoys pop in one hit; only the real Phantom leaves tracks on the ice |
-| 50 | **Dreadnought** | huge fortress tank; phase 1 cannons that break steel and a hatch that releases armor tanks; phase 2 mine lines and spread volleys; phase 3 crawls toward the eagle and fires laser beams at you | dig through its steel with star-3 or rocket shells; stay mobile in phase 3 |
+**Phases.** Every boss has three: above 2/3 of its HP, above 1/3, and the rest. Marks on the HP bar show where they
+change, and the bar turns orange, then flashing red and yellow. At each change the boss reels for a moment, the new phase's
+name comes up ("IRON BEAR: BERSERK"), its hull shows the damage (scorched plates, then holes, missing parts, smoke and
+then fire), and it fights differently from then on. Every big attack still flashes a warning first.
+
+| Stage | Boss | Phase 1 | Phase 2 | Phase 3 | How to beat it |
+|---|---|---|---|---|---|
+| 10 | **Iron Bear** | ARMORED: 3-shell volleys; flashes red, then charges in a straight line crushing bricks | RAGING: faster; calls 2 escorts; after a charge it turns and charges again | BERSERK: the ram plate is torn off; 5-shell volleys, almost no wind-up, a ring of shells when it shakes off a daze | it's dazed after a charge (longer if it hit steel) and takes double damage |
+| 20 | **Mole** | DIGGING: moves underground, surfaces after a dust swirl, fires 8 shells in a cross | FRENZIED: pops up twice in a row and leaves mines | TREMORS: the drill snaps; while it's under, the ground bursts up under each player (a swirl warns first) | hit it while it's up; keep moving in phase 3 |
+| 30 | **Harvester** | HARVEST: a combine harvester racing for you, ramming tanks, smashing bricks and mowing trees, dropping hay bales | OVERDRIVE: faster, flings sheaves to both sides | ON FIRE: flat out, leaving burning ground | lure it into steel: it stalls and takes double damage |
+| 40 | **Hydra** | THREE HEADS: gatling, laser beam and rocket turrets on an island | REGROWING: a lost head grows back once | BARE CORE: swings wide, the core fires faster and shoots laser beams | a ship is provided; break the heads, then the core |
+| 50 | **Gunship** | PATROL: a helicopter flying over everything, lining up with you for gun bursts, rocket pairs | AIR ASSAULT: drops paratroopers | GOING DOWN: reels about dropping a carpet of bombs (red crosses mark where) | keep out of its lines; it never fires through your eagle |
+| 60 | **Phantom** | CLOAKED: nearly invisible, shows itself only when firing; teleports and leaves decoys | HAUNTING: the decoys fire too | UNMASKED: the cloak is broken; it blinks to a spot lined up with you and fires three at once | decoys pop in one hit; only the real one leaves tracks on the ice |
+| 70 | **Armored Train** | FULL STEAM: runs along one of two tracks (signals flash and it whistles first), crushing whatever's on the track; cannon and rocket wagons | TROOPS OUT: tanks jump off the troop wagon | DERAILED: the wagons blow up and the engine jumps the rails and hunts you | the engine is armored until all three wagons are wrecked |
+| 80 | **Scorpion** | STALKING: walks over bricks, steel and water; its sting lobs shells at you (a red cross marks where); its claws pinch a tank in front of it | VENOM: two stings at a time; each leaves a poison pool that gets you if you stay in it | FRENZY: a claw is gone; faster, three stings in a row, the claws fire shells | when the claws snap open, get out of the way |
+| 90 | **Dreadnought** | BATTLESHIP: cannons that break steel, a hatch that releases armor tanks | MINELAYER: the left cannon is shot off; mine lines and spread volleys | MELTDOWN: the hatch blows, the reactor shows; it crawls toward the eagle firing laser beams | dig through its steel with star-3 or rocket shells; stay mobile in phase 3 |
+| 100 | **UFO** (final boss) | INVASION: rings of plasma; a tractor beam that pulls a tank up into it ("ABDUCTED!") | FORCE FIELD: hits bounce off except just after it attacks; drones; it blinks about | CRASH-LANDED: the saucer comes down in flames and its pilot, a little alien with a ray gun, climbs out | walls hold you back from the beam, so drive out sideways; shoot it right after it fires |
 
 Settings → BOSSES: boss rounds on/off, boss every 5–30 stages, boss HP 25%–300%.
 
@@ -657,7 +666,8 @@ js/cards.js       first-meet cards for new enemies, bosses and power-ups
 js/cpuvs.js       VS EAGLES against the computer: the enemy HQ and its upgrades round by round
 js/bots.js        deathmatch and kill-race bots: computer-driven players
 js/race.js        kill race: most kills per round scores a point
-js/bosses.js      boss rounds: the 5 bosses, their arenas, sprites and behaviour
+js/bosses.js      boss rounds: the boss order, arenas, phases, sprites; the first five bosses
+js/bosses2.js     the five newer bosses: harvester, gunship, armored train, scorpion, UFO
 js/net.js         online play: WebRTC connection, codes, host streaming, guest view, lobby panels
 js/main.js        state machine (title, settings, curtain, play, score, game over, construction) + loop
 js/version.js     app name and version (single source of truth)

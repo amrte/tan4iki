@@ -3,6 +3,31 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.38
+
+- **Boss phases.** Every boss now has three phases by the HP it has left (marked on the HP bar). At each change it
+  reels, the phase is named ("IRON BEAR: BERSERK"), its hull shows the damage (scorched, holed, parts torn off, smoke,
+  then fire) and it fights differently:
+  - **Iron Bear:** charges twice in a row, then loses its ram plate and stomps out rings of shells.
+  - **Mole:** pops up twice, then its drill snaps and the ground bursts up under you.
+  - **Hydra:** regrows a lost head once, then its bare core swings wide firing lasers.
+  - **Phantom:** its decoys fire, then the cloak breaks and it blinks to spots lined up with you, firing three at once.
+  - **Dreadnought:** loses a cannon, then the hatch blows and the reactor shows.
+- **The bosses are redrawn** with much more detail: outlines, lights, rivets, exhausts, grilles, claws, scales.
+- **Five new bosses** (ten in all; the UFO comes on stage 100 by default):
+  - **Harvester:** a racing combine harvester that rams, mows trees and bricks and drops hay bales, then flings sheaves,
+    then burns.
+  - **Gunship:** a helicopter that flies over everything, with gun bursts and rockets, then paratroopers, then a burning
+    carpet-bombing run.
+  - **Armored Train:** runs on two tracks with signals and a whistle; cannon, rocket and troop wagons; once the wagons
+    are wrecked the engine jumps the rails.
+  - **Scorpion:** walks over walls and water; its sting lobs shells at you from afar; it pinches with its claws and
+    leaves venom pools.
+  - **UFO, the final boss:** plasma rings and a tractor beam that abducts tanks, then a force field and drones. It
+    crash-lands and the alien pilot climbs out with a ray gun.
+- New sounds: the phase change, rotor blades, the train whistle, the saucer's warble and the tractor beam.
+- Bosses that aim at you (gunship, UFO, alien) don't fire through your eagle.
+
 ## 0.37
 
 - **Weapons.** Six new player weapons, each with four levels (MK I – IV): **machine gun** (hold fire: a stream of

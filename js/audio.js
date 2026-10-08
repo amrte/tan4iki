@@ -231,6 +231,27 @@ const Sound = {
       case 'charge':
         this.noise(700, t, [[0, 0.35], [0.12, 0]]);
         break;
+      case 'bossPhase': // a boss enters a new phase: a crunch and a falling wail
+        this.noise(1500, t, [[0, 0.6], [0.3, 0.3], [0.6, 0]], 200);
+        this.note(76, t, 0.5, { vol: 0.14, slideTo: 300, wave: 'p25' });
+        this.note(64, t + 0.1, 0.5, { vol: 0.1, slideTo: 150, wave: 'p25' });
+        break;
+      case 'rotor': // helicopter blades
+        for (let i = 0; i < 4; i++) this.noise(900, t + i * 0.1, [[0, 0.22], [0.05, 0]], 400);
+        break;
+      case 'whistle': // a train's two-tone whistle
+        this.note(81, t, 0.5, { vol: 0.11, flat: true, wave: 'p25' });
+        this.note(85, t, 0.5, { vol: 0.08, flat: true, wave: 'p12' });
+        this.note(81, t + 0.6, 0.35, { vol: 0.11, decayTo: 0.4, wave: 'p25' });
+        break;
+      case 'ufo': // the saucer's warble
+        this.note(88, t, 0.25, { vol: 0.05, slideTo: 1600, wave: 'p12' });
+        this.note(93, t + 0.25, 0.25, { vol: 0.05, slideTo: 1200, wave: 'p12' });
+        break;
+      case 'beam': // the tractor beam powers up
+        this.note(48, t, 1.2, { vol: 0.1, slideTo: 900, wave: 'tri' });
+        this.seq([72, 76, 79, 84, 79, 76], 0.1, t + 0.4, { vol: 0.06, wave: 'p12', decayTo: 0.5 });
+        break;
       case 'laser':
         this.note(2200, t, 0.35, { vol: 0.12, slideTo: 300, flat: true, wave: 'p12' });
         this.noise(12000, t, [[0, 0.2], [0.35, 0]]);

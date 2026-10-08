@@ -328,7 +328,7 @@ class Stage {
     this.spawns = [];
     this.powerup = null;
     this.mines = [];
-    this.bosses = []; this.beams = []; this.tracks = []; this.dust = [];
+    this.bosses = []; this.beams = []; this.tracks = []; this.dust = []; this.puffs = []; this.bossNote = null;
     this.flames = []; this.shells = []; this.heals = []; this.mark = null; this.jamList = [];   // see enemies.js
     this.turrets = []; this.claudes = []; this.strikes = []; this.reviveWait = 0;              // see extras.js
     this.snakeList = [];
@@ -1655,6 +1655,7 @@ class Stage {
     this.renderBeams(ctx);
     ctx.drawImage(this.forestLayer, 0, 0);
     this.renderMines(ctx, true);    // yours, over the trees, so you always see where you laid them
+    this.renderBossOver(ctx);       // flying bosses, smoke and fire (bosses.js)
 
     if (this.powerup && ((this.powerup.t >> 3) & 1) === 0) {
       drawPowerup(ctx, this.powerup, this.powerup.x, this.powerup.y);
