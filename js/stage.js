@@ -253,6 +253,9 @@ class Stage {
     this.terrain = new Uint8Array(GW * GH);
     const classic = COLS === 13 && ROWS === 13;
     this.load(opts.blocks || expandBlocks(mapToBlocks(map)), !opts.custom || !classic);   // blocks: a stitched big map
+    // the season: its colours, and frozen or dried-up water (seasons.js)
+    this.theme = stageTheme(num, opts);
+    if (!opts.snapshot) this.applyThemeTerrain(num);
     // mud, teleporters and belts in the normal stages; night and fog on some (terrain.js)
     if (!opts.boss && !opts.custom && !opts.snapshot && !opts.corridor && Config.on('terrainExtras')) this.addTerrainExtras(num);
     this.weather = opts.corridor ? null : stageWeather(opts.custom ? 1 : num, !!opts.boss);
@@ -340,7 +343,7 @@ class Stage {
       kills: this.players.map(p => p.kills.slice()),
       eagleArmor: this.eagleArmor,
       decoy: this.decoy,
-      pads: this.pads, weather: this.weather,
+      pads: this.pads, weather: this.weather, theme: this.theme,
       vcols: VIEW_W / 16, vrows: VIEW_H / 16, big: this.big || null, outposts: this.outposts, factories: this.factories,
       turrets: this.turrets.map(tu => Object.assign({}, tu, { owner: tu.owner ? tu.owner.i : -1 })),
       claudes: this.claudes.map(c => Object.assign({}, c, { p: c.p ? c.p.i : -1 })),
@@ -360,6 +363,7 @@ class Stage {
     if (sn.pads) this.pads = sn.pads;
     if (sn.big) { this.big = sn.big; this.outposts = sn.outposts || []; this.factories = sn.factories || []; }
     if (sn.weather !== undefined) this.weather = sn.weather;
+    if (sn.theme) { this.theme = sn.theme; this.dirty = true; }
     this.turrets = (sn.turrets || []).map(tu => Object.assign({}, tu, { owner: this.players[tu.owner] || null }));
     this.claudes = (sn.claudes || []).map(c => Object.assign({}, c, { p: this.players[c.p] || null }));
     this.spawns = [];
@@ -1353,7 +1357,7 @@ class Stage {
       this.bgLayer = makeCanvas(FW, FH);
       this.forestLayer = makeCanvas(FW, FH);
     }
-    const bg = this.bgLayer.getContext('2d'), fo = this.forestLayer.getContext('2d'), tex = Sprites.tex;
+    const bg = this.bgLayer.getContext('2d'), fo = this.forestLayer.getContext('2d'), tex = themeTex(this.theme);
     bg.clearRect(0, 0, FW, FH);
     fo.clearRect(0, 0, FW, FH);
     this.waterCells = [];
@@ -1373,6 +1377,7 @@ class Stage {
         else if (t === T_WATER) this.waterCells.push(cy * GW + cx);
       }
     }
+    this.themeCaps(bg, fo);   // snow on top in winter (seasons.js)
     this.dirty = false;
   }
 
@@ -1462,8 +1467,9 @@ class Stage {
     ctx.save();
     ctx.translate(-camX, -camY);
 
+    ctx.drawImage(this.groundLayer(), 0, 0);   // the season's ground (seasons.js)
     ctx.drawImage(this.bgLayer, 0, 0);
-    const wt = Sprites.tex[(this.frame >> 5) & 1 ? 'water1' : 'water0'];
+    const wt = themeTex(this.theme)[(this.frame >> 5) & 1 ? 'water1' : 'water0'];
     for (const i of this.waterCells) {
       const cx = i % GW, cy = (i / GW) | 0;
       ctx.drawImage(wt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
@@ -1512,6 +1518,7 @@ class Stage {
       const fr = f.frames[Math.min(f.frames.length - 1, Math.floor(f.tick / f.per))];
       ctx.drawImage(fr, Math.round(f.x - fr.width / 2), Math.round(f.y - fr.height / 2));
     }
+    this.renderSeason(ctx, camX, camY);   // petals, leaves, snow, ash, sand
     this.renderDarkness(ctx);
     for (const p of this.popups) {
       if (p.t < p.delay) continue;

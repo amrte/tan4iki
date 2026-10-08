@@ -496,6 +496,9 @@ const Game = {
       }
       const boss = bossForStage(this.stageNum);
       if (boss) Font.drawCenter(ctx, 'BOSS: ' + BOSSES[boss.idx].name, cx, cy + 10, '#A00000');
+      // the season (when it's known in advance)
+      const ss = Config.get('seasons'), th = ss === 'RANDOM' || ss === 'OFF' || this.customPending ? null : THEMES[stageTheme(this.stageNum)];
+      if (th && th.name && !(this.mode === 'race' && c.raceSel)) Font.drawCenter(ctx, th.name, cx, cy - 36, '#3C3C3C');
       const wx = !this.customPending && stageWeather(this.stageNum, !!boss);
       if (wx) Font.drawCenter(ctx, wx === 'night' ? 'NIGHT' : 'FOG', cx, cy + (boss ? 34 : c.selectable ? 24 : 10), wx === 'night' ? '#00006C' : '#ADADAD');
       if (Config.get('skill') !== 2) Font.drawCenter(ctx, Config.skill().name, cx, cy - 24, '#3C3C3C');

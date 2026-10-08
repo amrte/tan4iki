@@ -358,6 +358,21 @@ These 14 were not in the original game. They're marked with `*` in Settings and 
   stays for the stage and anyone can use it. Carried kits show as brown dots in the side panel. An enemy that grabs
   the power-up can cross water.
 
+## Seasons
+
+Every stage has a season, with its own ground, colours and something drifting across the screen (Settings → GAME →
+SEASONS: CYCLE, a new one every stage (default); RANDOM; OFF, the classic black; or always the same one). The stage
+curtain names it.
+
+| Season | Look | In the game |
+|---|---|---|
+| Spring | dark green ground, blossom on the trees, petals in the air | |
+| Summer | deep green, fireflies at dusk | |
+| Autumn | brown ground, orange and red trees, falling leaves, darker water | |
+| Winter | snowy blue-grey ground, snow on the bricks, steel and trees, snowfall | most lakes are frozen over (ice: slippery, but you can drive across) |
+| Nuclear winter | ash-grey ground, scorched bricks, dead trees, toxic green water, falling ash, a sickly tint | some lakes are frozen |
+| Desert | sand, sandstone bricks, cacti, drifting sand | many ponds have dried into mud (it slows you) |
+
 ## Terrain: mud, conveyor belts, teleporters; night and fog
 
 - **Mud** (brown, lumpy): any tank on it moves at half speed; shells pass over it; hovering skimmers glide across.
@@ -443,7 +458,7 @@ the browser, and **RESET TO DEFAULTS** (top level) restores the classic game.
 | Players | III / IV-PLAYER COLOR (blue / pink), gamepad rumble (on), key and pad setup |
 | Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
 | Screen | field width (13), field height (13), FIT, scaling (sharp / fill), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
-| Game | game mode (classic), skill (hurt me plenty), kill race first to (3 points), mud, belts, pads (on), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on), first-meet cards (on), *show all cards again* |
+| Game | game mode (classic), skill (hurt me plenty), kill race first to (3 points), mud, belts, pads (on), seasons (cycle), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on), first-meet cards (on), *show all cards again* |
 
 ## Code layout
 
@@ -462,6 +477,7 @@ js/enemies.js     abilities of the enemies from the design canvas (mason, mortar
 js/base.js        base upgrades: fortress walls, eagle armor, repair crew, eagle gun, minefield
 js/extras.js      turrets, Claude, airstrikes, revival, wingman, decoy eagle, smoke, bridges
 js/terrain.js     mud, conveyor belts, teleporter pads, night and fog stages
+js/seasons.js     seasons: themed ground, textures and particles; frozen lakes, dried ponds
 js/modes.js       game modes: survival waves, time attack, versus eagles, deathmatch, capture the flag
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go
