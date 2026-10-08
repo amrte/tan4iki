@@ -18,6 +18,7 @@ const MODES = [
   { key: 'bigmaps', name: 'BIG MAPS', desc: 'HUGE SCROLLING BATTLEFIELDS' },
   { key: 'sides', name: 'ANY SIDE', desc: 'YOUR EAGLE ON ANOTHER EDGE' },   // the map turned: eagle left, right or top
   { key: 'corridor', name: 'CORRIDOR', desc: 'ENDLESS CLIMB, HOW FAR?' },
+  { key: 'maze', name: 'MAZE', desc: 'FIND THE ONE WAY OUT' },   // maze.js
   { key: 'race', name: 'KILL RACE', cpu: true, desc: 'MOST KILLS WINS THE ROUND' },   // race.js; 1 player races bots
   { key: 'eagles', name: 'VS EAGLES', vs: true, cpu: true, desc: 'GUARD YOURS, HIT THEIRS' },   // cpu: 1 player plays the computer
   { key: 'dm', name: 'DEATHMATCH', vs: true, cpu: true, desc: 'FIRST TO 10 KILLS' },   // 1 player: against bots

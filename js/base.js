@@ -103,7 +103,7 @@ Object.assign(Stage.prototype, {
 
   // every frame
   updateBase() {
-    if (!this.base || !this.baseAlive || this.over) return;
+    if (!this.base || !this.baseAlive || this.over || this.noBase) return;
     if (this.eagleInv > 0) this.eagleInv--;
     if (this.eagleFlash > 0) this.eagleFlash--;
     const r = this.base.repair;

@@ -152,6 +152,8 @@ function shopStatus(item, p) {
     const lv = Game.base[item.up] || 0, top = item.prices.length;
     return { text: lv >= top ? 'MAX' : 'L' + lv + '/' + top, max: lv >= top };
   }
+  // the maze has no eagle: nothing for it on sale there
+  if (Game.mode === 'maze' && (item.base || item.id === 'shovel' || item.id === 'decoy')) return { text: 'N/A', max: true };
   if (item.base) {
     if (!Config.on('baseShop')) return { text: 'OFF', max: true };
     const lv = Game.base[item.base] || 0, top = item.prices.length;
@@ -325,6 +327,7 @@ const Game = {
       const best = mi.key === 'survival' && rec.survival ? 'BEST WAVE ' + rec.survival.wave + '  ' + rec.survival.score
         : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack)
         : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score
+        : mi.key === 'maze' && rec.maze ? 'BEST: ' + rec.maze.escaped + ' MAZES ESCAPED  ' + rec.maze.score
         : mi.key === 'eagles' ? '1P: VS CPU' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '') + '  2-4P: VS'
         : mi.key === 'dm' ? '1P: VS ' + DM_BOTS + ' BOTS  2-4P: VS EACH OTHER'
         : mi.key === 'race' ? 'FIRST TO ' + Config.get('raceTarget') + '  1P: VS ' + DM_BOTS + ' BOTS'
@@ -424,7 +427,7 @@ const Game = {
     else if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
     this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
-    if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides'].includes(this.mode)) this.stageNum = 1;
+    if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides', 'maze'].includes(this.mode)) this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
     // KILL RACE: the first curtain picks how many points win the game (race.js)
     if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
@@ -474,7 +477,7 @@ const Game = {
     if (c.phase === 'show') {
       const cx = SCREEN_W / 2, cy = SCREEN_H / 2;
       const race = this.mode === 'race';
-      Font.draw(ctx, this.mode === 'cpu' || race ? 'ROUND' : 'STAGE', cx - 32, cy - 8, COL.black);
+      Font.draw(ctx, this.mode === 'cpu' || race ? 'ROUND' : this.mode === 'maze' ? 'MAZE' : 'STAGE', cx - 32, cy - 8, COL.black);
       Font.drawRight(ctx, race ? this.round : this.stageNum, cx + 32, cy - 8, COL.black);
       if (race) {
         Font.drawCenter(ctx, 'MOST KILLS WINS THE ROUND', cx, cy + 14, '#A00000');
@@ -482,6 +485,7 @@ const Game = {
         if (c.raceSel && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + 42, '#3C3C3C');
       }
       // against the computer: what their HQ got for this round
+      if (this.mode === 'maze') Font.drawCenter(ctx, 'FIND THE EXIT', cx, cy + 14, '#A00000');
       if (this.mode === 'sides' && this.nextSide) Font.drawCenter(ctx, 'YOUR EAGLE: ' + this.nextSide.toUpperCase(), cx, cy + 24, '#A00000');
       if (this.mode === 'custom' && !this.customPending) {
         const used = Customs.used();
@@ -528,9 +532,15 @@ const Game = {
     // big scrolling maps: every stage in BIG MAPS, every 4th classic stage with BIG MAP STAGES on
     const big = !custom && !boss && (this.mode === 'bigmaps'
       || (this.mode === 'classic' && !this.daily && Config.get('bigStages') === 'SOME' && this.stageNum % 4 === 0));
-    let blocks = null, objective = null;
+    let blocks = null, objective = null, maze = null;
     const corridor = !custom && this.mode === 'corridor';
-    if (corridor) {
+    if (!custom && this.mode === 'maze') {
+      // MAZE: a fresh labyrinth, bigger every stage (maze.js)
+      const [vc, vr] = this.desiredField(), [MW, MH] = mazeCells(this.stageNum, vc, vr);
+      setFieldSize(MW * MAZE_PITCH + 1, MH * MAZE_PITCH + 1, vc, vr);
+      maze = mazeLayout(MW, MH);
+      blocks = maze.blocks;
+    } else if (corridor) {
       // the usual width, at least three sections high (one more than the screen needs above and below)
       const [vc, vr] = this.desiredField(), rows = Math.max(3, Math.ceil((vr + 26) / CORRIDOR_SECTION)) * CORRIDOR_SECTION;
       setFieldSize(vc, rows, vc, vr);
@@ -547,7 +557,7 @@ const Game = {
       blocks = turnBlocks(mapToBlocks(map), side);
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
-      custom, boss, base: vs || corridor || this.mode === 'race' ? newBase() : this.base, corridor, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
+      custom, boss, base: vs || corridor || maze || this.mode === 'race' ? newBase() : this.base, corridor, maze, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
       race: this.mode === 'race' && !custom ? { target: this.raceTarget, round: this.round } : null, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
       blocks, big: objective, theme,
     });
@@ -592,7 +602,7 @@ const Game = {
     if (r === 'clear' && this.mode === 'race') { this.saveHi(); this.raceRoundEnd(); return; }
     if (r && this.mode === 'timeattack' && r === 'clear') { this.saveHi(); this.taNext(); return; }
     if (r === 'gameover') AutoSkill.event('gameOver');
-    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu')) { this.saveHi(); this.toModeResult(false); return; }
+    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu' || this.mode === 'maze')) { this.saveHi(); this.toModeResult(false); return; }
     if (this.stage.result) {
       // beating a boss earns 25% off in the next shop
       this.shopDiscount = this.stage.result === 'clear' && this.stage.bossIdx !== undefined;
@@ -856,6 +866,11 @@ const Game = {
       const b = rec.cpu;
       if (!b || res.rounds > b.rounds || (res.rounds === b.rounds && score > b.score)) { rec.cpu = { rounds: res.rounds, score }; res.newBest = true; }
       res.best = rec.cpu;
+    } else if (this.mode === 'maze') {
+      res.escaped = this.stageNum - 1;
+      const b = rec.maze;
+      if (!b || res.escaped > b.escaped || (res.escaped === b.escaped && score > b.score)) { rec.maze = { escaped: res.escaped, score }; res.newBest = true; }
+      res.best = rec.maze;
     } else if (this.mode === 'corridor') {
       res.dist = this.stage.corridorClimb();
       const b = rec.corridor;
@@ -950,6 +965,10 @@ const Game = {
       Font.drawCenter(ctx, r.rounds === 1 ? 'YOU WON 1 ROUND' : 'YOU WON ' + r.rounds + ' ROUNDS', SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
       Font.drawCenter(ctx, 'BEST: ' + r.best.rounds + ' ROUNDS  ' + r.best.score, SW / 2, 124, COL.lgrey);
+    } else if (r.mode === 'maze') {
+      Font.drawCenter(ctx, r.escaped === 1 ? 'YOU ESCAPED 1 MAZE' : 'YOU ESCAPED ' + r.escaped + ' MAZES', SW / 2, 80, COL.white);
+      Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
+      Font.drawCenter(ctx, 'BEST: ' + r.best.escaped + ' MAZES  ' + r.best.score, SW / 2, 124, COL.lgrey);
     } else if (r.mode === 'corridor') {
       Font.drawCenter(ctx, 'YOU CLIMBED ' + r.dist + ' M', SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
@@ -1075,7 +1094,7 @@ const Game = {
     if (item.id === 'done') { this.shopNext(); return; }
     const price = shopPrice(item), st = shopStatus(item, p);
     if (st.max) {
-      sh.msg = item.id === 'revive' ? (reviveCost() ? 'NOBODY TO REVIVE' : 'REVIVE IS OFF') : p.out ? 'REVIVE FIRST' : 'YOU ALREADY HAVE IT';
+      sh.msg = item.id === 'revive' ? (reviveCost() ? 'NOBODY TO REVIVE' : 'REVIVE IS OFF') : p.out ? 'REVIVE FIRST' : st.text === 'N/A' ? 'NO EAGLE IN THE MAZE' : 'YOU ALREADY HAVE IT';
       sh.msgT = 90; Sound.play('steel'); return;
     }
     if (wallet(p) < price) { sh.msg = 'NOT ENOUGH POINTS'; sh.msgT = 90; Sound.play('steel'); return; }

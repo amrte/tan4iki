@@ -309,7 +309,7 @@ class Stage {
     this.theme = stageTheme(num, opts);
     if (!opts.snapshot && !opts.editor) this.applyThemeTerrain(num);   // the editor shows what you drew
     // mud, teleporters and belts in the normal stages; night and fog on some (terrain.js)
-    if (!opts.boss && !opts.custom && !opts.snapshot && !opts.corridor && Config.on('terrainExtras')) this.addTerrainExtras(num);
+    if (!opts.boss && !opts.custom && !opts.snapshot && !opts.corridor && !opts.maze && Config.on('terrainExtras')) this.addTerrainExtras(num);
     this.weather = opts.corridor ? null : stageWeather(opts.custom ? 1 : num, !!opts.boss);
     this.outposts = []; this.factories = [];
     if (opts.big) this.setupBigMap(opts.big);   // bigmap.js
@@ -353,6 +353,7 @@ class Stage {
     if (opts.corridor) this.setupCorridor();   // corridor.js
     if (opts.cpu) this.setupCpu(opts.cpu);      // VS EAGLES against the computer (cpuvs.js)
     if (opts.race) this.setupRace(opts.race.target, opts.race.round);   // KILL RACE (race.js)
+    if (opts.maze) this.setupMaze(opts.maze);   // MAZE (maze.js)
     if (opts.timeAttack) this.spawnInterval = Math.round(this.spawnInterval / 2);
     for (const p of players) {
       p.kills = zeroKills();
@@ -489,12 +490,12 @@ class Stage {
 
   // ------------------------------------------------------------ spawning
   spawnPlayer(p, delay) {
-    const [x, y] = this.corridor ? this.corridorSpawnPoint(p) : (this.vsSpawn || PLAYER_SPAWN)[p.i];
+    const [x, y] = this.corridor ? this.corridorSpawnPoint(p) : this.maze ? this.mazeSpawnPoint(p) : (this.vsSpawn || PLAYER_SPAWN)[p.i];
     this.spawns.push({ x, y, t: SPARKLE_TIME + delay, player: p });
   }
 
   updateSpawning() {
-    if (this.queue.length === 0) return;
+    if (this.queue.length === 0 || this.maze) return;   // the maze brings its own (maze.js)
     if (this.spawnTimer > 0) { this.spawnTimer--; return; }
     const onField = this.tanks.filter(t => !t.isPlayer).length + this.spawns.filter(s => s.enemy).length;
     if (onField >= this.maxEnemies) return;
@@ -611,6 +612,8 @@ class Stage {
       this.updateVersus();
     } else if (this.corridor) {
       this.updateCorridor();
+    } else if (this.maze && !this.maze.escaped) {
+      this.updateMaze();
     } else if (this.cpu && this.cpu.alive) {
       // against the computer the round goes on until their HQ falls
     } else if (this.big && this.factoriesAlive()) {
@@ -1281,7 +1284,8 @@ class Stage {
     for (let tries = 0; tries < 60; tries++) {
       x = rnd((FW - 16) / 8 + 1) * 8; y = rnd((FH - 16) / 8 + 1) * 8;
       // the corridor: somewhere on screen, not sections away
-      if (this.corridor && this.camY !== undefined) y = Math.min(FH - 16, Math.round(this.camY / 8) * 8 + rnd((VIEW_H - 16) / 8 + 1) * 8);
+      if ((this.corridor || this.maze) && this.camY !== undefined) y = Math.min(FH - 16, Math.round(this.camY / 8) * 8 + rnd((VIEW_H - 16) / 8 + 1) * 8);
+      if (this.maze && this.camX !== undefined) x = Math.min(FW - 16, Math.round(this.camX / 8) * 8 + rnd((VIEW_W - 16) / 8 + 1) * 8);
       if (overlap(x, y, 16, 16, BASE_X - 16, BASE_Y - 16, 48, 32)) continue;
       let bad = 0;
       for (let cy = y >> 2; cy < (y + 16) >> 2; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
@@ -1528,6 +1532,7 @@ class Stage {
     }
     this.renderBelts(ctx);
     this.renderPads(ctx);
+    if (this.maze) this.renderMazeExit(ctx);
     if (!this.noBase) this.renderEagle(ctx);
     this.renderVs(ctx);
     this.renderDecoy(ctx);
@@ -1642,7 +1647,7 @@ class Stage {
     this.renderSkillTag(ctx, HUD_X);
     if (this.vs) { this.renderVsHud(ctx, HUD_X); return; }
     if (this.race) { this.renderRaceLine(ctx); this.renderRaceHud(ctx, HUD_X); return; }
-    if (this.corridor) this.renderCorridorLine(ctx); else if (this.cpu) this.renderCpuLine(ctx); else this.renderObjectiveLine(ctx);
+    if (this.corridor) this.renderCorridorLine(ctx); else if (this.maze) this.renderMazeLine(ctx); else if (this.cpu) this.renderCpuLine(ctx); else this.renderObjectiveLine(ctx);
     const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
     if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);

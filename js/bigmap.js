@@ -156,8 +156,8 @@ Object.assign(Stage.prototype, {
     const mine = Net.role === 'client' ? this.tanks.filter(t => t.isPlayer && !t.ally && t.player && t.player.i === Net.slot) : [];
     const ps = mine.length ? mine : this.tanks.filter(t => t.isPlayer && !t.ally && t.alive);
     // the corridor holds still while everyone is between tanks (respawns come in near the bottom of the screen)
-    if (!ps.length && this.corridor && this.camX !== undefined) return [Math.round(this.camX), Math.round(this.camY)];
-    let fx = BASE_X + 8, fy = BASE_Y + 8;
+    if (!ps.length && (this.corridor || this.maze) && this.camX !== undefined) return [Math.round(this.camX), Math.round(this.camY)];
+    let fx = this.maze ? this.maze.sx + 16 : BASE_X + 8, fy = this.maze ? this.maze.sy + 16 : BASE_Y + 8;
     if (ps.length) { fx = ps.reduce((a, t) => a + t.x + 8, 0) / ps.length; fy = ps.reduce((a, t) => a + t.y + 8, 0) / ps.length; }
     const tx = Math.max(0, Math.min(FW - VIEW_W, fx - VIEW_W / 2)), ty = Math.max(0, Math.min(FH - VIEW_H, fy - VIEW_H / 2));
     if (this.camX === undefined) { this.camX = tx; this.camY = ty; }
@@ -191,6 +191,7 @@ Object.assign(Stage.prototype, {
     if (!this.noBase && this.baseAlive) marks.push([BASE_X + 8, BASE_Y + 8, COL.gold]);
     for (const o of this.outposts || []) if (o.alive) marks.push([o.x + 8, o.y + 8, '#58F8F8']);
     for (const f of this.factories || []) if (f.hp > 0) marks.push([f.x + 16, f.y + 16, '#F83800']);
+    if (this.maze && !this.maze.escaped && this.frame >= this.maze.hintAt) marks.push([this.maze.ex + 16, this.maze.ey + 16, '#58F898']);   // the exit signal
     for (const [wx, wy, color] of marks) {
       const sx = wx - camX, sy = wy - camY;
       if (sx >= 0 && sy >= 0 && sx < VIEW_W && sy < VIEW_H) continue;

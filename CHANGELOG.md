@@ -3,6 +3,17 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.30
+
+- **New mode: MAZE.** A huge labyrinth, generated fresh every stage and bigger each time. Start in the bottom-left
+  corner and find the one exit, a chequered gate on the far edge. Steel walls with a few brick stretches to shoot
+  through, trees and ice in some passages; enemy patrols along the way that come for you when you get close, and more
+  turning up out of sight. Lost for too long and the exit sends a signal (a marker at the edge of the screen). Getting
+  out pays 2000 plus a time bonus and clears the maze of enemies; then the tally, the shop and a bigger maze. Lost
+  tanks come back where they were a few seconds before. Its own title screen and tune (Lost in the Labyrinth).
+- Fix: in modes without an eagle (kill race, deathmatch, maze) the free repair crew of the easier skills could
+  rebuild the eagle's fortress walls out of nowhere.
+
 ## 0.29
 
 - **Shop trimmed:** SMOKE and BRIDGE KIT are gone from the shop (both are still power-ups on the field), and the RADAR

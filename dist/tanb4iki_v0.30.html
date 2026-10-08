@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.29</title>
+  <title>tanb4iki_v0.30</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.29';
+const APP_VERSION = '0.30';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2626,7 +2626,7 @@ const SETTINGS_DEF = [
   { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
   { section: 'GAME' },
-  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'custom', 'survival', 'timeattack', 'bigmaps', 'sides', 'corridor', 'race', 'eagles', 'dm', 'ctf'], def: 'classic',
+  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'custom', 'survival', 'timeattack', 'bigmaps', 'sides', 'corridor', 'maze', 'race', 'eagles', 'dm', 'ctf'], def: 'classic',
     fmt: v => modeInfo(v).name },
   { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4, 5], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!', 'AUTO'][v] },
   { key: 'raceTarget', label: 'RACE: FIRST TO', values: [1, 2, 3, 5, 7, 10], def: 3, fmt: v => v + ' PTS' },
@@ -3121,6 +3121,8 @@ const SONGS = {
     mel: '0-2-4-0-2-4-5-' + '4-2-0-4-2-0-z-' + '0-2-4-6-5-4-2-' + '1-2-3-1-0-----' },
   corridor: { name: 'THE CLIMB', root: 57, bpm: 132, groove: 'climb', prog: [0, 1, 2, 4],
     mel: '0.2.4.7.2.4.7.9.' + '1.3.5.8.3.5.8.A.' + '2.4.6.9.4.6.9.B.' + '4-3-4-5-7-------' },
+  maze: { name: 'LOST IN THE LABYRINTH', root: 59, bpm: 112, groove: 'creep', prog: [0, 5, 3, 4],
+    mel: '0..2..1.0..4-3..' + '5..4..3.2..1-z..' + '3..4..5.7..6-5..' + '4..3..2.1..0---' + '.' },
   race: { name: 'KILL RACE SHUFFLE', root: 58, bpm: 150, groove: 'shuffle', prog: [0, 0, 3, 4], swing: 0.62,
     mel: '0-2-4-2-5-4-2-0-' + '0-2-4-2-6-5-4-2-' + '3-5-7-5-4-2-0-2-' + '4-4-5-6-7---.---' },
   eagles: { name: 'EAGLE DUEL', root: 62, bpm: 136, groove: 'duel', prog: [0, 0, 5, 4],
@@ -3149,6 +3151,7 @@ const GROOVES = {
   duel: { drums: 'k..k..s.k.k..s..', bass: 'r..r..r.r.f..f..' },
   aggro: { drums: 'k.k.s.k.k.ksk.s.', bass: 'r.r.o.r.r.r.o.r.' },
   fanfare: { drums: 'k...s...k.k.s...', bass: 'r---f---r-f-o---' },
+  creep: { drums: 'k.....h.k..s..h.', bass: 'r..r..t.f..f..t.' },
   robot: { drums: 'k.k.s...k.k.s.k.', bass: 'rororororororoor' },
 };
 
@@ -4034,7 +4037,7 @@ class Stage {
     this.theme = stageTheme(num, opts);
     if (!opts.snapshot && !opts.editor) this.applyThemeTerrain(num);   // the editor shows what you drew
     // mud, teleporters and belts in the normal stages; night and fog on some (terrain.js)
-    if (!opts.boss && !opts.custom && !opts.snapshot && !opts.corridor && Config.on('terrainExtras')) this.addTerrainExtras(num);
+    if (!opts.boss && !opts.custom && !opts.snapshot && !opts.corridor && !opts.maze && Config.on('terrainExtras')) this.addTerrainExtras(num);
     this.weather = opts.corridor ? null : stageWeather(opts.custom ? 1 : num, !!opts.boss);
     this.outposts = []; this.factories = [];
     if (opts.big) this.setupBigMap(opts.big);   // bigmap.js
@@ -4078,6 +4081,7 @@ class Stage {
     if (opts.corridor) this.setupCorridor();   // corridor.js
     if (opts.cpu) this.setupCpu(opts.cpu);      // VS EAGLES against the computer (cpuvs.js)
     if (opts.race) this.setupRace(opts.race.target, opts.race.round);   // KILL RACE (race.js)
+    if (opts.maze) this.setupMaze(opts.maze);   // MAZE (maze.js)
     if (opts.timeAttack) this.spawnInterval = Math.round(this.spawnInterval / 2);
     for (const p of players) {
       p.kills = zeroKills();
@@ -4214,12 +4218,12 @@ class Stage {
 
   // ------------------------------------------------------------ spawning
   spawnPlayer(p, delay) {
-    const [x, y] = this.corridor ? this.corridorSpawnPoint(p) : (this.vsSpawn || PLAYER_SPAWN)[p.i];
+    const [x, y] = this.corridor ? this.corridorSpawnPoint(p) : this.maze ? this.mazeSpawnPoint(p) : (this.vsSpawn || PLAYER_SPAWN)[p.i];
     this.spawns.push({ x, y, t: SPARKLE_TIME + delay, player: p });
   }
 
   updateSpawning() {
-    if (this.queue.length === 0) return;
+    if (this.queue.length === 0 || this.maze) return;   // the maze brings its own (maze.js)
     if (this.spawnTimer > 0) { this.spawnTimer--; return; }
     const onField = this.tanks.filter(t => !t.isPlayer).length + this.spawns.filter(s => s.enemy).length;
     if (onField >= this.maxEnemies) return;
@@ -4336,6 +4340,8 @@ class Stage {
       this.updateVersus();
     } else if (this.corridor) {
       this.updateCorridor();
+    } else if (this.maze && !this.maze.escaped) {
+      this.updateMaze();
     } else if (this.cpu && this.cpu.alive) {
       // against the computer the round goes on until their HQ falls
     } else if (this.big && this.factoriesAlive()) {
@@ -5006,7 +5012,8 @@ class Stage {
     for (let tries = 0; tries < 60; tries++) {
       x = rnd((FW - 16) / 8 + 1) * 8; y = rnd((FH - 16) / 8 + 1) * 8;
       // the corridor: somewhere on screen, not sections away
-      if (this.corridor && this.camY !== undefined) y = Math.min(FH - 16, Math.round(this.camY / 8) * 8 + rnd((VIEW_H - 16) / 8 + 1) * 8);
+      if ((this.corridor || this.maze) && this.camY !== undefined) y = Math.min(FH - 16, Math.round(this.camY / 8) * 8 + rnd((VIEW_H - 16) / 8 + 1) * 8);
+      if (this.maze && this.camX !== undefined) x = Math.min(FW - 16, Math.round(this.camX / 8) * 8 + rnd((VIEW_W - 16) / 8 + 1) * 8);
       if (overlap(x, y, 16, 16, BASE_X - 16, BASE_Y - 16, 48, 32)) continue;
       let bad = 0;
       for (let cy = y >> 2; cy < (y + 16) >> 2; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
@@ -5253,6 +5260,7 @@ class Stage {
     }
     this.renderBelts(ctx);
     this.renderPads(ctx);
+    if (this.maze) this.renderMazeExit(ctx);
     if (!this.noBase) this.renderEagle(ctx);
     this.renderVs(ctx);
     this.renderDecoy(ctx);
@@ -5367,7 +5375,7 @@ class Stage {
     this.renderSkillTag(ctx, HUD_X);
     if (this.vs) { this.renderVsHud(ctx, HUD_X); return; }
     if (this.race) { this.renderRaceLine(ctx); this.renderRaceHud(ctx, HUD_X); return; }
-    if (this.corridor) this.renderCorridorLine(ctx); else if (this.cpu) this.renderCpuLine(ctx); else this.renderObjectiveLine(ctx);
+    if (this.corridor) this.renderCorridorLine(ctx); else if (this.maze) this.renderMazeLine(ctx); else if (this.cpu) this.renderCpuLine(ctx); else this.renderObjectiveLine(ctx);
     const H = HUD_X, n = this.bossIdx === undefined ? Math.min(20, this.queue.length) : 0;
     if (this.bossIdx !== undefined) this.renderBossHud(ctx, H);
     for (let i = 0; i < n; i++) ctx.drawImage(Sprites.enemyIcon, H + (i % 2) * 8, 24 + (i >> 1) * 8);
@@ -6061,7 +6069,7 @@ Object.assign(Stage.prototype, {
 
   // every frame
   updateBase() {
-    if (!this.base || !this.baseAlive || this.over) return;
+    if (!this.base || !this.baseAlive || this.over || this.noBase) return;
     if (this.eagleInv > 0) this.eagleInv--;
     if (this.eagleFlash > 0) this.eagleFlash--;
     const r = this.base.repair;
@@ -7158,6 +7166,7 @@ const MODES = [
   { key: 'bigmaps', name: 'BIG MAPS', desc: 'HUGE SCROLLING BATTLEFIELDS' },
   { key: 'sides', name: 'ANY SIDE', desc: 'YOUR EAGLE ON ANOTHER EDGE' },   // the map turned: eagle left, right or top
   { key: 'corridor', name: 'CORRIDOR', desc: 'ENDLESS CLIMB, HOW FAR?' },
+  { key: 'maze', name: 'MAZE', desc: 'FIND THE ONE WAY OUT' },   // maze.js
   { key: 'race', name: 'KILL RACE', cpu: true, desc: 'MOST KILLS WINS THE ROUND' },   // race.js; 1 player races bots
   { key: 'eagles', name: 'VS EAGLES', vs: true, cpu: true, desc: 'GUARD YOURS, HIT THEIRS' },   // cpu: 1 player plays the computer
   { key: 'dm', name: 'DEATHMATCH', vs: true, cpu: true, desc: 'FIRST TO 10 KILLS' },   // 1 player: against bots
@@ -7551,8 +7560,8 @@ Object.assign(Stage.prototype, {
     const mine = Net.role === 'client' ? this.tanks.filter(t => t.isPlayer && !t.ally && t.player && t.player.i === Net.slot) : [];
     const ps = mine.length ? mine : this.tanks.filter(t => t.isPlayer && !t.ally && t.alive);
     // the corridor holds still while everyone is between tanks (respawns come in near the bottom of the screen)
-    if (!ps.length && this.corridor && this.camX !== undefined) return [Math.round(this.camX), Math.round(this.camY)];
-    let fx = BASE_X + 8, fy = BASE_Y + 8;
+    if (!ps.length && (this.corridor || this.maze) && this.camX !== undefined) return [Math.round(this.camX), Math.round(this.camY)];
+    let fx = this.maze ? this.maze.sx + 16 : BASE_X + 8, fy = this.maze ? this.maze.sy + 16 : BASE_Y + 8;
     if (ps.length) { fx = ps.reduce((a, t) => a + t.x + 8, 0) / ps.length; fy = ps.reduce((a, t) => a + t.y + 8, 0) / ps.length; }
     const tx = Math.max(0, Math.min(FW - VIEW_W, fx - VIEW_W / 2)), ty = Math.max(0, Math.min(FH - VIEW_H, fy - VIEW_H / 2));
     if (this.camX === undefined) { this.camX = tx; this.camY = ty; }
@@ -7586,6 +7595,7 @@ Object.assign(Stage.prototype, {
     if (!this.noBase && this.baseAlive) marks.push([BASE_X + 8, BASE_Y + 8, COL.gold]);
     for (const o of this.outposts || []) if (o.alive) marks.push([o.x + 8, o.y + 8, '#58F8F8']);
     for (const f of this.factories || []) if (f.hp > 0) marks.push([f.x + 16, f.y + 16, '#F83800']);
+    if (this.maze && !this.maze.escaped && this.frame >= this.maze.hintAt) marks.push([this.maze.ex + 16, this.maze.ey + 16, '#58F898']);   // the exit signal
     for (const [wx, wy, color] of marks) {
       const sx = wx - camX, sy = wy - camY;
       if (sx >= 0 && sy >= 0 && sx < VIEW_W && sy < VIEW_H) continue;
@@ -7798,6 +7808,217 @@ Object.assign(Stage.prototype, {
   renderCorridorLine(ctx) {
     const best = (STORE.get(MODE_KEY, {}).corridor || {}).dist || 0;
     Font.drawCenter(ctx, 'CLIMBED ' + this.corridorClimb() + ' M' + (best ? '  BEST ' + best : ''), FX + VIEW_W / 2, 0, COL.black);
+  },
+});
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  MAZE mode: a huge labyrinth, a new one every stage and bigger each time. You start in the bottom-left corner; there
+//  is exactly one way out, the EXIT gate, as far from the start as the maze allows. Find it. The walls are steel,
+//  with the odd stretch of brick that can be shot through for a shortcut; trees and ice fill some passages.
+//  Enemy tanks wait along the way: they patrol where they are until you come close, then they come for you, and
+//  more turn up out of sight as you go (the side panel counts them down). Get lost for too long and the exit sends
+//  a signal: a blinking marker at the edge of the screen points the way (sooner on easier skills).
+//  Reach the exit and every enemy left in the maze goes up in smoke; the tally and the shop, then the next maze.
+//  Destroyed players come back where they were a few seconds before. Game over when everyone is out of tanks.
+// =====================================================================
+
+const MAZE_PITCH = 3;                                   // tiles per cell: a 2-tile passage and a 1-tile wall
+const MAZE_HINT = [60, 90, 120, 150, 180];              // seconds before the exit signal, per skill
+const MAZE_WAKE = 112;                                  // a patrolling enemy comes for you inside this range (px)
+const MAZE_BONUS = 2000;                                // for getting out, plus a time bonus
+
+// maze size (in cells) for stage n: bigger every time, never smaller than 1.5 screens either way
+function mazeCells(n, vc, vr) {
+  const w = Math.min(24, 9 + 2 * n), h = Math.min(16, 6 + n);
+  return [Math.max(w, Math.ceil(vc * 1.5 / MAZE_PITCH)), Math.max(h, Math.ceil(vr * 1.5 / MAZE_PITCH))];
+}
+
+// a random maze of MW x MH cells, as a block map, with its start, exit and the way between them
+function mazeLayout(MW, MH, rand = Math.random) {
+  const right = [], down = [];
+  for (let j = 0; j < MH; j++) { right.push(new Array(MW).fill(true)); down.push(new Array(MW).fill(true)); }
+  const open = (i, j, k) => {   // knock down the wall between cell (i, j) and its neighbour in direction k
+    if (k === 0) down[j - 1][i] = false; else if (k === 1) right[j][i] = false;
+    else if (k === 2) down[j][i] = false; else right[j][i - 1] = false;
+  };
+  const wallTo = (i, j, k) => (k === 0 ? j > 0 && down[j - 1][i] : k === 1 ? i < MW - 1 && right[j][i] : k === 2 ? j < MH - 1 && down[j][i] : i > 0 && right[j][i - 1]);
+  // depth-first carving from the start corner: long winding passages
+  const start = [0, MH - 1], seen = new Uint8Array(MW * MH), stack = [start];
+  seen[start[1] * MW + start[0]] = 1;
+  while (stack.length) {
+    const [i, j] = stack[stack.length - 1];
+    const next = [];
+    for (let k = 0; k < 4; k++) {
+      const x = i + DXY[k][0], y = j + DXY[k][1];
+      if (x >= 0 && y >= 0 && x < MW && y < MH && !seen[y * MW + x]) next.push([x, y, k]);
+    }
+    if (!next.length) { stack.pop(); continue; }
+    const [x, y, k] = next[Math.floor(rand() * next.length)];
+    open(i, j, k);
+    seen[y * MW + x] = 1;
+    stack.push([x, y]);
+  }
+  // a few extra openings, so there's more than one way round (and fewer endless dead ends)
+  for (let n = Math.floor(MW * MH * 0.05); n > 0; n--) {
+    const i = Math.floor(rand() * MW), j = Math.floor(rand() * MH), k = Math.floor(rand() * 4);
+    if (wallTo(i, j, k)) open(i, j, k);
+  }
+  // distances from the start; the exit is the farthest cell on the outer edge
+  const dist = new Int32Array(MW * MH).fill(-1), from = new Int32Array(MW * MH).fill(-1), q = [start[1] * MW + start[0]];
+  dist[q[0]] = 0;
+  for (let h = 0; h < q.length; h++) {
+    const c = q[h], i = c % MW, j = (c / MW) | 0;
+    for (let k = 0; k < 4; k++) {
+      if (wallTo(i, j, k)) continue;
+      const x = i + DXY[k][0], y = j + DXY[k][1];
+      if (x < 0 || y < 0 || x >= MW || y >= MH) continue;
+      const n = y * MW + x;
+      if (dist[n] >= 0) continue;
+      dist[n] = dist[c] + 1; from[n] = c; q.push(n);
+    }
+  }
+  let exit = null, best = -1;
+  for (let j = 0; j < MH; j++) for (let i = 0; i < MW; i++) {
+    if (i && j && i < MW - 1 && j < MH - 1) continue;
+    if (dist[j * MW + i] > best) { best = dist[j * MW + i]; exit = [i, j]; }
+  }
+  const path = [];
+  for (let c = exit[1] * MW + exit[0]; c >= 0; c = from[c]) path.push([c % MW, (c / MW) | 0]);
+  path.reverse();
+  // the blocks (8px): steel walls and pillars, a little brick, trees and ice in some passages
+  const BW = (MW * MAZE_PITCH + 1) * 2, BH = (MH * MAZE_PITCH + 1) * 2;
+  const g = [];
+  for (let y = 0; y < BH; y++) g.push(new Array(BW).fill('.'));
+  const fill = (tx, ty, tw, th, ch) => { for (let y = ty * 2; y < (ty + th) * 2; y++) for (let x = tx * 2; x < (tx + tw) * 2; x++) g[y][x] = ch; };
+  const wall = (tx, ty, tw, th, outer) => fill(tx, ty, tw, th, !outer && rand() < 0.1 ? '#' : '@');
+  for (let j = 0; j <= MH; j++) for (let i = 0; i <= MW; i++) fill(i * 3, j * 3, 1, 1, '@');   // pillars
+  for (let i = 0; i < MW; i++) { wall(i * 3 + 1, 0, 2, 1, true); wall(i * 3 + 1, MH * 3, 2, 1, true); }
+  for (let j = 0; j < MH; j++) { wall(0, j * 3 + 1, 1, 2, true); wall(MW * 3, j * 3 + 1, 1, 2, true); }
+  for (let j = 0; j < MH; j++) for (let i = 0; i < MW; i++) {
+    if (i < MW - 1 && right[j][i]) wall(i * 3 + 3, j * 3 + 1, 1, 2);
+    if (j < MH - 1 && down[j][i]) wall(i * 3 + 1, j * 3 + 3, 2, 1);
+    const key = (i === start[0] && j === start[1]) || (i === exit[0] && j === exit[1]);
+    const r = rand();
+    if (!key && r < 0.07) fill(i * 3 + 1, j * 3 + 1, 2, 2, '%');
+    else if (!key && r < 0.1) fill(i * 3 + 1, j * 3 + 1, 2, 2, '_');
+  }
+  return { MW, MH, start, exit, path, dist: Array.from(dist), blocks: g.map(r => r.join('')) };
+}
+
+// a cell's top-left corner in pixels (its passage is 32 x 32)
+const mazeCellPx = (i, j) => [(i * MAZE_PITCH + 1) * 16, (j * MAZE_PITCH + 1) * 16];
+
+Object.assign(Stage.prototype, {
+  setupMaze(mz) {
+    const [sx, sy] = mazeCellPx(...mz.start), [ex, ey] = mazeCellPx(...mz.exit);
+    const sk = Config.get('skill'), lv = sk === AUTO_SKILL ? Math.max(0, Math.min(4, Math.round(AutoSkill.rating))) : sk;
+    this.maze = { MW: mz.MW, MH: mz.MH, sx, sy, ex, ey, hintAt: MAZE_HINT[lv] * 60, escaped: false, spawnCd: 300, woke: 0 };
+    this.noBase = true;
+    // everyone starts in the corner cell, one 16px slot each
+    const slot = (x, y, i) => [x + (i & 1) * 16, y + (i >> 1) * 16];
+    this.vsSpawn = [0, 1, 2, 3].map(i => slot(sx, sy, i));
+    this.mazeSlot = slot;
+    // the enemy: some waiting along the way out, some in other passages, the rest turn up later
+    const n = Math.min(60, Math.round((10 + 3 * this.num) * Config.get('enemyCount') / 20));
+    this.queue = buildQueue(this.num, n);
+    for (const q of this.queue) q.ai = AI.WANDER;
+    // none near the start: at least 4 cells away along the passages, and 3 as the crow flies (walls don't stop them waking)
+    const far = c => mz.dist[c[1] * mz.MW + c[0]] >= 4 && Math.abs(c[0] - mz.start[0]) + Math.abs(c[1] - mz.start[1]) >= 3;
+    const onPath = mz.path.filter(far), cells = [];
+    for (let j = 0; j < mz.MH; j++) for (let i = 0; i < mz.MW; i++) if (far([i, j])) cells.push([i, j]);
+    const first = Math.min(this.queue.length, Math.round(n * 0.4)), used = new Set();
+    for (let k = 0; k < first; k++) {
+      const pool = k % 2 === 0 && onPath.length ? onPath : cells;
+      let c = null;
+      for (let t = 0; t < 20 && (!c || used.has(c.join())); t++) c = k % 2 === 0 ? pool[Math.floor((k / first) * pool.length + Math.random() * 3) % pool.length] : pool[rnd(pool.length)];
+      if (!c || used.has(c.join())) continue;
+      used.add(c.join());
+      const [x, y] = mazeCellPx(...c);
+      this.spawns.push({ x: x + rnd(2) * 16, y: y + rnd(2) * 16, t: SPARKLE_TIME, enemy: this.queue.shift() });
+    }
+    this.total = n;
+  },
+
+  // where a destroyed player comes back: where they were a few seconds ago
+  mazeSpawnPoint(p) {
+    const at = p.mazeBack || [this.maze.sx, this.maze.sy];
+    return this.mazeSlot(at[0], at[1], p.i);
+  },
+
+  // the cell (as its corner in px) a point is in
+  mazeCellAt(x, y) {
+    const i = Math.max(0, Math.min(this.maze.MW - 1, Math.floor((x - 16) / 48))), j = Math.max(0, Math.min(this.maze.MH - 1, Math.floor((y - 16) / 48)));
+    return mazeCellPx(i, j);
+  },
+
+  updateMaze() {
+    const m = this.maze, ps = this.tanks.filter(t => t.isPlayer && !t.ally && t.alive);
+    // remember where everyone was, a step behind (that's where they come back)
+    if (this.frame % 90 === 0) for (const t of ps) { t.player.mazeBack = t.player.mazeNow; t.player.mazeNow = this.mazeCellAt(t.x + 8, t.y + 8); }
+    // patrols wake up when you come close (or shoot at them), and then they hunt
+    for (const t of this.tanks) {
+      if (t.isPlayer || !t.alive || t.ai !== AI.WANDER || t.mazeAwake) continue;
+      if ((t.maxHp && t.hp < t.maxHp) || ps.some(o => Math.abs(o.x - t.x) + Math.abs(o.y - t.y) < MAZE_WAKE)) { t.mazeAwake = true; t.ai = Math.random() < 0.3 ? AI.SNIPE : AI.HUNT; m.woke++; }
+    }
+    // more of them turn up, out of sight but not too far ahead
+    if (this.queue.length && --m.spawnCd <= 0 && this.freezeE <= 0 && ps.length) {
+      m.spawnCd = Math.round(this.spawnInterval * 1.6);
+      const onField = this.tanks.filter(t => !t.isPlayer).length + this.spawns.filter(s => s.enemy).length;
+      if (onField < this.maxEnemies + 2) {
+        const [camX, camY] = [this.camX || 0, this.camY || 0];
+        for (let k = 0; k < 30; k++) {
+          const o = ps[rnd(ps.length)], [x, y] = this.mazeCellAt(o.x + (rnd(17) - 8) * 48, o.y + (rnd(13) - 6) * 48);
+          const seen = x + 32 > camX - 16 && x < camX + VIEW_W + 16 && y + 32 > camY - 16 && y < camY + VIEW_H + 16;
+          if (seen || this.tanks.some(t => t.alive && overlap(t.x, t.y, 16, 16, x - 16, y - 16, 64, 64))) continue;
+          if (overlap(x, y, 32, 32, m.ex - 32, m.ey - 32, 96, 96)) continue;
+          this.spawns.push({ x: x + rnd(2) * 16, y: y + rnd(2) * 16, t: SPARKLE_TIME, enemy: this.queue.shift() });
+          break;
+        }
+      }
+    }
+    if (this.frame === m.hintAt) this.popups.push({ x: FW / 2, y: (this.camY || 0) + 40, text: 'EXIT SIGNAL!', label: true, color: '#58F898', t: 0, delay: 0, life: 120 });
+    // out!
+    const out = ps.find(t => overlap(t.x, t.y, 16, 16, m.ex + 8, m.ey + 8, 16, 16));
+    if (out) this.mazeEscape(out);
+  },
+
+  mazeEscape(t) {
+    const m = this.maze;
+    m.escaped = true;
+    const secs = Math.floor(this.frame / 60), bonus = MAZE_BONUS + Math.max(0, 30 - Math.floor(secs / 10)) * 100;
+    this.addScore(t.player, bonus);
+    for (const p of this.players) if (!p.out) this.addXp(p, 50);
+    this.popups.push({ x: m.ex + 16, y: m.ey, text: 'ESCAPED! +' + bonus, label: true, color: COL.gold, t: 0, delay: 0, life: 150 });
+    // whatever is left of the enemy goes up with the maze behind you
+    for (const o of this.tanks) if (!o.isPlayer && o.alive) this.killEnemy(o, null, false, true);
+    this.queue = [];
+    this.spawns = this.spawns.filter(s => !s.enemy);
+    Sound.play('bonus');
+  },
+
+  // the exit gate: a chequered pad with a green frame, pulsing
+  renderMazeExit(ctx) {
+    const m = this.maze;
+    if (!m) return;
+    const { ex: x, ey: y } = m, f = this.frame;
+    for (let j = 0; j < 8; j++) for (let i = 0; i < 8; i++) {
+      ctx.fillStyle = (i + j + (f >> 4)) & 1 ? '#F8F8F8' : '#1C1C1C';
+      ctx.fillRect(x + i * 4, y + j * 4, 4, 4);
+    }
+    const g = (f >> 3) & 1 ? '#58F898' : '#00A844';
+    ctx.fillStyle = g;
+    ctx.fillRect(x, y, 32, 2); ctx.fillRect(x, y + 30, 32, 2); ctx.fillRect(x, y, 2, 32); ctx.fillRect(x + 30, y, 2, 32);
+    ctx.fillStyle = COL.black;
+    ctx.fillRect(x + 2, y + 11, 28, 10);
+    Font.drawCenter(ctx, 'EXIT', x + 16, y + 12, g);
+  },
+
+  renderMazeLine(ctx) {
+    const m = this.maze, t = fmtTime(this.frame).replace(/\.\d$/, '');
+    Font.drawCenter(ctx, 'MAZE ' + this.num + '  ' + t + (this.frame >= m.hintAt && !m.escaped ? '  SIGNAL' : ''), FX + VIEW_W / 2, 0, COL.black);
   },
 });
 
@@ -9450,6 +9671,7 @@ const Net = {
       bg: st.big ? [st.big, st.outposts, st.factories.map(f => [f.x, f.y, f.hp, f.flash])] : null,
       fg: st.flags ? st.flags.map(f => [f.i, f.hx, f.hy, f.x, f.y, f.carrier ? 1 : 0]) : null,
       cr: st.corridor ? [st.corridor.shifts, st.corridor.climbed, st.corridor.startY] : null,
+      mz: st.maze ? [st.maze.sx, st.maze.sy, st.maze.ex, st.maze.ey, st.maze.hintAt, st.maze.escaped ? 1 : 0, st.maze.MW, st.maze.MH] : null,
       cd: st.card || null,
       cp: st.cpu || null,
       rc: st.race || null,
@@ -9622,6 +9844,7 @@ const Net = {
       if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();
       st.corridor = { shifts: sv.cr[0], climbed: sv.cr[1], startY: sv.cr[2] };
     } else st.corridor = null;
+    st.maze = sv.mz ? { sx: sv.mz[0], sy: sv.mz[1], ex: sv.mz[2], ey: sv.mz[3], hintAt: sv.mz[4], escaped: !!sv.mz[5], MW: sv.mz[6], MH: sv.mz[7] } : null;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
     st.heals = (sv.hl || []).map(a => ({ x1: a[0], y1: a[1], x2: a[2], y2: a[3], t: a[4], build: !!a[5] }));
@@ -9986,6 +10209,8 @@ function shopStatus(item, p) {
     const lv = Game.base[item.up] || 0, top = item.prices.length;
     return { text: lv >= top ? 'MAX' : 'L' + lv + '/' + top, max: lv >= top };
   }
+  // the maze has no eagle: nothing for it on sale there
+  if (Game.mode === 'maze' && (item.base || item.id === 'shovel' || item.id === 'decoy')) return { text: 'N/A', max: true };
   if (item.base) {
     if (!Config.on('baseShop')) return { text: 'OFF', max: true };
     const lv = Game.base[item.base] || 0, top = item.prices.length;
@@ -10159,6 +10384,7 @@ const Game = {
       const best = mi.key === 'survival' && rec.survival ? 'BEST WAVE ' + rec.survival.wave + '  ' + rec.survival.score
         : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack)
         : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score
+        : mi.key === 'maze' && rec.maze ? 'BEST: ' + rec.maze.escaped + ' MAZES ESCAPED  ' + rec.maze.score
         : mi.key === 'eagles' ? '1P: VS CPU' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '') + '  2-4P: VS'
         : mi.key === 'dm' ? '1P: VS ' + DM_BOTS + ' BOTS  2-4P: VS EACH OTHER'
         : mi.key === 'race' ? 'FIRST TO ' + Config.get('raceTarget') + '  1P: VS ' + DM_BOTS + ' BOTS'
@@ -10258,7 +10484,7 @@ const Game = {
     else if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
     this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
-    if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides'].includes(this.mode)) this.stageNum = 1;
+    if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides', 'maze'].includes(this.mode)) this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
     // KILL RACE: the first curtain picks how many points win the game (race.js)
     if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
@@ -10308,7 +10534,7 @@ const Game = {
     if (c.phase === 'show') {
       const cx = SCREEN_W / 2, cy = SCREEN_H / 2;
       const race = this.mode === 'race';
-      Font.draw(ctx, this.mode === 'cpu' || race ? 'ROUND' : 'STAGE', cx - 32, cy - 8, COL.black);
+      Font.draw(ctx, this.mode === 'cpu' || race ? 'ROUND' : this.mode === 'maze' ? 'MAZE' : 'STAGE', cx - 32, cy - 8, COL.black);
       Font.drawRight(ctx, race ? this.round : this.stageNum, cx + 32, cy - 8, COL.black);
       if (race) {
         Font.drawCenter(ctx, 'MOST KILLS WINS THE ROUND', cx, cy + 14, '#A00000');
@@ -10316,6 +10542,7 @@ const Game = {
         if (c.raceSel && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + 42, '#3C3C3C');
       }
       // against the computer: what their HQ got for this round
+      if (this.mode === 'maze') Font.drawCenter(ctx, 'FIND THE EXIT', cx, cy + 14, '#A00000');
       if (this.mode === 'sides' && this.nextSide) Font.drawCenter(ctx, 'YOUR EAGLE: ' + this.nextSide.toUpperCase(), cx, cy + 24, '#A00000');
       if (this.mode === 'custom' && !this.customPending) {
         const used = Customs.used();
@@ -10362,9 +10589,15 @@ const Game = {
     // big scrolling maps: every stage in BIG MAPS, every 4th classic stage with BIG MAP STAGES on
     const big = !custom && !boss && (this.mode === 'bigmaps'
       || (this.mode === 'classic' && !this.daily && Config.get('bigStages') === 'SOME' && this.stageNum % 4 === 0));
-    let blocks = null, objective = null;
+    let blocks = null, objective = null, maze = null;
     const corridor = !custom && this.mode === 'corridor';
-    if (corridor) {
+    if (!custom && this.mode === 'maze') {
+      // MAZE: a fresh labyrinth, bigger every stage (maze.js)
+      const [vc, vr] = this.desiredField(), [MW, MH] = mazeCells(this.stageNum, vc, vr);
+      setFieldSize(MW * MAZE_PITCH + 1, MH * MAZE_PITCH + 1, vc, vr);
+      maze = mazeLayout(MW, MH);
+      blocks = maze.blocks;
+    } else if (corridor) {
       // the usual width, at least three sections high (one more than the screen needs above and below)
       const [vc, vr] = this.desiredField(), rows = Math.max(3, Math.ceil((vr + 26) / CORRIDOR_SECTION)) * CORRIDOR_SECTION;
       setFieldSize(vc, rows, vc, vr);
@@ -10381,7 +10614,7 @@ const Game = {
       blocks = turnBlocks(mapToBlocks(map), side);
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
-      custom, boss, base: vs || corridor || this.mode === 'race' ? newBase() : this.base, corridor, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
+      custom, boss, base: vs || corridor || maze || this.mode === 'race' ? newBase() : this.base, corridor, maze, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
       race: this.mode === 'race' && !custom ? { target: this.raceTarget, round: this.round } : null, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
       blocks, big: objective, theme,
     });
@@ -10426,7 +10659,7 @@ const Game = {
     if (r === 'clear' && this.mode === 'race') { this.saveHi(); this.raceRoundEnd(); return; }
     if (r && this.mode === 'timeattack' && r === 'clear') { this.saveHi(); this.taNext(); return; }
     if (r === 'gameover') AutoSkill.event('gameOver');
-    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu')) { this.saveHi(); this.toModeResult(false); return; }
+    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu' || this.mode === 'maze')) { this.saveHi(); this.toModeResult(false); return; }
     if (this.stage.result) {
       // beating a boss earns 25% off in the next shop
       this.shopDiscount = this.stage.result === 'clear' && this.stage.bossIdx !== undefined;
@@ -10690,6 +10923,11 @@ const Game = {
       const b = rec.cpu;
       if (!b || res.rounds > b.rounds || (res.rounds === b.rounds && score > b.score)) { rec.cpu = { rounds: res.rounds, score }; res.newBest = true; }
       res.best = rec.cpu;
+    } else if (this.mode === 'maze') {
+      res.escaped = this.stageNum - 1;
+      const b = rec.maze;
+      if (!b || res.escaped > b.escaped || (res.escaped === b.escaped && score > b.score)) { rec.maze = { escaped: res.escaped, score }; res.newBest = true; }
+      res.best = rec.maze;
     } else if (this.mode === 'corridor') {
       res.dist = this.stage.corridorClimb();
       const b = rec.corridor;
@@ -10784,6 +11022,10 @@ const Game = {
       Font.drawCenter(ctx, r.rounds === 1 ? 'YOU WON 1 ROUND' : 'YOU WON ' + r.rounds + ' ROUNDS', SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
       Font.drawCenter(ctx, 'BEST: ' + r.best.rounds + ' ROUNDS  ' + r.best.score, SW / 2, 124, COL.lgrey);
+    } else if (r.mode === 'maze') {
+      Font.drawCenter(ctx, r.escaped === 1 ? 'YOU ESCAPED 1 MAZE' : 'YOU ESCAPED ' + r.escaped + ' MAZES', SW / 2, 80, COL.white);
+      Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
+      Font.drawCenter(ctx, 'BEST: ' + r.best.escaped + ' MAZES  ' + r.best.score, SW / 2, 124, COL.lgrey);
     } else if (r.mode === 'corridor') {
       Font.drawCenter(ctx, 'YOU CLIMBED ' + r.dist + ' M', SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
@@ -10909,7 +11151,7 @@ const Game = {
     if (item.id === 'done') { this.shopNext(); return; }
     const price = shopPrice(item), st = shopStatus(item, p);
     if (st.max) {
-      sh.msg = item.id === 'revive' ? (reviveCost() ? 'NOBODY TO REVIVE' : 'REVIVE IS OFF') : p.out ? 'REVIVE FIRST' : 'YOU ALREADY HAVE IT';
+      sh.msg = item.id === 'revive' ? (reviveCost() ? 'NOBODY TO REVIVE' : 'REVIVE IS OFF') : p.out ? 'REVIVE FIRST' : st.text === 'N/A' ? 'NO EAGLE IN THE MAZE' : 'YOU ALREADY HAVE IT';
       sh.msgT = 90; Sound.play('steel'); return;
     }
     if (wallet(p) < price) { sh.msg = 'NOT ENOUGH POINTS'; sh.msgT = 90; Sound.play('steel'); return; }
@@ -11929,6 +12171,17 @@ const TROPHY = ['YYYYYYYYYYYY', 'yYYWYYYYYYYy', 'y.YWYYYYYY.y', 'y.YYYYYYYY.y', 
 const PENCIL = ['......pp', '.....pPP', '....YyPp', '...YyY..', '..YyY...', '.YyY....', 'kwY.....', 'kk......'];
 const TOWER = ['ss.bbbb.ss', 's..b..b..s', '..ffbbff..', 'ww.b..b.ww', 'ww.bbbb.ww', '..i....i..'];
 
+// the maze picture's maze (made once): 18 x 10 cells, a block to a pixel
+let introMazeCache = null;
+function introMaze() {
+  if (introMazeCache) return introMazeCache;
+  const m = mazeLayout(18, 10, seeded(1987)), r = seeded(42);
+  m.patrol = [];
+  for (let k = 0; k < 7; k++) m.patrol.push([1 + Math.floor(r() * 16), Math.floor(r() * 9)]);
+  introMazeCache = m;
+  return m;
+}
+
 // the bigmaps world (made once): value noise turned into water, forest, bricks and steel
 let introWorld = null;
 function introWorldMap() {
@@ -12130,6 +12383,27 @@ const INTRO_SCENES = {
     for (let k = 0; k < 7; k++) Pix.rect(c, 4, 4 + k * 8 + ((Math.floor(off) % 8)), 8, 1, '#7C7C7C');
     Pix.rect(c, 2, 28, 12, 9, '#000000');
     Font.draw(c, String(h % 100).padStart(2, '0'), 0, 29, COL.gold);
+  },
+
+  // the maze from above: a dot finds its way through, leaving a trail, red dots on patrol, the exit blinking
+  maze(c, t) {
+    const m = introMaze(), pal = { '@': '#9C9C9C', '#': '#B04C20', '%': '#00A800', '_': '#7CB8F8' };
+    Pix.rect(c, 0, 0, INTRO_W, INTRO_H, '#000000');
+    m.blocks.forEach((row, y) => { for (let x = 0; x < row.length; x++) if (pal[row[x]]) Pix.rect(c, x + 1, y + 1, 1, 1, pal[row[x]]); });
+    const ctr = ([i, j]) => [i * 6 + 4 + 1, j * 6 + 4 + 1];
+    const [ex, ey] = ctr(m.exit);
+    if ((t >> 3) & 1) Pix.rect(c, ex - 2, ey - 2, 4, 4, '#58F898');
+    // the way so far, and the dot on it
+    const run = m.path.length - 1, pos = Math.min(run, (t % (run * 6 + 90)) / 6), k = Math.floor(pos);
+    for (let q = 0; q < k; q++) Pix.line(c, ...ctr(m.path[q]), ...ctr(m.path[q + 1]), '#C07000');
+    const [ax, ay] = ctr(m.path[k]), [bx, by] = ctr(m.path[Math.min(run, k + 1)]), f = pos - k;
+    Pix.rect(c, Math.round(ax + (bx - ax) * f) - 1, Math.round(ay + (by - ay) * f) - 1, 3, 3, COL.gold);
+    // patrols, pacing up and down their passages
+    m.patrol.forEach(([i, j], n) => {
+      const [x, y] = ctr([i, j]), d = Math.round(Math.sin(t / 20 + n) * 1.5);
+      Pix.rect(c, x - 1 + (n & 1 ? d : 0), y - 1 + (n & 1 ? 0 : d), 3, 3, (t + n * 7) % 40 < 34 ? '#F83800' : '#7C0800');
+    });
+    if (pos >= run && (t >> 3) & 1) { Pix.rect(c, 30, 26, 52, 11, '#000000'); Font.draw(c, 'ESCAPED', 29, 28, COL.gold); }
   },
 
   // the race: a chequered finish line, the cup, four tanks flat out for it

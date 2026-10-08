@@ -247,6 +247,7 @@ const Net = {
       bg: st.big ? [st.big, st.outposts, st.factories.map(f => [f.x, f.y, f.hp, f.flash])] : null,
       fg: st.flags ? st.flags.map(f => [f.i, f.hx, f.hy, f.x, f.y, f.carrier ? 1 : 0]) : null,
       cr: st.corridor ? [st.corridor.shifts, st.corridor.climbed, st.corridor.startY] : null,
+      mz: st.maze ? [st.maze.sx, st.maze.sy, st.maze.ex, st.maze.ey, st.maze.hintAt, st.maze.escaped ? 1 : 0, st.maze.MW, st.maze.MH] : null,
       cd: st.card || null,
       cp: st.cpu || null,
       rc: st.race || null,
@@ -419,6 +420,7 @@ const Net = {
       if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();
       st.corridor = { shifts: sv.cr[0], climbed: sv.cr[1], startY: sv.cr[2] };
     } else st.corridor = null;
+    st.maze = sv.mz ? { sx: sv.mz[0], sy: sv.mz[1], ex: sv.mz[2], ey: sv.mz[3], hintAt: sv.mz[4], escaped: !!sv.mz[5], MW: sv.mz[6], MH: sv.mz[7] } : null;
     st.flames = (sv.fl || []).map(a => ({ x: a[0], y: a[1], w: a[2], h: a[3] }));
     st.shells = (sv.ar || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
     st.heals = (sv.hl || []).map(a => ({ x1: a[0], y1: a[1], x2: a[2], y2: a[3], t: a[4], build: !!a[5] }));

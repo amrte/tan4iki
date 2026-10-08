@@ -69,6 +69,17 @@ const TROPHY = ['YYYYYYYYYYYY', 'yYYWYYYYYYYy', 'y.YWYYYYYY.y', 'y.YYYYYYYY.y', 
 const PENCIL = ['......pp', '.....pPP', '....YyPp', '...YyY..', '..YyY...', '.YyY....', 'kwY.....', 'kk......'];
 const TOWER = ['ss.bbbb.ss', 's..b..b..s', '..ffbbff..', 'ww.b..b.ww', 'ww.bbbb.ww', '..i....i..'];
 
+// the maze picture's maze (made once): 18 x 10 cells, a block to a pixel
+let introMazeCache = null;
+function introMaze() {
+  if (introMazeCache) return introMazeCache;
+  const m = mazeLayout(18, 10, seeded(1987)), r = seeded(42);
+  m.patrol = [];
+  for (let k = 0; k < 7; k++) m.patrol.push([1 + Math.floor(r() * 16), Math.floor(r() * 9)]);
+  introMazeCache = m;
+  return m;
+}
+
 // the bigmaps world (made once): value noise turned into water, forest, bricks and steel
 let introWorld = null;
 function introWorldMap() {
@@ -270,6 +281,27 @@ const INTRO_SCENES = {
     for (let k = 0; k < 7; k++) Pix.rect(c, 4, 4 + k * 8 + ((Math.floor(off) % 8)), 8, 1, '#7C7C7C');
     Pix.rect(c, 2, 28, 12, 9, '#000000');
     Font.draw(c, String(h % 100).padStart(2, '0'), 0, 29, COL.gold);
+  },
+
+  // the maze from above: a dot finds its way through, leaving a trail, red dots on patrol, the exit blinking
+  maze(c, t) {
+    const m = introMaze(), pal = { '@': '#9C9C9C', '#': '#B04C20', '%': '#00A800', '_': '#7CB8F8' };
+    Pix.rect(c, 0, 0, INTRO_W, INTRO_H, '#000000');
+    m.blocks.forEach((row, y) => { for (let x = 0; x < row.length; x++) if (pal[row[x]]) Pix.rect(c, x + 1, y + 1, 1, 1, pal[row[x]]); });
+    const ctr = ([i, j]) => [i * 6 + 4 + 1, j * 6 + 4 + 1];
+    const [ex, ey] = ctr(m.exit);
+    if ((t >> 3) & 1) Pix.rect(c, ex - 2, ey - 2, 4, 4, '#58F898');
+    // the way so far, and the dot on it
+    const run = m.path.length - 1, pos = Math.min(run, (t % (run * 6 + 90)) / 6), k = Math.floor(pos);
+    for (let q = 0; q < k; q++) Pix.line(c, ...ctr(m.path[q]), ...ctr(m.path[q + 1]), '#C07000');
+    const [ax, ay] = ctr(m.path[k]), [bx, by] = ctr(m.path[Math.min(run, k + 1)]), f = pos - k;
+    Pix.rect(c, Math.round(ax + (bx - ax) * f) - 1, Math.round(ay + (by - ay) * f) - 1, 3, 3, COL.gold);
+    // patrols, pacing up and down their passages
+    m.patrol.forEach(([i, j], n) => {
+      const [x, y] = ctr([i, j]), d = Math.round(Math.sin(t / 20 + n) * 1.5);
+      Pix.rect(c, x - 1 + (n & 1 ? d : 0), y - 1 + (n & 1 ? 0 : d), 3, 3, (t + n * 7) % 40 < 34 ? '#F83800' : '#7C0800');
+    });
+    if (pos >= run && (t >> 3) & 1) { Pix.rect(c, 30, 26, 52, 11, '#000000'); Font.draw(c, 'ESCAPED', 29, 28, COL.gold); }
   },
 
   // the race: a chequered finish line, the cup, four tanks flat out for it
