@@ -3,6 +3,13 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.44
+
+- **Galaxy: the boss's loot is yours.** The sector no longer ends while the boss's coins, gems, power cells and
+  extra life are still falling. A second after the boss goes down, all of it flies to your ships, faster and
+  faster, and the sector ends once it's all picked up (15 s at most). Power cells are shared out one per ship;
+  the rest goes to whoever is nearest.
+
 ## 0.43
 
 - **Galaxy: every gun has a sound.** The guns were silent (only lightning made a noise). Now: a pew for the blaster,

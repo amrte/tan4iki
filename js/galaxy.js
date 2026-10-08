@@ -268,7 +268,8 @@ Object.assign(Stage.prototype, {
         }
       } else if (g.phase === 'between' && g.t > 80) this.gxNextWave();
       else if (g.phase === 'boss') this.gxUpdateBoss();
-      else if (g.phase === 'clear' && g.t > 200) this.result = 'clear';
+      // the sector ends once the boss's loot is all picked up (it flies to you), or after 15 s at most
+      else if (g.phase === 'clear' && g.t > 200 && (!g.pickups.length || g.t > 900)) this.result = 'clear';
       this.gxUpdateEnemies();
     }
     this.gxUpdateShots();
@@ -569,8 +570,17 @@ Object.assign(Stage.prototype, {
     for (const u of g.pickups) {
       u.t++;
       u.y += u.vy; u.x += Math.sin(u.t / 15) * 0.3;
+      // sector clear: after a moment all the loot homes in on the nearest ship, faster and faster
+      if (g.phase === 'clear' && g.t > 60 && pl.length) {
+        // power cells are shared out one per ship, the rest goes to whoever is nearest
+        if (u.k === 'cell' && !(u.to && u.to.alive)) u.to = pl[(g.cellTurn = ((g.cellTurn || 0) + 1)) % pl.length];
+        const t = u.k === 'cell' ? u.to : pl.reduce((a, q) => Math.hypot(q.x + 8 - u.x, q.y + 8 - u.y) < Math.hypot(a.x + 8 - u.x, a.y + 8 - u.y) ? q : a);
+        const dx = t.x + 8 - u.x, dy = t.y + 8 - u.y, d = Math.hypot(dx, dy) || 1, v = Math.min(5, 1 + (g.t - 60) / 40);
+        u.x += dx / d * v; u.y += dy / d * v - u.vy;
+      }
       // a magnet pulls them in
       for (const t of pl) {
+        if (u.to && u.to !== t && u.to.alive) continue;   // a cell on its way to someone else
         const r = 22 + 18 * gxUp(t.player, 'magnet'), dx = t.x + 8 - u.x, dy = t.y + 8 - u.y, d = Math.hypot(dx, dy);
         if (d < r && d > 0) { u.x += dx / d * 1.6; u.y += dy / d * 1.6; }
         if (Math.abs(dx) < 11 && Math.abs(dy) < 11) { this.gxCollect(t, u); u.dead = true; break; }

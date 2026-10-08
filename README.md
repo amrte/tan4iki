@@ -489,6 +489,7 @@ up; **B** drops a bomb. 1-4 players together, here or online.
   - *Coins* and *gems* are points, which are also your money.
   - Also *shields*, *bombs* and *extra lives*.
   - Losing a ship costs two power levels.
+  - When a boss goes down, all its loot flies to your ships before the sector ends (a power cell for each ship).
 - **Bosses**, each with three phases (a bar at the top marks them):
   - **Mothership**: fans, rings and spirals of shots, drones
   - **War Crab**: claw shots, charges down at you
