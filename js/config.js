@@ -319,6 +319,10 @@ const SETTINGS_DEF = [
   { key: 'gameSpeed', label: 'GAME SPEED', values: [50, 75, 100, 125, 150, 200], def: 100, fmt: fmtPct },
   { key: 'volume', label: 'VOLUME', values: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 100, fmt: fmtPct },
   { key: 'engineSound', label: 'ENGINE SOUND', values: ONOFF, def: 'ON' },
+  // music.js: a chiptune for every mode, in a version for every skill; intro.js: the mode's title picture
+  { key: 'music', label: 'MUSIC', values: ONOFF, def: 'ON' },
+  { key: 'musicVol', label: 'MUSIC VOLUME', values: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 50, fmt: fmtPct },
+  { key: 'modeIntro', label: 'MODE TITLE SCREENS', values: ONOFF, def: 'ON' },
   // a one-line card the first time you meet each enemy, boss and power-up (cards.js)
   { key: 'newCards', label: 'FIRST-MEET CARDS', values: ONOFF, def: 'ON' },
   { action: 'resetCards', label: 'SHOW ALL CARDS AGAIN' },
@@ -386,6 +390,7 @@ const Config = {
   apply() {
     for (const name in TANK_COLORS) PALS['c_' + name] = [null].concat(TANK_COLORS[name]);
     if (typeof Sound !== 'undefined') Sound.applyVolume();
+    if (typeof Music !== 'undefined') Music.applyVolume();
     if (typeof Game !== 'undefined' && Game.onResize) Game.onResize();
     if (typeof Input !== 'undefined' && Input.updateHelp) Input.updateHelp();
   },

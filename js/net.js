@@ -186,7 +186,7 @@ const Net = {
 
   buildView(full) {
     const G = Game, v = { t: 'v', s: G.state, gt: G.t, c: COLS, r: ROWS, vc: VIEW_W / 16, vr: VIEW_H / 16, bs: BASE_SIDE, stn: G.stageNum, hi: G.hi, eng: Sound.engineState };
-    if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover', 'vsResult', 'modeResult'].includes(G.state)) v.s = 'wait';
+    if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover', 'vsResult', 'modeResult', 'modeIntro'].includes(G.state)) v.s = 'wait';
     v.as = AutoSkill.rating;
     v.mode = G.mode; v.ta = G.taFrames; v.tac = G.taCleared; v.vw = G.vsWins; v.rt = G.raceTarget; v.rd = G.round;
     if (v.s === 'vsResult') v.vsr = G.vsRes;

@@ -3,6 +3,22 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.28
+
+- **Mode title screens:** starting a game shows a pixel-art picture for its mode before the first stage: the eagle's
+  fortress under attack (classic), a blueprint with tiles going down (custom levels), waves closing in under a red
+  sky (survival), a stopwatch and the chequered line (time attack), a scrolling map under a radar sweep (big maps),
+  a field with an eagle on every edge (any side), the map rolling past a climbing tank (corridor), four tanks racing
+  for the cup (kill race), eagle against eagle with lightning (VS eagles), a skull and crossed cannons (deathmatch),
+  a flag being run home (flags) and an old computer with a face (VS CPU). Enter moves on, Esc goes back; it moves on
+  by itself after 8 s. Not in the daily challenge or when testing a level. Settings → GAME → MODE TITLE SCREENS.
+- **Soundtrack:** a chiptune for every mode (two pulse leads, triangle bass, noise drums), each with its own melody,
+  key, tempo and groove, in a version for every skill: major and unhurried on I'M TOO YOUNG TO DIE, mixolydian with
+  a harmony, dorian with full drums, harmonic minor with racing arpeggios, phrygian dominant at full speed with a
+  shadow voice and double kicks on NIGHTMARE!. It plays on the title screen and during stages (after the start
+  jingle), pauses with the game, follows AUTO as it moves, and goes round a four-part cycle (the tune, a drum fill,
+  an answer phrase, the tune an octave up). Settings → GAME → MUSIC and MUSIC VOLUME.
+
 ## 0.27
 
 - **Seasons:** every stage has one of six: spring (blossom, petals), summer (deep green, fireflies), autumn (orange

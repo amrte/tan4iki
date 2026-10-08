@@ -432,6 +432,8 @@ const Game = {
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
     // KILL RACE: the first curtain picks how many points win the game (race.js)
     if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
+    // the mode's title screen first (intro.js)
+    if (this.introWanted && this.introWanted(custom)) this.toModeIntro();
   },
 
   toCurtain(selectable) {
@@ -1520,6 +1522,7 @@ const Game = {
       case 'dailyResult': this.updateDailyResult(); break;
       case 'vsResult': this.updateVsResult(); break;
       case 'modeResult': this.updateModeResult(); break;
+      case 'modeIntro': this.updateModeIntro(); break;
     }
   },
 
@@ -1542,6 +1545,7 @@ const Game = {
     }
     this.renderState(ctx);
     if (!full) ctx.restore();
+    if (this.musicFrame) this.musicFrame();
     if (this.toastT > 0) {
       this.toastT--;
       const w = this.toastText.length * 8 + 12, x = (SCREEN_W - w) >> 1;
@@ -1567,6 +1571,7 @@ const Game = {
       case 'vsResult': this.renderVsResult(ctx); break;
       case 'modeResult': this.renderModeResult(ctx); break;
       case 'netwait': this.renderNetWait(ctx); break;
+      case 'modeIntro': this.renderModeIntro(ctx); break;
     }
   },
 };

@@ -70,7 +70,7 @@ fire buttons appear on screen.
   and the big brick "GAME OVER" screen.
 - An extra life at 20,000 points.
 - **Construction mode** (the level editor): see *Construction and custom levels* below.
-- Chiptune sound effects and engine hum, made with Web Audio.
+- Chiptune sound effects, engine hum and a soundtrack for every mode and skill, made with Web Audio; a pixel-art title screen for every mode.
 
 ## XP and levels
 
@@ -394,6 +394,38 @@ curtain names it.
 | Nuclear winter | ash-grey ground, scorched bricks, dead trees, toxic green water, falling ash, a sickly tint | some lakes are frozen |
 | Desert | sand, sandstone bricks, cacti, drifting sand | many ponds have dried into mud (it slows you) |
 
+## Mode title screens and music
+
+Starting a game shows its mode's own pixel-art title screen before the first stage (Enter to go on, Esc back to the
+title; Settings → GAME → MODE TITLE SCREENS). Every mode has its own chiptune too, played on an NES-style band of two
+pulse leads, a triangle bass and noise drums, and every skill plays it differently:
+
+| Mode | Tune | Feel |
+|---|---|---|
+| Classic | March of the Eagle | a march |
+| Custom levels | Builder's Bounce | bouncy |
+| Survival | The Last Stand | driving |
+| Time attack | Against the Clock | gallop |
+| Big maps | Wide Front | slow and wide |
+| Any side | Turned Around | 7/8, off balance |
+| Corridor | The Climb | rising arpeggios |
+| Kill race | Kill Race Shuffle | swing |
+| VS eagles | Eagle Duel | a stand-off |
+| Deathmatch | No Mercy | aggressive |
+| Flags | Bring It Home | a fanfare |
+| VS CPU | Machine War | robotic octaves |
+
+| Skill | Scale | Tempo | Band |
+|---|---|---|---|
+| I'm too young to die | major | 80% | a soft round lead, light drums |
+| Hey, not too rough | mixolydian | 90% | a harmony line underneath |
+| Hurt me plenty | dorian | 100% | full drums, lower bass |
+| Ultra-violence | harmonic minor | 110% | a thin lead over racing arpeggios, busier drums |
+| Nightmare! | phrygian dominant | 122% | a shadow voice a tritone below, double kicks and crashes |
+
+The music starts after the stage's start jingle, pauses with the game and stops on game over; on AUTO it follows the
+level AUTO is at. Settings → GAME → MUSIC (on/off) and MUSIC VOLUME (50%).
+
 ## Terrain: mud, conveyor belts, teleporters; night and fog
 
 - **Mud** (brown, lumpy): any tank on it moves at half speed; shells pass over it; hovering skimmers glide across.
@@ -479,7 +511,7 @@ the browser, and **RESET TO DEFAULTS** (top level) restores the classic game.
 | Players | III / IV-PLAYER COLOR (blue / pink), gamepad rumble (on), key and pad setup |
 | Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
 | Screen | field width (13), field height (13), FIT, scaling (sharp / fill), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
-| Game | game mode (classic), skill (hurt me plenty), kill race first to (3 points), mud, belts, pads (on), seasons (cycle), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on), first-meet cards (on), *show all cards again* |
+| Game | game mode (classic), skill (hurt me plenty), kill race first to (3 points), mud, belts, pads (on), seasons (cycle), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on), music (on), music volume (50%), mode title screens (on), first-meet cards (on), *show all cards again* |
 
 ## Code layout
 
@@ -491,6 +523,7 @@ js/sprites.js     sprite bitmaps (tanks, power-ups, eagle, effects, HUD icons)
 js/gfx.js         palettes, font, sprite rendering and caching
 js/config.js      settings: definitions, defaults, saving, tank color presets
 js/audio.js       NES-style Web Audio synth (SFX, jingles, engine)
+js/music.js       the soundtrack: a song per mode, a version per skill, and the sequencer that plays it
 js/input.js       keyboard / gamepad / touch
 js/stage.js       gameplay: terrain, movement, enemy types, bullets, power-ups, XP, rendering
 js/ai.js          enemy personalities (wander / rush / hunt / snipe) and path finding
@@ -500,6 +533,7 @@ js/extras.js      turrets, Claude, airstrikes, revival, wingman, decoy eagle, sm
 js/terrain.js     mud, conveyor belts, teleporter pads, night and fog stages
 js/seasons.js     seasons: themed ground, textures and particles; frozen lakes, dried ponds
 js/editor.js      construction: the level editor, random levels, save slots, custom levels
+js/intro.js       mode title screens: a pixel-art picture per mode; what music plays when
 js/modes.js       game modes: survival waves, time attack, versus eagles, deathmatch, capture the flag
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go
