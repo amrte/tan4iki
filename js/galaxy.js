@@ -49,12 +49,12 @@ const GX_TYPES = {
 };
 // weapons: power 1-8
 const GX_WEAPONS = {
-  blaster: { name: 'BLASTER', letter: 'B', color: '#F87830' },
-  spread: { name: 'SPREAD', letter: 'S', color: '#58D854' },
-  laser: { name: 'LASER', letter: 'L', color: '#3CBCFC' },
-  plasma: { name: 'PLASMA', letter: 'P', color: '#C060E0' },
-  lightning: { name: 'LIGHTNING', letter: 'Z', color: '#F8F878' },
-  missiles: { name: 'MISSILES', letter: 'M', color: '#F83800' },
+  blaster: { name: 'BLASTER', letter: 'B', color: '#F87830', snd: 'gxBlaster' },
+  spread: { name: 'SPREAD', letter: 'S', color: '#58D854', snd: 'gxSpread' },
+  laser: { name: 'LASER', letter: 'L', color: '#3CBCFC', snd: 'gxLaser' },
+  plasma: { name: 'PLASMA', letter: 'P', color: '#C060E0', snd: 'gxPlasma' },
+  lightning: { name: 'LIGHTNING', letter: 'Z', color: '#F8F878', snd: 'gxLightning' },
+  missiles: { name: 'MISSILES', letter: 'M', color: '#F83800', snd: 'gxBlaster' },
 };
 const GX_WEAPON_KEYS = Object.keys(GX_WEAPONS), GX_POWER_MAX = 8;
 // the hangar's upgrades (per player): level prices, what each level does
@@ -316,6 +316,7 @@ Object.assign(Stage.prototype, {
     const nd = gxUp(p, 'drones');
     if (nd && (this.frame + p.i * 4) % 14 === 0 && (inp.fire || this.galaxy.list.length)) {
       for (const s of nd >= 2 ? [-1, 1] : [p.i % 2 ? 1 : -1]) this.galaxy.shots.push({ x: t.x + 8 + s * 15, y: t.y + 2, vx: 0, vy: -5, dmg: 0.8 * this.gxDmg(p), k: 'd', o: p.i, life: 80 });
+      if (p.i === 0 || this.players.length < 2) Sound.play('gxDrone');
     }
   },
 
@@ -365,15 +366,15 @@ Object.assign(Stage.prototype, {
       if (pts.length < 2) pts.push([cx + rnd(9) - 4, top - 40]);
       g.zaps.push({ pts, t: 6 });
       cd = 14;
-      Sound.play('zap');
     } else if (gp.weapon === 'missiles') {
       shot(0, 0, { dmg: dm });
       const n = [1, 1, 2, 2, 3, 3, 4, 4][pw - 1];
-      if (this.frame % 2 === 0) for (let k = 0; k < n; k++) shot((k - (n - 1) / 2) * 8, (k - (n - 1) / 2) * 0.5, { k: 'm', vx: (k - (n - 1) / 2) * 1.2, vy: -1.5, dmg: (1.6 + 0.15 * pw) * dm, life: 120 });
+      if (this.frame % 2 === 0) { for (let k = 0; k < n; k++) shot((k - (n - 1) / 2) * 8, (k - (n - 1) / 2) * 0.5, { k: 'm', vx: (k - (n - 1) / 2) * 1.2, vy: -1.5, dmg: (1.6 + 0.15 * pw) * dm, life: 120 }); Sound.play('gxMissile'); }
       cd = 16;
     }
     t.gcool = Math.max(3, Math.round(cd * rate));
-    if (gp.weapon !== 'lightning' && (this.frame & 3) < 2) Sound.play('pew');
+    // every gun has its own voice; with 3-4 ships the extra players' guns go quieter (every other shot)
+    if (p.i < 2 || (this.frame >> 4) & 1) Sound.play(GX_WEAPONS[gp.weapon].snd);
   },
 
   // B: a bomb: everything on screen takes a heavy hit and their shots are gone
@@ -859,7 +860,8 @@ function gxDrawPickup(ctx, k, x, y, t, w) {
   if (k === 'cell') { R(-5, -5, 10, 10, '#0C3C0C'); R(-4, -4, 8, 8, (t >> 3) & 1 ? '#58D854' : '#3C9C1C'); Font.draw(ctx, 'P', x - 3, y - 3, '#F8F8F8'); return; }
   if (k === 'box') {
     const W = GX_WEAPONS[w] || GX_WEAPONS.blaster;
-    R(-6, -6, 12, 12, '#100808'); R(-5, -5, 10, 10, W.color); R(-1, -5, 2, 10, '#F8F8F8'); R(-5, -1, 10, 2, '#F8F8F8');
+    // a blue crate tied with a ribbon in the weapon's colour (never red: red is for things that hurt)
+    R(-6, -6, 12, 12, '#100808'); R(-5, -5, 10, 10, '#2038EC'); R(-5, -5, 10, 1, '#6888FC'); R(-1, -5, 2, 10, W.color); R(-5, -1, 10, 2, W.color);
     R(-3, -8, 2, 2, '#F8F8F8'); R(1, -8, 2, 2, '#F8F8F8');
     if ((t >> 4) & 1) { R(-4, -4, 8, 8, '#100808'); Font.draw(ctx, W.letter, x - 3, y - 3, W.color); }
     return;
@@ -890,7 +892,12 @@ Object.assign(Stage.prototype, {
       ctx.fillRect(x, Math.floor(y), 1, layer === 2 ? 2 : 1);
     }
     // pickups, enemies, the boss
-    for (const u of g.pickups) gxDrawPickup(ctx, u.k, u.x, u.y, u.t, u.w);
+    for (const u of g.pickups) {
+      gxDrawPickup(ctx, u.k, u.x, u.y, u.t, u.w);
+      // loot twinkles: a little gold star hops around it
+      const tw = (u.t >> 3) & 3, sx = Math.round(u.x) + [-6, 5, 5, -6][tw], sy = Math.round(u.y) + [-6, -6, 5, 5][tw];
+      if (((u.t >> 2) & 1) === 0) { ctx.fillStyle = '#F8D800'; ctx.fillRect(sx, sy - 2, 1, 5); ctx.fillRect(sx - 2, sy, 5, 1); ctx.fillStyle = '#F8F8F8'; ctx.fillRect(sx, sy, 1, 1); }
+    }
     for (const e of g.list) {
       if (e.type.startsWith('rock')) { this.gxDrawRock(ctx, e); continue; }
       const T = GX_TYPES[e.type], img = GxGfx.get(e.type, (f >> 3) & 1, e.flash > 0 ? 'f' : 'n');
@@ -929,12 +936,31 @@ Object.assign(Stage.prototype, {
         ctx.fillStyle = '#100808'; ctx.fillRect(dx - 3, dy - 3, 6, 6); ctx.fillStyle = '#BCBCBC'; ctx.fillRect(dx - 2, dy - 2, 4, 4); ctx.fillStyle = '#58F8F8'; ctx.fillRect(dx - 1, dy - 1, 2, 1);
       }
     }
-    // their shots
+    // their shots: everything that hurts glows red, with a smoky trail behind it,
+    // so it can't be mistaken for the coins and crates falling with it
+    const hot = (f >> 1) & 1 ? '#F83800' : '#F878F8';
     for (const b of g.bullets) {
-      const x = Math.round(b.x), y = Math.round(b.y);
-      if (b.k === 'egg') { ctx.fillStyle = '#F8F8F8'; ctx.fillRect(x - 2, y - 2, 4, 5); ctx.fillStyle = '#F8D8B8'; ctx.fillRect(x - 1, y + 1, 2, 1); }
-      else if (b.k === 'shard') { ctx.fillStyle = '#A8E8F8'; ctx.fillRect(x - 1, y - 3, 2, 6); ctx.fillStyle = '#F8F8F8'; ctx.fillRect(x - 1, y - 3, 1, 2); }
-      else { ctx.fillStyle = (f >> 1) & 1 ? '#F83800' : '#F8B800'; ctx.fillRect(x - 2, y - 2, 4, 4); ctx.fillStyle = '#F8F8F8'; ctx.fillRect(x - 1, y - 1, 2, 2); }
+      const x = Math.round(b.x), y = Math.round(b.y), v = Math.hypot(b.vx || 0, b.vy || 0) || 1, ux = (b.vx || 0) / v, uy = (b.vy || 1) / v;
+      // a soft red halo that breathes
+      ctx.globalAlpha = 0.28 + 0.12 * Math.sin(f / 3); ctx.fillStyle = '#F80000';
+      ctx.beginPath(); ctx.arc(x, y, b.k === 'shard' ? 5 : 6, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.fillStyle = '#A81000';
+      for (let k = 1; k <= 2; k++) ctx.fillRect(Math.round(x - ux * (3 + 3 * k)) - 1, Math.round(y - uy * (3 + 3 * k)) - 1, k === 1 ? 2 : 1, k === 1 ? 2 : 1);
+      if (b.k === 'egg') {
+        // a rotten egg: dark outline, a red glow, a speckled shell
+        ctx.fillStyle = hot; ctx.fillRect(x - 3, y - 2, 6, 6); ctx.fillRect(x - 2, y - 3, 4, 8);
+        ctx.fillStyle = '#280000'; ctx.fillRect(x - 2, y - 2, 4, 5);
+        ctx.fillStyle = '#E0D0A0'; ctx.fillRect(x - 1, y - 2, 2, 5); ctx.fillRect(x - 2, y - 1, 4, 3);
+        ctx.fillStyle = '#58A800'; ctx.fillRect(x - 1, y, 1, 1); ctx.fillRect(x + 1, y + 1, 1, 1);
+      } else if (b.k === 'shard') {
+        ctx.fillStyle = hot; ctx.fillRect(x - 2, y - 4, 4, 8);
+        ctx.fillStyle = '#A8E8F8'; ctx.fillRect(x - 1, y - 3, 2, 6); ctx.fillStyle = '#F8F8F8'; ctx.fillRect(x - 1, y - 3, 1, 2);
+      } else {
+        // a hot plasma ball: a ring that throbs between red and magenta, a white-hot core
+        ctx.fillStyle = '#500000'; ctx.fillRect(x - 4, y - 2, 8, 4); ctx.fillRect(x - 2, y - 4, 4, 8); ctx.fillRect(x - 3, y - 3, 6, 6);
+        ctx.fillStyle = hot; ctx.fillRect(x - 3, y - 2, 6, 4); ctx.fillRect(x - 2, y - 3, 4, 6);
+        ctx.fillStyle = '#F8F8F8'; ctx.fillRect(x - 1, y - 1, 2, 2);
+      }
     }
     for (const fx of this.fx) {
       if (fx.tick < 0) continue;
@@ -1032,7 +1058,7 @@ Object.assign(Stage.prototype, {
       lv: g.level, w: g.wave, ph: g.phase, bn: g.banner, fl: g.flash,
       l: g.list.map(e => [e.type, r(e.x), r(e.y), e.flash > 0 ? 1 : 0]),
       s: g.shots.map(s => [r(s.x), r(s.y), s.k, s.o, s.r || 0]),
-      b: g.bullets.map(b => [r(b.x), r(b.y), b.k]),
+      b: g.bullets.map(b => [r(b.x), r(b.y), b.k, r(b.vx || 0), r(b.vy || 0)]),
       u: g.pickups.map(u => [r(u.x), r(u.y), u.k, u.t, u.w]),
       bm: g.beams, z: g.zaps,
       bo: g.boss ? Object.assign({}, g.boss, { act: null }) : null,
@@ -1045,7 +1071,7 @@ Object.assign(Stage.prototype, {
     g.wave = v.w; g.phase = v.ph; g.banner = v.bn; g.flash = v.fl;
     g.list = v.l.map(a => ({ type: a[0], x: a[1], y: a[2], flash: a[3] }));
     g.shots = v.s.map(a => ({ x: a[0], y: a[1], k: a[2], o: a[3], r: a[4] }));
-    g.bullets = v.b.map(a => ({ x: a[0], y: a[1], k: a[2] }));
+    g.bullets = v.b.map(a => ({ x: a[0], y: a[1], k: a[2], vx: a[3] || 0, vy: a[4] || 0 }));
     g.pickups = v.u.map(a => ({ x: a[0], y: a[1], k: a[2], t: a[3], w: a[4] }));
     g.beams = v.bm; g.zaps = v.z; g.boss = v.bo;
   },

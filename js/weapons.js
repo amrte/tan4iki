@@ -136,7 +136,7 @@ Object.assign(Stage.prototype, {
     if (s.twin) { shot(-side[0] * 3, -side[1] * 3, false); shot(side[0] * 3, side[1] * 3, true); } else shot(0, 0, false);
     t.bullets++;
     t.wcool = s.cd;
-    if ((this.frame >> 1) & 1) Sound.play('shot');
+    if ((this.frame >> 1) & 1) Sound.play('mg');
   },
 
   laserFire(t, s, lv) {
@@ -235,7 +235,7 @@ Object.assign(Stage.prototype, {
       this.wshots.push({ kind: 'missile', owner: t, x: cx + dx * 8, y: cy + dy * 8, vx: Math.cos(a) * 1.2, vy: Math.sin(a) * 1.2, target: foes.length ? foes[k % foes.length] : null, life: 150, s });
     }
     t.wcool = s.cd;
-    Sound.play('mortar');
+    Sound.play('missile');
   },
 
   // ------------------------------------------------------------ every frame: shells in flight, effects

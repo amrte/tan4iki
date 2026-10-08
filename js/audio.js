@@ -265,6 +265,48 @@ const Sound = {
         this.note(2200, t, 0.35, { vol: 0.12, slideTo: 300, flat: true, wave: 'p12' });
         this.noise(12000, t, [[0, 0.2], [0.35, 0]]);
         break;
+      // tank weapons with a voice of their own
+      case 'mg': // machine-gun rattle
+        this.noise(11000, t, [[0, 0.3], [0.025, 0.05], [0.04, 0]]);
+        this.note(52, t, 0.035, { vol: 0.12, flat: true, wave: 'p25' });
+        break;
+      case 'missile': // rocket leaves the rack: hiss rising
+        this.noise(3000, t, [[0, 0.3], [0.25, 0.12], [0.35, 0]], 9000);
+        this.note(45, t, 0.08, { vol: 0.12, slideTo: 60, wave: 'p25' });
+        break;
+      // GALAXY guns
+      case 'gxBlaster': // the classic pew
+        this.note(1500, t, 0.07, { vol: 0.1, slideTo: 520, wave: 'p25' });
+        break;
+      case 'gxSpread': // a wide, buzzy fan
+        this.note(1100, t, 0.09, { vol: 0.08, slideTo: 260, wave: 'p12' });
+        this.note(1400, t, 0.06, { vol: 0.05, slideTo: 700, wave: 'p50' });
+        this.noise(15000, t, [[0, 0.1], [0.05, 0]]);
+        break;
+      case 'gxPlasma': // a fat throbbing blob
+        this.note(110, t, 0.22, { vol: 0.18, slideTo: 330, wave: 'tri', decayTo: 0.4 });
+        this.note(220, t, 0.16, { vol: 0.05, slideTo: 90, wave: 'p50' });
+        break;
+      case 'gxLaser': // a steady hum while the beam is on (called every 8 frames)
+        this.note(1320, t, 0.14, { vol: 0.028, flat: true, wave: 'p12' });
+        this.note(663, t, 0.14, { vol: 0.024, flat: true, wave: 'p25' });
+        break;
+      case 'gxLightning': // crackle
+        this.noise(18000, t, [[0, 0.16], [0.03, 0.03], [0.05, 0.14], [0.1, 0]]);
+        this.note(1800, t, 0.08, { vol: 0.04, slideTo: 3200, wave: 'p12' });
+        break;
+      case 'gxMissile': // swarm of rockets: a rising hiss
+        this.noise(2500, t, [[0, 0.18], [0.2, 0.06], [0.26, 0]], 8000);
+        break;
+      case 'gxDrone': // wingman tick
+        this.note(2400, t, 0.03, { vol: 0.05, slideTo: 1500, wave: 'p12' });
+        break;
+      case 'gxHit': // a shot plinks off an enemy
+        this.note(88, t, 0.03, { vol: 0.05, flat: true, wave: 'p12' });
+        break;
+      case 'gxPop': // a small ship bursts
+        this.noise(2600, t, [[0, 0.3], [0.1, 0.12], [0.16, 0]], 900);
+        break;
       case 'burrow':
         this.noise(500, t, [[0, 0.45], [0.4, 0.3], [0.55, 0]], 300);
         break;

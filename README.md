@@ -479,6 +479,10 @@ up; **B** drops a bomb. 1-4 players together, here or online.
   - **Plasma**: big orbs that go through several enemies
   - **Lightning**: jumps from enemy to enemy
   - **Missiles**: homing missiles beside your gun
+  - Each gun has its own sound: a pew, a buzzy fan, a hum, a fat throb, a crackle, a rocket hiss.
+- **Telling them apart:** everything that can hurt you glows red, throbs red-magenta and leaves a smoky trail
+  (round shots, rotten eggs, ice shards). Loot never does: it twinkles with a little gold star, and gift boxes are
+  blue crates tied with a ribbon in their weapon's colour.
 - **Pickups:**
   - A *gift box* gives its weapon (its letter is on it); the same weapon again adds a power level.
   - A green *power cell* adds a power level.

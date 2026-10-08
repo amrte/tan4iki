@@ -3,6 +3,17 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.43
+
+- **Galaxy: every gun has a sound.** The guns were silent (only lightning made a noise). Now: a pew for the blaster,
+  a buzzy fan for the spread, a steady hum while the laser is on, a fat throb for plasma, a crackle for lightning, a
+  rocket hiss for missiles and a tick for the wingman drones. Hits plink and small ships pop. With 3-4 ships the
+  extra players' guns sound every other burst, so it isn't deafening.
+- **Galaxy: enemy shots stand out from the loot.** Everything that hurts now glows red with a breathing halo, throbs
+  red-magenta and trails smoke behind it: round shots (bigger), rotten eggs, ice shards. Loot twinkles with a gold
+  star instead, and gift boxes are blue crates with a ribbon in their weapon's colour (no more red crates).
+- **Tank weapons:** the machine gun rattles and missiles hiss off the rack (they used the cannon and mortar sounds).
+
 ## 0.42
 
 - **New mode: GALAXY**, a shoot-'em-up in the spirit of the space arcade classics, for 1-4 players (here or online).
