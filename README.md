@@ -336,7 +336,7 @@ These 14 were not in the original game. They're marked with `*` in Settings and 
 | **Mines** | 3 mines; drop one with **B**; it arms after a moment and blows up the next enemy that drives over it | that tank lays mines for you |
 | **Ghost** | drive through bricks and water for 15 s | that tank drives through walls |
 | **Coin** | 1000 bonus points | it steals 1000 points from each player |
-| **Turret** (tripod) | a turret appears where you grab it: it swings round to the nearest enemy within 8 tiles and fires once lined up; 3 hits; never fires across your eagle; its kills score for you | a red turret that shoots you |
+| **Turret** (tripod) | adds a turret to the ones you carry: **B** puts it down wherever you are. It swings round to the nearest enemy within 8 tiles and fires once lined up; 3 hits; never fires across your eagle; its kills score for you | a red turret that shoots you |
 | **Claude** (the orange Claude sparkle) | Claude walks the field for 20 s, chirping, and eats every enemy tank (armor included) and enemy shell it bumps into; it nibbles bosses; points are yours | "NOPE!": Claude doesn't work for them (only players can collect it by default) |
 | **Revive** (heart) | every fallen teammate comes back with one tank; if nobody is down, an extra life | 2 more enemy tanks join the stage |
 | **Bridge** (planks) | 2 bridge kits: drive into water to lay a bridge | that tank can cross water |
@@ -474,7 +474,8 @@ start the next stage with it for twice as long. Not after a game over.
 
 ## Turrets, Claude and revival
 
-- **Turrets** can also be bought in the shop (4000 each) and carried: **B** places one where you stand (turrets come
+- **Turrets** come from the power-up or the shop (4000 each) and are carried: **B** places one where you stand, so drive
+  to the spot you want it and press **B** (turrets come
   before mines, mines before firing). Up to 3 of yours stand at once; a 4th replaces the oldest. They block tanks,
   your shells fly over them, enemy shells chip them. Carried turrets show as yellow dots in the side panel (mines grey).
 - **Claude** can be bought in the shop (6000): it joins you at the start of the next stage.

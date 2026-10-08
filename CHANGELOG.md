@@ -3,6 +3,15 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.31
+
+- **Turrets where you want them:** the TURRET power-up no longer drops its turret on the spot; it goes into the
+  turrets you carry, and **B** puts it down wherever you are.
+- **Fix: not being able to shoot in the corridor.** When the corridor dropped its bottom section, any shell down
+  there was thrown away without being handed back to its tank, so the tank counted it as still flying and could never
+  fire again. Also, on any map bigger than the screen (corridor, big maps, maze) a shell now goes no further than
+  about a screen's length, instead of flying on out of sight until it hits something far away.
+
 ## 0.30
 
 - **New mode: MAZE.** A huge labyrinth, generated fresh every stage and bigger each time. Start in the bottom-left

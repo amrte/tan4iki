@@ -1,8 +1,9 @@
 'use strict';
 // =====================================================================
 //  Turrets, Claude, airstrikes and revival
-//    TURRET    placed anywhere (B button with turrets carried, or the TURRET power-up drops one); turns towards
-//              the nearest enemy and shoots once lined up. 3 hits. An enemy that grabs the power-up gets a red one.
+//    TURRET    placed wherever you are with B (from the shop, or the TURRET power-up adds one to what you carry);
+//              turns towards the nearest enemy and shoots once lined up. 3 hits. An enemy that grabs the power-up
+//              gets a red one where it was.
 //    CLAUDE    the orange Claude sparkle wanders the field for a while, chirping, and eats every enemy tank
 //              (and enemy shell) it bumps into. It nibbles bosses. It won't work for the enemy.
 //              CLAUDE LEVEL in the shop (team-wide, kept like the base upgrades) makes every Claude better:

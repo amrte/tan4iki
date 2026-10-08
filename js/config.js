@@ -38,7 +38,7 @@ const POWERUPS = [
   { name: 'MINES', weight: 2, isNew: true, desc: 'DROP MINES WITH B BUTTON' },
   { name: 'GHOST', weight: 1, isNew: true, desc: 'DRIVE THROUGH BRICK+WATER' },
   { name: 'COIN', weight: 2, isNew: true, desc: '1000 BONUS POINTS' },
-  { name: 'TURRET', weight: 2, isNew: true, desc: 'DROPS A TURRET THAT SHOOTS' },
+  { name: 'TURRET', weight: 2, isNew: true, desc: 'A TURRET TO PLACE WITH B' },
   { name: 'CLAUDE', weight: 1, isNew: true, desc: 'CLAUDE EATS ENEMY TANKS', who: 'PLAYER' },
   { name: 'REVIVE', weight: 1, isNew: true, desc: 'BRINGS FALLEN PLAYERS BACK' },
   { name: 'AIRSTRIKE', weight: 1, isNew: true, desc: 'BOMBS THE BUSIEST ROW' },

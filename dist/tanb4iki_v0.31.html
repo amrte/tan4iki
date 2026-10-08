@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.30</title>
+  <title>tanb4iki_v0.31</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.30';
+const APP_VERSION = '0.31';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2359,7 +2359,7 @@ const POWERUPS = [
   { name: 'MINES', weight: 2, isNew: true, desc: 'DROP MINES WITH B BUTTON' },
   { name: 'GHOST', weight: 1, isNew: true, desc: 'DRIVE THROUGH BRICK+WATER' },
   { name: 'COIN', weight: 2, isNew: true, desc: '1000 BONUS POINTS' },
-  { name: 'TURRET', weight: 2, isNew: true, desc: 'DROPS A TURRET THAT SHOOTS' },
+  { name: 'TURRET', weight: 2, isNew: true, desc: 'A TURRET TO PLACE WITH B' },
   { name: 'CLAUDE', weight: 1, isNew: true, desc: 'CLAUDE EATS ENEMY TANKS', who: 'PLAYER' },
   { name: 'REVIVE', weight: 1, isNew: true, desc: 'BRINGS FALLEN PLAYERS BACK' },
   { name: 'AIRSTRIKE', weight: 1, isNew: true, desc: 'BOMBS THE BUSIEST ROW' },
@@ -4666,6 +4666,12 @@ class Stage {
     if (b.isPlayer && this.jamList.length && this.jammed(b.x + 2, b.y + 2)) dist *= 0.5;   // jammer field
     b.x += DXY[b.dir][0] * dist;
     b.y += DXY[b.dir][1] * dist;
+    // on a map bigger than the screen a shell goes no further than a screen's length: it would otherwise fly on
+    // out of sight for ages, and you can't fire again until it lands
+    if (FW > VIEW_W || FH > VIEW_H) {
+      b.dist = (b.dist || 0) + dist;
+      if (b.dist > Math.max(VIEW_W, VIEW_H) + 32) { this.killBullet(b, false); return; }
+    }
     this.bulletPad(b);
     if (b.x < 0 || b.y < 0 || b.x > FW - 4 || b.y > FH - 4) {
       b.x = Math.max(0, Math.min(FW - 4, b.x));
@@ -5080,7 +5086,10 @@ class Stage {
         case PU.SHIP: p.ship = true; t.ship = true; break;
         case PU.MINES: p.mines = (p.mines || 0) + Config.get('mineCount'); break;
         case PU.COIN: this.addScore(p, 1000); snd = 'bonus'; break;
-        case PU.TURRET: this.placeTurret(pu.x, pu.y, p, false); break;
+        case PU.TURRET:   // into your kit: B puts it down wherever you want it
+          p.turrets = Math.min(9, (p.turrets || 0) + 1);
+          this.popups.push({ x: t.x + 8, y: t.y - 6, text: 'TURRET: B TO PLACE', label: true, color: COL.gold, t: 0, delay: 0, life: 90 });
+          break;
         case PU.CLAUDE: this.summonClaude(pu.x, pu.y, p); break;
         case PU.AIRSTRIKE: this.callAirstrike(true, gunner(p)); break;
         case PU.BRIDGE: p.bridges = (p.bridges || 0) + 2; break;
@@ -6238,8 +6247,9 @@ Object.assign(Stage.prototype, {
 'use strict';
 // =====================================================================
 //  Turrets, Claude, airstrikes and revival
-//    TURRET    placed anywhere (B button with turrets carried, or the TURRET power-up drops one); turns towards
-//              the nearest enemy and shoots once lined up. 3 hits. An enemy that grabs the power-up gets a red one.
+//    TURRET    placed wherever you are with B (from the shop, or the TURRET power-up adds one to what you carry);
+//              turns towards the nearest enemy and shoots once lined up. 3 hits. An enemy that grabs the power-up
+//              gets a red one where it was.
 //    CLAUDE    the orange Claude sparkle wanders the field for a while, chirping, and eats every enemy tank
 //              (and enemy shell) it bumps into. It nibbles bosses. It won't work for the enemy.
 //              CLAUDE LEVEL in the shop (team-wide, kept like the base upgrades) makes every Claude better:
@@ -7794,6 +7804,8 @@ Object.assign(Stage.prototype, {
     const down = o => { o.y += S; return o.y < FH; };
     for (const tk of this.tanks) { tk.y += S; if (tk.trail) for (const p of tk.trail) p[1] += S; if (tk.nav) tk.nav = null; }
     this.tanks = this.tanks.filter(tk => tk.y < FH);
+    // shells that drop off the bottom go back to their tank (or it could never fire again)
+    for (const b of this.bullets) if (b.y + S >= FH) this.killBullet(b, false);
     for (const k of ['bullets', 'spawns', 'mines', 'turrets', 'claudes', 'strikes', 'shells', 'pads']) this[k] = this[k].filter(down);
     for (const f of this.fx) f.y += S;
     for (const p of this.popups) p.y += S;

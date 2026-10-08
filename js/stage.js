@@ -938,6 +938,12 @@ class Stage {
     if (b.isPlayer && this.jamList.length && this.jammed(b.x + 2, b.y + 2)) dist *= 0.5;   // jammer field
     b.x += DXY[b.dir][0] * dist;
     b.y += DXY[b.dir][1] * dist;
+    // on a map bigger than the screen a shell goes no further than a screen's length: it would otherwise fly on
+    // out of sight for ages, and you can't fire again until it lands
+    if (FW > VIEW_W || FH > VIEW_H) {
+      b.dist = (b.dist || 0) + dist;
+      if (b.dist > Math.max(VIEW_W, VIEW_H) + 32) { this.killBullet(b, false); return; }
+    }
     this.bulletPad(b);
     if (b.x < 0 || b.y < 0 || b.x > FW - 4 || b.y > FH - 4) {
       b.x = Math.max(0, Math.min(FW - 4, b.x));
@@ -1352,7 +1358,10 @@ class Stage {
         case PU.SHIP: p.ship = true; t.ship = true; break;
         case PU.MINES: p.mines = (p.mines || 0) + Config.get('mineCount'); break;
         case PU.COIN: this.addScore(p, 1000); snd = 'bonus'; break;
-        case PU.TURRET: this.placeTurret(pu.x, pu.y, p, false); break;
+        case PU.TURRET:   // into your kit: B puts it down wherever you want it
+          p.turrets = Math.min(9, (p.turrets || 0) + 1);
+          this.popups.push({ x: t.x + 8, y: t.y - 6, text: 'TURRET: B TO PLACE', label: true, color: COL.gold, t: 0, delay: 0, life: 90 });
+          break;
         case PU.CLAUDE: this.summonClaude(pu.x, pu.y, p); break;
         case PU.AIRSTRIKE: this.callAirstrike(true, gunner(p)); break;
         case PU.BRIDGE: p.bridges = (p.bridges || 0) + 2; break;

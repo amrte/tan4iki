@@ -172,6 +172,8 @@ Object.assign(Stage.prototype, {
     const down = o => { o.y += S; return o.y < FH; };
     for (const tk of this.tanks) { tk.y += S; if (tk.trail) for (const p of tk.trail) p[1] += S; if (tk.nav) tk.nav = null; }
     this.tanks = this.tanks.filter(tk => tk.y < FH);
+    // shells that drop off the bottom go back to their tank (or it could never fire again)
+    for (const b of this.bullets) if (b.y + S >= FH) this.killBullet(b, false);
     for (const k of ['bullets', 'spawns', 'mines', 'turrets', 'claudes', 'strikes', 'shells', 'pads']) this[k] = this[k].filter(down);
     for (const f of this.fx) f.y += S;
     for (const p of this.popups) p.y += S;
