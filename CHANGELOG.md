@@ -3,6 +3,29 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.45
+
+- **Galaxy: twelve sectors** (was six): Earth Orbit, Time Vortex, Saturn Rings, Cyberspace, Dark Star and The Last
+  Base, each with its own sky (a swirling time tunnel, a ringed planet, a green grid with falling code, a dark sun,
+  the walls of a base) and a new boss after a flying thing from a 90s film or game:
+  - **City Killer**: a shielded city-sized saucer. Catch the floppy disk to upload a virus, or hit it while it charges
+    its city-levelling beam.
+  - **Time Car**: 88 MPH, two trails of fire down the screen, then a jump through time. Fans, lightning.
+  - **Martian Saucer**: a brain in a dome, four wingmen, ray guns, a tractor beam. ACK ACK! Bombs (the yodel) hurt it
+    three times as much.
+  - **The Cube**: adapts to the weapon that hurts it most; switch guns. Tractor and cutting beams, hunting cubes.
+  - **Giant Head**: hands that slam down at you and shield it, breathes you in, spits tiles; a brain in phase 3.
+  - **CATS**: ALL YOUR BASE ARE BELONG TO US. Time bombs to shoot down, MAIN SCREEN TURN ON, fighters.
+  - They talk (in a box under them), and the later sectors have their own music: HYPERSPACE, and ALL YOUR BASE for
+    the bosses.
+- **Seven new waves**, also mixed into sectors 1-6: flying toasters, the bouncing DVD logo (hit a corner for 2000 and
+  gems), rush-hour traffic of flying taxis and police cars (arrows warn of each), hunting sentinels, cows flung up
+  from below, marching invaders with a mystery ship, falling blocks. New enemies in the later sectors' formations:
+  alien fighters, martian saucers, sentinels.
+- **Every time round** the sectors' waves are shuffled with a couple of surprises, so the second loop isn't the first
+  again. Sectors 7-12 get harder more gently than 1-6.
+- When a boss is hit it flickers white instead of staying white under constant fire; a shield's hits don't flash.
+
 ## 0.44
 
 - **Galaxy: the boss's loot is yours.** The sector no longer ends while the boss's coins, gems, power cells and

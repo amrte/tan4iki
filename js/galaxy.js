@@ -1,7 +1,8 @@
 'use strict';
 // =====================================================================
 //  GALAXY: a space shoot-'em-up. Your tanks fly at the bottom of a starfield and shoot up at alien waves.
-//  Six sectors (then round again, tougher), six waves each and a boss:
+//  Twelve sectors (then round again, tougher, the waves shuffled), six waves each and a boss; sectors 7-12, their
+//  bosses and the newer waves are in galaxy2.js. Sectors 1-6:
 //    waves   FORMATION (they fly in to a grid and dive at you), SWARM (streams weaving across), ROCKS (an asteroid
 //            shower; big rocks split), KAMIKAZE (drones dropping straight at you), BOMBERS (crossing the top, laying
 //            bombs), ESCORT (drones circling armoured ships)
@@ -47,6 +48,11 @@ const GX_TYPES = {
   rockM: { w: 10, h: 10, hp: 3, pts: 60, from: 0 },
   rockS: { w: 6, h: 6, hp: 1, pts: 30, from: 0 },
 };
+// hooks for the later sectors' enemies, waves and bosses (galaxy2.js): by state / type / kind
+const GX_MOVES = {}, GX_FIRE = {}, GX_COLLIDE = {}, GX_ON_KILL = {}, GX_RENDER = {}, GX_WAVE_KINDS = {}, GX_WAVE_NAMES = {}, GX_BOSS_ACTS = {};
+const GX_FRAME = [], GX_PICKUPS = {}, GX_BULLET_DRAW = {};
+// how hard a sector is: steep through the first six, gentler after
+const gxDiff = sec => Math.min(sec, 5) + Math.max(0, sec - 5) * 0.6;
 // weapons: power 1-8
 const GX_WEAPONS = {
   blaster: { name: 'BLASTER', letter: 'B', color: '#F87830', snd: 'gxBlaster' },
@@ -167,12 +173,12 @@ Object.assign(Stage.prototype, {
     // an empty field: no walls, no eagle
     this.terrain.fill(T_EMPTY); this.dirty = true;
     this.noBase = true; this.queue = []; this.total = 0; this.weather = null; this.pads = [];
-    const sec = (level - 1) % GX_SECTORS.length, loop = Math.floor((level - 1) / GX_SECTORS.length);
+    const sec = (level - 1) % GX_SECTORS.length, loop = Math.floor((level - 1) / GX_SECTORS.length), d = gxDiff(sec);
     this.galaxy = {
       level, sec, loop, wave: 0, phase: 'intro', t: 0, list: [], shots: [], bullets: [], pickups: [], beams: [], zaps: [], boss: null,
       spawnQ: [], banner: { text: 'SECTOR ' + level + ': ' + GX_SECTORS[sec].name, t: 150 }, flash: 0, swayT: 0, diveT: 200,
-      hpMul: (1 + 0.18 * sec) * Math.pow(1.6, loop), fireMul: (1 + 0.12 * sec + 0.4 * loop) * Config.skill().fire, shotSpd: (1 + 0.05 * sec + 0.15 * loop) * Config.skill().shell,
-      cleared: false, clearT: 0,
+      hpMul: (1 + 0.18 * d) * Math.pow(1.6, loop), fireMul: (1 + 0.12 * d + 0.4 * loop) * Config.skill().fire, shotSpd: (1 + 0.05 * d + 0.15 * loop) * Config.skill().shell,
+      cleared: false, clearT: 0, d, plan: gxPlan(sec, loop, level),
     };
     for (const p of this.players) gxPlayer(p);
   },
@@ -183,11 +189,11 @@ Object.assign(Stage.prototype, {
     g.wave++;
     g.phase = 'wave'; g.t = 0; g.spawnQ = []; g.diveT = 160;
     if (g.wave > GX_WAVES) { this.gxBossStart(); return; }
-    const kind = GX_PLAN[g.sec][g.wave - 1];
+    const kind = (g.plan || GX_PLAN[g.sec])[g.wave - 1];
     g.kind = kind;
-    g.banner = { text: 'WAVE ' + g.wave + '/' + GX_WAVES + ': ' + kind.toUpperCase(), t: 110 };
-    const types = Object.keys(GX_TYPES).filter(k => !k.startsWith('rock') && GX_TYPES[k].from <= g.sec + g.loop * 6);
-    const more = Math.min(1.6, 1 + 0.08 * g.sec + 0.2 * g.loop) * (1 + 0.25 * (this.players.length - 1));
+    g.banner = { text: 'WAVE ' + g.wave + '/' + GX_WAVES + ': ' + (GX_WAVE_NAMES[kind] || kind.toUpperCase()), t: 110 };
+    const types = Object.keys(GX_TYPES).filter(k => !k.startsWith('rock') && !GX_TYPES[k].special && GX_TYPES[k].from <= g.sec + g.loop * GX_SECTORS.length);
+    const more = Math.min(1.6, 1 + 0.08 * (g.d ?? g.sec) + 0.2 * g.loop) * (1 + 0.25 * (this.players.length - 1));
     const add = (type, o) => g.spawnQ.push(Object.assign({ type }, o));
     if (kind === 'formation') {
       const cols = Math.max(4, Math.min(8, Math.floor((FW - 24) / 22))), rows = Math.min(5, 3 + Math.floor((g.sec + g.loop) / 2));
@@ -221,13 +227,15 @@ Object.assign(Stage.prototype, {
         add(big, { st: 'enter', slot: [FW * (k + 1) / (m + 1), 40], from: k % 2 ? 1 : -1, delay: k * 20, id });
         for (let j = 0; j < 6; j++) add(types.includes('wasp') ? 'wasp' : 'drone', { st: 'orbit', parent: id, ang: j * Math.PI / 3, delay: 50 + k * 20 + j * 6 });
       }
-    }
+    } else if (GX_WAVE_KINDS[kind]) GX_WAVE_KINDS[kind].call(this, g, add, types, more);
   },
 
   // an enemy comes on: where it starts, its hit points
   gxSpawn(o) {
-    const g = this.galaxy, T = GX_TYPES[o.type];
-    const e = Object.assign({ x: 0, y: -12, hp: T.hp * g.hpMul, max: T.hp * g.hpMul, t: 0, flash: 0, fireT: 60 + rnd(120) }, o);
+    const g = this.galaxy, swap = GX_SECTORS[g.sec].swap;
+    if (swap && swap[o.type]) o = Object.assign({}, o, { type: swap[o.type] });   // a later sector's own kind in its place
+    const T = GX_TYPES[o.type];
+    const e = Object.assign({ x: 0, y: -12, w: T.w, h: T.h, hp: T.hp * g.hpMul, max: T.hp * g.hpMul, t: 0, flash: 0, fireT: 60 + rnd(120) }, o);
     if (e.st === 'enter') { e.x0 = e.from < 0 ? -10 : FW + 10; e.y0 = 40 + rnd(30); e.cx = FW / 2 + e.from * -20; e.cy = -30; e.x = e.x0; e.y = e.y0; }
     if (e.st === 'stream') { e.x = e.dirX > 0 ? -12 : FW + 12; e.base = 30 + e.lane * 26; e.y = e.base; }
     if (e.st === 'fall') { e.x = 10 + rnd(FW - 20); e.y = -10; e.vx = (Math.random() - 0.5) * 0.8; e.vy = 0.5 + Math.random() * 0.6 * Math.min(2, g.shotSpd); }
@@ -238,6 +246,7 @@ Object.assign(Stage.prototype, {
     }
     if (e.st === 'cross') { e.x = e.dirX > 0 ? -12 : FW + 12; e.y = 18 + e.row * 14; }
     if (e.st === 'orbit') { e.x = FW / 2; e.y = -20; }
+    if (GX_MOVES[e.st] && GX_MOVES[e.st].init) GX_MOVES[e.st].init.call(this, e, g);
     g.list.push(e);
     return e;
   },
@@ -270,6 +279,7 @@ Object.assign(Stage.prototype, {
       else if (g.phase === 'boss') this.gxUpdateBoss();
       // the sector ends once the boss's loot is all picked up (it flies to you), or after 15 s at most
       else if (g.phase === 'clear' && g.t > 200 && (!g.pickups.length || g.t > 900)) this.result = 'clear';
+      for (const h of GX_FRAME) h.call(this, g);
       this.gxUpdateEnemies();
     }
     this.gxUpdateShots();
@@ -332,7 +342,7 @@ Object.assign(Stage.prototype, {
       const w = 3 + pw;
       g.beams.push({ x: cx, w, y: top, o: p.i });
       const dmg = (0.06 + 0.025 * pw) * dm;
-      for (const e of g.list) if (Math.abs(e.x - cx) < w / 2 + GX_TYPES[e.type].w / 2 && e.y < top && e.y > -8) this.gxHit(e, dmg, p, true);
+      for (const e of g.list) if (Math.abs(e.x - cx) < w / 2 + (e.w || GX_TYPES[e.type].w) / 2 && e.y < top && e.y > -8) this.gxHit(e, dmg, p, true);
       if (g.boss) this.gxBossHitRect(cx - w / 2, 0, w, top, dmg, p);
       if (this.frame % 8 === 0) Sound.play('gxLaser');
       return;
@@ -358,7 +368,7 @@ Object.assign(Stage.prototype, {
       let fx = cx, fy = top;
       for (let k = 0; k < n; k++) {
         let best = null, bd = k ? 70 : 140;
-        for (const e of g.list) { if (hit.includes(e) || e.y > top || e.y < -6) continue; const d = Math.hypot(e.x - fx, e.y - fy); if (d < bd) { bd = d; best = e; } }
+        for (const e of g.list) { if (hit.includes(e) || e.y > top || e.y < -6 || e.warnT > 0) continue; const d = Math.hypot(e.x - fx, e.y - fy); if (d < bd) { bd = d; best = e; } }
         if (!best) break;
         hit.push(best); pts.push([best.x, best.y]); fx = best.x; fy = best.y;
       }
@@ -383,7 +393,7 @@ Object.assign(Stage.prototype, {
     const g = this.galaxy, gp = gxPlayer(p);
     gp.bombs--;
     g.flash = 24; g.bullets = [];
-    for (const e of g.list.slice()) if (e.y > -8) this.gxHit(e, 15 * this.gxDmg(p), p);
+    for (const e of g.list.slice()) if (e.y > -8 && e.y < FH + 8 && !(e.warnT > 0)) this.gxHit(e, 15 * this.gxDmg(p), p);
     if (g.boss && g.boss.y + g.boss.h > 0) this.gxBossDamage(12 * this.gxDmg(p), p, true);
     for (let k = 0; k < 6; k++) this.fx.push({ x: 20 + rnd(FW - 40), y: 20 + rnd(FH / 2), frames: BIG_EXPLOSION(), per: 4, tick: -k * 4 });
     Sound.play('bossDie');
@@ -409,7 +419,7 @@ Object.assign(Stage.prototype, {
       const r = s.k === 'p' ? s.r : 2, pl = this.players[s.o] || this.players[0];
       for (const e of g.list) {
         const T = GX_TYPES[e.type];
-        if (Math.abs(e.x - s.x) > T.w / 2 + r || Math.abs(e.y - s.y) > T.h / 2 + r) continue;
+        if (Math.abs(e.x - s.x) > (e.w || T.w) / 2 + r || Math.abs(e.y - s.y) > (e.h || T.h) / 2 + r) continue;
         if (s.k === 'p') { if (s.hit.includes(e.id || e)) continue; s.hit.push(e.id || e); this.gxHit(e, s.dmg, pl); if (--s.pierce <= 0) { s.dead = true; break; } continue; }
         this.gxHit(e, s.dmg, pl);
         s.dead = true;
@@ -432,6 +442,7 @@ Object.assign(Stage.prototype, {
     e.dead = true;
     g.list = g.list.filter(o => o !== e);
     if (p) { this.addScore(p, T.pts * (1 + g.loop)); p.gxKills = (p.gxKills || 0) + 1; }
+    if (GX_ON_KILL[e.type] && GX_ON_KILL[e.type].call(this, e, p, g) === false) return;   // it handles its own end
     this.addFx(e.x, e.y, T.w >= 16 ? Sprites.bigExp : Sprites.smallExp, 3);
     if (this.frame % 2 === 0 || T.w >= 16) Sound.play(T.w >= 16 ? 'explode' : 'gxPop');
     // what it leaves behind
@@ -514,19 +525,24 @@ Object.assign(Stage.prototype, {
           e.x = e.t < 40 ? e.x + (ox - e.x) * 0.12 : ox; e.y = e.t < 40 ? e.y + (oy - e.y) * 0.12 : oy;
           break;
         }
+        default: if (GX_MOVES[e.st]) GX_MOVES[e.st].call(this, e, g, near);
       }
       if (e.st === 'gone') { g.list = g.list.filter(o => o !== e); continue; }
       // shooting: eggs straight down; the big ones aim
-      if (e.st !== 'fall' && e.st !== 'enter' && e.y > 0 && --e.fireT <= 0 && g.bullets.length < 14 + 2 * g.sec + 6 * g.loop) {
-        if (e.type === 'brute') this.gxAimed(e, near(e.x, e.y), 1.6);
+      if (e.st !== 'fall' && e.st !== 'enter' && e.y > 0 && --e.fireT <= 0 && g.bullets.length < 14 + 2 * (g.d ?? g.sec) + 6 * g.loop) {
+        let own;
+        if (GX_FIRE[e.type]) own = GX_FIRE[e.type].call(this, e, g, near);   // a number: its own time to the next shot
+        else if (T.noFire) { /* rams, never shoots */ }
+        else if (e.type === 'brute') this.gxAimed(e, near(e.x, e.y), 1.6);
         else if (e.type === 'tanker') for (const sp of [-0.25, 0, 0.25]) this.gxAimed(e, near(e.x, e.y), 1.4, sp);
         else if (e.type === 'egger') for (const vx of [-0.5, 0, 0.5]) g.bullets.push({ x: e.x, y: e.y + 6, vx, vy: 1.1 * g.shotSpd, k: 'egg' });
         else if (e.type !== 'mine' && e.type !== 'kami') g.bullets.push({ x: e.x, y: e.y + 5, vx: 0, vy: 1.3 * g.shotSpd, k: 'egg' });
-        e.fireT = Math.round((e.st === 'cross' ? 150 + rnd(90) : 320 + rnd(400)) / Math.max(0.4, g.fireMul));
+        e.fireT = own !== undefined ? own : Math.round((e.st === 'cross' ? 150 + rnd(90) : 320 + rnd(400)) / Math.max(0.4, g.fireMul));
       }
       // running into a ship
+      if (e.warnT > 0) continue;   // not on yet: only its warning shows
       for (const t of pl) {
-        if (Math.abs(t.x + 8 - e.x) < T.w / 2 + 5 && Math.abs(t.y + 8 - e.y) < T.h / 2 + 5) {
+        if (GX_COLLIDE[e.type] ? GX_COLLIDE[e.type].call(this, e, t) : Math.abs(t.x + 8 - e.x) < (e.w || T.w) / 2 + 5 && Math.abs(t.y + 8 - e.y) < (e.h || T.h) / 2 + 5) {
           this.hitPlayer(t);
           this.gxHit(e, 3, null);
         }
@@ -592,6 +608,7 @@ Object.assign(Stage.prototype, {
 
   gxCollect(t, u) {
     const p = t.player, gp = gxPlayer(p);
+    if (GX_PICKUPS[u.k]) { GX_PICKUPS[u.k].collect.call(this, t, u); return; }
     const say = (text, color = COL.white) => this.popups.push({ x: t.x + 8, y: t.y - 4, text, label: true, color, t: 0, delay: 0, life: 50 });
     if (u.k === 'coin') { this.addScore(p, 100); Sound.play('coin'); }
     else if (u.k === 'gem') { this.addScore(p, 500); say('500', COL.gold); Sound.play('coin'); }
@@ -699,29 +716,36 @@ GxGfx.boss = function (key, f, variant, ph) {
 
 Object.assign(Stage.prototype, {
   gxBossStart() {
-    const g = this.galaxy, def = GX_BOSSES[g.sec], hp = def.hp * (1 + 0.08 * g.sec) * Math.pow(1.6, g.loop) * (1 + 0.5 * (this.players.length - 1));
+    const g = this.galaxy, def = GX_BOSSES[g.sec], hp = def.hp * (1 + 0.08 * (g.d ?? g.sec)) * Math.pow(1.6, g.loop) * (1 + 0.5 * (this.players.length - 1));
     g.phase = 'boss'; g.t = 0; g.kind = 'boss';
     g.boss = { key: def.key, x: FW / 2, y: -def.h, w: def.w, h: def.h, hp, max: hp, ph: 1, t: 0, cd: 120, step: 0, act: null, flash: 0, stagger: 0, spin: 0,
       open: def.eye ? 0 : 1, openT: 200, orbs: def.orbs ? Array.from({ length: def.orbs }, (_, k) => ({ a: k * Math.PI * 2 / def.orbs, hp: 14 * g.hpMul, max: 14 * g.hpMul })) : [], beams: [] };
     g.banner = { text: 'WARNING! ' + def.name, t: 150, warn: true };
+    if (def.init) def.init.call(this, g.boss, g);
     Sound.play('bossWarn');
   },
+
+  // a boss says something: a box under it (galaxy2.js's talkers)
+  gxSay(b, text, t = 150) { if (b) b.say = { text, t }; },
 
   gxUpdateBoss() {
     const g = this.galaxy, b = g.boss, def = GX_BOSSES[g.sec];
     if (!b) return;
     b.t++;
     if (b.flash > 0) b.flash--;
+    if (b.say && --b.say.t <= 0) b.say = null;
     // in from the top
-    if (b.y < 14 && !b.charge) { b.y += 0.6; return; }
+    if (b.y < 14 && !b.charge && !b.dash) { b.y += 0.6; return; }
     for (const bm of b.beams) bm.t++;
     this.gxBossBeams(b);
     b.beams = b.beams.filter(bm => bm.t < bm.warn + bm.dur);
     if (b.stagger > 0) { b.stagger--; return; }
     if (this.freezeE > 0) return;
     const pl = this.gxPlayers(), near = pl.reduce((a, t) => (!a || Math.abs(t.x + 8 - b.x) < Math.abs(a.x + 8 - b.x) ? t : a), null);
-    // moving
-    if (b.charge) {
+    // moving (a boss of its own ways moves itself; true: it did)
+    if (def.update && def.update.call(this, b, g, near, pl)) { /* moved */ }
+    else if (b.hold) { /* stays put while it does something */ }
+    else if (b.charge) {
       b.y += b.charge > 0 ? 2.4 : -1.4;
       if (b.y >= FH * 0.45) b.charge = -1;
       if (b.charge < 0 && b.y <= 14) { b.y = 14; b.charge = 0; }
@@ -783,7 +807,7 @@ Object.assign(Stage.prototype, {
         if (a.t > 64) done(30);
         return;
       case 'orbFire': for (const o of b.orbs) if (o.hp > 0) { const [ox, oy] = this.gxOrbPos(b, o); shoot(ox, oy, toward(ox, oy), 1.6); } done(50); return;
-      default: done(40);
+      default: if (GX_BOSS_ACTS[k]) GX_BOSS_ACTS[k].call(this, b, a, { g, cx, cy, s, done, shoot, toward, near }); else done(40);
     }
   },
 
@@ -792,12 +816,15 @@ Object.assign(Stage.prototype, {
   // the boss's beams: a warning line first, then it bites
   gxBossBeams(b) {
     for (const bm of b.beams) {
-      if (bm.t === bm.warn) Sound.play('laser');
+      if (bm.t === bm.warn && bm.kind !== 'tractor') Sound.play(bm.snd || 'laser');
       if (bm.t < bm.warn) continue;
       for (const t of this.gxPlayers()) {
         const px = t.x + 8, py = t.y + 8;
         let hit;
         if (bm.kind === 'ice') hit = Math.abs(px - bm.x) < 9;
+        else if (bm.w) hit = Math.abs(px - bm.x) < bm.w / 2 + 3 && py > (bm.top || 0);   // a column
+        if (hit && bm.kind === 'tractor') { t.x += Math.sign(bm.x - px) * Math.min(0.7, Math.abs(bm.x - px)); t.y = Math.max(Math.round(FH * 0.35), t.y - 0.6); continue; }
+        if (bm.w && bm.kind !== 'ice') { if (hit) this.hitPlayer(t); continue; }
         else { const dx = bm.tx - bm.x, dy = bm.ty - bm.y0, L = Math.hypot(dx, dy) || 1, k = ((px - bm.x) * dx + (py - bm.y0) * dy) / (L * L); hit = k > 0 && Math.abs((px - bm.x) * dy - (py - bm.y0) * dx) / L < 7; }
         if (!hit) continue;
         if (bm.kind === 'ice') { if (!(t.shield > 0)) t.frozen = 70; } else this.hitPlayer(t);
@@ -807,8 +834,9 @@ Object.assign(Stage.prototype, {
 
   // a shot (a rectangle) against the boss: an orb in the way takes it first; true if it hit anything
   gxBossHitRect(x, y, w, h, dmg, p) {
-    const b = this.galaxy.boss;
+    const b = this.galaxy.boss, def = GX_BOSSES[this.galaxy.sec];
     if (!b || b.y < -b.h / 2) return false;   // still coming in
+    if (def.hitParts && def.hitParts.call(this, b, x, y, w, h, dmg, p)) return true;   // a hand, a wingman... in the way
     for (const o of b.orbs) {
       if (o.hp <= 0) continue;
       const [ox, oy] = this.gxOrbPos(b, o);
@@ -828,7 +856,10 @@ Object.assign(Stage.prototype, {
     if (!b || b.dead) return;
     if (def.eye && !b.open && !bomb) { if (this.frame % 6 === 0) Sound.play('steel'); return; }   // the shut eye shrugs it off
     if (b.orbs.some(o => o.hp > 0)) dmg *= 0.4;   // its orbs shield it
-    b.hp -= dmg; b.flash = 3;
+    if (def.damage) dmg = def.damage.call(this, b, dmg, p, bomb);
+    if (!(dmg > 0)) return;
+    b.hp -= dmg;
+    if (b.noFlash) b.noFlash = false; else b.flash = 3;   // a hit its shield took doesn't make it flash
     if (this.frame % 4 === 0) Sound.play('gxHit');
     const f = b.hp / b.max, ph = f > 2 / 3 ? 1 : f > 1 / 3 ? 2 : 3;
     if (ph > b.ph && b.hp > 0) {
@@ -836,6 +867,8 @@ Object.assign(Stage.prototype, {
       g.banner = { text: def.name + ': PHASE ' + ph, t: 100, warn: true };
       if (b.orbs.length) for (let k = 0; k < 2; k++) { const o = b.orbs[k]; if (o.hp <= 0) { o.hp = o.max * 0.6; } }   // the overmind grows two orbs back
       for (let k = 0; k < 4; k++) this.fx.push({ x: b.x - b.w / 2 + rnd(b.w), y: b.y + rnd(b.h), frames: Sprites.bigExp, per: 4, tick: -k * 5 });
+      b.hold = false; b.dash = 0;
+      if (def.onPhase) def.onPhase.call(this, b, g, ph);
       Sound.play('bossPhase');
     }
     if (b.hp <= 0) this.gxBossKill(p);
@@ -856,6 +889,7 @@ Object.assign(Stage.prototype, {
     g.bullets = []; g.list.forEach(e => this.gxKill(e, null)); g.list = [];
     g.boss = null; g.phase = 'clear'; g.t = 0;
     g.banner = { text: 'SECTOR ' + g.level + ' CLEAR!', t: 200 };
+    if (def.onKill) def.onKill.call(this, b, g);
     this.bossDefeated = true;
   },
 });
@@ -865,6 +899,7 @@ Object.assign(Stage.prototype, {
 function gxDrawPickup(ctx, k, x, y, t, w) {
   x = Math.round(x); y = Math.round(y);
   const R = (dx, dy, ww, hh, c) => { ctx.fillStyle = c; ctx.fillRect(x + dx, y + dy, ww, hh); };
+  if (GX_PICKUPS[k]) { GX_PICKUPS[k].draw(ctx, x, y, t, R); return; }
   if (k === 'coin') { const sq = [5, 4, 2, 4][(t >> 3) & 3]; R(-sq / 2 - 1, -4, sq + 2, 8, '#7C5000'); R(-sq / 2, -3, sq, 6, '#F8D800'); if (sq > 2) R(-1, -2, 1, 2, '#F8F8F8'); return; }
   if (k === 'gem') { for (let j = 0; j < 4; j++) R(-j, -3 + j, j * 2 + 1, 1, '#58F8F8'); for (let j = 0; j < 3; j++) R(-2 + j, 1 + j, 5 - j * 2, 1, '#3CBCB8'); R(-1, -2, 1, 1, '#F8F8F8'); return; }
   if (k === 'cell') { R(-5, -5, 10, 10, '#0C3C0C'); R(-4, -4, 8, 8, (t >> 3) & 1 ? '#58D854' : '#3C9C1C'); Font.draw(ctx, 'P', x - 3, y - 3, '#F8F8F8'); return; }
@@ -891,10 +926,11 @@ Object.assign(Stage.prototype, {
     // space: the sector's sky, a planet drifting by, three layers of stars scrolling down
     ctx.fillStyle = sec.sky; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     const py = ((f * 0.05) % (VIEW_H + 160)) - 80, px = g.sec % 2 ? VIEW_W - 30 : 30;
-    for (let r = 40; r > 0; r -= 1) { ctx.fillStyle = r > 34 ? sec.planet[2] : r > 20 ? sec.planet[1] : sec.planet[0]; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(px + (40 - r) * 0.3, py - (40 - r) * 0.3, r, 0, Math.PI * 2); ctx.fill(); if (r < 40) break; }
-    ctx.globalAlpha = 0.5;
+    if (!sec.noPlanet) for (let r = 40; r > 0; r -= 1) { ctx.fillStyle = r > 34 ? sec.planet[2] : r > 20 ? sec.planet[1] : sec.planet[0]; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(px + (40 - r) * 0.3, py - (40 - r) * 0.3, r, 0, Math.PI * 2); ctx.fill(); if (r < 40) break; }
+    ctx.globalAlpha = sec.noPlanet ? 0 : 0.5;
     for (let k = 0; k < 3; k++) { ctx.fillStyle = sec.planet[k]; ctx.beginPath(); ctx.arc(px - k * 6, py - k * 6, 36 - k * 12, 0, Math.PI * 2); ctx.fill(); }
     ctx.globalAlpha = 1;
+    if (sec.bg) sec.bg(ctx, f, g);
     const rr = seeded(7 + g.sec);
     for (let k = 0; k < 70; k++) {
       const layer = k % 3, x = Math.floor(rr() * VIEW_W), y0 = rr() * VIEW_H, y = (y0 + f * (0.3 + layer * 0.5)) % VIEW_H;
@@ -910,8 +946,10 @@ Object.assign(Stage.prototype, {
     }
     for (const e of g.list) {
       if (e.type.startsWith('rock')) { this.gxDrawRock(ctx, e); continue; }
+      if (GX_RENDER[e.type]) { GX_RENDER[e.type].call(this, ctx, e, f); continue; }
       const T = GX_TYPES[e.type], img = GxGfx.get(e.type, (f >> 3) & 1, e.flash > 0 ? 'f' : 'n');
-      ctx.drawImage(img, Math.round(e.x - T.w / 2), Math.round(e.y - T.h / 2));
+      if (e.v && e.v.fl) { ctx.save(); ctx.translate(Math.round(e.x), 0); ctx.scale(-1, 1); ctx.drawImage(img, -Math.round(T.w / 2), Math.round(e.y - T.h / 2)); ctx.restore(); }
+      else ctx.drawImage(img, Math.round(e.x - T.w / 2), Math.round(e.y - T.h / 2));
     }
     if (g.boss) this.gxDrawBoss(ctx, g.boss);
     // your shots, beams, lightning
@@ -956,7 +994,8 @@ Object.assign(Stage.prototype, {
       ctx.beginPath(); ctx.arc(x, y, b.k === 'shard' ? 5 : 6, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
       ctx.fillStyle = '#A81000';
       for (let k = 1; k <= 2; k++) ctx.fillRect(Math.round(x - ux * (3 + 3 * k)) - 1, Math.round(y - uy * (3 + 3 * k)) - 1, k === 1 ? 2 : 1, k === 1 ? 2 : 1);
-      if (b.k === 'egg') {
+      if (GX_BULLET_DRAW[b.k]) GX_BULLET_DRAW[b.k](ctx, x, y, f, hot, b);
+      else if (b.k === 'egg') {
         // a rotten egg: dark outline, a red glow, a speckled shell
         ctx.fillStyle = hot; ctx.fillRect(x - 3, y - 2, 6, 6); ctx.fillRect(x - 2, y - 3, 4, 8);
         ctx.fillStyle = '#280000'; ctx.fillRect(x - 2, y - 2, 4, 5);
@@ -1018,20 +1057,25 @@ Object.assign(Stage.prototype, {
   },
 
   gxDrawBoss(ctx, b) {
-    const def = GX_BOSSES[this.galaxy.sec], f = def.eye ? (b.open ? 0 : 1) : (this.frame >> 3) & 1;
-    const v = b.flash > 0 ? 'f' : b.stagger > 0 && (this.frame >> 2) & 1 ? 'r' : 'n', img = GxGfx.boss(b.key, f, v, b.ph);
+    const def = GX_BOSSES[this.galaxy.sec], f = def.frame ? def.frame(b, this.frame) : def.eye ? (b.open ? 0 : 1) : (this.frame >> 3) & 1;
+    if (def.drawUnder) def.drawUnder.call(this, ctx, b);
+    // hit: it flickers white (every other frame, so it keeps its looks under constant fire)
+    const v = b.flash > 0 && (this.frame >> 1) & 1 ? 'f' : b.stagger > 0 && (this.frame >> 2) & 1 ? 'r' : 'n', img = GxGfx.boss(b.key, f, v, b.ph);
     // its beams under it: the warning line, then the beam
     for (const bm of b.beams) {
       const on = bm.t >= bm.warn;
       if (!on && !((bm.t >> 2) & 1)) continue;
       ctx.fillStyle = on ? ((bm.t >> 1) & 1 ? (bm.kind === 'ice' ? '#A8E8F8' : '#F83800') : '#F8F8F8') : (bm.kind === 'ice' ? '#3CBCFC' : '#F83800');
       if (bm.kind === 'ice') ctx.fillRect(Math.round(bm.x) - (on ? 6 : 0), 0, on ? 12 : 1, VIEW_H);
+      else if (bm.w) gxDrawColumn(ctx, bm, on, this.frame);
       else {
+        if (bm.col) ctx.fillStyle = on ? ((bm.t >> 1) & 1 ? bm.col : '#F8F8F8') : bm.col;
         const dx = bm.tx - bm.x, dy = bm.ty - bm.y0, L = Math.hypot(dx, dy) || 1, n = Math.ceil(Math.max(VIEW_W, VIEW_H) * 1.5);
         for (let i = 0; i < n; i += on ? 1 : 3) { const px = bm.x + dx / L * i, py = bm.y0 + dy / L * i; if (py > VIEW_H || px < 0 || px > VIEW_W) break; ctx.fillRect(Math.round(px) - (on ? 2 : 0), Math.round(py), on ? 5 : 1, 1); }
       }
     }
     ctx.drawImage(img, Math.round(b.x - b.w / 2), Math.round(b.y));
+    if (def.drawOver) def.drawOver.call(this, ctx, b);
     for (const o of b.orbs) {
       if (o.hp <= 0) continue;
       const [ox, oy] = this.gxOrbPos(b, o);
@@ -1039,6 +1083,8 @@ Object.assign(Stage.prototype, {
       ctx.fillStyle = o.flash > 0 ? '#F8F8F8' : (this.frame >> 2) & 1 ? '#F8F878' : '#F8B800'; ctx.beginPath(); ctx.arc(ox, oy, 5, 0, Math.PI * 2); ctx.fill();
       if (o.flash > 0) o.flash--;
     }
+    // what it says, in a box under it
+    if (b.say) gxSpeech(ctx, b.say.text, b.x, b.y + b.h + 3);
   },
 
   // the side panel: per player, lives, the weapon and its power, bombs; the border above: sector and wave
@@ -1066,7 +1112,7 @@ Object.assign(Stage.prototype, {
     const g = this.galaxy, r = n => Math.round(n * 10) / 10;
     return {
       lv: g.level, w: g.wave, ph: g.phase, bn: g.banner, fl: g.flash,
-      l: g.list.map(e => [e.type, r(e.x), r(e.y), e.flash > 0 ? 1 : 0]),
+      l: g.list.map(e => [e.type, r(e.x), r(e.y), e.flash > 0 ? 1 : 0, e.v || 0, e.warnT || 0]),
       s: g.shots.map(s => [r(s.x), r(s.y), s.k, s.o, s.r || 0]),
       b: g.bullets.map(b => [r(b.x), r(b.y), b.k, r(b.vx || 0), r(b.vy || 0)]),
       u: g.pickups.map(u => [r(u.x), r(u.y), u.k, u.t, u.w]),
@@ -1079,7 +1125,7 @@ Object.assign(Stage.prototype, {
     if (!this.galaxy || this.galaxy.level !== v.lv) this.setupGalaxy(v.lv);
     const g = this.galaxy;
     g.wave = v.w; g.phase = v.ph; g.banner = v.bn; g.flash = v.fl;
-    g.list = v.l.map(a => ({ type: a[0], x: a[1], y: a[2], flash: a[3] }));
+    g.list = v.l.map(a => ({ type: a[0], x: a[1], y: a[2], flash: a[3], v: a[4] || null, warnT: a[5] || 0 }));
     g.shots = v.s.map(a => ({ x: a[0], y: a[1], k: a[2], o: a[3], r: a[4] }));
     g.bullets = v.b.map(a => ({ x: a[0], y: a[1], k: a[2], vx: a[3] || 0, vy: a[4] || 0 }));
     g.pickups = v.u.map(a => ({ x: a[0], y: a[1], k: a[2], t: a[3], w: a[4] }));

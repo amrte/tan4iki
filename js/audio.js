@@ -307,6 +307,39 @@ const Sound = {
       case 'gxPop': // a small ship bursts
         this.noise(2600, t, [[0, 0.3], [0.1, 0.12], [0.16, 0]], 900);
         break;
+      // GALAXY's later sectors (galaxy2.js)
+      case 'honk': // a flying taxi's horn
+        this.note(64, t, 0.12, { vol: 0.08, flat: true, wave: 'p25' }); this.note(68, t, 0.12, { vol: 0.06, flat: true, wave: 'p50' });
+        break;
+      case 'moo':
+        this.note(52, t, 0.45, { vol: 0.16, slideTo: 130, wave: 'p25', decayTo: 0.5 });
+        break;
+      case 'march0': case 'march1': case 'march2': case 'march3': // the invaders' four-note footsteps
+        this.note([45, 43, 41, 40][+name[5]], t, 0.07, { vol: 0.22, wave: 'tri', flat: true });
+        break;
+      case 'ack': // martian chatter
+        this.seq([84, 79, 86, 77], 0.04, t, { vol: 0.06, wave: 'p12', flat: true });
+        break;
+      case 'yodel':
+        this.seq([67, 76, 67, 79, 67, 84], 0.09, t, { vol: 0.12, wave: 'p25', decayTo: 0.6 });
+        break;
+      case 'mph': // the time car revs up
+        this.note(40, t, 0.7, { vol: 0.14, slideTo: 600, wave: 'p25', flat: true });
+        this.noise(4000, t, [[0, 0.06], [0.6, 0.14], [0.7, 0]], 9000);
+        break;
+      case 'adapt': // the cube adapts: a low hum
+        this.note(36, t, 0.6, { vol: 0.16, wave: 'tri', flat: true }); this.note(43, t, 0.6, { vol: 0.07, wave: 'p50', decayTo: 0.4 });
+        break;
+      case 'cityBlast': // the city killer's beam
+        this.noise(800, t, [[0, 0.6], [0.6, 0.5], [1.1, 0]], 150);
+        this.note(55, t, 0.9, { vol: 0.15, slideTo: 50, wave: 'p50' });
+        break;
+      case 'talk': // a villain on the main screen
+        this.seq([60, 55, 62, 57, 59], 0.05, t, { vol: 0.07, wave: 'p12', flat: true });
+        break;
+      case 'ray': // a martian ray gun
+        this.note(2000, t, 0.1, { vol: 0.05, slideTo: 3200, wave: 'p12' });
+        break;
       case 'burrow':
         this.noise(500, t, [[0, 0.45], [0.4, 0.3], [0.55, 0]], 300);
         break;
