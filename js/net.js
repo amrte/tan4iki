@@ -218,7 +218,7 @@ const Net = {
     const r = n => Math.round(n * 10) / 10;
     const fxKind = f => (f.frames.length === 3 ? 's' : f.frames.length === 2 ? 'b' : 'B');
     const sv = {
-      id: st.netId, num: st.num, fr: st.frame, ov: st.over, ot: st.overTimer, ba: st.baseAlive, q: st.queue.length,
+      id: st.netId, num: st.num, fr: st.frame, ov: st.over, ot: st.overTimer, ba: st.baseAlive, q: st.queue.length, bd: st.bossDefeated ? 1 : 0,
       df: st.netDiff || [],
       tk: st.tanks.filter(t => t.alive).map(t => [t.x, t.y, t.dir, t.isPlayer ? 1 : 0, t.player ? t.player.i : -1, t.type, t.hp,
         t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow, t.reveal, t.ai, t.vet, t.segs ? t.segs.map(p => p[0] + ',' + p[1]).join(';') : 0,
@@ -388,7 +388,7 @@ const Net = {
     st.num = sv.num;
     st.players = G.players;
     st.twoP = G.players.length > 1;
-    st.frame = sv.fr; st.over = sv.ov; st.overTimer = sv.ot; st.baseAlive = sv.ba;
+    st.frame = sv.fr; st.over = sv.ov; st.overTimer = sv.ot; st.baseAlive = sv.ba; st.bossDefeated = !!sv.bd;
     st.queue = new Array(sv.q).fill(0);
     st.tanks = sv.tk.map(a => new Tank({
       x: a[0], y: a[1], dir: a[2], isPlayer: !!a[3], player: a[4] >= 0 ? G.players.find(p => p.i === a[4]) : null,

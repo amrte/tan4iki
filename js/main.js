@@ -83,8 +83,6 @@ const SHOP_ITEMS = [
   { id: 'claudeUp', up: 'claude', name: CLAUDE_UPGRADE.name, prices: CLAUDE_UPGRADE.prices, descs: CLAUDE_UPGRADE.descs, icon: PU.CLAUDE },
   { id: 'wingman', name: 'WINGMAN', price: 5000, icon: PU.TANK, desc: 'AN AI TANK FIGHTS BESIDE YOU' },
   { id: 'decoy', name: 'DECOY EAGLE', price: 3000, icon: PU.SHOVEL, desc: 'FAKE EAGLE LURES RUSHERS' },
-  { id: 'smoke', name: 'SMOKE', price: 1500, icon: PU.SMOKE, desc: 'SMOKE SCREEN AT STAGE START' },
-  { id: 'bridge', name: 'BRIDGE KIT', price: 1500, icon: PU.BRIDGE, desc: '2 BRIDGES: DRIVE INTO WATER' },
   // base upgrades: shared by the team, 3 levels each (base.js)
   ...BASE_UPGRADES.map((u, i) => ({ id: 'base_' + u.key, base: u.key, name: u.name, prices: u.prices, descs: u.descs, bicon: i })),
   { id: 'done', name: 'START STAGE' },
@@ -166,7 +164,6 @@ function shopStatus(item, p) {
     case 'ship': return p.ship ? { text: 'OWNED', max: true } : { text: '' };
     case 'mines': return { text: 'X' + (p.mines || 0), max: (p.mines || 0) >= 99 };
     case 'turret': return { text: 'X' + (p.turrets || 0), max: (p.turrets || 0) >= 9 };
-    case 'bridge': return { text: 'X' + (p.bridges || 0), max: (p.bridges || 0) >= 9 };
     case 'shovel': return p.shopShovel ? { text: 'READY', max: true } : { text: '' };
     case 'done': return { text: '' };
     default: return p.kit && p.kit[item.id] ? { text: 'READY', max: true } : { text: '' };
@@ -181,7 +178,6 @@ function shopApply(item, p) {
     return;
   }
   if (item.id === 'turret') { p.turrets = (p.turrets || 0) + 1; return; }
-  if (item.id === 'bridge') { p.bridges = (p.bridges || 0) + 2; return; }
   if (item.base || item.up) { const k = item.base || item.up; Game.base[k] = (Game.base[k] || 0) + 1; return; }
   switch (item.id) {
     case 'life': p.lives++; break;
@@ -677,6 +673,11 @@ const Game = {
 
   updateScore() {
     const sc = this.sc;
+    // Enter / fire: the whole tally at once, and again to go straight on
+    if (this.t > 10 && Input.menu().ok) {
+      if (sc.phase === 'rows') { sc.row = sc.rows.length; sc.n = 0; sc.phase = 'total'; sc.wait = 0; Sound.play('tick'); }
+      else if (sc.phase === 'done') sc.wait = 0;
+    }
     if (sc.wait > 0) { sc.wait--; return; }
     if (sc.phase === 'rows') {
       const maxK = Math.max(...this.players.map(p => this.rowKills(p, sc.row)));
@@ -760,6 +761,7 @@ const Game = {
       P.forEach((p, i) => Font.drawRight(ctx, p.kills.reduce((a, b) => a + b, 0), colX(i) + 24, 180, COL.white));
       if (sc.bonus >= 0) Font.drawCenter(ctx, 'BONUS! ' + ROMAN[sc.bonus] + '-PLAYER 1000 PTS', SW / 2, 202, COL.red);
     }
+    this.renderScoreHint(ctx);
   },
 
   renderScore(ctx) {
@@ -818,6 +820,11 @@ const Game = {
         Font.draw(ctx, '1000 PTS', x, 213, COL.white);
       }
     }
+    if (sc.bonus < 0) this.renderScoreHint(ctx);
+  },
+
+  renderScoreHint(ctx) {
+    if ((this.t >> 5) & 1) Font.drawCenter(ctx, this.sc.phase === 'rows' ? 'ENTER: SKIP' : 'ENTER: GO ON', SW / 2, 214, '#5C5C5C');
   },
 
   // ---------------------------------------------------------------- game modes
@@ -895,7 +902,7 @@ const Game = {
   },
 
   updateVsResult() {
-    if (this.t < 90 || !(Input.menu().ok || this.t > 600)) return;
+    if (this.t < 30 || !(Input.menu().ok || this.t > 600)) return;
     if (this.vsRes.final) { this.stage = null; this.toTitle(); this.titleY = 0; return; }
     this.round++;
     this.stageNum = this.stageNum % LEVELS.length + 1;

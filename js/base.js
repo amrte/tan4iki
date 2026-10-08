@@ -5,14 +5,12 @@
 //    WALLS    extra brick ring · steel inner corners · steel inner ring · steel outer corners · all-steel fortress
 //    ARMOR    the eagle survives 1-5 hits per stage
 //    REPAIR   a crew rebuilds one fortress block every 10 / 7 / 5 / 3 / 2 seconds
-//    GUN      the eagle shoots enemies lined up with it; faster and further each level, steel-breaking shells at 4,
-//             exploding shells at 5
+//    GUN      the eagle shoots enemies lined up with it: slow and short-ranged at first (every 3 s, 4 tiles),
+//             up to every 1.3 s and 8 tiles; steel-breaking shells at 5
 //    FIELD    2-10 armed mines in front of the fortress at the start of every stage
 //    TESLA    zaps every enemy within 2-4 tiles of the eagle, every 3 s down to every second
 //    TRAPS    tank traps: enemies near the eagle crawl (30%-70% slower, over 2.5-4.5 tiles)
 //    SUPPLY   a power-up is dropped by the fortress every 60 s down to every 20 s
-//    RADAR    1 stealth tanks always show · 2 see which tank is about to appear at each entry point
-//             3 spotters can't mark you
 // =====================================================================
 
 const BASE_UPGRADES = [
@@ -22,8 +20,8 @@ const BASE_UPGRADES = [
     descs: [1, 2, 3, 4, 5].map(n => 'EAGLE SURVIVES ' + n + (n > 1 ? ' HITS' : ' HIT')) },
   { key: 'repair', name: 'REPAIR CREW', prices: [2500, 4000, 6000, 8000, 10000],
     descs: [10, 7, 5, 3, 2].map(n => 'REBUILDS WALLS EVERY ' + n + ' S') },
-  { key: 'gun', name: 'EAGLE GUN', prices: [5000, 7000, 9000, 12000, 16000],
-    descs: ['SHOOTS TANKS IN LINE', 'FASTER, LONGER RANGE', 'FASTER STILL', 'SHELLS BREAK STEEL', 'EXPLODING SHELLS'] },
+  { key: 'gun', name: 'EAGLE GUN', prices: [6000, 9000, 12000, 15000, 20000],
+    descs: ['SHOOTS TANKS IN LINE', 'FASTER, LONGER RANGE', 'FASTER STILL', 'FASTER, LONGER STILL', 'SHELLS BREAK STEEL'] },
   { key: 'field', name: 'MINEFIELD', prices: [2000, 3000, 4000, 5000, 6000],
     descs: [2, 4, 6, 8, 10].map(n => n + ' MINES BEFORE THE EAGLE') },
   { key: 'tesla', name: 'TESLA COIL', prices: [6000, 8000, 10000, 13000, 16000],
@@ -32,12 +30,10 @@ const BASE_UPGRADES = [
     descs: [30, 40, 50, 60, 70].map(n => 'ENEMIES ' + n + '% SLOWER NEAR') },
   { key: 'supply', name: 'SUPPLY DROP', prices: [4000, 6000, 8000, 10000, 12000],
     descs: [60, 45, 35, 25, 20].map(n => 'POWER-UP EVERY ' + n + ' S') },
-  { key: 'radar', name: 'RADAR', prices: [3000, 5000, 7000],
-    descs: ['STEALTH TANKS SHOW', 'SEE WHO SPAWNS WHERE', 'SPOTTERS CAN\'T MARK YOU'] },
 ];
 const newBase = () => Object.fromEntries(BASE_UPGRADES.map(u => [u.key, 0]));
 const REPAIR_EVERY = [0, 600, 420, 300, 180, 120];
-const GUN_EVERY = [0, 110, 80, 60, 45, 35], GUN_RANGE = [0, 96, 128, 160, 192, 240];
+const GUN_EVERY = [0, 180, 150, 120, 100, 80], GUN_RANGE = [0, 64, 80, 96, 112, 128], GUN_SPEED = 3;
 const TESLA_EVERY = [0, 180, 150, 120, 90, 60], TESLA_RANGE = [0, 32, 40, 48, 56, 64];
 const TRAP_SLOW = [1, 0.7, 0.6, 0.5, 0.4, 0.3], TRAP_RANGE = [0, 40, 48, 56, 64, 72];
 const SUPPLY_EVERY = [0, 3600, 2700, 2100, 1500, 1200];
@@ -198,8 +194,8 @@ Object.assign(Stage.prototype, {
     // the shell starts outside the fortress so it never breaks its own walls
     const off = 8 + (this.base.walls >= 1 ? 16 : 8) + 2;
     this.bullets.push({
-      x: ex - 2 + DXY[best][0] * off, y: ey - 2 + DXY[best][1] * off, dir: best, speed: 4, owner: EAGLE_GUN, free: true,
-      isPlayer: true, eagle: true, power: g >= 4, cutter: false, alive: true, pierce: false, rocket: g >= 5,
+      x: ex - 2 + DXY[best][0] * off, y: ey - 2 + DXY[best][1] * off, dir: best, speed: GUN_SPEED, owner: EAGLE_GUN, free: true,
+      isPlayer: true, eagle: true, power: g >= 5, cutter: false, alive: true, pierce: false, rocket: false,
     });
     this.gunDir = best;
     this.gunT = GUN_EVERY[g];
@@ -262,7 +258,7 @@ Object.assign(Stage.prototype, {
       const cx = BASE_X + 8, cy = BASE_Y + 5;
       ctx.fillStyle = '#505050';
       ctx.fillRect(cx - 2, cy - 2, 4, 4);
-      ctx.fillStyle = this.base.gun >= 5 ? '#F87830' : this.base.gun >= 4 ? COL.gold : '#ADADAD';
+      ctx.fillStyle = this.base.gun >= 5 ? COL.gold : '#ADADAD';
       ctx.fillRect(cx - 1, cy - 1, 2, 2);
       const [dx, dy] = DXY[this.gunDir || 0];
       ctx.fillStyle = '#505050';

@@ -8,7 +8,8 @@
 //    HURT ME PLENTY        dorian, full drums
 //    ULTRA-VIOLENCE        harmonic minor, faster, a thin lead over racing arpeggios, busier drums
 //    NIGHTMARE!            phrygian dominant, fastest, a shadow voice a tritone below, double kicks and crashes
-//  It plays during the stages (after the start jingle) and on the mode's intro screen; pausing pauses it.
+//  It plays during the stages (after the start jingle) and on the mode's intro screen; pausing pauses it. Beat a boss
+//  and VICTORY! plays instead, on through the score tally.
 //  Settings -> GAME -> MUSIC and MUSIC VOLUME.
 // =====================================================================
 
@@ -37,6 +38,9 @@ const SONGS = {
     mel: '0.0.0.3.0.0.4.3.' + '0.0.0.3.0.0.5.4.' + '7.7.6.5.4.4.3.2.' + '1.1.2.3.4---z---' },
   ctf: { name: 'BRING IT HOME', root: 60, bpm: 124, groove: 'fanfare', prog: [0, 3, 0, 4],
     mel: '0-4-7---7-9-7---' + '5-4-3-4-5-------' + '4-5-7-4-3-4-2-0-' + '1-2-3-1-4-------' },
+  // not a mode: the celebration after you beat a boss (always in a major key, whatever the skill)
+  victory: { name: 'VICTORY!', root: 67, bpm: 144, groove: 'fanfare', prog: [0, 3, 4, 0], scale: [0, 2, 4, 5, 7, 9, 11],
+    mel: '0-0-0-4---3-4-5-' + '5-5-5-7---6-5-4-' + '4-5-7-9-7-5-4-2-' + '0-4-7-9-A-----.-' },
   cpu: { name: 'MACHINE WAR', root: 57, bpm: 140, groove: 'robot', prog: [0, 3, 5, 4],
     mel: '0707070704040404' + '3A3A3A3A29292929' + '5C5C5C5C4B4B4B4B' + '0-0-z-z-0-------' },
 };
@@ -73,7 +77,8 @@ const Music = {
 
   // the track for a mode and a skill (0-4)
   build(mode, skill) {
-    const song = SONGS[mode] || SONGS.classic, sk = MUSIC_SKILLS[skill] || MUSIC_SKILLS[2], gr = GROOVES[song.groove];
+    const song = SONGS[mode] || SONGS.classic, gr = GROOVES[song.groove];
+    const sk = Object.assign({}, MUSIC_SKILLS[skill] || MUSIC_SKILLS[2], song.scale ? { scale: song.scale } : {});
     const steps = song.steps || 16;
     return { song, sk, gr, steps, total: steps * song.prog.length, stepDur: 60 / (song.bpm * sk.tempo) / 4, key: mode + '/' + skill };
   },

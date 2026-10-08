@@ -1435,7 +1435,6 @@ class Stage {
   }
 
   shadeAlpha(t) {
-    if (this.base && this.base.radar >= 1) return Math.max(0.6, Math.min(1, 0.15 + t.reveal / 40));   // radar 1
     if (t.reveal > 0) return Math.min(1, 0.15 + t.reveal / 40);
     for (const o of this.tanks) {
       if (!o.isPlayer || !o.alive) continue;
@@ -1545,12 +1544,6 @@ class Stage {
       if (s.t > SPARKLE_TIME) continue;
       const k = Math.floor((SPARKLE_TIME - s.t) / 4) % 6;
       ctx.drawImage(Sprites.sparkle[[0, 1, 2, 3, 2, 1][k]], s.x, s.y);
-      // radar 2: see which tank is about to appear
-      if (s.enemy && this.base && this.base.radar >= 2 && (this.frame >> 3) & 1) {
-        ctx.globalAlpha = 0.5;
-        ctx.drawImage(Sprites.tank('e' + s.enemy.type, 0, 2, ENEMY[s.enemy.type].pal || 'silver'), s.x, s.y);
-        ctx.globalAlpha = 1;
-      }
     }
     for (const b of this.bullets) {
       const spr = b.rocket ? Sprites.bulletRocket : b.pierce ? Sprites.bulletPierce : Sprites.bullet;

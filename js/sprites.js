@@ -832,7 +832,7 @@ TANK_GRIDS.e16 = canvasEnemyGrids(['........', '........', '........', '.......1
   '...13122', '...11122', '...13111', '...111..', '........', '........', '........', '........']);
 
 // Base-upgrade shop icons (framed like the power-ups, in orange): walls, armor, repair, gun, minefield,
-// tesla, traps, supply, radar
+// tesla, traps, supply
 const BASE_ICON_MASKS = [
   [ // walls
     '............', 'XXXX.XXXX.XX', 'XXXX.XXXX.XX', '............', 'XX.XXXX.XXXX', 'XX.XXXX.XXXX', '............', 'XXXX.XXXX.XX', 'XXXX.XXXX.XX', '............', '............'],
@@ -850,8 +850,6 @@ const BASE_ICON_MASKS = [
     'X.........X.', '.X.......X..', '..X.....X...', '...XX.XX....', '....XXX.....', '....XXX.....', '...XX.XX....', '..X.....X...', '.X.......X..', 'XXX.....XXX.', '............'],
   [ // supply
     '...XXXXXX...', '.XX......XX.', 'X..........X', '.X...XX...X.', '..X..XX..X..', '...X.XX.X...', '..XXXXXXXX..', '..X.X..X.X..', '..XX.XX.XX..', '..XXXXXXXX..', '............'],
-  [ // radar
-    '.XX.........', 'X..XX.......', 'X....XX.....', '.X.....X....', '..X..X..X...', '...X.XX.X...', '....X..XX...', '.....XXXX...', '......XX....', '....XXXXXX..', '............'],
 ];
 
 // Turret: grey base plate (rotates never) and a gun in the owner's colours (rotated to aim)

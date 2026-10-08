@@ -280,7 +280,7 @@ FIT width, FILL scaling and fullscreen. On a 16:10 MacBook screen in fullscreen 
 
 ## Shop
 
-After each cleared stage, once the score tally finishes, the shop opens. The points you've earned are your money,
+After each cleared stage, once the score tally finishes (Enter shows it all at once, and again goes straight on), the shop opens. The points you've earned are your money,
 but spending them never lowers your score: the shop shows what you have left to spend, while your score (and the
 high score) keeps every point you earned. In 2-player games player I shops first, then player II. Use up/down to pick,
 **A** (fire/Enter) to buy, and **Esc** when you're done.
@@ -299,8 +299,6 @@ high score) keeps every point you earned. In 2-player games player I shops first
 | Claude | 6000 | Claude joins you at the start of the next stage |
 | Wingman | 5000 | an AI tank fights beside you next stage |
 | Decoy eagle | 3000 | a fake eagle lures rushing enemies next stage |
-| Smoke | 1500 | smoke screen when your tank first appears |
-| Bridge kit | 1500 | 2 bridges: drive into water to lay one |
 
 Upgrades you buy are kept until you lose a tank, as with ones picked up during play. In Settings → SHOP you can turn the shop off or
 scale all prices (25%–300%). There is no shop after a game over.
@@ -314,12 +312,11 @@ The status column shows the level you have (`L2/5`) and the line below says what
 | Base walls | extra brick ring / steel inner corners / steel inner ring / steel outer corners / all-steel fortress | 4000 – 18000 |
 | Eagle armor | the eagle survives 1 – 5 hits each stage (cyan outline, gold from 3) | 3000 – 15000 |
 | Repair crew | rebuilds one missing fortress block every 10 / 7 / 5 / 3 / 2 s | 2500 – 10000 |
-| Eagle gun | a turret on the eagle shoots enemies lined up above or beside it; range 6 → 15 tiles and faster each level; steel-breaking shells at 4, exploding shells at 5. Its shells pass through your tanks and never break the fortress; its kills earn no points | 5000 – 16000 |
+| Eagle gun | a turret on the eagle shoots enemies lined up above or beside it: every 3 s and 4 tiles at level 1, up to every 1.3 s and 8 tiles at level 5, where its shells also break steel. Its shells pass through your tanks and never break the fortress; its kills earn no points | 6000 – 20000 |
 | Minefield | 2 / 4 / 6 / 8 / 10 armed mines in front of the fortress at the start of each stage (on any ground a tank can drive on: open, trees, ice, mud, bridges, belts; your mines always show, even under trees) | 2000 – 6000 |
 | Tesla coil | zaps every enemy within 2 → 4 tiles of the eagle, every 3 s → every second | 6000 – 16000 |
 | Tank traps | enemies near the eagle (2.5 → 4.5 tiles) move 30% → 70% slower; a dotted arc marks the zone | 2500 – 9000 |
 | Supply drop | a power-up lands just in front of the fortress every 60 / 45 / 35 / 25 / 20 s | 4000 – 12000 |
-| Radar (3 levels) | stealth tanks always show / see which tank is about to appear at each entry point / spotters can't mark you | 3000 – 7000 |
 
 After a shovel runs out, the walls go back to their upgraded state, not plain brick. Settings → SHOP → BASE UPGRADES
 turns them off.
@@ -353,9 +350,9 @@ These 14 were not in the original game. They're marked with `*` in Settings and 
   for you. Losing it costs no life.
 - **Decoy eagle** (shop, 3000): a fake eagle (straw-coloured outline) stands in the middle of the field. Rushing
   enemies, base hunters and snipers go for it first; it takes 2 hits.
-- **Smoke** (power-up, or 1500 in the shop for the start of a stage): for 15 s enemies, their turrets, spotters and
+- **Smoke** (power-up): for 15 s enemies, their turrets, spotters and
   bosses lose track of you (they still bump into you). An enemy that grabs it fades into smoke.
-- **Bridge kit** (power-up gives 2, shop 1500 for 2): drive into water and a bridge is laid straight across it; it
+- **Bridge kit** (the power-up gives 2): drive into water and a bridge is laid straight across it; it
   stays for the stage and anyone can use it. Carried kits show as brown dots in the side panel. An enemy that grabs
   the power-up can cross water.
 
@@ -422,6 +419,8 @@ pulse leads, a triangle bass and noise drums, and every skill plays it different
 | Hurt me plenty | dorian | 100% | full drums, lower bass |
 | Ultra-violence | harmonic minor | 110% | a thin lead over racing arpeggios, busier drums |
 | Nightmare! | phrygian dominant | 122% | a shadow voice a tritone below, double kicks and crashes |
+
+Beat a boss and VICTORY! (always in a major key) plays instead, on through the score tally.
 
 The music starts after the stage's start jingle, pauses with the game and stops on game over; on AUTO it follows the
 level AUTO is at. Settings → GAME → MUSIC (on/off) and MUSIC VOLUME (50%).

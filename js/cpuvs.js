@@ -13,6 +13,8 @@ const CPU_UPGRADES = [
   ['field', 'MINEFIELD'], ['tesla', 'TESLA COIL'], ['traps', 'TANK TRAPS'],
 ];
 const CPU_HQ_PTS = 2000, CPU_HQ_ROUND_PTS = 500;
+// the enemy HQ's gun keeps its own pace (your eagle gun was toned down in 0.29; theirs wasn't)
+const CPU_GUN_EVERY = [0, 110, 80, 60, 45, 35], CPU_GUN_RANGE = [0, 96, 128, 160, 192, 240];
 
 // the enemy HQ's upgrade levels (0-5) in round r
 function cpuBase(r) {
@@ -126,7 +128,7 @@ Object.assign(Stage.prototype, {
   cpuShoot(g) {
     const c = this.cpu, ex = c.x + 8, ey = c.y + 8;
     c.gunT = 12;
-    let best = null, bd = GUN_RANGE[g];
+    let best = null, bd = CPU_GUN_RANGE[g];
     for (const t of this.tanks) {
       if (!t.alive || !t.isPlayer || t.boost.smoke) continue;
       const dx = t.x + 8 - ex, dy = t.y + 8 - ey;
@@ -144,7 +146,7 @@ Object.assign(Stage.prototype, {
       owner: { isPlayer: false, bullets: 0 }, isPlayer: false, power: g >= 4, cutter: false, alive: true, pierce: false, rocket: g >= 5,
     });
     c.gunDir = best;
-    c.gunT = GUN_EVERY[g];
+    c.gunT = CPU_GUN_EVERY[g];
     Sound.play('shot');
   },
 

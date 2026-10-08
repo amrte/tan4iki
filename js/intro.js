@@ -444,6 +444,7 @@ Object.assign(Game, {
     const st = this.stage, s = this.state;
     let mode = null;
     if (s === 'modeIntro') mode = this.mode;
+    else if (st && st.bossDefeated && (s === 'play' || s === 'score')) mode = 'victory';   // a boss beaten: celebrate
     else if (s === 'play' && st && !st.over && st.frame > MUSIC_DELAY) mode = this.mode;
     Music.want(mode, Music.skillLevel(), s === 'play' && this.paused);
   },

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.28</title>
+  <title>tanb4iki_v0.29</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.28';
+const APP_VERSION = '0.29';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -1815,7 +1815,7 @@ TANK_GRIDS.e16 = canvasEnemyGrids(['........', '........', '........', '.......1
   '...13122', '...11122', '...13111', '...111..', '........', '........', '........', '........']);
 
 // Base-upgrade shop icons (framed like the power-ups, in orange): walls, armor, repair, gun, minefield,
-// tesla, traps, supply, radar
+// tesla, traps, supply
 const BASE_ICON_MASKS = [
   [ // walls
     '............', 'XXXX.XXXX.XX', 'XXXX.XXXX.XX', '............', 'XX.XXXX.XXXX', 'XX.XXXX.XXXX', '............', 'XXXX.XXXX.XX', 'XXXX.XXXX.XX', '............', '............'],
@@ -1833,8 +1833,6 @@ const BASE_ICON_MASKS = [
     'X.........X.', '.X.......X..', '..X.....X...', '...XX.XX....', '....XXX.....', '....XXX.....', '...XX.XX....', '..X.....X...', '.X.......X..', 'XXX.....XXX.', '............'],
   [ // supply
     '...XXXXXX...', '.XX......XX.', 'X..........X', '.X...XX...X.', '..X..XX..X..', '...X.XX.X...', '..XXXXXXXX..', '..X.X..X.X..', '..XX.XX.XX..', '..XXXXXXXX..', '............'],
-  [ // radar
-    '.XX.........', 'X..XX.......', 'X....XX.....', '.X.....X....', '..X..X..X...', '...X.XX.X...', '....X..XX...', '.....XXXX...', '......XX....', '....XXXXXX..', '............'],
 ];
 
 // Turret: grey base plate (rotates never) and a gun in the owner's colours (rotated to aim)
@@ -3101,7 +3099,8 @@ const Sound = {
 //    HURT ME PLENTY        dorian, full drums
 //    ULTRA-VIOLENCE        harmonic minor, faster, a thin lead over racing arpeggios, busier drums
 //    NIGHTMARE!            phrygian dominant, fastest, a shadow voice a tritone below, double kicks and crashes
-//  It plays during the stages (after the start jingle) and on the mode's intro screen; pausing pauses it.
+//  It plays during the stages (after the start jingle) and on the mode's intro screen; pausing pauses it. Beat a boss
+//  and VICTORY! plays instead, on through the score tally.
 //  Settings -> GAME -> MUSIC and MUSIC VOLUME.
 // =====================================================================
 
@@ -3130,6 +3129,9 @@ const SONGS = {
     mel: '0.0.0.3.0.0.4.3.' + '0.0.0.3.0.0.5.4.' + '7.7.6.5.4.4.3.2.' + '1.1.2.3.4---z---' },
   ctf: { name: 'BRING IT HOME', root: 60, bpm: 124, groove: 'fanfare', prog: [0, 3, 0, 4],
     mel: '0-4-7---7-9-7---' + '5-4-3-4-5-------' + '4-5-7-4-3-4-2-0-' + '1-2-3-1-4-------' },
+  // not a mode: the celebration after you beat a boss (always in a major key, whatever the skill)
+  victory: { name: 'VICTORY!', root: 67, bpm: 144, groove: 'fanfare', prog: [0, 3, 4, 0], scale: [0, 2, 4, 5, 7, 9, 11],
+    mel: '0-0-0-4---3-4-5-' + '5-5-5-7---6-5-4-' + '4-5-7-9-7-5-4-2-' + '0-4-7-9-A-----.-' },
   cpu: { name: 'MACHINE WAR', root: 57, bpm: 140, groove: 'robot', prog: [0, 3, 5, 4],
     mel: '0707070704040404' + '3A3A3A3A29292929' + '5C5C5C5C4B4B4B4B' + '0-0-z-z-0-------' },
 };
@@ -3166,7 +3168,8 @@ const Music = {
 
   // the track for a mode and a skill (0-4)
   build(mode, skill) {
-    const song = SONGS[mode] || SONGS.classic, sk = MUSIC_SKILLS[skill] || MUSIC_SKILLS[2], gr = GROOVES[song.groove];
+    const song = SONGS[mode] || SONGS.classic, gr = GROOVES[song.groove];
+    const sk = Object.assign({}, MUSIC_SKILLS[skill] || MUSIC_SKILLS[2], song.scale ? { scale: song.scale } : {});
     const steps = song.steps || 16;
     return { song, sk, gr, steps, total: steps * song.prog.length, stepDur: 60 / (song.bpm * sk.tempo) / 4, key: mode + '/' + skill };
   },
@@ -5157,7 +5160,6 @@ class Stage {
   }
 
   shadeAlpha(t) {
-    if (this.base && this.base.radar >= 1) return Math.max(0.6, Math.min(1, 0.15 + t.reveal / 40));   // radar 1
     if (t.reveal > 0) return Math.min(1, 0.15 + t.reveal / 40);
     for (const o of this.tanks) {
       if (!o.isPlayer || !o.alive) continue;
@@ -5267,12 +5269,6 @@ class Stage {
       if (s.t > SPARKLE_TIME) continue;
       const k = Math.floor((SPARKLE_TIME - s.t) / 4) % 6;
       ctx.drawImage(Sprites.sparkle[[0, 1, 2, 3, 2, 1][k]], s.x, s.y);
-      // radar 2: see which tank is about to appear
-      if (s.enemy && this.base && this.base.radar >= 2 && (this.frame >> 3) & 1) {
-        ctx.globalAlpha = 0.5;
-        ctx.drawImage(Sprites.tank('e' + s.enemy.type, 0, 2, ENEMY[s.enemy.type].pal || 'silver'), s.x, s.y);
-        ctx.globalAlpha = 1;
-      }
     }
     for (const b of this.bullets) {
       const spr = b.rocket ? Sprites.bulletRocket : b.pierce ? Sprites.bulletPierce : Sprites.bullet;
@@ -5867,7 +5863,6 @@ Object.assign(Stage.prototype, {
 
   // a spotter sees along its row or column, until steel, brick or trees block the view
   spotterLook(t) {
-    if (this.base && this.base.radar >= 3) return;   // radar 3: spotters can't mark you
     for (const o of this.tanks) {
       if (!o.isPlayer || !o.alive || o.boost.smoke) continue;
       const dx = o.x - t.x, dy = o.y - t.y;
@@ -5968,14 +5963,12 @@ Object.assign(Stage.prototype, {
 //    WALLS    extra brick ring · steel inner corners · steel inner ring · steel outer corners · all-steel fortress
 //    ARMOR    the eagle survives 1-5 hits per stage
 //    REPAIR   a crew rebuilds one fortress block every 10 / 7 / 5 / 3 / 2 seconds
-//    GUN      the eagle shoots enemies lined up with it; faster and further each level, steel-breaking shells at 4,
-//             exploding shells at 5
+//    GUN      the eagle shoots enemies lined up with it: slow and short-ranged at first (every 3 s, 4 tiles),
+//             up to every 1.3 s and 8 tiles; steel-breaking shells at 5
 //    FIELD    2-10 armed mines in front of the fortress at the start of every stage
 //    TESLA    zaps every enemy within 2-4 tiles of the eagle, every 3 s down to every second
 //    TRAPS    tank traps: enemies near the eagle crawl (30%-70% slower, over 2.5-4.5 tiles)
 //    SUPPLY   a power-up is dropped by the fortress every 60 s down to every 20 s
-//    RADAR    1 stealth tanks always show · 2 see which tank is about to appear at each entry point
-//             3 spotters can't mark you
 // =====================================================================
 
 const BASE_UPGRADES = [
@@ -5985,8 +5978,8 @@ const BASE_UPGRADES = [
     descs: [1, 2, 3, 4, 5].map(n => 'EAGLE SURVIVES ' + n + (n > 1 ? ' HITS' : ' HIT')) },
   { key: 'repair', name: 'REPAIR CREW', prices: [2500, 4000, 6000, 8000, 10000],
     descs: [10, 7, 5, 3, 2].map(n => 'REBUILDS WALLS EVERY ' + n + ' S') },
-  { key: 'gun', name: 'EAGLE GUN', prices: [5000, 7000, 9000, 12000, 16000],
-    descs: ['SHOOTS TANKS IN LINE', 'FASTER, LONGER RANGE', 'FASTER STILL', 'SHELLS BREAK STEEL', 'EXPLODING SHELLS'] },
+  { key: 'gun', name: 'EAGLE GUN', prices: [6000, 9000, 12000, 15000, 20000],
+    descs: ['SHOOTS TANKS IN LINE', 'FASTER, LONGER RANGE', 'FASTER STILL', 'FASTER, LONGER STILL', 'SHELLS BREAK STEEL'] },
   { key: 'field', name: 'MINEFIELD', prices: [2000, 3000, 4000, 5000, 6000],
     descs: [2, 4, 6, 8, 10].map(n => n + ' MINES BEFORE THE EAGLE') },
   { key: 'tesla', name: 'TESLA COIL', prices: [6000, 8000, 10000, 13000, 16000],
@@ -5995,12 +5988,10 @@ const BASE_UPGRADES = [
     descs: [30, 40, 50, 60, 70].map(n => 'ENEMIES ' + n + '% SLOWER NEAR') },
   { key: 'supply', name: 'SUPPLY DROP', prices: [4000, 6000, 8000, 10000, 12000],
     descs: [60, 45, 35, 25, 20].map(n => 'POWER-UP EVERY ' + n + ' S') },
-  { key: 'radar', name: 'RADAR', prices: [3000, 5000, 7000],
-    descs: ['STEALTH TANKS SHOW', 'SEE WHO SPAWNS WHERE', 'SPOTTERS CAN\'T MARK YOU'] },
 ];
 const newBase = () => Object.fromEntries(BASE_UPGRADES.map(u => [u.key, 0]));
 const REPAIR_EVERY = [0, 600, 420, 300, 180, 120];
-const GUN_EVERY = [0, 110, 80, 60, 45, 35], GUN_RANGE = [0, 96, 128, 160, 192, 240];
+const GUN_EVERY = [0, 180, 150, 120, 100, 80], GUN_RANGE = [0, 64, 80, 96, 112, 128], GUN_SPEED = 3;
 const TESLA_EVERY = [0, 180, 150, 120, 90, 60], TESLA_RANGE = [0, 32, 40, 48, 56, 64];
 const TRAP_SLOW = [1, 0.7, 0.6, 0.5, 0.4, 0.3], TRAP_RANGE = [0, 40, 48, 56, 64, 72];
 const SUPPLY_EVERY = [0, 3600, 2700, 2100, 1500, 1200];
@@ -6161,8 +6152,8 @@ Object.assign(Stage.prototype, {
     // the shell starts outside the fortress so it never breaks its own walls
     const off = 8 + (this.base.walls >= 1 ? 16 : 8) + 2;
     this.bullets.push({
-      x: ex - 2 + DXY[best][0] * off, y: ey - 2 + DXY[best][1] * off, dir: best, speed: 4, owner: EAGLE_GUN, free: true,
-      isPlayer: true, eagle: true, power: g >= 4, cutter: false, alive: true, pierce: false, rocket: g >= 5,
+      x: ex - 2 + DXY[best][0] * off, y: ey - 2 + DXY[best][1] * off, dir: best, speed: GUN_SPEED, owner: EAGLE_GUN, free: true,
+      isPlayer: true, eagle: true, power: g >= 5, cutter: false, alive: true, pierce: false, rocket: false,
     });
     this.gunDir = best;
     this.gunT = GUN_EVERY[g];
@@ -6225,7 +6216,7 @@ Object.assign(Stage.prototype, {
       const cx = BASE_X + 8, cy = BASE_Y + 5;
       ctx.fillStyle = '#505050';
       ctx.fillRect(cx - 2, cy - 2, 4, 4);
-      ctx.fillStyle = this.base.gun >= 5 ? '#F87830' : this.base.gun >= 4 ? COL.gold : '#ADADAD';
+      ctx.fillStyle = this.base.gun >= 5 ? COL.gold : '#ADADAD';
       ctx.fillRect(cx - 1, cy - 1, 2, 2);
       const [dx, dy] = DXY[this.gunDir || 0];
       ctx.fillStyle = '#505050';
@@ -7900,6 +7891,8 @@ const CPU_UPGRADES = [
   ['field', 'MINEFIELD'], ['tesla', 'TESLA COIL'], ['traps', 'TANK TRAPS'],
 ];
 const CPU_HQ_PTS = 2000, CPU_HQ_ROUND_PTS = 500;
+// the enemy HQ's gun keeps its own pace (your eagle gun was toned down in 0.29; theirs wasn't)
+const CPU_GUN_EVERY = [0, 110, 80, 60, 45, 35], CPU_GUN_RANGE = [0, 96, 128, 160, 192, 240];
 
 // the enemy HQ's upgrade levels (0-5) in round r
 function cpuBase(r) {
@@ -8013,7 +8006,7 @@ Object.assign(Stage.prototype, {
   cpuShoot(g) {
     const c = this.cpu, ex = c.x + 8, ey = c.y + 8;
     c.gunT = 12;
-    let best = null, bd = GUN_RANGE[g];
+    let best = null, bd = CPU_GUN_RANGE[g];
     for (const t of this.tanks) {
       if (!t.alive || !t.isPlayer || t.boost.smoke) continue;
       const dx = t.x + 8 - ex, dy = t.y + 8 - ey;
@@ -8031,7 +8024,7 @@ Object.assign(Stage.prototype, {
       owner: { isPlayer: false, bullets: 0 }, isPlayer: false, power: g >= 4, cutter: false, alive: true, pierce: false, rocket: g >= 5,
     });
     c.gunDir = best;
-    c.gunT = GUN_EVERY[g];
+    c.gunT = CPU_GUN_EVERY[g];
     Sound.play('shot');
   },
 
@@ -9428,7 +9421,7 @@ const Net = {
     const r = n => Math.round(n * 10) / 10;
     const fxKind = f => (f.frames.length === 3 ? 's' : f.frames.length === 2 ? 'b' : 'B');
     const sv = {
-      id: st.netId, num: st.num, fr: st.frame, ov: st.over, ot: st.overTimer, ba: st.baseAlive, q: st.queue.length,
+      id: st.netId, num: st.num, fr: st.frame, ov: st.over, ot: st.overTimer, ba: st.baseAlive, q: st.queue.length, bd: st.bossDefeated ? 1 : 0,
       df: st.netDiff || [],
       tk: st.tanks.filter(t => t.alive).map(t => [t.x, t.y, t.dir, t.isPlayer ? 1 : 0, t.player ? t.player.i : -1, t.type, t.hp,
         t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow, t.reveal, t.ai, t.vet, t.segs ? t.segs.map(p => p[0] + ',' + p[1]).join(';') : 0,
@@ -9598,7 +9591,7 @@ const Net = {
     st.num = sv.num;
     st.players = G.players;
     st.twoP = G.players.length > 1;
-    st.frame = sv.fr; st.over = sv.ov; st.overTimer = sv.ot; st.baseAlive = sv.ba;
+    st.frame = sv.fr; st.over = sv.ov; st.overTimer = sv.ot; st.baseAlive = sv.ba; st.bossDefeated = !!sv.bd;
     st.queue = new Array(sv.q).fill(0);
     st.tanks = sv.tk.map(a => new Tank({
       x: a[0], y: a[1], dir: a[2], isPlayer: !!a[3], player: a[4] >= 0 ? G.players.find(p => p.i === a[4]) : null,
@@ -9924,8 +9917,6 @@ const SHOP_ITEMS = [
   { id: 'claudeUp', up: 'claude', name: CLAUDE_UPGRADE.name, prices: CLAUDE_UPGRADE.prices, descs: CLAUDE_UPGRADE.descs, icon: PU.CLAUDE },
   { id: 'wingman', name: 'WINGMAN', price: 5000, icon: PU.TANK, desc: 'AN AI TANK FIGHTS BESIDE YOU' },
   { id: 'decoy', name: 'DECOY EAGLE', price: 3000, icon: PU.SHOVEL, desc: 'FAKE EAGLE LURES RUSHERS' },
-  { id: 'smoke', name: 'SMOKE', price: 1500, icon: PU.SMOKE, desc: 'SMOKE SCREEN AT STAGE START' },
-  { id: 'bridge', name: 'BRIDGE KIT', price: 1500, icon: PU.BRIDGE, desc: '2 BRIDGES: DRIVE INTO WATER' },
   // base upgrades: shared by the team, 3 levels each (base.js)
   ...BASE_UPGRADES.map((u, i) => ({ id: 'base_' + u.key, base: u.key, name: u.name, prices: u.prices, descs: u.descs, bicon: i })),
   { id: 'done', name: 'START STAGE' },
@@ -10007,7 +9998,6 @@ function shopStatus(item, p) {
     case 'ship': return p.ship ? { text: 'OWNED', max: true } : { text: '' };
     case 'mines': return { text: 'X' + (p.mines || 0), max: (p.mines || 0) >= 99 };
     case 'turret': return { text: 'X' + (p.turrets || 0), max: (p.turrets || 0) >= 9 };
-    case 'bridge': return { text: 'X' + (p.bridges || 0), max: (p.bridges || 0) >= 9 };
     case 'shovel': return p.shopShovel ? { text: 'READY', max: true } : { text: '' };
     case 'done': return { text: '' };
     default: return p.kit && p.kit[item.id] ? { text: 'READY', max: true } : { text: '' };
@@ -10022,7 +10012,6 @@ function shopApply(item, p) {
     return;
   }
   if (item.id === 'turret') { p.turrets = (p.turrets || 0) + 1; return; }
-  if (item.id === 'bridge') { p.bridges = (p.bridges || 0) + 2; return; }
   if (item.base || item.up) { const k = item.base || item.up; Game.base[k] = (Game.base[k] || 0) + 1; return; }
   switch (item.id) {
     case 'life': p.lives++; break;
@@ -10518,6 +10507,11 @@ const Game = {
 
   updateScore() {
     const sc = this.sc;
+    // Enter / fire: the whole tally at once, and again to go straight on
+    if (this.t > 10 && Input.menu().ok) {
+      if (sc.phase === 'rows') { sc.row = sc.rows.length; sc.n = 0; sc.phase = 'total'; sc.wait = 0; Sound.play('tick'); }
+      else if (sc.phase === 'done') sc.wait = 0;
+    }
     if (sc.wait > 0) { sc.wait--; return; }
     if (sc.phase === 'rows') {
       const maxK = Math.max(...this.players.map(p => this.rowKills(p, sc.row)));
@@ -10601,6 +10595,7 @@ const Game = {
       P.forEach((p, i) => Font.drawRight(ctx, p.kills.reduce((a, b) => a + b, 0), colX(i) + 24, 180, COL.white));
       if (sc.bonus >= 0) Font.drawCenter(ctx, 'BONUS! ' + ROMAN[sc.bonus] + '-PLAYER 1000 PTS', SW / 2, 202, COL.red);
     }
+    this.renderScoreHint(ctx);
   },
 
   renderScore(ctx) {
@@ -10659,6 +10654,11 @@ const Game = {
         Font.draw(ctx, '1000 PTS', x, 213, COL.white);
       }
     }
+    if (sc.bonus < 0) this.renderScoreHint(ctx);
+  },
+
+  renderScoreHint(ctx) {
+    if ((this.t >> 5) & 1) Font.drawCenter(ctx, this.sc.phase === 'rows' ? 'ENTER: SKIP' : 'ENTER: GO ON', SW / 2, 214, '#5C5C5C');
   },
 
   // ---------------------------------------------------------------- game modes
@@ -10736,7 +10736,7 @@ const Game = {
   },
 
   updateVsResult() {
-    if (this.t < 90 || !(Input.menu().ok || this.t > 600)) return;
+    if (this.t < 30 || !(Input.menu().ok || this.t > 600)) return;
     if (this.vsRes.final) { this.stage = null; this.toTitle(); this.titleY = 0; return; }
     this.round++;
     this.stageNum = this.stageNum % LEVELS.length + 1;
@@ -12304,6 +12304,7 @@ Object.assign(Game, {
     const st = this.stage, s = this.state;
     let mode = null;
     if (s === 'modeIntro') mode = this.mode;
+    else if (st && st.bossDefeated && (s === 'play' || s === 'score')) mode = 'victory';   // a boss beaten: celebrate
     else if (s === 'play' && st && !st.over && st.frame > MUSIC_DELAY) mode = this.mode;
     Music.want(mode, Music.skillLevel(), s === 'play' && this.paused);
   },

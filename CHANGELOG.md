@@ -3,6 +3,18 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.29
+
+- **Shop trimmed:** SMOKE and BRIDGE KIT are gone from the shop (both are still power-ups on the field), and the RADAR
+  base upgrade is gone.
+- **Eagle gun toned down:** it fires every 3 s at level 1 down to every 1.3 s at level 5 (was 1.8 s → 0.6 s), reaches
+  4 → 8 tiles (was 6 → 15), its shells are slower, steel-breaking shells come only at level 5 and the exploding shells
+  are gone. Prices 6000 – 20000 (were 5000 – 16000). The enemy HQ's gun in VS CPU is unchanged.
+- **Skip the score tally:** Enter (or fire) after a stage shows the whole tally at once; press it again to go straight
+  on. Left alone it runs as before. The VS round result can be skipped sooner too.
+- **Victory music:** beat a boss and VICTORY!, a fanfare in a major key, plays on through the score tally (each skill
+  plays it at its own tempo and with its own band).
+
 ## 0.28
 
 - **Mode title screens:** starting a game shows a pixel-art picture for its mode before the first stage: the eagle's
