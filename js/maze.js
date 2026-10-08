@@ -17,7 +17,7 @@ const MAZE_BONUS = 2000;                                // for getting out, plus
 
 // maze size (in cells) for stage n: bigger every time, never smaller than 1.5 screens either way
 function mazeCells(n, vc, vr) {
-  const w = Math.min(24, 9 + 2 * n), h = Math.min(16, 6 + n);
+  const w = Math.min(34, 14 + 3 * n), h = Math.min(22, 9 + 2 * n);
   return [Math.max(w, Math.ceil(vc * 1.5 / MAZE_PITCH)), Math.max(h, Math.ceil(vr * 1.5 / MAZE_PITCH))];
 }
 
@@ -102,12 +102,13 @@ Object.assign(Stage.prototype, {
     const sk = Config.get('skill'), lv = sk === AUTO_SKILL ? Math.max(0, Math.min(4, Math.round(AutoSkill.rating))) : sk;
     this.maze = { MW: mz.MW, MH: mz.MH, sx, sy, ex, ey, hintAt: MAZE_HINT[lv] * 60, escaped: false, spawnCd: 300, woke: 0 };
     this.noBase = true;
+    this.hardSteel = true;   // the steel walls can't be broken, by anything
     // everyone starts in the corner cell, one 16px slot each
     const slot = (x, y, i) => [x + (i & 1) * 16, y + (i >> 1) * 16];
     this.vsSpawn = [0, 1, 2, 3].map(i => slot(sx, sy, i));
     this.mazeSlot = slot;
     // the enemy: some waiting along the way out, some in other passages, the rest turn up later
-    const n = Math.min(60, Math.round((10 + 3 * this.num) * Config.get('enemyCount') / 20));
+    const n = Math.min(100, Math.round((20 + 6 * this.num) * Config.get('enemyCount') / 20));
     this.queue = buildQueue(this.num, n);
     this.seasonEnemies(this.queue); this.seasoned = true;   // the season's own enemy among them (seasonal.js)
     for (const q of this.queue) q.ai = AI.WANDER;
@@ -115,7 +116,7 @@ Object.assign(Stage.prototype, {
     const far = c => mz.dist[c[1] * mz.MW + c[0]] >= 4 && Math.abs(c[0] - mz.start[0]) + Math.abs(c[1] - mz.start[1]) >= 3;
     const onPath = mz.path.filter(far), cells = [];
     for (let j = 0; j < mz.MH; j++) for (let i = 0; i < mz.MW; i++) if (far([i, j])) cells.push([i, j]);
-    const first = Math.min(this.queue.length, Math.round(n * 0.4)), used = new Set();
+    const first = Math.min(this.queue.length, Math.round(n * 0.5)), used = new Set();
     for (let k = 0; k < first; k++) {
       const pool = k % 2 === 0 && onPath.length ? onPath : cells;
       let c = null;
@@ -151,9 +152,9 @@ Object.assign(Stage.prototype, {
     }
     // more of them turn up, out of sight but not too far ahead
     if (this.queue.length && --m.spawnCd <= 0 && this.freezeE <= 0 && ps.length) {
-      m.spawnCd = Math.round(this.spawnInterval * 1.6);
+      m.spawnCd = Math.round(this.spawnInterval * 1.2);
       const onField = this.tanks.filter(t => !t.isPlayer).length + this.spawns.filter(s => s.enemy).length;
-      if (onField < this.maxEnemies + 2) {
+      if (onField < this.maxEnemies + 5) {
         const [camX, camY] = [this.camX || 0, this.camY || 0];
         for (let k = 0; k < 30; k++) {
           const o = ps[rnd(ps.length)], [x, y] = this.mazeCellAt(o.x + (rnd(17) - 8) * 48, o.y + (rnd(13) - 6) * 48);

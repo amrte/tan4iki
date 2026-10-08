@@ -478,6 +478,8 @@ Object.assign(Game, {
     if (s === 'modeIntro') mode = this.mode;
     else if (st && st.bossDefeated && (s === 'play' || s === 'score')) mode = 'victory';   // a boss beaten: celebrate
     else if (s === 'play' && st && !st.over && st.frame > MUSIC_DELAY) mode = this.mode;
-    Music.want(mode, Music.skillLevel(), s === 'play' && this.paused);
+    // paused: the music pauses too, except while you're setting its volume in the pause menu (so you can hear it)
+    const tuning = s === 'play' && this.paused && PAUSE_STEP[pauseMenu()[this.pauseIdx]];
+    Music.want(mode, Music.skillLevel(), s === 'play' && this.paused && !tuning);
   },
 });

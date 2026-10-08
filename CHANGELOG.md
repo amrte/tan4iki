@@ -3,6 +3,18 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.33
+
+- **Maze walls can't be broken:** in MAZE the steel walls now stop everything (power shells, rockets, piercing
+  shells, blasts and air strikes); only the odd brick stretch can still be shot through as a shortcut.
+- **Bigger mazes, more enemies:** 17 x 11 cells to start (was 11 x 7), growing by 3 x 2 each maze up to 34 x 22 (was
+  24 x 16); 26 enemies in the first maze and 6 more each time, up to 100 (was 13 and 3 more), half of them waiting
+  from the start and up to 5 more on the field at once.
+- **Music in the pause menu:** MUSIC (on/off) and MUSIC VOL rows, changed with left/right; the music keeps playing
+  while one of them is selected so you can hear the change.
+- Faster terrain drawing: a broken brick (or any single change) now redraws just its cells instead of the whole
+  map, which matters on the big maps and mazes.
+
 ## 0.32
 
 - **Seasons with their own rules and enemies.** Every season now has a twist and an enemy found nowhere else:

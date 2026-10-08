@@ -36,7 +36,9 @@ function defaultCustomMap() {
 const TITLE_MENU_Y = 126;
 const ROMAN = ['I', 'II', 'III', 'IV'];
 // the pause menu; SKILL changes the difficulty on the spot (not in the daily challenge, where it's part of the rules)
-const pauseMenu = () => ['CONTINUE'].concat(Game.daily ? [] : ['SKILL'], ['SAVE GAME'], Net.role ? ['ONLINE PLAYERS'] : [], ['QUIT']);
+const pauseMenu = () => ['CONTINUE'].concat(Game.daily ? [] : ['SKILL'], ['MUSIC', 'MUSIC VOL', 'SAVE GAME'], Net.role ? ['ONLINE PLAYERS'] : [], ['QUIT']);
+// pause rows changed with left/right (or fire): the setting each one steps
+const PAUSE_STEP = { MUSIC: 'music', 'MUSIC VOL': 'musicVol' };
 const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
 
 // The settings as a menu tree: each section of SETTINGS_DEF becomes a page on the top level, the per-enemy sections
@@ -594,6 +596,8 @@ const Game = {
       if (m.up) { this.pauseIdx = (this.pauseIdx + PM.length - 1) % PM.length; Sound.play('select'); }
       if (m.down) { this.pauseIdx = (this.pauseIdx + 1) % PM.length; Sound.play('select'); }
       if (PM[this.pauseIdx] === 'SKILL' && (m.left || m.right)) this.pauseSkill(m.right ? 1 : -1);
+      const ps = PAUSE_STEP[PM[this.pauseIdx]];
+      if (ps && (m.left || m.right)) { Config.step(ps, m.right ? 1 : -1); Sound.play('select'); }
       if (Input.anyJust(['KeyP', 'Escape'])) this.paused = false;
       else if (m.ok) this.pauseAction(PM[this.pauseIdx]);
       return;
@@ -625,6 +629,7 @@ const Game = {
   pauseAction(action) {
     if (action === 'CONTINUE') this.paused = false;
     else if (action === 'SKILL') this.pauseSkill(1);
+    else if (PAUSE_STEP[action]) { Config.step(PAUSE_STEP[action], 1); Sound.play('select'); }
     else if (action === 'SAVE GAME') {
       const ok = this.saveGame();
       this.pauseMsg = ok ? 'GAME SAVED' : this.daily ? 'NO SAVES IN DAILY' : this.mode !== 'classic' ? 'NO SAVES IN THIS MODE' : 'SAVE FAILED';
@@ -662,6 +667,11 @@ const Game = {
           // the skill's name, in its colour, with arrows while selected
           const v = Config.format('skill');
           Font.drawRight(ctx, v, x + w - 14, ly, SKILL_TAGS[Config.get('skill')][1]);
+          if (sel) { Font.draw(ctx, '<', x + w - 14 - v.length * 8 - 9, ly, COL.white); Font.draw(ctx, '>', x + w - 11, ly, COL.white); }
+        }
+        if (PAUSE_STEP[label]) {
+          const v = Config.format(PAUSE_STEP[label]);
+          Font.drawRight(ctx, v, x + w - 14, ly, label === 'MUSIC' && !Config.on('music') ? COL.lgrey : COL.gold);
           if (sel) { Font.draw(ctx, '<', x + w - 14 - v.length * 8 - 9, ly, COL.white); Font.draw(ctx, '>', x + w - 11, ly, COL.white); }
         }
       });

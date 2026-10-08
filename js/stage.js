@@ -479,7 +479,11 @@ class Stage {
     this.terrainVer = (this.terrainVer || 0) + 1;
     // the online host sends terrain changes to guests
     if (Net.role === 'host') (this.netDiff || (this.netDiff = [])).push(cy * GW + cx, t);
-    this.dirty = true;
+    // once the layers are drawn, only the changed cells are redrawn (a full redraw of a huge map takes a while);
+    // water and belts are listed for animation, so a change to or from them redraws everything
+    const old = this.layerOf && this.layerOf[cy * GW + cx];
+    if (this.bgLayer && !this.dirty && this.layerOf && old !== T_WATER && t !== T_WATER && !isBelt(old) && !isBelt(t)) (this.dirtyCells || (this.dirtyCells = [])).push(cy * GW + cx);
+    else this.dirty = true;
   }
   setBlock(bx, by, t) {
     for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) this.set(bx * 2 + x, by * 2 + y, t);
@@ -1050,7 +1054,7 @@ class Stage {
     // piercing shells tunnel through bricks (and trees for cutters), stopping only at steel they can't break
     if (b.pierce) {
       let blocked = false;
-      for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) if (this.get(cx, cy) === T_STEEL && !b.power) blocked = true;
+      for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) if (this.get(cx, cy) === T_STEEL && (!b.power || this.hardSteel)) blocked = true;
       if (!blocked) {
         const lo = vert ? Math.floor((b.x + 2 - 8) / 4) : Math.floor((b.y + 2 - 8) / 4);
         const hi = vert ? Math.floor((b.x + 2 + 7.99) / 4) : Math.floor((b.y + 2 + 7.99) / 4);
@@ -1075,7 +1079,7 @@ class Stage {
     const hitCell = (cx, cy) => {
       const t = this.get(cx, cy);
       if (t === T_BRICK) { this.set(cx, cy, T_EMPTY); broke = true; n.brick++; }
-      else if (t === T_STEEL && b.power) { this.clearGroup(cx, cy, T_STEEL); broke = true; n.steel++; }
+      else if (t === T_STEEL && b.power && !this.hardSteel) { this.clearGroup(cx, cy, T_STEEL); broke = true; n.steel++; }
       else if (t === T_FOREST && b.cutter) { this.clearGroup(cx, cy, T_FOREST); broke = true; n.tree++; }
     };
     if (vert) {
@@ -1111,7 +1115,7 @@ class Stage {
         if (Math.hypot(x * 4 + 2 - cx, y * 4 + 2 - cy) > r) continue;
         const t = this.get(x, y);
         if (t === T_BRICK) { this.set(x, y, T_EMPTY); wrecked.brick++; }
-        else if (t === T_STEEL && power) { this.clearGroup(x, y, T_STEEL); wrecked.steel++; }
+        else if (t === T_STEEL && power && !this.hardSteel) { this.clearGroup(x, y, T_STEEL); wrecked.steel++; }
       }
     }
     if (byPlayer) this.wreckPoints(owner, wrecked, cx, cy);
@@ -1471,6 +1475,35 @@ class Stage {
     }
     this.themeCaps(bg, fo);   // snow on top in winter (seasons.js)
     this.dirty = false;
+    this.dirtyCells = [];
+    this.layerOf = this.terrain.slice();   // what the layers show
+  }
+
+  // redraw just the cells that changed since the layers were drawn (and the cell under each, for snow caps)
+  redrawCells() {
+    const bg = this.bgLayer.getContext('2d'), fo = this.forestLayer.getContext('2d'), tex = themeTex(this.theme);
+    const caps = (THEMES[this.theme] || {}).snowCaps, solid = v => v === T_BRICK || v === T_STEEL || v === T_FOREST;
+    const done = new Set();
+    for (const i0 of this.dirtyCells) for (const i of [i0, i0 + GW]) {
+      if (i >= GW * GH || done.has(i)) continue;
+      done.add(i);
+      const cx = i % GW, cy = (i / GW) | 0, t = this.terrain[i], sx = (cx & 1) * 4, sy = (cy & 1) * 4, dx = cx * 4, dy = cy * 4;
+      bg.clearRect(dx, dy, 4, 4); fo.clearRect(dx, dy, 4, 4);
+      if (t === T_BRICK) bg.drawImage(tex.brick, sx, sy, 4, 4, dx, dy, 4, 4);
+      else if (t === T_STEEL) bg.drawImage(tex.steel, sx, sy, 4, 4, dx, dy, 4, 4);
+      else if (t === T_ICE) bg.drawImage(tex.ice, sx, sy, 4, 4, dx, dy, 4, 4);
+      else if (t === T_BRIDGE) bg.drawImage(Sprites.bridgeTex, sx, sy, 4, 4, dx, dy, 4, 4);
+      else if (t === T_MUD) bg.drawImage(Sprites.mudTex, sx, sy, 4, 4, dx, dy, 4, 4);
+      else if (t === T_FOREST) fo.drawImage(tex.forest, sx, sy, 4, 4, dx, dy, 4, 4);
+      if (caps && solid(t) && !(cy > 0 && solid(this.terrain[i - GW]))) {
+        const ctx = t === T_FOREST ? fo : bg;
+        ctx.fillStyle = caps;
+        ctx.fillRect(dx, dy, 4, 1);
+        if ((cx + cy) % 3 === 0) ctx.fillRect(dx + 1, dy + 1, 2, 1);
+      }
+      this.layerOf[i] = t;
+    }
+    this.dirtyCells = [];
   }
 
   shadeAlpha(t) {
@@ -1547,6 +1580,7 @@ class Stage {
     ctx.fillStyle = COL.black;
     ctx.fillRect(FX, FY, VIEW_W, VIEW_H);
     if (this.dirty) this.buildLayers();
+    else if (this.dirtyCells && this.dirtyCells.length) this.redrawCells();
 
     ctx.save();
     ctx.translate(FX, FY);

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.32</title>
+  <title>tanb4iki_v0.33</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.32';
+const APP_VERSION = '0.33';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -4234,7 +4234,11 @@ class Stage {
     this.terrainVer = (this.terrainVer || 0) + 1;
     // the online host sends terrain changes to guests
     if (Net.role === 'host') (this.netDiff || (this.netDiff = [])).push(cy * GW + cx, t);
-    this.dirty = true;
+    // once the layers are drawn, only the changed cells are redrawn (a full redraw of a huge map takes a while);
+    // water and belts are listed for animation, so a change to or from them redraws everything
+    const old = this.layerOf && this.layerOf[cy * GW + cx];
+    if (this.bgLayer && !this.dirty && this.layerOf && old !== T_WATER && t !== T_WATER && !isBelt(old) && !isBelt(t)) (this.dirtyCells || (this.dirtyCells = [])).push(cy * GW + cx);
+    else this.dirty = true;
   }
   setBlock(bx, by, t) {
     for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) this.set(bx * 2 + x, by * 2 + y, t);
@@ -4805,7 +4809,7 @@ class Stage {
     // piercing shells tunnel through bricks (and trees for cutters), stopping only at steel they can't break
     if (b.pierce) {
       let blocked = false;
-      for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) if (this.get(cx, cy) === T_STEEL && !b.power) blocked = true;
+      for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) if (this.get(cx, cy) === T_STEEL && (!b.power || this.hardSteel)) blocked = true;
       if (!blocked) {
         const lo = vert ? Math.floor((b.x + 2 - 8) / 4) : Math.floor((b.y + 2 - 8) / 4);
         const hi = vert ? Math.floor((b.x + 2 + 7.99) / 4) : Math.floor((b.y + 2 + 7.99) / 4);
@@ -4830,7 +4834,7 @@ class Stage {
     const hitCell = (cx, cy) => {
       const t = this.get(cx, cy);
       if (t === T_BRICK) { this.set(cx, cy, T_EMPTY); broke = true; n.brick++; }
-      else if (t === T_STEEL && b.power) { this.clearGroup(cx, cy, T_STEEL); broke = true; n.steel++; }
+      else if (t === T_STEEL && b.power && !this.hardSteel) { this.clearGroup(cx, cy, T_STEEL); broke = true; n.steel++; }
       else if (t === T_FOREST && b.cutter) { this.clearGroup(cx, cy, T_FOREST); broke = true; n.tree++; }
     };
     if (vert) {
@@ -4866,7 +4870,7 @@ class Stage {
         if (Math.hypot(x * 4 + 2 - cx, y * 4 + 2 - cy) > r) continue;
         const t = this.get(x, y);
         if (t === T_BRICK) { this.set(x, y, T_EMPTY); wrecked.brick++; }
-        else if (t === T_STEEL && power) { this.clearGroup(x, y, T_STEEL); wrecked.steel++; }
+        else if (t === T_STEEL && power && !this.hardSteel) { this.clearGroup(x, y, T_STEEL); wrecked.steel++; }
       }
     }
     if (byPlayer) this.wreckPoints(owner, wrecked, cx, cy);
@@ -5226,6 +5230,35 @@ class Stage {
     }
     this.themeCaps(bg, fo);   // snow on top in winter (seasons.js)
     this.dirty = false;
+    this.dirtyCells = [];
+    this.layerOf = this.terrain.slice();   // what the layers show
+  }
+
+  // redraw just the cells that changed since the layers were drawn (and the cell under each, for snow caps)
+  redrawCells() {
+    const bg = this.bgLayer.getContext('2d'), fo = this.forestLayer.getContext('2d'), tex = themeTex(this.theme);
+    const caps = (THEMES[this.theme] || {}).snowCaps, solid = v => v === T_BRICK || v === T_STEEL || v === T_FOREST;
+    const done = new Set();
+    for (const i0 of this.dirtyCells) for (const i of [i0, i0 + GW]) {
+      if (i >= GW * GH || done.has(i)) continue;
+      done.add(i);
+      const cx = i % GW, cy = (i / GW) | 0, t = this.terrain[i], sx = (cx & 1) * 4, sy = (cy & 1) * 4, dx = cx * 4, dy = cy * 4;
+      bg.clearRect(dx, dy, 4, 4); fo.clearRect(dx, dy, 4, 4);
+      if (t === T_BRICK) bg.drawImage(tex.brick, sx, sy, 4, 4, dx, dy, 4, 4);
+      else if (t === T_STEEL) bg.drawImage(tex.steel, sx, sy, 4, 4, dx, dy, 4, 4);
+      else if (t === T_ICE) bg.drawImage(tex.ice, sx, sy, 4, 4, dx, dy, 4, 4);
+      else if (t === T_BRIDGE) bg.drawImage(Sprites.bridgeTex, sx, sy, 4, 4, dx, dy, 4, 4);
+      else if (t === T_MUD) bg.drawImage(Sprites.mudTex, sx, sy, 4, 4, dx, dy, 4, 4);
+      else if (t === T_FOREST) fo.drawImage(tex.forest, sx, sy, 4, 4, dx, dy, 4, 4);
+      if (caps && solid(t) && !(cy > 0 && solid(this.terrain[i - GW]))) {
+        const ctx = t === T_FOREST ? fo : bg;
+        ctx.fillStyle = caps;
+        ctx.fillRect(dx, dy, 4, 1);
+        if ((cx + cy) % 3 === 0) ctx.fillRect(dx + 1, dy + 1, 2, 1);
+      }
+      this.layerOf[i] = t;
+    }
+    this.dirtyCells = [];
   }
 
   shadeAlpha(t) {
@@ -5302,6 +5335,7 @@ class Stage {
     ctx.fillStyle = COL.black;
     ctx.fillRect(FX, FY, VIEW_W, VIEW_H);
     if (this.dirty) this.buildLayers();
+    else if (this.dirtyCells && this.dirtyCells.length) this.redrawCells();
 
     ctx.save();
     ctx.translate(FX, FY);
@@ -8439,7 +8473,7 @@ const MAZE_BONUS = 2000;                                // for getting out, plus
 
 // maze size (in cells) for stage n: bigger every time, never smaller than 1.5 screens either way
 function mazeCells(n, vc, vr) {
-  const w = Math.min(24, 9 + 2 * n), h = Math.min(16, 6 + n);
+  const w = Math.min(34, 14 + 3 * n), h = Math.min(22, 9 + 2 * n);
   return [Math.max(w, Math.ceil(vc * 1.5 / MAZE_PITCH)), Math.max(h, Math.ceil(vr * 1.5 / MAZE_PITCH))];
 }
 
@@ -8524,12 +8558,13 @@ Object.assign(Stage.prototype, {
     const sk = Config.get('skill'), lv = sk === AUTO_SKILL ? Math.max(0, Math.min(4, Math.round(AutoSkill.rating))) : sk;
     this.maze = { MW: mz.MW, MH: mz.MH, sx, sy, ex, ey, hintAt: MAZE_HINT[lv] * 60, escaped: false, spawnCd: 300, woke: 0 };
     this.noBase = true;
+    this.hardSteel = true;   // the steel walls can't be broken, by anything
     // everyone starts in the corner cell, one 16px slot each
     const slot = (x, y, i) => [x + (i & 1) * 16, y + (i >> 1) * 16];
     this.vsSpawn = [0, 1, 2, 3].map(i => slot(sx, sy, i));
     this.mazeSlot = slot;
     // the enemy: some waiting along the way out, some in other passages, the rest turn up later
-    const n = Math.min(60, Math.round((10 + 3 * this.num) * Config.get('enemyCount') / 20));
+    const n = Math.min(100, Math.round((20 + 6 * this.num) * Config.get('enemyCount') / 20));
     this.queue = buildQueue(this.num, n);
     this.seasonEnemies(this.queue); this.seasoned = true;   // the season's own enemy among them (seasonal.js)
     for (const q of this.queue) q.ai = AI.WANDER;
@@ -8537,7 +8572,7 @@ Object.assign(Stage.prototype, {
     const far = c => mz.dist[c[1] * mz.MW + c[0]] >= 4 && Math.abs(c[0] - mz.start[0]) + Math.abs(c[1] - mz.start[1]) >= 3;
     const onPath = mz.path.filter(far), cells = [];
     for (let j = 0; j < mz.MH; j++) for (let i = 0; i < mz.MW; i++) if (far([i, j])) cells.push([i, j]);
-    const first = Math.min(this.queue.length, Math.round(n * 0.4)), used = new Set();
+    const first = Math.min(this.queue.length, Math.round(n * 0.5)), used = new Set();
     for (let k = 0; k < first; k++) {
       const pool = k % 2 === 0 && onPath.length ? onPath : cells;
       let c = null;
@@ -8573,9 +8608,9 @@ Object.assign(Stage.prototype, {
     }
     // more of them turn up, out of sight but not too far ahead
     if (this.queue.length && --m.spawnCd <= 0 && this.freezeE <= 0 && ps.length) {
-      m.spawnCd = Math.round(this.spawnInterval * 1.6);
+      m.spawnCd = Math.round(this.spawnInterval * 1.2);
       const onField = this.tanks.filter(t => !t.isPlayer).length + this.spawns.filter(s => s.enemy).length;
-      if (onField < this.maxEnemies + 2) {
+      if (onField < this.maxEnemies + 5) {
         const [camX, camY] = [this.camX || 0, this.camY || 0];
         for (let k = 0; k < 30; k++) {
           const o = ps[rnd(ps.length)], [x, y] = this.mazeCellAt(o.x + (rnd(17) - 8) * 48, o.y + (rnd(13) - 6) * 48);
@@ -10711,7 +10746,9 @@ function defaultCustomMap() {
 const TITLE_MENU_Y = 126;
 const ROMAN = ['I', 'II', 'III', 'IV'];
 // the pause menu; SKILL changes the difficulty on the spot (not in the daily challenge, where it's part of the rules)
-const pauseMenu = () => ['CONTINUE'].concat(Game.daily ? [] : ['SKILL'], ['SAVE GAME'], Net.role ? ['ONLINE PLAYERS'] : [], ['QUIT']);
+const pauseMenu = () => ['CONTINUE'].concat(Game.daily ? [] : ['SKILL'], ['MUSIC', 'MUSIC VOL', 'SAVE GAME'], Net.role ? ['ONLINE PLAYERS'] : [], ['QUIT']);
+// pause rows changed with left/right (or fire): the setting each one steps
+const PAUSE_STEP = { MUSIC: 'music', 'MUSIC VOL': 'musicVol' };
 const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
 
 // The settings as a menu tree: each section of SETTINGS_DEF becomes a page on the top level, the per-enemy sections
@@ -11269,6 +11306,8 @@ const Game = {
       if (m.up) { this.pauseIdx = (this.pauseIdx + PM.length - 1) % PM.length; Sound.play('select'); }
       if (m.down) { this.pauseIdx = (this.pauseIdx + 1) % PM.length; Sound.play('select'); }
       if (PM[this.pauseIdx] === 'SKILL' && (m.left || m.right)) this.pauseSkill(m.right ? 1 : -1);
+      const ps = PAUSE_STEP[PM[this.pauseIdx]];
+      if (ps && (m.left || m.right)) { Config.step(ps, m.right ? 1 : -1); Sound.play('select'); }
       if (Input.anyJust(['KeyP', 'Escape'])) this.paused = false;
       else if (m.ok) this.pauseAction(PM[this.pauseIdx]);
       return;
@@ -11300,6 +11339,7 @@ const Game = {
   pauseAction(action) {
     if (action === 'CONTINUE') this.paused = false;
     else if (action === 'SKILL') this.pauseSkill(1);
+    else if (PAUSE_STEP[action]) { Config.step(PAUSE_STEP[action], 1); Sound.play('select'); }
     else if (action === 'SAVE GAME') {
       const ok = this.saveGame();
       this.pauseMsg = ok ? 'GAME SAVED' : this.daily ? 'NO SAVES IN DAILY' : this.mode !== 'classic' ? 'NO SAVES IN THIS MODE' : 'SAVE FAILED';
@@ -11337,6 +11377,11 @@ const Game = {
           // the skill's name, in its colour, with arrows while selected
           const v = Config.format('skill');
           Font.drawRight(ctx, v, x + w - 14, ly, SKILL_TAGS[Config.get('skill')][1]);
+          if (sel) { Font.draw(ctx, '<', x + w - 14 - v.length * 8 - 9, ly, COL.white); Font.draw(ctx, '>', x + w - 11, ly, COL.white); }
+        }
+        if (PAUSE_STEP[label]) {
+          const v = Config.format(PAUSE_STEP[label]);
+          Font.drawRight(ctx, v, x + w - 14, ly, label === 'MUSIC' && !Config.on('music') ? COL.lgrey : COL.gold);
           if (sel) { Font.draw(ctx, '<', x + w - 14 - v.length * 8 - 9, ly, COL.white); Font.draw(ctx, '>', x + w - 11, ly, COL.white); }
         }
       });
@@ -13201,7 +13246,9 @@ Object.assign(Game, {
     if (s === 'modeIntro') mode = this.mode;
     else if (st && st.bossDefeated && (s === 'play' || s === 'score')) mode = 'victory';   // a boss beaten: celebrate
     else if (s === 'play' && st && !st.over && st.frame > MUSIC_DELAY) mode = this.mode;
-    Music.want(mode, Music.skillLevel(), s === 'play' && this.paused);
+    // paused: the music pauses too, except while you're setting its volume in the pause menu (so you can hear it)
+    const tuning = s === 'play' && this.paused && PAUSE_STEP[pauseMenu()[this.pauseIdx]];
+    Music.want(mode, Music.skillLevel(), s === 'play' && this.paused && !tuning);
   },
 });
 
