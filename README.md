@@ -22,7 +22,7 @@ the file is named after the version in `js/version.js`.
 |---|---|---|
 | 1-player game | Arrows **or** WASD, fire with Space / Z / X / J / K / F, **B** button: B / C / N / Left Shift | — |
 | 2-player game | WASD, fire with Space / F / G / V, **B** button: B / C / H | Arrows, fire with Right Ctrl / Right Shift / Numpad 0 / L / `/`, **B** button: Numpad 1 / K / `;` |
-| Start / pause | Enter / P / Esc opens the pause menu (CONTINUE / SAVE GAME / QUIT); P or Esc resumes | |
+| Start / pause | Enter / P / Esc opens the pause menu (CONTINUE / SKILL / SAVE GAME / QUIT); P or Esc resumes | |
 | Fullscreen | double-click the game, or Settings → SCREEN | |
 | Mute | M | |
 
@@ -148,7 +148,10 @@ Play them in the **BIG MAPS** mode (every stage), or in Classic with Settings �
 
 ## Skill levels
 
-Pick the skill on the title screen (the coloured row; left/right changes it). The names come from DOOM:
+Pick the skill on the title screen (the coloured row; left/right changes it), or change it any time during a game
+from the pause menu's **SKILL** row (left/right; not in the daily challenge). The top of the side panel shows the
+current skill as DOOM players call them: ITY, NTR, HMP, UV, NM (on AUTO, the level it's at, under a small AUTO).
+The names come from DOOM:
 
 | Skill | What changes |
 |---|---|
@@ -420,9 +423,11 @@ start the next stage with it for twice as long. Not after a game over.
 
 ## Settings
 
-Choose **SETTINGS** on the title screen. Use up/down to pick a row and left/right (or A/B) to change it;
-on desktop you can also click and use the mouse wheel. Changed values are shown in gold. Settings are saved
-in the browser, and **RESET TO DEFAULTS** restores the classic game.
+Choose **SETTINGS** on the title screen. The top level lists the sections below; Enter (or right, or a click) opens
+one, Esc (or left, or the BACK row) goes back up. The per-enemy settings are one level further down, under **ENEMY
+TYPES**, one page per enemy with its picture. On a page, use up/down to pick a row and left/right (or A/B) to change
+it; on desktop you can also click and use the mouse wheel. Changed values are shown in gold. Settings are saved in
+the browser, and **RESET TO DEFAULTS** (top level) restores the classic game.
 
 | Section | Settings (default) |
 |---|---|

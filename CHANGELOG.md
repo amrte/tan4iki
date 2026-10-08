@@ -3,6 +3,16 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.26
+
+- **Skill during the game:** the side panel shows the current skill (ITY / NTR / HMP / UV / NM, coloured; on AUTO the
+  level it's at under a small AUTO), and the pause menu has a SKILL row to change it on the spot (not in the daily
+  challenge).
+- **Settings in submenus:** the long settings list is now a short top level of sections (PLAYER, XP AND LEVELS,
+  ENEMIES, ENEMY TYPES, POWER-UPS, WHO CAN COLLECT, BOSSES, SHOP, SCREEN, GAME, RESET, BACK); each opens as its own
+  page, and ENEMY TYPES opens a page per enemy. Esc / left / BACK go up a level.
+- Fix: the settings footer crashed drawing the four classic tanks' pictures.
+
 ## 0.25
 
 - **Fix: enemy tanks getting stuck,** often nose to nose. Slow tanks only step every other frame, and on the frames in

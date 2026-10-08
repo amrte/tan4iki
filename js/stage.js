@@ -1577,7 +1577,16 @@ class Stage {
     dots.slice(0, max).forEach((c, k) => { ctx.fillStyle = c; ctx.fillRect(x + (vertical ? 0 : k * 3), y + (vertical ? k * 3 : 0), 2, 2); });
   }
 
+  // the difficulty at the top of the side panel (on AUTO: the level it's at now, with a small AUTO above)
+  renderSkillTag(ctx, H) {
+    const s = Config.get('skill'), auto = s === AUTO_SKILL;
+    const lv = auto ? Math.max(0, Math.min(4, Math.round(AutoSkill.rating))) : s, [tag, , dark] = SKILL_TAGS[lv];
+    if (auto) ctx.drawImage(Sprites.mini('AUTO'), H, 4);
+    Font.draw(ctx, tag, H + (tag.length < 3 ? 4 : 0), 11, dark);
+  }
+
   renderHud(ctx) {
+    this.renderSkillTag(ctx, HUD_X);
     if (this.vs) { this.renderVsHud(ctx, HUD_X); return; }
     if (this.race) { this.renderRaceLine(ctx); this.renderRaceHud(ctx, HUD_X); return; }
     if (this.corridor) this.renderCorridorLine(ctx); else if (this.cpu) this.renderCpuLine(ctx); else this.renderObjectiveLine(ctx);

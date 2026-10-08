@@ -86,6 +86,10 @@ const SKILLS = [
     newMult: 1.5, newShift: 0, maxOn: 2, plates: 0, eagle: 0, respawn: 0.3, sight: 999, baseSight: 999, baseAim: 1.25, grab: 2, hqPace: 1.4, bossPace: 1, shield: 1, repair: 0 },
 ];
 
+// short names (as DOOM players say them) and colours for the side panel (dark, on grey) and the pause menu (bright)
+const SKILL_TAGS = [['ITY', '#58D854', '#005800'], ['NTR', '#3CBCFC', '#0000A8'], ['HMP', '#F8F8F8', '#000000'],
+  ['UV', '#F87858', '#A81000'], ['NM', '#F83800', '#880000'], ['AUTO', '#3CBCFC', '#0000A8']];
+
 // enemy personality where there is no eagle to rush (corridor, kill race): calmer skills wander more
 function noBasePersonality() {
   const a = Config.skill().aggr, w = [Math.max(0.3, 1.2 - 0.5 * a), 0, a, 0.4 * a];

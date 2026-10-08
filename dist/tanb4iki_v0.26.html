@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.25</title>
+  <title>tanb4iki_v0.26</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.25';
+const APP_VERSION = '0.26';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -1634,6 +1634,11 @@ const LIFE_ICON_GRID = ['..111...', '1..1..1.', '1.111.1.', '111.111.', '11...11
 
 // score pop-up digits (4x7)
 const POPUP_DIGITS = {
+  // letters for the side panel's AUTO tag
+  'A': ['.11.', '1..1', '1..1', '1111', '1..1', '1..1', '1..1'],
+  'U': ['1..1', '1..1', '1..1', '1..1', '1..1', '1..1', '.11.'],
+  'T': ['111.', '.1..', '.1..', '.1..', '.1..', '.1..', '.1..'],
+  'O': ['.11.', '1..1', '1..1', '1..1', '1..1', '1..1', '.11.'],
   '0': ['.11.', '1..1', '1..1', '1..1', '1..1', '1..1', '.11.'],
   '1': ['.1..', '11..', '.1..', '.1..', '.1..', '.1..', '111.'],
   '2': ['.11.', '1..1', '...1', '..1.', '.1..', '1...', '1111'],
@@ -2403,6 +2408,10 @@ const SKILLS = [
   { name: 'NIGHTMARE!', fire: 1.6, speed: 1.2, shell: 1.3, spawn: 1.5, boss: 1.5, lives: 0, vet: 10, aggr: 1.5,
     newMult: 1.5, newShift: 0, maxOn: 2, plates: 0, eagle: 0, respawn: 0.3, sight: 999, baseSight: 999, baseAim: 1.25, grab: 2, hqPace: 1.4, bossPace: 1, shield: 1, repair: 0 },
 ];
+
+// short names (as DOOM players say them) and colours for the side panel (dark, on grey) and the pause menu (bright)
+const SKILL_TAGS = [['ITY', '#58D854', '#005800'], ['NTR', '#3CBCFC', '#0000A8'], ['HMP', '#F8F8F8', '#000000'],
+  ['UV', '#F87858', '#A81000'], ['NM', '#F83800', '#880000'], ['AUTO', '#3CBCFC', '#0000A8']];
 
 // enemy personality where there is no eagle to rush (corridor, kill race): calmer skills wander more
 function noBasePersonality() {
@@ -5065,7 +5074,16 @@ class Stage {
     dots.slice(0, max).forEach((c, k) => { ctx.fillStyle = c; ctx.fillRect(x + (vertical ? 0 : k * 3), y + (vertical ? k * 3 : 0), 2, 2); });
   }
 
+  // the difficulty at the top of the side panel (on AUTO: the level it's at now, with a small AUTO above)
+  renderSkillTag(ctx, H) {
+    const s = Config.get('skill'), auto = s === AUTO_SKILL;
+    const lv = auto ? Math.max(0, Math.min(4, Math.round(AutoSkill.rating))) : s, [tag, , dark] = SKILL_TAGS[lv];
+    if (auto) ctx.drawImage(Sprites.mini('AUTO'), H, 4);
+    Font.draw(ctx, tag, H + (tag.length < 3 ? 4 : 0), 11, dark);
+  }
+
   renderHud(ctx) {
+    this.renderSkillTag(ctx, HUD_X);
     if (this.vs) { this.renderVsHud(ctx, HUD_X); return; }
     if (this.race) { this.renderRaceLine(ctx); this.renderRaceHud(ctx, HUD_X); return; }
     if (this.corridor) this.renderCorridorLine(ctx); else if (this.cpu) this.renderCpuLine(ctx); else this.renderObjectiveLine(ctx);
@@ -9407,8 +9425,31 @@ function defaultCustomMap() {
 
 const TITLE_MENU_Y = 126;
 const ROMAN = ['I', 'II', 'III', 'IV'];
-const pauseMenu = () => (Net.role === 'host' ? ['CONTINUE', 'SAVE GAME', 'ONLINE PLAYERS', 'QUIT'] : ['CONTINUE', 'SAVE GAME', 'QUIT']);
+// the pause menu; SKILL changes the difficulty on the spot (not in the daily challenge, where it's part of the rules)
+const pauseMenu = () => ['CONTINUE'].concat(Game.daily ? [] : ['SKILL'], ['SAVE GAME'], Net.role ? ['ONLINE PLAYERS'] : [], ['QUIT']);
 const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
+
+// The settings as a menu tree: each section of SETTINGS_DEF becomes a page on the top level, the per-enemy sections
+// pages under ENEMY TYPES; RESET and BACK stay on the top level, and every page ends with a BACK row.
+// Items: { label, node } opens a page; anything else is a SETTINGS_DEF row (a setting or an action).
+function settingsTree() {
+  const root = { title: 'SETTINGS', items: [] }, types = { title: 'ENEMY TYPES', items: [] };
+  let page = null;
+  for (const row of SETTINGS_DEF) {
+    if (row.section) {
+      page = { title: row.section, items: [], enemy: row.enemy };
+      if (row.enemy !== undefined) types.items.push({ label: row.section, node: page, enemy: row.enemy });
+      else {
+        root.items.push({ label: row.section, node: page });
+        if (row.section === 'ENEMIES') root.items.push({ label: 'ENEMY TYPES', node: types });
+      }
+    } else if (row.action === 'reset' || row.action === 'back') root.items.push(row);
+    else page.items.push(row);
+  }
+  const addBack = node => { for (const it of node.items) if (it.node) addBack(it.node); if (node !== root) node.items.push({ action: 'up', label: 'BACK' }); };
+  addBack(root);
+  return root;
+}
 
 // Between-stage shop: score buys upgrades. price is in points at 100% "SHOP PRICES".
 // Kit items (helmet, turbo, ...) take effect when your tank first appears in the next stage.
@@ -9905,6 +9946,7 @@ const Game = {
       const PM = pauseMenu();
       if (m.up) { this.pauseIdx = (this.pauseIdx + PM.length - 1) % PM.length; Sound.play('select'); }
       if (m.down) { this.pauseIdx = (this.pauseIdx + 1) % PM.length; Sound.play('select'); }
+      if (PM[this.pauseIdx] === 'SKILL' && (m.left || m.right)) this.pauseSkill(m.right ? 1 : -1);
       if (Input.anyJust(['KeyP', 'Escape'])) this.paused = false;
       else if (m.ok) this.pauseAction(PM[this.pauseIdx]);
       return;
@@ -9925,8 +9967,17 @@ const Game = {
     }
   },
 
+  // the difficulty, from the pause menu: enemies already out keep their speed, everything else follows at once
+  pauseSkill(dir) {
+    Config.step('skill', dir);
+    AutoSkill.cache = null;
+    if (Config.get('skill') === AUTO_SKILL) AutoSkill.load();
+    Sound.play('select');
+  },
+
   pauseAction(action) {
     if (action === 'CONTINUE') this.paused = false;
+    else if (action === 'SKILL') this.pauseSkill(1);
     else if (action === 'SAVE GAME') {
       const ok = this.saveGame();
       this.pauseMsg = ok ? 'GAME SAVED' : this.daily ? 'NO SAVES IN DAILY' : this.mode !== 'classic' ? 'NO SAVES IN THIS MODE' : 'SAVE FAILED';
@@ -9949,15 +10000,23 @@ const Game = {
     if (this.mode === 'timeattack') Font.drawCenter(ctx, fmtTime(this.taFrames) + '  STAGE ' + (this.taCleared + 1) + '/' + TA_STAGES, SCREEN_W / 2, 0, COL.black);
     if (this.paused) {
       // centred on the window onto the field (big maps and the corridor are bigger than the screen)
-      const w = 112, h = 70, x = FX + ((VIEW_W - w) >> 1), y = FY + ((VIEW_H - h) >> 1);
+      const PM = pauseMenu(), w = Math.min(VIEW_W - 4, 200), h = 28 + PM.length * 12;
+      const x = FX + ((VIEW_W - w) >> 1), y = FY + ((VIEW_H - h) >> 1);
       ctx.fillStyle = COL.black;
       ctx.fillRect(x, y, w, h);
       ctx.fillStyle = COL.lgrey;
       ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + h - 1, w, 1); ctx.fillRect(x, y, 1, h); ctx.fillRect(x + w - 1, y, 1, h);
       Font.drawCenter(ctx, 'PAUSE', x + w / 2, y + 6, COL.orange);
-      pauseMenu().forEach((label, i) => {
-        Font.draw(ctx, label, x + 24, y + 22 + i * 12, COL.white);
-        if (i === this.pauseIdx) Font.draw(ctx, '>', x + 12, y + 22 + i * 12, COL.gold);
+      PM.forEach((label, i) => {
+        const ly = y + 22 + i * 12, sel = i === this.pauseIdx;
+        Font.draw(ctx, label, x + 20, ly, COL.white);
+        if (sel) Font.draw(ctx, '>', x + 8, ly, COL.gold);
+        if (label === 'SKILL') {
+          // the skill's name, in its colour, with arrows while selected
+          const v = Config.format('skill');
+          Font.drawRight(ctx, v, x + w - 14, ly, SKILL_TAGS[Config.get('skill')][1]);
+          if (sel) { Font.draw(ctx, '<', x + w - 14 - v.length * 8 - 9, ly, COL.white); Font.draw(ctx, '>', x + w - 11, ly, COL.white); }
+        }
       });
       if (this.pauseMsgT > 0) Font.drawCenter(ctx, this.pauseMsg, x + w / 2, y + h + 4, COL.gold);
     }
@@ -10665,25 +10724,52 @@ const Game = {
   toast(text) { this.toastText = text; this.toastT = 150; },
 
   // ---------------------------------------------------------------- settings
+  // A menu tree built from SETTINGS_DEF (settingsTree): the top level lists the sections, each opens as a page;
+  // st.stack holds the pages you came through, each with its own cursor.
   toSettings() {
-    this.st = { idx: 1, scroll: 0, rep: 0 };
+    this.st = { stack: [{ node: settingsTree(), idx: 0, scroll: 0 }], rep: 0 };
     this.setState('settings');
   },
 
+  settingsPage() { return this.st.stack[this.st.stack.length - 1]; },
+  settingsItem() { const f = this.settingsPage(); return f.node.items[f.idx]; },
+
+  // jump straight to a setting (its page, cursor on it)
+  settingsOpen(key) {
+    const find = (node, path) => {
+      for (let i = 0; i < node.items.length; i++) {
+        const it = node.items[i];
+        if (it.key === key) return path.concat([{ node, idx: i }]);
+        if (it.node) { const r = find(it.node, path.concat([{ node, idx: i }])); if (r) return r; }
+      }
+      return null;
+    };
+    this.toSettings();
+    const path = find(this.st.stack[0].node, []);
+    if (!path) return;
+    this.st.stack = path.map(f => ({ node: f.node, idx: f.idx, scroll: Math.max(0, f.idx - SETTINGS_ROWS + 1) }));
+  },
+
   settingsMove(dir) {
-    const n = SETTINGS_DEF.length, st = this.st;
-    let i = st.idx;
-    do { i = (i + dir + n) % n; } while (SETTINGS_DEF[i].section);
-    st.idx = i;
-    // keep the cursor (and the section header above it) on screen
-    if (st.idx < st.scroll + 1) st.scroll = Math.max(0, st.idx - 1);
-    if (st.idx >= st.scroll + SETTINGS_ROWS) st.scroll = st.idx - SETTINGS_ROWS + 1;
-    if (dir > 0 && st.idx < st.scroll) st.scroll = 0;
+    const f = this.settingsPage(), n = f.node.items.length;
+    f.idx = (f.idx + dir + n) % n;
+    if (f.idx < f.scroll) f.scroll = f.idx;
+    if (f.idx >= f.scroll + SETTINGS_ROWS) f.scroll = f.idx - SETTINGS_ROWS + 1;
+  },
+
+  // one level up (or out of the settings from the top)
+  settingsBack() {
+    if (this.st.stack.length > 1) { this.st.stack.pop(); Sound.play('select'); } else this.leaveSettings();
   },
 
   settingsActivate(dir) {
-    const row = SETTINGS_DEF[this.st.idx];
-    if (row.key) {
+    const row = this.settingsItem();
+    if (row.node) {
+      this.st.stack.push({ node: row.node, idx: 0, scroll: 0 });
+      Sound.play('select');
+    } else if (row.action === 'up') {
+      this.settingsBack();
+    } else if (row.key) {
       Config.step(row.key, dir);
       Sound.play('select');
     } else if (row.action === 'reset') {
@@ -10735,45 +10821,50 @@ const Game = {
       const held = Input.heldDir();
       if (held >= 0 && --st.rep <= 0) { d = held; st.rep = 4; }
     }
+    const item = this.settingsItem();
     if (d === 0) { this.settingsMove(-1); Sound.play('select'); }
     if (d === 2) { this.settingsMove(1); Sound.play('select'); }
     if (d === 1 || d === 3) {
-      if (SETTINGS_DEF[st.idx].key) this.settingsActivate(d === 1 ? 1 : -1);
+      if (item.key) this.settingsActivate(d === 1 ? 1 : -1);
+      else if (item.node && tapped === 1) this.settingsActivate(1);   // right opens a page,
+      else if (tapped === 3 && this.st.stack.length > 1) this.settingsBack();   // left goes back
     }
     if (m.ok) this.settingsActivate(1);
-    else if (m.alt) { if (SETTINGS_DEF[st.idx].key) this.settingsActivate(-1); }
-    else if (m.back) this.leaveSettings();
+    else if (m.alt) { if (item.key) this.settingsActivate(-1); }
+    else if (m.back) this.settingsBack();
   },
 
   renderSettings(ctx) {
-    const st = this.st;
+    const st = this.st, f = this.settingsPage(), items = f.node.items, top = st.stack.length === 1;
     ctx.fillStyle = COL.black;
     ctx.fillRect(0, 0, SW, SH);
-    Font.drawCenter(ctx, 'SETTINGS', SW / 2, 8, COL.red);
-    Font.drawRight(ctx, 'V' + APP_VERSION, 250, 8, '#505050');
+    if (top) {
+      Font.drawCenter(ctx, 'SETTINGS', SW / 2, 8, COL.red);
+      Font.drawRight(ctx, 'V' + APP_VERSION, 250, 8, '#505050');
+    } else {
+      // where you are: the page title, with the way back
+      Font.draw(ctx, '<', 6, 8, '#505050');
+      Font.drawCenter(ctx, f.node.title, SW / 2, 8, COL.orange);
+      if (f.node.enemy !== undefined) ctx.drawImage(Sprites.tank('e' + f.node.enemy, (this.t >> 3) & 1, 1, ENEMY[f.node.enemy].pal || 'silver'), 232, 4);
+      if (f.node.title === 'WHO CAN COLLECT') Font.drawRight(ctx, '*NEW', 250, 8, COL.gold);
+    }
     for (let r = 0; r < SETTINGS_ROWS; r++) {
-      const i = st.scroll + r, row = SETTINGS_DEF[i];
+      const i = f.scroll + r, row = items[i];
       if (!row) break;
-      const y = SETTINGS_TOP + r * SETTINGS_ROW_H;
-      if (row.section) {
-        Font.draw(ctx, row.section, 8, y, COL.orange);
-        ctx.fillStyle = COL.orange;
-        ctx.fillRect(8 + row.section.length * 8 + 2, y + 3, 216 - row.section.length * 8, 1);
-        if (row.enemy !== undefined) ctx.drawImage(Sprites.tank('e' + row.enemy, 0, 3, ENEMY[row.enemy].pal || 'silver'), 232, y - 5);
-        if (row.section === 'WHO CAN COLLECT') {
-          ctx.fillStyle = COL.black;
-          ctx.fillRect(184, y, 64, 8);
-          Font.draw(ctx, '* NEW', 200, y, COL.gold);
-        }
-        continue;
-      }
-      const sel = i === st.idx;
+      const y = SETTINGS_TOP + r * SETTINGS_ROW_H, sel = i === f.idx;
       if (sel) {
         ctx.fillStyle = '#20206C';
         ctx.fillRect(4, y - 2, SW - 8, 11);
       }
+      if (row.node) {
+        // a page: its name, a picture for enemy types, and an arrow
+        Font.draw(ctx, row.label, 16, y, COL.white);
+        if (row.enemy !== undefined) ctx.drawImage(Sprites.tank('e' + row.enemy, 0, 3, ENEMY[row.enemy].pal || 'silver'), 216, y - 4);
+        Font.draw(ctx, '>', 241, y, sel ? COL.white : '#505050');
+        continue;
+      }
       if (row.action) {
-        Font.draw(ctx, row.label, 16, y, row.action === 'reset' ? COL.red : row.action === 'back' ? COL.white : COL.gold);
+        Font.draw(ctx, row.label, 16, y, row.action === 'reset' ? COL.red : row.action === 'back' || row.action === 'up' ? COL.white : COL.gold);
         continue;
       }
       Font.draw(ctx, row.label, 16, y, COL.white);
@@ -10790,15 +10881,15 @@ const Game = {
     }
     // scroll hints
     ctx.fillStyle = COL.lgrey;
-    if (st.scroll > 0) for (let k = 0; k < 4; k++) ctx.fillRect(SW / 2 - k, 19 + k - 3, 1 + 2 * k, 1);
-    if (st.scroll + SETTINGS_ROWS < SETTINGS_DEF.length) for (let k = 0; k < 4; k++) ctx.fillRect(SW / 2 - 3 + k, 205 + k, 7 - 2 * k, 1);
-    // footer: what the selected power-up does, otherwise the controls
-    const cur = SETTINGS_DEF[st.idx];
+    if (f.scroll > 0) for (let k = 0; k < 4; k++) ctx.fillRect(SW / 2 - k, 19 + k - 3, 1 + 2 * k, 1);
+    if (f.scroll + SETTINGS_ROWS < items.length) for (let k = 0; k < 4; k++) ctx.fillRect(SW / 2 - 3 + k, 205 + k, 7 - 2 * k, 1);
+    // footer: what the selected power-up / enemy does, otherwise the controls
+    const cur = items[f.idx];
     if (cur.powerup !== undefined) {
       ctx.drawImage(Sprites.powerups[cur.powerup], 8, 207);
       Font.draw(ctx, POWERUPS[cur.powerup].desc, 28, 212, COL.white);
     } else if (cur.enemy !== undefined && ENEMY[cur.enemy].desc) {
-      ctx.drawImage(Sprites.tank('e' + cur.enemy, (this.t >> 3) & 1, 1, ENEMY[cur.enemy].pal), 8, 207);
+      ctx.drawImage(Sprites.tank('e' + cur.enemy, (this.t >> 3) & 1, 1, ENEMY[cur.enemy].pal || 'silver'), 8, 207);
       Font.draw(ctx, ENEMY[cur.enemy].desc, 28, 212, COL.white);
     } else if (cur.key === 'aiStyle' || cur.key === 'aiMarks') {
       ['RUSH', 'HUNT', 'SNIPE'].forEach((w, i) => {
@@ -10807,7 +10898,7 @@ const Game = {
         Font.draw(ctx, w, 34 + i * 72, 212, COL.white);
       });
     } else {
-      Font.drawCenter(ctx, '<> CHANGE   ESC BACK', SW / 2, 212, COL.lgrey);
+      Font.drawCenter(ctx, cur.node ? 'ENTER OPEN   ESC BACK' : '<> CHANGE   ESC BACK', SW / 2, 212, COL.lgrey);
     }
   },
 
@@ -10853,13 +10944,13 @@ const Game = {
         else { this.menuIdx = i; Sound.play('select'); }
       }
     } else if (this.state === 'settings') {
-      const r = Math.floor((y - SETTINGS_TOP + 2) / SETTINGS_ROW_H);
-      if (y < 20) { this.settingsMove(-1); return; }
+      const f = this.settingsPage(), r = Math.floor((y - SETTINGS_TOP + 2) / SETTINGS_ROW_H);
+      if (y < 20) { if (x < 40 && this.st.stack.length > 1) this.settingsBack(); else this.settingsMove(-1); return; }
       if (y > 204) { this.settingsMove(1); return; }
-      const i = this.st.scroll + r, row = SETTINGS_DEF[i];
-      if (r < 0 || r >= SETTINGS_ROWS || !row || row.section) return;
-      if (i !== this.st.idx && !row.action) { this.st.idx = i; Sound.play('select'); return; }
-      this.st.idx = i;
+      const i = f.scroll + r, row = f.node.items[i];
+      if (r < 0 || r >= SETTINGS_ROWS || !row) return;
+      if (i !== f.idx && row.key) { f.idx = i; Sound.play('select'); return; }
+      f.idx = i;
       if (row.key) this.settingsActivate(x < 196 ? -1 : 1);
       else this.settingsActivate(1);
     }
