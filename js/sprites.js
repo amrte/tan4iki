@@ -878,6 +878,9 @@ const EXTRA_POWERUP_MASKS = {
     '..XXXXXXXXX.', '...XXX.XX...', '.......X....', '..XX........', '.XXXX.......'],
   airstrike: ['.....XX.....', '.....XX.....', '....XXXX....', 'XXXXXXXXXXXX', 'XXXXXXXXXXXX', '....XXXX....',
     '.....XX.....', '.....XX.....', '...XXXXXX...', '...XXXXXX...', '............'],
+  // night-vision goggles: two lenses on a strap
+  night: ['............', '............', '.XXXX..XXXX.', 'XXXXXXXXXXXX', 'XX..XXXX..XX', 'XX..XXXX..XX',
+    'XXXXX..XXXXX', '.XXX....XXX.', '............', '............', '............'],
 };
 
 // SNAKE head (facing up; 4 = red eyes and forked tongue, which flickers between frames)

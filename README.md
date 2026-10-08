@@ -200,13 +200,13 @@ Eight more come from the *Tank 1990 New Enemies* design canvas (the variant used
 | Tank | From stage | Look | Ability | Hits / Points / XP |
 |---|---|---|---|---|
 | Skimmer (Hover) | 6 | blue hovercraft with a skirt ring, no tracks | glides over water; paths straight across rivers | 1 / 300 / 15 |
-| Flamer (Torch) | 9 | red, fuel cylinders on the back | a 2-tile flame jet instead of shells: can't be shot down, burns trees, hurts every tank it touches (its own side too) | 2 / 400 / 25 |
+| Flamer (Torch) | 9 | red, fuel cylinders on the back | a 2-tile flame jet instead of shells: can't be shot down, burns trees, hurts every tank it touches (its own side too); short range, so it's built tough | 6 / 400 / 25 |
 | Mason (Crane) | 12 | blue chassis under a yellow gantry | rebuilds an 8px block of shot-away brick every 3 s within 6 tiles (never over a tank); likes to rush the eagle and patch its walls | 2 / 400 / 25 |
 | Splitter (Twin Hull) | 14 | two half-hulls along a seam | on its last hit splits into two fast minis (1 hit, 100 points) that rush the eagle; a rocket, mine or grenade destroys it whole | 1 / 300 / 15 |
 | Medic (Field Ambulance) | 17 | white with a red cross | every 4 s repairs one hit on a damaged enemy nearby (a beam shows it); tanks that appear near it get a shield | 2 / 500 / 30 |
 | Mortar (Long Tom) | 19 | bronze howitzer | stops and lobs a shell over walls at you; a crosshair marks the spot 1.5 s before it lands; can't hit closer than 3 tiles | 2 / 400 / 25 |
 | Jammer (Dish) | 21 | grey with a radar dish | inside its 3-tile ring your shells fly at half speed and timed power-ups stop counting down | 1 / 400 / 25 |
-| Snake | 13 | a long green snake with red eyes and a flicking tongue | fast, never shoots, slithers through brick (not steel); only its head can be hurt (10 hits, its body stops shells); it hunts you and eats your tank if it reaches you, growing a segment each time; a shield or armour plate makes it recoil | 10 / 800 / 50 |
+| Snake | 13 | a long green snake with red eyes and a flicking tongue | fast, never shoots, slithers through brick (not steel); only its head can be hurt (16 hits, its body stops shells); it hunts you and eats your tank if it reaches you, growing a segment each time; a shield or armour plate makes it recoil | 16 / 800 / 50 |
 | Spotter (Sky Eye) | 23 | orange with a red-eyed mast | marks a player it can see along a row or column (steel, brick and trees block its view); while marked, every enemy hunts that player and fires more; the mark fades 5 s after it loses sight, or when the spotters die | 1 / 500 / 30 |
 
 They take a bigger share of each stage as the game goes on (about 1 in 4 tanks by stage 20, about half by stage 35); from stage 23 all 12 types are in the mix.
@@ -311,7 +311,7 @@ The status column shows the level you have (`L2/5`) and the line below says what
 | Eagle armor | the eagle survives 1 – 5 hits each stage (cyan outline, gold from 3) | 3000 – 15000 |
 | Repair crew | rebuilds one missing fortress block every 10 / 7 / 5 / 3 / 2 s | 2500 – 10000 |
 | Eagle gun | a turret on the eagle shoots enemies lined up above or beside it; range 6 → 15 tiles and faster each level; steel-breaking shells at 4, exploding shells at 5. Its shells pass through your tanks and never break the fortress; its kills earn no points | 5000 – 16000 |
-| Minefield | 2 / 4 / 6 / 8 / 10 armed mines in front of the fortress at the start of each stage | 2000 – 6000 |
+| Minefield | 2 / 4 / 6 / 8 / 10 armed mines in front of the fortress at the start of each stage (on any ground a tank can drive on: open, trees, ice, mud, bridges, belts; your mines always show, even under trees) | 2000 – 6000 |
 | Tesla coil | zaps every enemy within 2 → 4 tiles of the eagle, every 3 s → every second | 6000 – 16000 |
 | Tank traps | enemies near the eagle (2.5 → 4.5 tiles) move 30% → 70% slower; a dotted arc marks the zone | 2500 – 9000 |
 | Supply drop | a power-up lands just in front of the fortress every 60 / 45 / 35 / 25 / 20 s | 4000 – 12000 |
@@ -339,6 +339,7 @@ These 14 were not in the original game. They're marked with `*` in Settings and 
 | **Revive** (heart) | every fallen teammate comes back with one tank; if nobody is down, an extra life | 2 more enemy tanks join the stage |
 | **Bridge** (planks) | 2 bridge kits: drive into water to lay a bridge | that tank can cross water |
 | **Smoke** (cloud) | enemies lose track of you for 15 s | that tank fades into smoke |
+| **Night vision** (goggles) | night stages only, as every second power-up there: the whole team sees the whole field (in green) for 20 s, flickering back to dark in the last 2 s | can't take it |
 | **Airstrike** (plane) | a plane flies along the row with the most enemies (never the rows by your eagle) and bombs it | the plane bombs your row |
 
 ## Wingman, decoy eagle, smoke and bridges
@@ -365,7 +366,8 @@ These 14 were not in the original game. They're marked with `*` in Settings and 
   Bigger fields get more. Settings → GAME → MUD, BELTS, PADS turns them off. In CONSTRUCTION they are the last
   patterns of the palette (pads pair up in the order you place them).
 - **Night stages** (every 6th stage from 6) are dark except around your tanks, the eagle, shells, explosions, spawns
-  and pads; an enemy shows only in your light or when it fires (enemies fire a bit less at night too).
+  and pads; an enemy shows only in your light or when it fires (enemies fire a bit less at night too). Every second
+  power-up on a night stage is NIGHT VISION: 20 s of seeing the whole field.
   **Fog stages** (every 6th from 9) are the same in grey with a wider view. Never on boss stages. The stage curtain
   says NIGHT or FOG. Settings → GAME → NIGHT AND FOG: some (default), off, all night, all fog.
 

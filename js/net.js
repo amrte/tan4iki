@@ -250,6 +250,7 @@ const Net = {
       cd: st.card || null,
       cp: st.cpu || null,
       rc: st.race || null,
+      nv: st.nightVision || 0,
     };
     st.netDiff = [];
     // the corridor moved down a section: the whole terrain goes again
@@ -410,6 +411,7 @@ const Net = {
     st.card = sv.cd || null;
     st.cpu = sv.cp || null;
     st.race = sv.rc || null;
+    st.nightVision = sv.nv || 0;
     if (sv.cr) {
       // the host's world moved down: so does this screen's window
       if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();

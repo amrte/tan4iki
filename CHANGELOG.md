@@ -3,6 +3,20 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.25
+
+- **Fix: enemy tanks getting stuck,** often nose to nose. Slow tanks only step every other frame, and on the frames in
+  between they counted as "not blocked", so they never got round to turning away. Now a blocked tank turns only to a
+  way that's open, and when two tanks block each other one of them steps aside and lets the other pass. In a
+  measurement over ~2.7 hours of enemy driving, stuck tanks went from about 200 cases to 3.
+- **Fix: the base minefield on ice.** Mines were only laid on open ground or trees, never on ice (or mud, bridges and
+  belts); now any drivable ground works, with a third row of spots. Your own mines are drawn over trees too.
+- **Night vision:** on night stages every second power-up is NIGHT VISION (goggles): the whole team sees the whole
+  field for 20 s. Players only; off with the rest in the power-up settings.
+- **Short-range enemies are tougher:** the flamer takes 6 hits (was 2) and the snake 16 (was 10). Tough enemies show
+  a small health bar once hit. Saved settings still on the old defaults move to the new ones.
+- Rebalanced to go with the unstuck tanks: NOT TOO ROUGH gets a faster free repair crew and fewer eagle-hunters.
+
 ## 0.24
 
 - **Kill race:** enemy tanks now appear at random free spots all over the map (open ground, never within 4 tiles of a

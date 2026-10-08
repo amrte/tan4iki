@@ -327,7 +327,8 @@ const Sprites = {
       g(framedIcon(EXTRA_POWERUP_MASKS.revive), POWERUP_PAL),
       g(framedIcon(EXTRA_POWERUP_MASKS.airstrike), POWERUP_PAL),
       g(framedIcon(EXTRA_POWERUP_MASKS.bridge), POWERUP_PAL),
-      g(framedIcon(EXTRA_POWERUP_MASKS.smoke), POWERUP_PAL));
+      g(framedIcon(EXTRA_POWERUP_MASKS.smoke), POWERUP_PAL),
+      g(framedIcon(EXTRA_POWERUP_MASKS.night), POWERUP_PAL));
     // wooden planks laid over water (8px pattern, drawn in 4px cells like the other terrain)
     this.mudTex = paintRows(['22122322', '21222232', '22232212', '32222122', '22122223', '22322122', '12222322', '22212232'],
       { 1: '#9C7038', 2: '#6C4818', 3: '#4C3008' });

@@ -9,7 +9,7 @@
 //    MEDIC    repairs one hit on a damaged enemy nearby every 4 s; tanks appearing near it get a shield
 //    JAMMER   inside its 3-tile field your shells fly at half speed and timed power-ups stop counting down
 //    SPOTTER  marks a player it can see; while marked, every enemy hunts that player and fires more
-//    SNAKE    fast, never shoots, slithers through brick; 10 hits on the head (its body stops shells);
+//    SNAKE    fast, never shoots, slithers through brick; 16 hits on the head (its body stops shells);
 //             it eats a player tank it reaches (a shield or armour plate makes it recoil) and grows longer
 // =====================================================================
 

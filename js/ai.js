@@ -156,6 +156,8 @@ Object.assign(Stage.prototype, {
     let best = -1, bd = Infinity;
     for (let d = 0; d < 4; d++) {
       if (blocked && d === t.dir) continue;
+      // blocked: only ways it can drive (or shoot) through now, not into another tank or wall
+      if (blocked && !this.canStep(t, d) && !this.brickAhead(t, d)) continue;
       const ux = bx + DXY[d][0], uy = by + DXY[d][1];
       if (ux < 0 || uy < 0 || ux >= NX || uy * NX >= dist.length) continue;
       const v = dist[uy * NX + ux] + (d === t.dir ? -0.01 : 0);
@@ -210,10 +212,10 @@ Object.assign(Stage.prototype, {
     }
   },
 
-  // is there brick right in front of the tank? (worth a shot)
-  brickAhead(t) {
+  // is there brick right in front of the tank (or in direction d)? (worth a shot)
+  brickAhead(t, d = t.dir) {
     const [x0, y0, x1, y1] = [[t.x, t.y - 4, t.x + 15, t.y - 1], [t.x + 16, t.y, t.x + 19, t.y + 15],
-      [t.x, t.y + 16, t.x + 15, t.y + 19], [t.x - 4, t.y, t.x - 1, t.y + 15]][t.dir];
+      [t.x, t.y + 16, t.x + 15, t.y + 19], [t.x - 4, t.y, t.x - 1, t.y + 15]][d];
     for (let cy = y0 >> 2; cy <= y1 >> 2; cy++) for (let cx = x0 >> 2; cx <= x1 >> 2; cx++) if (this.get(cx, cy) === T_BRICK) return true;
     return false;
   },

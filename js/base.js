@@ -92,12 +92,13 @@ Object.assign(Stage.prototype, {
 
   placeMinefield(n) {
     const spots = [];
-    for (const dy of [48, 72]) for (const dx of [0, -24, 24, -48, 48, -72, 72]) spots.push([BASE_X + 8 + dx, BASE_Y + 8 - dy]);
+    for (const dy of [48, 72, 96]) for (const dx of [0, -24, 24, -48, 48, -72, 72]) spots.push([BASE_X + 8 + dx, BASE_Y + 8 - dy]);
     for (const [x, y] of spots) {
       if (n <= 0) break;
       if (x < 8 || x > FW - 8 || y < 8) continue;
+      // any ground a tank can drive on: open, trees, ice, mud, bridges, belts
       const t = this.get(x >> 2, y >> 2);
-      if (t !== T_EMPTY && t !== T_FOREST) continue;
+      if (t === T_BRICK || t === T_STEEL || t === T_WATER || t < 0) continue;
       if (PLAYER_SPAWN.some(([sx, sy]) => overlap(x - 4, y - 4, 8, 8, sx, sy, 16, 16))) continue;
       this.mines.push({ x, y, byPlayer: true, owner: null, t: MINE_ARM_TIME });
       n--;

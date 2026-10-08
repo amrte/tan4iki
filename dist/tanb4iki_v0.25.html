@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.24</title>
+  <title>tanb4iki_v0.25</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.24';
+const APP_VERSION = '0.25';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -1861,6 +1861,9 @@ const EXTRA_POWERUP_MASKS = {
     '..XXXXXXXXX.', '...XXX.XX...', '.......X....', '..XX........', '.XXXX.......'],
   airstrike: ['.....XX.....', '.....XX.....', '....XXXX....', 'XXXXXXXXXXXX', 'XXXXXXXXXXXX', '....XXXX....',
     '.....XX.....', '.....XX.....', '...XXXXXX...', '...XXXXXX...', '............'],
+  // night-vision goggles: two lenses on a strap
+  night: ['............', '............', '.XXXX..XXXX.', 'XXXXXXXXXXXX', 'XX..XXXX..XX', 'XX..XXXX..XX',
+    'XXXXX..XXXXX', '.XXX....XXX.', '............', '............', '............'],
 };
 
 // SNAKE head (facing up; 4 = red eyes and forked tongue, which flickers between frames)
@@ -2205,7 +2208,8 @@ const Sprites = {
       g(framedIcon(EXTRA_POWERUP_MASKS.revive), POWERUP_PAL),
       g(framedIcon(EXTRA_POWERUP_MASKS.airstrike), POWERUP_PAL),
       g(framedIcon(EXTRA_POWERUP_MASKS.bridge), POWERUP_PAL),
-      g(framedIcon(EXTRA_POWERUP_MASKS.smoke), POWERUP_PAL));
+      g(framedIcon(EXTRA_POWERUP_MASKS.smoke), POWERUP_PAL),
+      g(framedIcon(EXTRA_POWERUP_MASKS.night), POWERUP_PAL));
     // wooden planks laid over water (8px pattern, drawn in 4px cells like the other terrain)
     this.mudTex = paintRows(['22122322', '21222232', '22232212', '32222122', '22122223', '22322122', '12222322', '22212232'],
       { 1: '#9C7038', 2: '#6C4818', 3: '#4C3008' });
@@ -2358,6 +2362,8 @@ const POWERUPS = [
   { name: 'AIRSTRIKE', weight: 1, isNew: true, desc: 'BOMBS THE BUSIEST ROW' },
   { name: 'BRIDGE', weight: 1, isNew: true, desc: '2 BRIDGE KITS FOR WATER' },
   { name: 'SMOKE', weight: 2, isNew: true, desc: 'ENEMIES LOSE TRACK OF YOU' },
+  // night stages only: every second power-up there (weight 0 = never picked at random)
+  { name: 'NIGHT VISION', weight: 0, isNew: true, desc: 'SEE IN THE DARK FOR 20 S', who: 'PLAYER' },
 ];
 
 // XP ranks: total XP needed for each level (1-10), and the perk it unlocks (descriptions max 22 chars)
@@ -2389,9 +2395,9 @@ const SKILLS = [
   { name: "I'M TOO YOUNG TO DIE", fire: 0.35, speed: 0.75, shell: 0.7, spawn: 0.6, boss: 0.5, lives: 3, vet: -30, aggr: 0.15,
     newMult: 0.3, newShift: 15, maxOn: -1, plates: 1, eagle: 3, respawn: 0, sight: 64, baseSight: 40, baseAim: 0.4, grab: 0, hqPace: 0.5, bossPace: 0.6, shield: 2, repair: 3 },
   { name: 'HEY, NOT TOO ROUGH', fire: 0.6, speed: 0.88, shell: 0.85, spawn: 0.75, boss: 0.75, lives: 2, vet: -15, aggr: 0.45,
-    newMult: 0.6, newShift: 6, maxOn: 0, plates: 0, eagle: 2, respawn: 0, sight: 104, baseSight: 64, baseAim: 0.65, grab: 1, hqPace: 0.75, bossPace: 0.8, shield: 1.5, repair: 1 },
+    newMult: 0.6, newShift: 6, maxOn: 0, plates: 0, eagle: 2, respawn: 0, sight: 104, baseSight: 64, baseAim: 0.5, grab: 1, hqPace: 0.75, bossPace: 0.8, shield: 1.5, repair: 2 },
   { name: 'HURT ME PLENTY', fire: 1, speed: 1, shell: 1, spawn: 1, boss: 1, lives: 0, vet: 0, aggr: 0.85,
-    newMult: 1, newShift: 0, maxOn: 0, plates: 0, eagle: 0, respawn: 0, sight: 176, baseSight: 112, baseAim: 0.9, grab: 2, hqPace: 1, bossPace: 1, shield: 1, repair: 0 },
+    newMult: 1, newShift: 0, maxOn: 0, plates: 0, eagle: 0, respawn: 0, sight: 176, baseSight: 112, baseAim: 0.8, grab: 2, hqPace: 1, bossPace: 1, shield: 1, repair: 0 },
   { name: 'ULTRA-VIOLENCE', fire: 1.3, speed: 1.1, shell: 1.15, spawn: 1.25, boss: 1.25, lives: 0, vet: 5, aggr: 1.25,
     newMult: 1.2, newShift: 0, maxOn: 1, plates: 0, eagle: 0, respawn: 0, sight: 999, baseSight: 999, baseAim: 1.1, grab: 2, hqPace: 1.2, bossPace: 1, shield: 1, repair: 0 },
   { name: 'NIGHTMARE!', fire: 1.6, speed: 1.2, shell: 1.3, spawn: 1.5, boss: 1.5, lives: 0, vet: 10, aggr: 1.5,
@@ -2448,6 +2454,9 @@ const AutoSkill = {
     return p;
   },
 };
+
+// defaults that have changed: a saved setting still on the old default moves to the new one
+const OLD_DEFAULTS = { e11Hits: [2], e17Hits: [10] };   // flamer 2 -> 6, snake 10 -> 16 hits (short range, tougher)
 
 const pct = (...v) => v;
 const PCTS = pct(25, 50, 75, 100, 125, 150, 175, 200, 250, 300);
@@ -2549,7 +2558,7 @@ const SETTINGS_DEF = [
   { key: 'e10On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 10 },
   { section: 'FLAMER *', enemy: 11 },
   { key: 'e11Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 11 },
-  { key: 'e11Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 11 },
+  { key: 'e11Hits', label: 'HITS TO DESTROY', values: range(1, 12), def: 6, enemy: 11 },
   { key: 'e11On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 11 },
   { section: 'SPLITTER *', enemy: 12 },
   { key: 'e12Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 12 },
@@ -2570,7 +2579,7 @@ const SETTINGS_DEF = [
 
   { section: 'SNAKE *', enemy: 17 },
   { key: 'e17Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 17 },
-  { key: 'e17Hits', label: 'HITS TO DESTROY', values: range(1, 20), def: 10, enemy: 17 },
+  { key: 'e17Hits', label: 'HITS TO DESTROY', values: range(1, 30), def: 16, enemy: 17 },
   { key: 'e17On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 17 },
 
   { section: 'POWER-UPS' },
@@ -2639,7 +2648,11 @@ const Config = {
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem('tank1990_settings') || '{}') || {}; } catch (e) { saved = {}; }
     this.reset(false);
-    for (const k in saved) if (this.defs[k] && this.defs[k].values.includes(saved[k])) this.values[k] = saved[k];
+    for (const k in saved) {
+      if (!this.defs[k] || !this.defs[k].values.includes(saved[k])) continue;
+      if ((OLD_DEFAULTS[k] || []).includes(saved[k])) continue;   // a default that has since changed: take the new one
+      this.values[k] = saved[k];
+    }
     this.apply();
   },
 
@@ -3510,15 +3523,15 @@ const ENEMY = [
   { name: 'MASON', kind: 'mason', speed: 0.5, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [3, 5, 1, 1], pal: 'mason', from: 12, fire: 0.5, desc: 'REBUILDS BROKEN BRICKS' },
   { name: 'MORTAR', kind: 'mortar', speed: 0.4, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [1, 1, 1, 7], pal: 'mortar', from: 19, desc: 'LOBS SHELLS OVER WALLS' },
   { name: 'SKIMMER', kind: 'skimmer', speed: 1.1, bullet: 2.5, hp: 1, pts: 300, xp: 15, ai: [2, 3, 4, 1], pal: 'skimmer', from: 6, desc: 'GLIDES OVER WATER' },
-  { name: 'FLAMER', kind: 'flamer', speed: 0.75, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [1, 2, 7, 0], pal: 'flamer', from: 9, desc: 'SHORT FLAME JET, BURNS TREES' },
+  { name: 'FLAMER', kind: 'flamer', speed: 0.75, bullet: 2.5, hp: 6, pts: 400, xp: 25, ai: [1, 2, 7, 0], pal: 'flamer', from: 9, desc: 'SHORT FLAME JET, 6 HITS' },
   { name: 'SPLITTER', kind: 'splitter', speed: 0.75, bullet: 2.5, hp: 1, pts: 300, xp: 15, ai: [2, 5, 2, 1], pal: 'splitter', from: 14, desc: 'SPLITS INTO TWO MINIS' },
   { name: 'MEDIC', kind: 'medic', speed: 0.75, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [6, 1, 0, 3], pal: 'medic', from: 17, fire: 0.3, desc: 'REPAIRS NEARBY ENEMIES' },
   { name: 'JAMMER', kind: 'jammer', speed: 0.5, bullet: 2.5, hp: 1, pts: 400, xp: 25, ai: [4, 1, 1, 4], pal: 'jammer', from: 21, fire: 0.3, desc: 'SLOWS YOUR SHELLS NEARBY' },
   { name: 'SPOTTER', kind: 'spotter', speed: 1.1, bullet: 2.5, hp: 1, pts: 500, xp: 30, ai: [1, 0, 1, 8], pal: 'spotter', from: 23, fire: 0.4, desc: 'MARKS YOU FOR ALL ENEMIES' },
   // half of a destroyed splitter (never in a line-up)
   { name: 'MINI', kind: 'mini', speed: 1.4, bullet: 2.5, hp: 1, pts: 100, xp: 5, ai: [0, 1, 0, 0], pal: 'splitter', mini: true, desc: 'HALF A SPLITTER, VERY FAST' },
-  // a long snake: fast, never shoots, 10 hits (head only), eats your tank and grows
-  { name: 'SNAKE', kind: 'snake', speed: 1.4, bullet: 2.5, hp: 10, pts: 800, xp: 50, ai: [0, 0, 1, 0], pal: 'snake', from: 13, desc: 'FAST, 10 HITS, EATS TANKS' },
+  // a long snake: fast, never shoots, 16 hits (head only), eats your tank and grows
+  { name: 'SNAKE', kind: 'snake', speed: 1.4, bullet: 2.5, hp: 16, pts: 800, xp: 50, ai: [0, 0, 1, 0], pal: 'snake', from: 13, desc: 'FAST, 16 HITS, EATS TANKS' },
 ];
 // types that can join a line-up, and every non-classic type (the tally's NEW row)
 const NEW_TYPES = ENEMY.map((e, i) => i).filter(i => i >= 4 && !ENEMY[i].mini);
@@ -3537,6 +3550,7 @@ const PU = {
   // additions that were not in the original game
   TURBO: 8, RAPID: 9, SPREAD: 10, PIERCE: 11, ROCKET: 12, MINES: 13, GHOST: 14, COIN: 15,
   TURRET: 16, CLAUDE: 17, REVIVE: 18, AIRSTRIKE: 19, BRIDGE: 20, SMOKE: 21,   // see extras.js
+  NIGHT: 22,   // night vision (terrain.js)
 };
 // timed effects granted by the new power-ups (stored per tank in t.boost)
 const TIMED_BOOSTS = { [PU.TURBO]: 'turbo', [PU.RAPID]: 'rapid', [PU.SPREAD]: 'spread', [PU.PIERCE]: 'pierce', [PU.ROCKET]: 'rocket', [PU.GHOST]: 'ghost', [PU.SMOKE]: 'smoke' };
@@ -3987,6 +4001,7 @@ class Stage {
     if (this.freezeP > 0) this.freezeP--;
     this.updateShovel();
     this.updateCards();
+    if (this.nightVision > 0) this.nightVision--;
     if (!this.over) this.updateSpawning();
     this.updateSpawns();
     for (const t of this.tanks) {
@@ -4110,18 +4125,32 @@ class Stage {
       const pt = this.nearestPlayer(t);
       if (t.ai === AI.SNIPE && pt && Math.abs(pt.x - t.x) + Math.abs(pt.y - t.y) < SNIPE_MIN - 8) t.hold = 0;
     } else {
-      ok = this.move(t, t.dir);
+      if (t.yieldT > 0) t.yieldT--;
+      // a slow tank doesn't step every frame; on the frames between, ask whether its next step is open, so a blocked
+      // tank counts as blocked every frame (else it never gets round to turning away)
+      ok = this.move(t, t.dir) && this.canStep(t, t.dir);
       if (!ok) {
         t.blocked++;
-        // personalities shoot their way through bricks instead of turning away
-        const wait = smart && this.brickAhead(t) ? 40 : 6;
-        if (t.blocked >= wait && Math.random() < 0.3) {
-          if (smart || this.markedTank(t)) this.aiChoose(t, true); else this.chooseDir(t, true);
-          t.blocked = 0;
+        const other = this.tankAhead(t);
+        if (other) {
+          // another tank in the way: one of the two steps aside and lets it pass (the other waits a moment first,
+          // so two tanks nose to nose in a lane don't both turn back and forth for ever)
+          if (t.yieldRank === undefined) t.yieldRank = Math.random();
+          const headOn = !other.isPlayer && other.dir === (t.dir + 2) % 4;
+          const wait = headOn && (other.yieldRank === undefined || other.yieldRank > t.yieldRank) ? 4 : 30;
+          if (t.blocked >= wait) { this.stepAside(t); t.blocked = 0; }
+        } else {
+          // personalities shoot their way through bricks instead of turning away
+          const wait = smart && this.brickAhead(t) ? 40 : 6;
+          if (t.blocked >= wait && Math.random() < 0.3) {
+            if (t.yieldT > 0) this.stepAside(t);
+            else if (smart || this.markedTank(t)) this.aiChoose(t, true); else this.chooseDir(t, true);
+            t.blocked = 0;
+          }
         }
       } else {
         t.blocked = 0;
-        if ((t.x & 7) === 0 && (t.y & 7) === 0) {
+        if ((t.x & 7) === 0 && (t.y & 7) === 0 && !(t.yieldT > 0)) {
           if (smart || this.markedTank(t)) this.aiChoose(t, false);
           else if (Math.random() < 1 / 20) this.chooseDir(t, false);
         }
@@ -4176,6 +4205,11 @@ class Stage {
       d = rnd(4);
     }
     if (blocked && d === t.dir) d = Math.random() < 0.5 ? (d + 1) % 4 : (d + 3) % 4;
+    // blocked: never pick another way that's shut too
+    if (blocked && !this.canStep(t, d)) {
+      const free = [0, 1, 2, 3].filter(k => k !== t.dir && this.canStep(t, k));
+      if (free.length) d = free[rnd(free.length)];
+    }
     this.turn(t, d);
   }
 
@@ -4217,6 +4251,23 @@ class Stage {
       if (this.get(cx, cy) === T_BRICK) { this.set(cx, cy, T_EMPTY); n++; }
     }
     if (n && this.lastBrickSound < this.frame - 20) { Sound.play('brick'); this.lastBrickSound = this.frame; }
+  }
+
+  // the tank right in front of t, if any
+  tankAhead(t) {
+    const nx = t.x + DXY[t.dir][0] * 2, ny = t.y + DXY[t.dir][1] * 2;
+    return this.tanks.find(o => o !== t && o.alive && overlap(nx, ny, 16, 16, o.x, o.y, 16, 16) && !overlap(t.x, t.y, 16, 16, o.x, o.y, 16, 16)) || null;
+  }
+
+  // get out of the way: sideways if there's room (either side, at random), else back; keep going that way for a
+  // little while before planning a route again
+  stepAside(t) {
+    const side = Math.random() < 0.5 ? [1, 3] : [3, 1];
+    const tries = side.map(k => (t.dir + k) % 4).concat([(t.dir + 2) % 4]);
+    const d = tries.find(dd => this.canStep(t, dd));
+    if (d === undefined) return;
+    this.turn(t, d);
+    t.yieldT = 24 + rnd(32);
   }
 
   canStep(t, d) {
@@ -4654,6 +4705,9 @@ class Stage {
     if (total === 0) return;
     let r = rnd(total), type = 0;
     while (r >= weights[type]) { r -= weights[type]; type++; }
+    // on a night stage every second power-up is night vision (terrain.js)
+    this.puCount = (this.puCount || 0) + 1;
+    if (this.weather === 'night' && !only && this.puCount % 2 === 0 && Config.get('pu' + PU.NIGHT) !== 'OFF') type = PU.NIGHT;
     let x = 0, y = 0;
     for (let tries = 0; tries < 60; tries++) {
       x = rnd((FW - 16) / 8 + 1) * 8; y = rnd((FH - 16) / 8 + 1) * 8;
@@ -4729,6 +4783,7 @@ class Stage {
         case PU.CLAUDE: this.summonClaude(pu.x, pu.y, p); break;
         case PU.AIRSTRIKE: this.callAirstrike(true, gunner(p)); break;
         case PU.BRIDGE: p.bridges = (p.bridges || 0) + 2; break;
+        case PU.NIGHT: this.nightVision = NIGHT_VISION_TIME; break;
         case PU.REVIVE: {
           const fallen = this.players.filter(q => q.out);
           if (fallen.length) fallen.forEach(q => this.revive(q, null));
@@ -4771,6 +4826,16 @@ class Stage {
   }
 
   // ------------------------------------------------------------ rendering
+  // mines on one side; a black edge keeps them visible on light ground (ice, bridges)
+  renderMines(ctx, byPlayer) {
+    for (const m of this.mines) {
+      if (!!m.byPlayer !== byPlayer) continue;
+      const spr = Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0];
+      ctx.drawImage(Sprites.outline(spr, COL.black), m.x - 5, m.y - 5);
+      ctx.drawImage(spr, m.x - 4, m.y - 4);
+    }
+  }
+
   buildLayers() {
     if (!this.bgLayer) {
       this.bgLayer = makeCanvas(FW, FH);
@@ -4844,7 +4909,7 @@ class Stage {
       }
       ctx.drawImage(img, t.x, t.y);
     } else {
-      if (kindOf(t) === 'snake') { this.drawSnake(ctx, t, pal); return; }
+      if (kindOf(t) === 'snake') { this.drawSnake(ctx, t, pal); this.drawHpBar(ctx, t); return; }
       // a shade is a faint shimmer unless it just fired, got hit or is close to a player
       if (t.stealth) ctx.globalAlpha = Math.min(ctx.globalAlpha, this.shadeAlpha(t));
       // veterans and elites wear rank stripes (and an elite a turret star)
@@ -4853,9 +4918,19 @@ class Stage {
         ctx.fillStyle = AI_MARK[t.ai];
         ctx.fillRect(t.x + 7, t.y + 7, 2, 2);
       }
+      if (ctx.globalAlpha > 0.5) this.drawHpBar(ctx, t);
     }
     ctx.globalAlpha = 1;
     if (t.shield > 0) ctx.drawImage(Sprites.shield[(this.frame >> 1) & 1], t.x, t.y);
+  }
+
+  // tough enemies (5+ hits, like the flamer and the snake) show what's left once they've been hit
+  drawHpBar(ctx, t) {
+    const max = t.maxHp || Config.enemy(t.type).hp;   // an online guest only knows the type's usual hits
+    if (max < 5 || t.hp >= max || t.hp <= 0) return;
+    const w = Math.max(1, Math.round(14 * t.hp / max));
+    ctx.fillStyle = COL.black; ctx.fillRect(t.x, t.y - 4, 16, 3);
+    ctx.fillStyle = t.hp / max > 0.34 ? '#F8B800' : '#F83800'; ctx.fillRect(t.x + 1, t.y - 3, w, 1);
   }
 
   render(ctx) {
@@ -4887,12 +4962,7 @@ class Stage {
     this.renderVs(ctx);
     this.renderDecoy(ctx);
 
-    // a black edge keeps mines visible on light ground (ice, bridges)
-    for (const m of this.mines) {
-      const spr = Sprites.mine[m.t < MINE_ARM_TIME || ((this.frame >> 3) & 1) ? 1 : 0];
-      ctx.drawImage(Sprites.outline(spr, COL.black), m.x - 5, m.y - 5);
-      ctx.drawImage(spr, m.x - 4, m.y - 4);
-    }
+    this.renderMines(ctx, false);   // the enemy's (they can hide under trees)
     this.renderBossUnder(ctx);
     this.renderSpecialsUnder(ctx);
     this.renderBaseZones(ctx);
@@ -4918,6 +4988,7 @@ class Stage {
 
     this.renderBeams(ctx);
     ctx.drawImage(this.forestLayer, 0, 0);
+    this.renderMines(ctx, true);    // yours, over the trees, so you always see where you laid them
 
     if (this.powerup && ((this.powerup.t >> 3) & 1) === 0) {
       ctx.drawImage(Sprites.powerups[this.powerup.type], this.powerup.x, this.powerup.y);
@@ -5205,6 +5276,8 @@ Object.assign(Stage.prototype, {
     let best = -1, bd = Infinity;
     for (let d = 0; d < 4; d++) {
       if (blocked && d === t.dir) continue;
+      // blocked: only ways it can drive (or shoot) through now, not into another tank or wall
+      if (blocked && !this.canStep(t, d) && !this.brickAhead(t, d)) continue;
       const ux = bx + DXY[d][0], uy = by + DXY[d][1];
       if (ux < 0 || uy < 0 || ux >= NX || uy * NX >= dist.length) continue;
       const v = dist[uy * NX + ux] + (d === t.dir ? -0.01 : 0);
@@ -5259,10 +5332,10 @@ Object.assign(Stage.prototype, {
     }
   },
 
-  // is there brick right in front of the tank? (worth a shot)
-  brickAhead(t) {
+  // is there brick right in front of the tank (or in direction d)? (worth a shot)
+  brickAhead(t, d = t.dir) {
     const [x0, y0, x1, y1] = [[t.x, t.y - 4, t.x + 15, t.y - 1], [t.x + 16, t.y, t.x + 19, t.y + 15],
-      [t.x, t.y + 16, t.x + 15, t.y + 19], [t.x - 4, t.y, t.x - 1, t.y + 15]][t.dir];
+      [t.x, t.y + 16, t.x + 15, t.y + 19], [t.x - 4, t.y, t.x - 1, t.y + 15]][d];
     for (let cy = y0 >> 2; cy <= y1 >> 2; cy++) for (let cx = x0 >> 2; cx <= x1 >> 2; cx++) if (this.get(cx, cy) === T_BRICK) return true;
     return false;
   },
@@ -5281,7 +5354,7 @@ Object.assign(Stage.prototype, {
 //    MEDIC    repairs one hit on a damaged enemy nearby every 4 s; tanks appearing near it get a shield
 //    JAMMER   inside its 3-tile field your shells fly at half speed and timed power-ups stop counting down
 //    SPOTTER  marks a player it can see; while marked, every enemy hunts that player and fires more
-//    SNAKE    fast, never shoots, slithers through brick; 10 hits on the head (its body stops shells);
+//    SNAKE    fast, never shoots, slithers through brick; 16 hits on the head (its body stops shells);
 //             it eats a player tank it reaches (a shield or armour plate makes it recoil) and grows longer
 // =====================================================================
 
@@ -5679,12 +5752,13 @@ Object.assign(Stage.prototype, {
 
   placeMinefield(n) {
     const spots = [];
-    for (const dy of [48, 72]) for (const dx of [0, -24, 24, -48, 48, -72, 72]) spots.push([BASE_X + 8 + dx, BASE_Y + 8 - dy]);
+    for (const dy of [48, 72, 96]) for (const dx of [0, -24, 24, -48, 48, -72, 72]) spots.push([BASE_X + 8 + dx, BASE_Y + 8 - dy]);
     for (const [x, y] of spots) {
       if (n <= 0) break;
       if (x < 8 || x > FW - 8 || y < 8) continue;
+      // any ground a tank can drive on: open, trees, ice, mud, bridges, belts
       const t = this.get(x >> 2, y >> 2);
-      if (t !== T_EMPTY && t !== T_FOREST) continue;
+      if (t === T_BRICK || t === T_STEEL || t === T_WATER || t < 0) continue;
       if (PLAYER_SPAWN.some(([sx, sy]) => overlap(x - 4, y - 4, 8, 8, sx, sy, 16, 16))) continue;
       this.mines.push({ x, y, byPlayer: true, owner: null, t: MINE_ARM_TIME });
       n--;
@@ -5881,7 +5955,7 @@ const CLAUDE_UPGRADE = {
 };
 const CLAUDE_SPARK_RANGE = 112, CLAUDE_SPARK_EVERY = 50;
 const CARRY_WINDOW = 600;   // frames before the stage is cleared in which a timed power-up carries over
-const carryable = type => type === PU.HELMET || type === PU.CLOCK || type === PU.SHOVEL || !!TIMED_BOOSTS[type];
+const carryable = type => type === PU.HELMET || type === PU.CLOCK || type === PU.SHOVEL || type === PU.NIGHT || !!TIMED_BOOSTS[type];
 const CLAUDE_SPEED = 1, CLAUDE_EXTRA = 300;   // Claude stays for the new-power-up time + 5 s
 const REVIVE_WAIT = 300;                      // all players out: 5 s to pay for a revival before GAME OVER
 
@@ -6082,6 +6156,7 @@ Object.assign(Stage.prototype, {
       if (type === PU.HELMET) t.shield = Math.max(t.shield, 2 * Config.frames('helmetTime'));
       else if (type === PU.CLOCK) this.freezeE = Math.max(this.freezeE, 2 * Config.frames('clockTime'));
       else if (type === PU.SHOVEL) { if (!this.noBase) { this.shovel = 2 * Config.frames('shovelTime'); this.setBaseWalls(T_STEEL); } }
+      else if (type === PU.NIGHT) this.nightVision = 2 * NIGHT_VISION_TIME;
       else if (TIMED_BOOSTS[type]) t.boost[TIMED_BOOSTS[type]] = 2 * Config.frames('newTime');
     }
     this.popups.push({ x: t.x + 8, y: t.y - 4, text: p.carry.map(k => POWERUPS[k].name).join(' ') + ' x2', label: true, color: COL.gold, t: 0, delay: 0, life: 120 });
@@ -6380,6 +6455,7 @@ Object.assign(Stage.prototype, {
 
 const PAD_COLORS = ['#3CBCFC', '#F878F8', '#58D854', '#F8B800'];
 const BELT_SPEED = 0.6, MUD_SLOW = 0.5;
+const NIGHT_VISION_TIME = 20 * 60;   // the NIGHT VISION power-up lights up a night stage for the team for 20 s
 const isBelt = t => t >= T_BELT && t < T_BELT + 4;
 
 // teleporter pads painted in construction ('T' in a 26x26 block map: the top-left block of each 2x2 tile)
@@ -6556,6 +6632,12 @@ Object.assign(Stage.prototype, {
   renderDarkness(ctx) {
     const w = this.weather;
     if (!w) return;
+    // night vision: the whole field in green, flickering back to dark in its last two seconds
+    if (w === 'night' && this.nightVision > 0 && !(this.nightVision < 120 && (this.frame >> 2) & 1)) {
+      ctx.fillStyle = 'rgba(40,255,90,0.13)';
+      ctx.fillRect(0, 0, FW, FH);
+      return;
+    }
     if (!this.darkLayer || this.darkLayer.width !== FW || this.darkLayer.height !== FH) this.darkLayer = makeCanvas(FW, FH);
     const d = this.darkLayer.getContext('2d'), k = w === 'fog' ? 1.4 : 1;
     d.globalCompositeOperation = 'source-over';
@@ -8904,6 +8986,7 @@ const Net = {
       cd: st.card || null,
       cp: st.cpu || null,
       rc: st.race || null,
+      nv: st.nightVision || 0,
     };
     st.netDiff = [];
     // the corridor moved down a section: the whole terrain goes again
@@ -9064,6 +9147,7 @@ const Net = {
     st.card = sv.cd || null;
     st.cpu = sv.cp || null;
     st.race = sv.rc || null;
+    st.nightVision = sv.nv || 0;
     if (sv.cr) {
       // the host's world moved down: so does this screen's window
       if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();

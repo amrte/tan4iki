@@ -21,7 +21,7 @@ const CLAUDE_UPGRADE = {
 };
 const CLAUDE_SPARK_RANGE = 112, CLAUDE_SPARK_EVERY = 50;
 const CARRY_WINDOW = 600;   // frames before the stage is cleared in which a timed power-up carries over
-const carryable = type => type === PU.HELMET || type === PU.CLOCK || type === PU.SHOVEL || !!TIMED_BOOSTS[type];
+const carryable = type => type === PU.HELMET || type === PU.CLOCK || type === PU.SHOVEL || type === PU.NIGHT || !!TIMED_BOOSTS[type];
 const CLAUDE_SPEED = 1, CLAUDE_EXTRA = 300;   // Claude stays for the new-power-up time + 5 s
 const REVIVE_WAIT = 300;                      // all players out: 5 s to pay for a revival before GAME OVER
 
@@ -222,6 +222,7 @@ Object.assign(Stage.prototype, {
       if (type === PU.HELMET) t.shield = Math.max(t.shield, 2 * Config.frames('helmetTime'));
       else if (type === PU.CLOCK) this.freezeE = Math.max(this.freezeE, 2 * Config.frames('clockTime'));
       else if (type === PU.SHOVEL) { if (!this.noBase) { this.shovel = 2 * Config.frames('shovelTime'); this.setBaseWalls(T_STEEL); } }
+      else if (type === PU.NIGHT) this.nightVision = 2 * NIGHT_VISION_TIME;
       else if (TIMED_BOOSTS[type]) t.boost[TIMED_BOOSTS[type]] = 2 * Config.frames('newTime');
     }
     this.popups.push({ x: t.x + 8, y: t.y - 4, text: p.carry.map(k => POWERUPS[k].name).join(' ') + ' x2', label: true, color: COL.gold, t: 0, delay: 0, life: 120 });

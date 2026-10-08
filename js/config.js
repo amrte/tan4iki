@@ -44,6 +44,8 @@ const POWERUPS = [
   { name: 'AIRSTRIKE', weight: 1, isNew: true, desc: 'BOMBS THE BUSIEST ROW' },
   { name: 'BRIDGE', weight: 1, isNew: true, desc: '2 BRIDGE KITS FOR WATER' },
   { name: 'SMOKE', weight: 2, isNew: true, desc: 'ENEMIES LOSE TRACK OF YOU' },
+  // night stages only: every second power-up there (weight 0 = never picked at random)
+  { name: 'NIGHT VISION', weight: 0, isNew: true, desc: 'SEE IN THE DARK FOR 20 S', who: 'PLAYER' },
 ];
 
 // XP ranks: total XP needed for each level (1-10), and the perk it unlocks (descriptions max 22 chars)
@@ -75,9 +77,9 @@ const SKILLS = [
   { name: "I'M TOO YOUNG TO DIE", fire: 0.35, speed: 0.75, shell: 0.7, spawn: 0.6, boss: 0.5, lives: 3, vet: -30, aggr: 0.15,
     newMult: 0.3, newShift: 15, maxOn: -1, plates: 1, eagle: 3, respawn: 0, sight: 64, baseSight: 40, baseAim: 0.4, grab: 0, hqPace: 0.5, bossPace: 0.6, shield: 2, repair: 3 },
   { name: 'HEY, NOT TOO ROUGH', fire: 0.6, speed: 0.88, shell: 0.85, spawn: 0.75, boss: 0.75, lives: 2, vet: -15, aggr: 0.45,
-    newMult: 0.6, newShift: 6, maxOn: 0, plates: 0, eagle: 2, respawn: 0, sight: 104, baseSight: 64, baseAim: 0.65, grab: 1, hqPace: 0.75, bossPace: 0.8, shield: 1.5, repair: 1 },
+    newMult: 0.6, newShift: 6, maxOn: 0, plates: 0, eagle: 2, respawn: 0, sight: 104, baseSight: 64, baseAim: 0.5, grab: 1, hqPace: 0.75, bossPace: 0.8, shield: 1.5, repair: 2 },
   { name: 'HURT ME PLENTY', fire: 1, speed: 1, shell: 1, spawn: 1, boss: 1, lives: 0, vet: 0, aggr: 0.85,
-    newMult: 1, newShift: 0, maxOn: 0, plates: 0, eagle: 0, respawn: 0, sight: 176, baseSight: 112, baseAim: 0.9, grab: 2, hqPace: 1, bossPace: 1, shield: 1, repair: 0 },
+    newMult: 1, newShift: 0, maxOn: 0, plates: 0, eagle: 0, respawn: 0, sight: 176, baseSight: 112, baseAim: 0.8, grab: 2, hqPace: 1, bossPace: 1, shield: 1, repair: 0 },
   { name: 'ULTRA-VIOLENCE', fire: 1.3, speed: 1.1, shell: 1.15, spawn: 1.25, boss: 1.25, lives: 0, vet: 5, aggr: 1.25,
     newMult: 1.2, newShift: 0, maxOn: 1, plates: 0, eagle: 0, respawn: 0, sight: 999, baseSight: 999, baseAim: 1.1, grab: 2, hqPace: 1.2, bossPace: 1, shield: 1, repair: 0 },
   { name: 'NIGHTMARE!', fire: 1.6, speed: 1.2, shell: 1.3, spawn: 1.5, boss: 1.5, lives: 0, vet: 10, aggr: 1.5,
@@ -134,6 +136,9 @@ const AutoSkill = {
     return p;
   },
 };
+
+// defaults that have changed: a saved setting still on the old default moves to the new one
+const OLD_DEFAULTS = { e11Hits: [2], e17Hits: [10] };   // flamer 2 -> 6, snake 10 -> 16 hits (short range, tougher)
 
 const pct = (...v) => v;
 const PCTS = pct(25, 50, 75, 100, 125, 150, 175, 200, 250, 300);
@@ -235,7 +240,7 @@ const SETTINGS_DEF = [
   { key: 'e10On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 10 },
   { section: 'FLAMER *', enemy: 11 },
   { key: 'e11Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 11 },
-  { key: 'e11Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 11 },
+  { key: 'e11Hits', label: 'HITS TO DESTROY', values: range(1, 12), def: 6, enemy: 11 },
   { key: 'e11On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 11 },
   { section: 'SPLITTER *', enemy: 12 },
   { key: 'e12Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 12 },
@@ -256,7 +261,7 @@ const SETTINGS_DEF = [
 
   { section: 'SNAKE *', enemy: 17 },
   { key: 'e17Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 17 },
-  { key: 'e17Hits', label: 'HITS TO DESTROY', values: range(1, 20), def: 10, enemy: 17 },
+  { key: 'e17Hits', label: 'HITS TO DESTROY', values: range(1, 30), def: 16, enemy: 17 },
   { key: 'e17On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 17 },
 
   { section: 'POWER-UPS' },
@@ -325,7 +330,11 @@ const Config = {
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem('tank1990_settings') || '{}') || {}; } catch (e) { saved = {}; }
     this.reset(false);
-    for (const k in saved) if (this.defs[k] && this.defs[k].values.includes(saved[k])) this.values[k] = saved[k];
+    for (const k in saved) {
+      if (!this.defs[k] || !this.defs[k].values.includes(saved[k])) continue;
+      if ((OLD_DEFAULTS[k] || []).includes(saved[k])) continue;   // a default that has since changed: take the new one
+      this.values[k] = saved[k];
+    }
     this.apply();
   },
 

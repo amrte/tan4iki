@@ -11,6 +11,7 @@
 
 const PAD_COLORS = ['#3CBCFC', '#F878F8', '#58D854', '#F8B800'];
 const BELT_SPEED = 0.6, MUD_SLOW = 0.5;
+const NIGHT_VISION_TIME = 20 * 60;   // the NIGHT VISION power-up lights up a night stage for the team for 20 s
 const isBelt = t => t >= T_BELT && t < T_BELT + 4;
 
 // teleporter pads painted in construction ('T' in a 26x26 block map: the top-left block of each 2x2 tile)
@@ -187,6 +188,12 @@ Object.assign(Stage.prototype, {
   renderDarkness(ctx) {
     const w = this.weather;
     if (!w) return;
+    // night vision: the whole field in green, flickering back to dark in its last two seconds
+    if (w === 'night' && this.nightVision > 0 && !(this.nightVision < 120 && (this.frame >> 2) & 1)) {
+      ctx.fillStyle = 'rgba(40,255,90,0.13)';
+      ctx.fillRect(0, 0, FW, FH);
+      return;
+    }
     if (!this.darkLayer || this.darkLayer.width !== FW || this.darkLayer.height !== FH) this.darkLayer = makeCanvas(FW, FH);
     const d = this.darkLayer.getContext('2d'), k = w === 'fog' ? 1.4 : 1;
     d.globalCompositeOperation = 'source-over';
