@@ -29,6 +29,7 @@ const MODES = [
   { key: 'ctf', name: 'FLAGS', vs: true, desc: 'BRING THEIR FLAG HOME' },
   { key: 'cs', name: 'COUNTER-STRIKE', desc: 'PLANT THE BOMB OR DEFUSE IT' },   // cs.js: two teams on DE_DUST2, bots fill them
   { key: 'rally', name: 'TANK RALLY', desc: 'RACE, BLAST, UPGRADE, WIN' },   // rally.js: 1-2 players race 3 rivals; the career in rallycareer.js
+  { key: 'astro', name: 'ASTRO TANKS', desc: 'BLAST ROCKS, UPGRADE, SURVIVE' },   // astro.js: rocks, saucers, the hangar (astroup.js), mini bosses (astroboss.js)
   // not on the MODE row: VS EAGLES with one player becomes this (cpuvs.js)
   { key: 'cpu', name: 'VS CPU', desc: 'DESTROY THE ENEMY HQ' },
 ];
