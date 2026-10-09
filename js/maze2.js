@@ -789,7 +789,7 @@ let mzUpdateMaze = null, mzSetupMaze = null;   // our own wrappers: anything els
       const m = this.maze, v = m && m.vault;
       if (!v || v.open) return false;
       v.open = true;
-      for (const r of v.entr) { this.mzFill(r.x, r.y, r.w, r.h, T_EMPTY); this.mzDust(r.x + r.w / 2, r.y + r.h / 2, 12); }
+      for (const r of v.entr || []) { this.mzFill(r.x, r.y, r.w, r.h, T_EMPTY); this.mzDust(r.x + r.w / 2, r.y + r.h / 2, 12); }
       // the treasure inside
       const cx = v.x + v.w / 2, cy = v.y + v.h / 2;
       this.mzAddItem('coin', cx - 20, cy - 16); this.mzAddItem('coin', cx, cy - 16); this.mzAddItem('coin', cx + 20, cy - 16);
@@ -857,7 +857,7 @@ let mzUpdateMaze = null, mzSetupMaze = null;   // our own wrappers: anything els
   P.setupSecrets = function (opts) {
     const m = this.maze, keep = [];
     if (m && m.mzOn) {
-      const walls = m.rooms.filter(r => r.lock === 'brick').map(r => r.entr).concat(m.secret ? [m.secret.wall] : []);
+      const walls = m.rooms.filter(r => r.lock === 'brick' && r.entr).map(r => r.entr).concat(m.secret ? [m.secret.wall] : []);
       for (const r of walls) for (let cy = r.y >> 2; cy < (r.y + r.h) >> 2; cy++) for (let cx = r.x >> 2; cx < (r.x + r.w) >> 2; cx++) {
         const i = cy * GW + cx;
         if (this.terrain[i] === T_BRICK) { keep.push(i); this.terrain[i] = T_STEEL; }
@@ -893,8 +893,9 @@ let mzUpdateMaze = null, mzSetupMaze = null;   // our own wrappers: anything els
   P.updateMaze = function () {
     if (this.maze.mzOn) this.mzUpdate();
     if (this.maze.escaped) return;
+    const before = new Set(this.spawns);
     updateBase.call(this);
-    if (this.maze.mzOn) this.mzFixSpawns();
+    if (this.maze.mzOn) this.mzFixSpawns(before);   // (only maze.js's reinforcements: others place their own)
   };
   mzUpdateMaze = P.updateMaze;
 
@@ -1318,13 +1319,12 @@ const MZ_CARD_OF = { key: 5, cell: 6, fuel: 7, scroll: 8, bridge: 9 };
     },
 
     // ---- reinforcements must turn up in an open cell (not in water, rubble, a pit or a sealed room)
-    mzFixSpawns() {
+    mzFixSpawns(before) {
       const m = this.maze;
       let drop = false;
       for (const s of this.spawns) {
-        if (!s.enemy || s.mzOk) continue;
-        s.mzOk = true;
-        let bad = m.rooms.some(r => r.kind !== 'arena' && !(r.kind === 'vault' && m.vault.open) && overlap(s.x, s.y, 16, 16, r.x, r.y, r.w, r.h));
+        if (!s.enemy || before.has(s)) continue;
+        let bad = m.rooms.some(r => r.kind !== 'arena' && !(r.kind === 'vault' && m.vault && m.vault.open) && overlap(s.x, s.y, 16, 16, r.x, r.y, r.w, r.h));
         for (let ty = s.y >> 4; ty <= (s.y + 15) >> 4 && !bad; ty++) for (let tx = s.x >> 4; tx <= (s.x + 15) >> 4; tx++) if (this.mzSolidTile(tx, ty)) bad = true;
         if (bad) { s.bad = drop = true; this.queue.unshift(s.enemy); }
       }
@@ -1614,7 +1614,7 @@ const mzHash = (a, b) => { let h = (a * 374761393 + b * 668265263) | 0; h = (h ^
         ctx.fillStyle = '#C8A030';
         ctx.fillRect(v.x - 14, v.y - 14, v.w + 28, 1); ctx.fillRect(v.x - 14, v.y + v.h + 13, v.w + 28, 1);
         ctx.fillRect(v.x - 14, v.y - 14, 1, v.h + 28); ctx.fillRect(v.x + v.w + 13, v.y - 14, 1, v.h + 28);
-        for (const r of v.entr) {
+        for (const r of v.entr || []) {
           const x = r.x + r.w / 2 - 5, y = r.y + r.h / 2 - 4;
           ctx.fillStyle = '#000000'; ctx.fillRect(x - 1, y - 4, 12, 13);
           ctx.fillStyle = '#A87C00'; ctx.fillRect(x + 2, y - 3, 6, 2); ctx.fillRect(x + 2, y - 3, 2, 4); ctx.fillRect(x + 6, y - 3, 2, 4);
@@ -1812,7 +1812,9 @@ const mzHash = (a, b) => { let h = (a * 374761393 + b * 668265263) | 0; h = (h ^
     if (!seenBase.call(this, t)) return false;
     if (!this.maze || !this.maze.mzOn) return true;
     // a muzzle flash only gives it away on your screen: walls hide the rest
-    const g = this.mzLit, on = g && (t.x >> 4) >= g.tx0 && (t.y >> 4) >= g.ty0 && (t.x >> 4) < g.tx0 + g.tw && (t.y >> 4) < g.ty0 + g.th;
+    const g = this.mzLit;
+    if (!g) return true;   // nothing drawn yet
+    const on = (t.x >> 4) >= g.tx0 && (t.y >> 4) >= g.ty0 && (t.x >> 4) < g.tx0 + g.tw && (t.y >> 4) < g.ty0 + g.th;
     return on && (t.reveal > 0 || this.mzLight(t.x + 8, t.y + 8) > 0.3);
   };
   // the camera: remembered for the dark; it shakes when the maze does
@@ -1853,7 +1855,7 @@ const mzRGB = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), pa
         const mark = (r, col) => { for (let ty = r.y >> 4; ty < (r.y + r.h) >> 4; ty++) for (let tx = r.x >> 4; tx < (r.x + r.w) >> 4; tx++) special[ty * COLS + tx] = col; };
         for (const g of m.gates) if (!g.open) mark(g, mzRGB(MZ_KEY_COL[g.c][0]));
         for (const dd of m.doors) if (!dd.open) mark(dd, mzRGB(dd.col));
-        if (m.vault && !m.vault.open) for (const r of m.vault.entr) mark(r, [200, 160, 48]);
+        if (m.vault && !m.vault.open) for (const r of m.vault.entr || []) mark(r, [200, 160, 48]);
         if (m.secret && !m.secret.found) mark(m.secret.wall, WALL);
         const tileCol = (tx, ty) => {
           const gi = ty * COLS + tx;
@@ -2011,7 +2013,7 @@ const mzRGB = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), pa
       if (full) {
         v.s = {
           theme: m.theme, lair: m.lair, n: m.n, rooms: m.rooms, par: m.par, keyCols: m.keyCols, need: m.cellsNeed, pitch: m.pitchCells,
-          vault: m.vault ? { x: m.vault.x, y: m.vault.y, w: m.vault.w, h: m.vault.h, entr: m.vault.entr } : null,
+          vault: m.vault ? { x: m.vault.x, y: m.vault.y, w: m.vault.w, h: m.vault.h, entr: m.vault.entr || [] } : null,
           secret: m.secret ? { x: m.secret.x, y: m.secret.y, w: m.secret.w, h: m.secret.h, wall: m.secret.wall } : null,
           gates: m.gates.map(g => [g.x, g.y, g.w, g.h, g.c, g.route ? 1 : 0]),
           doors: m.doors.map(d => [d.x, d.y, d.w, d.h, d.px, d.py, d.col, d.route ? 1 : 0]),
