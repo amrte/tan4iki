@@ -3,6 +3,26 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.48
+
+- **Galaxy: two new sectors before the last one** (14 sectors now; CATS is still the final boss):
+  - *12 THE WELL* (Tetris): a well with falling pieces; new waves GARBAGE (grey rows rising from below, each with a
+    gap; red arrows warn), LINE CLEAR (a row fills across your zone, flashes, then lasers along its line — shoot it
+    open first), T-SPIN (turning T pieces firing three ways), LANCES (I-pieces that aim, then drop); a themed challenge
+    stage. Boss THE STACK: a living Tetris stack with a scowling face, NEXT box and LV panel; hard drops, line-clear
+    lasers, TETRIS! (four rows), garbage, T-spins, faster every level. Music: Korobeiniki.
+  - *13 THE SLOP FEED* (AI slop): a pastel haze, melting stars, drifting watermarks; new waves SIX FINGERS (hands that
+    lunge), CHAT BUBBLES (they type "...", then burst into letters), GLITCH CLONES, ENGAGEMENT BAIT (likes and hearts
+    that home in). Boss THE SLOP MACHINE: a beaming chatbot in pastel goo — hallucinated copies of earlier bosses,
+    walls of text, a six-finger slap, REGENERATING... (shoot the bar in time or it heals), MODEL COLLAPSE in phase 3.
+    "CERTAINLY! HERE IS YOUR BOSS FIGHT." Music: upbeat corporate stock music.
+- **Galaxy boss pictures:** every galaxy boss (all 14) has a WARNING picture before its fight and a picture of its
+  defeat after it, like the tank bosses (BOSS SCREENS setting; ENTER skips; online too).
+- **Galaxy bosses back at their old sizes** with the new detail and the extra health kept ("beefier" meant tougher).
+- **Fix:** a galaxy boss stalled (its attacks and timers paused) for half of each sway near the top of the screen —
+  every boss now keeps up the pressure the whole fight, so they're tougher.
+- **Fix:** other modes' stage curtains showed the tank bosses' names on stages 10, 20, 30... (only classic has them).
+
 ## 0.47
 
 - **Saving in every mode.** Each mode (and each galaxy run type) has its own slot. Classic and big maps still save

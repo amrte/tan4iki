@@ -520,7 +520,7 @@ GX_BOSSES.push(
       if (!b.dash) return false;
       b.y += 7;
       if (b.y > FH + 10) {   // through time: back at the top somewhere else
-        b.dash = 0; b.y = -b.h - 2; b.x = b.w / 2 + 4 + rnd(FW - b.w - 8);
+        b.dash = 0; b.in = false; b.y = -b.h - 2; b.x = b.w / 2 + 4 + rnd(FW - b.w - 8);
         this.fx.push({ x: b.x, y: 6, frames: Sprites.bigExp, per: 3, tick: 0 });
         Sound.play('teleport');
       }

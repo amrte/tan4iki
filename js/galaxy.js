@@ -910,7 +910,8 @@ Object.assign(Stage.prototype, {
     if (b.flash > 0) b.flash--;
     if (b.say && --b.say.t <= 0) b.say = null;
     // in from the top
-    if (b.y < 14 && !b.charge && !b.dash) { b.y += 0.6; return; }
+    // flying in from the top (only until it's in: its sway dips above y 14 later, which mustn't stall it)
+    if (!b.in && !b.charge && !b.dash) { if (b.y < 14) { b.y += 0.6; return; } b.in = true; }
     for (const bm of b.beams) bm.t++;
     this.gxBossBeams(b);
     b.beams = b.beams.filter(bm => bm.t < bm.warn + bm.dur);

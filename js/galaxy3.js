@@ -515,7 +515,7 @@ GX_BOSSES.splice(11, 0,
   // drops on you next, a level panel on its left (LV 1, 5, 9). Loud and smug like an arcade machine: READY? GO!
   // NEXT! LEVEL UP! GAME OVER? Every phase is a speed level: the stack grows (red at the top at level 9, about to
   // top out) and everything comes faster.
-  { key: 'stack', name: 'THE STACK', w: 96, h: 64, hp: 600, pts: 50400, move: 'sway',
+  { key: 'stack', name: 'THE STACK', w: 96, h: 64, hp: 820, pts: 50400, move: 'sway',
     phases: [['drop', 'lineClear', 'tspinBurst', 'drop', 'fan5'], ['drop', 'garbageUp', 'lineClear', 'tspinBurst', 'drop', 'aimed5'],
       ['tetrisClear', 'drop', 'tspinBarrage', 'garbageUp', 'drop', 'lineClear', 'drop']],
     init(b) { b.level = 1; b.next = rnd(7); b.rows = []; b.talk = ['READY?', 'GO!']; b.tauntT = 600; b.gap = -1; },
@@ -549,7 +549,7 @@ GX_BOSSES.splice(11, 0,
   // sycophant: CERTAINLY! GREAT QUESTION! YOU'RE ABSOLUTELY RIGHT! It hallucinates cheap copies of earlier bosses,
   // writes walls of text, slaps with a six-fingered hand and regenerates its answers (and itself). In phase 3 it
   // collapses: jittering, the wrong colours, its words scrambled.
-  { key: 'slop', name: 'THE SLOP MACHINE', w: 88, h: 64, hp: 600, pts: 52800, move: 'sway',
+  { key: 'slop', name: 'THE SLOP MACHINE', w: 88, h: 64, hp: 800, pts: 52800, move: 'sway',
     phases: [['wallOfText', 'hallucinate', 'fan5', 'slap', 'regenerate'], ['slap', 'wallOfText', 'regenerate', 'hallucinate', 'aimed5'],
       ['collapse', 'slap', 'wallOfText', 'regenerate', 'hallucinate', 'spiral']],
     init(b) { b.chatT = 360; b.rightT = 0; b.regen = null; b.slap = null; b.glitchT = 0; b.gap = -1; this.gxSay(b, 'CERTAINLY! HERE IS YOUR BOSS FIGHT.', 160); Sound.play('gx3Chat'); },
