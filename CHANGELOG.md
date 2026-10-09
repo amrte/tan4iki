@@ -3,6 +3,15 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.64
+
+- **New mode: ASTRO TANKS** — a tribute to Asteroids (astro.js, astroup.js, astroboss.js, astromusic.js, astroart.js).
+  Your tank in open space on a wrap-round screen: smooth turning, thrust and drift, brakes, hyperspace; rocks that split
+  in five kinds (stone, crystal, iron, ice, magma), saucers that shoot back, the heartbeat pulse, pickups. Crystals buy
+  upgrades in the hangar between waves (17, with levels, most of them showing on the tank). A mini boss every fifth
+  wave: CINDER COLOSSUS, VOID MATRIARCH, COMET WYRM, coming back stronger. 1-2 players. Four new tunes in all three
+  music styles and the mode's own title picture.
+
 ## 0.63
 
 - **Counter-Strike: neutral tanks** (csneutral.js). A NEUTRAL TANKS row on the team screen (OFF / FEW / SOME / MANY:

@@ -142,6 +142,7 @@ Maze and VS CPU, and no saving outside Classic and Big maps.
 | **Flags** | 2-4 | each player has a flag at home (marked by a square). Drive over another player's flag to grab it and bring it to your own home flag (yours must be at home) to score. Destroying a carrier drops the flag where it fell; touching your own dropped flag sends it home. First to 3 captures |
 | **Counter-Strike** | 1-4 | two teams of five tanks on DE_DUST2, DE_AZTEC, DE_TRAIN or DE_MIRAGE, bots filling them up: the terrorists plant the bomb on site A or B, the counter-terrorists stop them or defuse it. Rounds with a buy time and money, no respawns, sides switched at half time, first to 8; a fog of war shows only what your team can see (see *Counter-Strike* below) |
 | **Tank Rally** | 1-2 | a tribute to Rock n' Roll Racing with tanks: four-tank races on twenty circuits across five alien worlds, laps, weapons, mines and boost, money for places and kills, a shop between races, divisions to climb and a champion to beat (see *Tank Rally* below) |
+| **Astro Tanks** | 1-2 | a tribute to Asteroids: your tank in open space on a screen that wraps round, turning and thrusting with momentum, blasting rocks that split, saucers that shoot back, the heartbeat that speeds up; crystals buy upgrades in the hangar between waves, and a mini boss every fifth wave (see *Astro Tanks* below) |
 
 In versus, power-ups drop every 15 seconds (only ones that make sense between players), there are no enemy tanks, and
 the side panel shows each player's wins, kills or captures. Round and match results show who won.
@@ -317,6 +318,43 @@ worlds, tracks, rivals, tanks and music (no names, characters or songs from the 
 - **Music** (in all three MUSIC STYLES): HOT TREAD BOOGIE, PISTONS AND THUNDER and RED DUST HIGHWAY for the races,
   BACKROOM DEALS in the shop, CHAMPION'S STOMP for the final, CHECKERED GLORY on the podium (the rock names; chiptune
   and synthwave versions have names of their own).
+
+## Astro Tanks
+
+A tribute to the arcade classic Asteroids, with a tank, upgrades and mini bosses. Everything is original: the bosses,
+the art and the music.
+
+- **Flying:** LEFT/RIGHT turn smoothly (a tap nudges, holding turns a full circle in about 1.5 s), UP thrusts (with
+  momentum: you keep drifting), DOWN brakes hard. The screen wraps round at every edge, for you, the rocks and the
+  shots. FIRE shoots (tap for the fastest rate, hold for auto-fire; up to 4 volleys in the air). **B** jumps to
+  hyperspace, a random spot (a little risky); with the WARP DRIVE it picks the safest one; **hold B** to drop a bomb
+  when you have one (it clears the small rocks round you, splits the big ones and hurts a boss). On touch the d-pad
+  points the way to face, and pushed far out it thrusts too.
+- **Rocks:** big ones split into two medium, medium into two small. Five kinds, each arriving with a banner: STONE,
+  CRYSTAL (pays three times the crystals; wave 2), IRON (takes several hits and knocks back; wave 3), ICE (splits in
+  three; wave 4) and MAGMA (bursts into fireballs; wave 6). More and faster rocks every wave.
+- **Saucers** from wave 2: the big one shoots at random (200), the small one aims and leads you, better every wave
+  (1000); up to two at once from wave 6, three from wave 12, and they come sooner if you dawdle.
+- **The heartbeat:** two low notes under the music that beat faster as the rocks thin out.
+- **Pickups** in the waves: SHIELD, RAPID FIRE, TRIPLE SHOT, TIME SLOW, a BOMB, a rare extra tank. 3 tanks to start
+  (more on the easy skills), one more every 10000 points; a bonus for clearing each wave and for a wave without a hit.
+- **The hangar** between waves: the crystals you picked up (they drift; MAGNET pulls them in) buy upgrades. Four
+  offers each visit, one free reroll, and a free pick after each boss. 17 upgrades with levels, most of them showing
+  on the tank: CANNONS (twin, triple, quad), AUTOLOADER, HOT SHELLS, AP ROUNDS (they go through), REAR GUN, SEEKERS,
+  ENGINE, HANDLING, BRAKES (level 2: reverse thrust), ARMOUR (plates that take a hit each), SHIELD GEN, MAGNET,
+  SALVAGE, BOMB RACK, WARP DRIVE, GUN DRONE and SPARE TANK. Two players each shop for their own tank.
+- **Mini bosses** every fifth wave, after a WARNING, with a health bar and phases (at two thirds and a third):
+  - **CINDER COLOSSUS** (wave 5): a molten asteroid armoured in iron plates; shoot the plates off to reach the core.
+    It rolls after you, charges (watch for the dotted line), sheds rocks, then vents magma and finally cracks open.
+  - **VOID MATRIARCH** (wave 10): a mothership behind a shield bubble held up by pylons (shoot those first), with
+    turrets firing bursts, fans and spirals, small saucers from its bay and a sweeping tractor beam.
+  - **COMET WYRM** (wave 15): a serpent of rock and iron segments that wraps across the edges, lunges and coils round
+    you; hit the head (twice as hard while its jaws are open) or the comet tail.
+  Then they come again, stronger (CINDER COLOSSUS II at wave 20 and so on).
+- **Records:** the best score and the furthest wave are kept and shown on the GAME OVER screen.
+- **Music** (in all three MUSIC STYLES): COLD ORBIT and METEOR STORM for the waves, TITAN OF THE VOID for the bosses,
+  HANGAR BAY 9 in the hangar (the chiptune names; rock and synthwave versions have names of their own). The mode has
+  its own title picture.
 
 ## Big scrolling maps
 
@@ -1528,6 +1566,11 @@ js/rally.js       TANK RALLY's race: driving with momentum, laps and positions, 
 js/rallycareer.js TANK RALLY's career: tanks and upgrades, rivals, divisions and worlds, shop and race screens
 js/rallymusic.js  TANK RALLY's songs in all three music styles (a race tune per track)
 js/rallyart.js    TANK RALLY's title picture
+js/astro.js       ASTRO TANKS: flying, rocks, saucers, pickups, waves, bosses' arrival, HUD, records
+js/astroup.js     ASTRO TANKS's upgrades, the tank's look with them, the hangar between waves
+js/astroboss.js   ASTRO TANKS's mini bosses: CINDER COLOSSUS, VOID MATRIARCH, COMET WYRM
+js/astromusic.js  ASTRO TANKS's songs in all three music styles and the heartbeat
+js/astroart.js    ASTRO TANKS's title picture
 js/csart.js       COUNTER-STRIKE's title picture
 js/reach.js       no dead ends: a way opened from every walled-in entry point; stuck enemies come in again
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
