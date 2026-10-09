@@ -278,7 +278,7 @@ function rallyFallbackTracks(w) {
 const RALLY_THUMB_FALLBACK = { '#': '#7C7C7C', '.': '#BCBCBC', ',': '#AC7C00', '=': '#F83800', i: '#A4E4FC', m: '#6C4818', '~': '#0058F8', l: '#F87858',
   '^': '#F8B800', '>': '#F8B800', v: '#F8B800', '<': '#F8B800', b: '#58D854', $: '#F8D878', '+': '#F8F8F8', x: '#AC7C00', s: '#FFFFFF' };
 const RALLY_THUMBS = {};
-function rallyThumb(tr) {
+function rallyCareerThumb(tr) {
   const k = tr.key || tr.name;
   if (RALLY_THUMBS[k]) return RALLY_THUMBS[k];
   const rows = tr.rows || ['#'], h = rows.length, w = Math.max(...rows.map(r => r.length));
@@ -291,7 +291,7 @@ function rallyThumb(tr) {
 }
 // the map in a box, as big as whole pixels allow, centred
 function rallyDrawThumb(ctx, tr, x, y, bw, bh) {
-  const c = rallyThumb(tr), s0 = Math.min(bw / c.width, bh / c.height), s = s0 >= 2 ? Math.floor(s0) : s0;
+  const c = rallyCareerThumb(tr), s0 = Math.min(bw / c.width, bh / c.height), s = s0 >= 2 ? Math.floor(s0) : s0;
   const w = Math.round(c.width * s), h = Math.round(c.height * s), ox = x + ((bw - w) >> 1), oy = y + ((bh - h) >> 1);
   ctx.drawImage(c, ox, oy, w, h);
   return { ox, oy, s };
@@ -307,12 +307,12 @@ const rallyDivName = div => ['DIVISION B', 'DIVISION A', 'CHAMPION RACE'][div];
 const rallyRacesIn = C => (C.div === 2 ? 1 : RALLY_RACES);
 // the points a division asks for to move up (the champion race: a win)
 const rallyNeed = C => (C.div === 2 ? 4 : 8 + Math.min(C.world, 3) + C.div);
-const rallyRound = v => Math.round(v / 100) * 100;
+const rallyRound100 = v => Math.round(v / 100) * 100;
 
 function rallyUpPrice(C, p, key) {
   const lv = p.up[key] | 0;
   if (lv >= rallyMaxLv(p.chassis, key)) return 0;
-  return rallyRound(RALLY_CHASSIS[p.chassis].upPrice * RALLY_UPGRADES[key].cost * RALLY_LV_COST[lv] * rallyPriceFactor(C));
+  return rallyRound100(RALLY_CHASSIS[p.chassis].upPrice * RALLY_UPGRADES[key].cost * RALLY_LV_COST[lv] * rallyPriceFactor(C));
 }
 
 // a purchase: { ok, msg } (the money goes, the level goes up)
@@ -413,7 +413,7 @@ function rallyApplyResults(C, results) {
       name: p ? p.name : rallyRival(r.id).name };
     C.lastPts[r.id] = pts;
     if (p) {
-      row.pay = rallyRound(RALLY_PAY[place - 1] * pf) || 0;
+      row.pay = rallyRound100(RALLY_PAY[place - 1] * pf) || 0;
       row.killPay = row.kills * Math.round(RALLY_KILL_PAY * pf / 50) * 50;
       row.pick = Math.max(0, r.money | 0);
       row.total = row.pay + row.killPay + row.pick;
