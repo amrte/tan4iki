@@ -343,6 +343,19 @@ const Sound = {
       case 'burrow':
         this.noise(500, t, [[0, 0.45], [0.4, 0.3], [0.55, 0]], 300);
         break;
+      case 'gxPerkIn': // GALAXY: perk capsules drift in
+        this.seq([79, 0, 84, 0, 91], 0.06, t, { vol: 0.07, wave: 'p12', decayTo: 0.4 });
+        break;
+      case 'gxPerk': // a perk taken: a bright run up
+        this.seq([72, 76, 79, 84, 88], 0.045, t, { vol: 0.12, wave: 'p25', decayTo: 0.5 });
+        this.note(96, t + 0.23, 0.18, { vol: 0.06, wave: 'p12', decayTo: 0.3 });
+        break;
+      case 'gxSos': // an escape pod's distress call
+        this.seq([88, 0, 88, 0, 88, 0, 0, 84, 84, 84], 0.05, t, { vol: 0.06, wave: 'p50', flat: true });
+        break;
+      case 'gxSosTick': // holding on to a pod
+        this.note(76, t, 0.05, { vol: 0.06, wave: 'tri', flat: true });
+        break;
       case 'teleport':
         this.seq([72, 79, 84, 91, 96], 0.035, t, { vol: 0.12, decayTo: 0.4, wave: 'p25' });
         break;
