@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.51.1</title>
+  <title>tanb4iki_v0.51.2</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.51.1';
+const APP_VERSION = '0.51.2';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -15368,6 +15368,8 @@ const CK_MODES = ['custom', 'survival', 'timeattack', 'sides', 'corridor', 'maze
 const CK_GAME_KEYS = ['taFrames', 'taCleared', 'round', 'raceTarget', 'tdMap', 'nextSide', 'shopDiscount', 'gxRun', 'gxDate', 'gxClock', 'gxEndless'];
 const menuOX = () => (SCREEN_W - SW) >> 1;
 const menuOY = () => (SCREEN_H - SH) >> 1;
+// saves the browser wouldn't store (storage full, or blocked for this page): kept here until the page is closed
+const MEM_SAVES = {};
 const STORE = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
@@ -15798,7 +15800,9 @@ const Game = {
   savePeek(slot) {
     if (!slot) return null;
     let raw = null;
-    try { raw = localStorage.getItem(this.saveKey(slot)); } catch (e) { /* storage unavailable */ }
+    const key = this.saveKey(slot);
+    if (key in MEM_SAVES) raw = MEM_SAVES[key];   // the browser wouldn't keep it: the copy from this session
+    else try { raw = localStorage.getItem(key); } catch (e) { /* storage unavailable */ }
     const c = this.peekCache || (this.peekCache = {});
     if (!c[slot] || c[slot].raw !== raw) {
       let s = null;
@@ -15813,9 +15817,18 @@ const Game = {
     return s;
   },
   hasSave(slot = this.titleSlot()) { return !!this.savePeek(slot); },
-  dropSave(slot) { try { localStorage.removeItem(this.saveKey(slot)); } catch (e) { /* storage unavailable */ } },
+  dropSave(slot) { delete MEM_SAVES[this.saveKey(slot)]; try { localStorage.removeItem(this.saveKey(slot)); } catch (e) { /* storage unavailable */ } },
+  // true when stored; 'mem' when the browser refused (storage full or blocked: this.saveWhy says which) and the save
+  // is kept in memory instead, good until the page is closed; false if it couldn't be written at all
   writeSave(data) {
-    try { localStorage.setItem(this.saveKey(this.saveSlotOf(data.mode, data.g && data.g.gxRun)), JSON.stringify(data)); return true; } catch (e) { return false; }
+    const key = this.saveKey(this.saveSlotOf(data.mode, data.g && data.g.gxRun));
+    let text;
+    try { text = JSON.stringify(data); } catch (e) { this.saveWhy = 'BAD DATA'; return false; }
+    try { localStorage.setItem(key, text); delete MEM_SAVES[key]; return true; } catch (e) {
+      MEM_SAVES[key] = text;
+      this.saveWhy = /quota/i.test(e.name + ' ' + e.message) || e.code === 22 ? 'STORAGE FULL' : 'STORAGE BLOCKED';
+      return 'mem';
+    }
   },
 
   // where a save goes on from: short ('SECTOR 5', on the title) or long ('START OF SECTOR 5', in the messages)
@@ -15908,6 +15921,9 @@ const Game = {
     }
   },
 
+  // what SAVE GAME says: saved, kept only until the page closes (and why), or failed
+  saveMsgOf(ok, saved) { return ok === true ? saved : ok === 'mem' ? 'NOT KEPT: ' + this.saveWhy : 'SAVE FAILED: ' + (this.saveWhy || 'ERROR'); },
+
   // SAVE GAME (pause menu) and the autosave at every stage start: true when saved; this.saveMsg says how it went
   saveGame() {
     const kind = this.saveKind();
@@ -15922,10 +15938,10 @@ const Game = {
         stage: this.stage.snapshot(),
       };
       ok = this.writeSave(data);
-      this.saveMsg = ok ? 'GAME SAVED' : 'SAVE FAILED';
+      this.saveMsg = this.saveMsgOf(ok, 'GAME SAVED');
     } else if (kind === 'ckpt' && this.ck && this.ck.mode === this.mode) {
       ok = this.writeSave(this.ck);
-      this.saveMsg = ok ? 'SAVED: ' + this.saveWhere(this.ck, true) : 'SAVE FAILED';
+      this.saveMsg = this.saveMsgOf(ok, 'SAVED: ' + this.saveWhere(this.ck, true));
     } else this.saveMsg = kind === 'ckpt' ? "CAN'T SAVE HERE" : kind;
     return ok;
   },

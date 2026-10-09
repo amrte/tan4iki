@@ -3,6 +3,13 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.51.2
+
+- **Saving when the browser won't store it.** If the browser refuses to keep a save (its storage for the page is
+  full, or blocked — some browsers and private windows block storage for embedded pages), SAVE GAME no longer just
+  says SAVE FAILED: the save is kept in memory for as long as the page is open (CONTINUE and loading work as usual)
+  and the message says why: NOT KEPT: STORAGE FULL or NOT KEPT: STORAGE BLOCKED.
+
 ## 0.51.1
 
 - **Survival: revivals get dearer.** With no shop in survival your whole score was there to spend, so LAST CHANCE

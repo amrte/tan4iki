@@ -356,6 +356,11 @@ version that can't be used any more is dropped with "SAVE TOO OLD".
 The stage picker at the start of a new game remembers the stage you last played. You can pick any of the
 35 maps, or any stage up to the furthest one you have reached (up to 99).
 
+If the browser won't store a save (its storage for the page is full, or blocked — some browsers and private windows
+block storage for pages embedded in another site), the save is kept in memory until the page is closed, and the
+message says so: NOT KEPT: STORAGE FULL or NOT KEPT: STORAGE BLOCKED. Playing the downloaded single file, or in a
+normal window, usually fixes it.
+
 ## Field size and full screen
 
 The classic field is 13×13 tiles. In Settings → SCREEN you can set **FIELD WIDTH** (13–60) and **FIELD HEIGHT** (13–40),
