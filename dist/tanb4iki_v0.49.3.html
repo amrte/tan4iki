@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.49.2</title>
+  <title>tanb4iki_v0.49.3</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.49.2';
+const APP_VERSION = '0.49.3';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2679,18 +2679,23 @@ const SETTINGS_DEF = [
   { key: 'darkStages', label: 'NIGHT AND FOG', values: ['SOME', 'OFF', 'ALWAYS NIGHT', 'ALWAYS FOG'], def: 'SOME',
     fmt: v => (v === 'ALWAYS NIGHT' ? 'ALL NIGHT' : v === 'ALWAYS FOG' ? 'ALL FOG' : v) },
   { key: 'gameSpeed', label: 'GAME SPEED', values: [50, 75, 100, 125, 150, 200], def: 100, fmt: fmtPct },
-  { key: 'volume', label: 'VOLUME', values: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 100, fmt: fmtPct },
-  { key: 'engineSound', label: 'ENGINE SOUND', values: ONOFF, def: 'ON' },
-  // music.js: a chiptune for every mode, in a version for every skill; intro.js: the mode's title picture
-  { key: 'music', label: 'MUSIC', values: ONOFF, def: 'ON' },
-  // rock.js: hard rock and heavy metal versions of every tune, or the chiptunes
-  { key: 'musicStyle', label: 'MUSIC STYLE', values: ['ROCK', 'CHIPTUNE'], def: 'ROCK' },
-  { key: 'musicVol', label: 'MUSIC VOLUME', values: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 50, fmt: fmtPct },
+  // intro.js: the mode's title picture
   { key: 'modeIntro', label: 'MODE TITLE SCREENS', values: ONOFF, def: 'ON' },
   { key: 'bossScreens', label: 'BOSS SCREENS', values: ONOFF, def: 'ON' },
   // a one-line card the first time you meet each enemy, boss and power-up (cards.js)
   { key: 'newCards', label: 'FIRST-MEET CARDS', values: ONOFF, def: 'ON' },
   { action: 'resetCards', label: 'SHOW ALL CARDS AGAIN' },
+
+  { section: 'SOUND' },
+  { key: 'volume', label: 'VOLUME', values: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 100, fmt: fmtPct },
+  { key: 'engineSound', label: 'ENGINE SOUND', values: ONOFF, def: 'ON' },
+
+  { section: 'MUSIC' },
+  // music.js: a chiptune for every mode, in a version for every skill
+  { key: 'music', label: 'MUSIC', values: ONOFF, def: 'ON' },
+  // rock.js: hard rock and heavy metal versions of every tune, or the chiptunes
+  { key: 'musicStyle', label: 'MUSIC STYLE', values: ['ROCK', 'CHIPTUNE'], def: 'ROCK' },
+  { key: 'musicVol', label: 'MUSIC VOLUME', values: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 50, fmt: fmtPct },
 
   { action: 'reset', label: 'RESET TO DEFAULTS' },
   { action: 'back', label: 'BACK' },
@@ -14414,7 +14419,7 @@ const Game = {
   players: [],
   base: newBase(),   // base upgrades bought in the shop (shared)
   twoP: false,
-  multiN: 2,     // players chosen on the MULTIPLAYER row (2-4)
+  multiN: 1,     // players chosen on the PLAYERS row (1-4)
   stageNum: 1,
   stage: null,
   paused: false,
@@ -14476,18 +14481,17 @@ const Game = {
     const m = [], sv = this.savePeek(this.titleSlot());
     // the picked mode's save, and where it goes on from
     if (sv) m.push({ label: 'CONTINUE', note: this.saveWhere(sv), save: sv, act: () => this.loadGame() });
-    m.push({ label: '1 PLAYER', act: () => this.startGame(1) });
-    // left/right picks 2, 3 or 4 players
-    m.push({ label: this.multiN + ' PLAYERS', act: () => this.startGame(this.multiN), adjust: d => { this.multiN = (this.multiN - 2 + d + 3) % 3 + 2; } });
-    // left/right switches between hosting and joining an online game
-    m.push({ label: this.onlineJoin ? 'ONLINE: JOIN' : 'ONLINE: HOST', act: () => this.openOnline(), adjust: () => { this.onlineJoin = !this.onlineJoin; } });
-    // skill level, named as in DOOM: left/right (or A) changes it
+    // how many play here: left/right picks 1-4
+    m.push({ label: this.multiN + (this.multiN > 1 ? ' PLAYERS' : ' PLAYER'), players: true, act: () => this.startGame(this.multiN), adjust: d => { this.multiN = (this.multiN - 1 + d + 4) % 4 + 1; } });
     // game mode: left/right (or A) changes it
     m.push({ label: 'MODE: ' + modeInfo(Config.get('gameMode')).name, mode: true, act: () => this.stepMode(1), adjust: d => this.stepMode(d) });
-    m.push({ label: 'DAILY CHALLENGE', daily: true, act: () => this.startDaily() });
+    // skill level, named as in DOOM: left/right (or A) changes it
     m.push({ label: Config.get('skill') === AUTO_SKILL ? 'AUTO SKILL' : Config.skill().name, skill: true, act: () => Config.step('skill', 1), adjust: d => Config.step('skill', d) });
-    m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
     m.push({ label: 'SETTINGS', act: () => this.toSettings() });
+    m.push({ label: 'DAILY CHALLENGE', daily: true, act: () => this.startDaily() });
+    // left/right switches between hosting and joining an online game
+    m.push({ label: this.onlineJoin ? 'ONLINE: JOIN' : 'ONLINE: HOST', act: () => this.openOnline(), adjust: () => { this.onlineJoin = !this.onlineJoin; } });
+    m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
     return m;
   },
 

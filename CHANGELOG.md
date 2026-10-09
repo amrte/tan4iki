@@ -3,6 +3,12 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.49.3
+
+- **Title menu:** one PLAYERS row (left/right: 1-4) instead of 1 PLAYER and 2 PLAYERS, and a new order: CONTINUE,
+  PLAYERS, MODE, SKILL, SETTINGS, DAILY CHALLENGE, ONLINE, CONSTRUCTION.
+- **Settings:** music has its own section (MUSIC, MUSIC STYLE, MUSIC VOLUME); VOLUME and ENGINE SOUND are under SOUND.
+
 ## 0.49.2
 
 - The title screen: the brick TANЬ4IKI sits halfway between the score row and the menu (it moves with the menu when

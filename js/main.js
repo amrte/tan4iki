@@ -231,7 +231,7 @@ const Game = {
   players: [],
   base: newBase(),   // base upgrades bought in the shop (shared)
   twoP: false,
-  multiN: 2,     // players chosen on the MULTIPLAYER row (2-4)
+  multiN: 1,     // players chosen on the PLAYERS row (1-4)
   stageNum: 1,
   stage: null,
   paused: false,
@@ -293,18 +293,17 @@ const Game = {
     const m = [], sv = this.savePeek(this.titleSlot());
     // the picked mode's save, and where it goes on from
     if (sv) m.push({ label: 'CONTINUE', note: this.saveWhere(sv), save: sv, act: () => this.loadGame() });
-    m.push({ label: '1 PLAYER', act: () => this.startGame(1) });
-    // left/right picks 2, 3 or 4 players
-    m.push({ label: this.multiN + ' PLAYERS', act: () => this.startGame(this.multiN), adjust: d => { this.multiN = (this.multiN - 2 + d + 3) % 3 + 2; } });
-    // left/right switches between hosting and joining an online game
-    m.push({ label: this.onlineJoin ? 'ONLINE: JOIN' : 'ONLINE: HOST', act: () => this.openOnline(), adjust: () => { this.onlineJoin = !this.onlineJoin; } });
-    // skill level, named as in DOOM: left/right (or A) changes it
+    // how many play here: left/right picks 1-4
+    m.push({ label: this.multiN + (this.multiN > 1 ? ' PLAYERS' : ' PLAYER'), players: true, act: () => this.startGame(this.multiN), adjust: d => { this.multiN = (this.multiN - 1 + d + 4) % 4 + 1; } });
     // game mode: left/right (or A) changes it
     m.push({ label: 'MODE: ' + modeInfo(Config.get('gameMode')).name, mode: true, act: () => this.stepMode(1), adjust: d => this.stepMode(d) });
-    m.push({ label: 'DAILY CHALLENGE', daily: true, act: () => this.startDaily() });
+    // skill level, named as in DOOM: left/right (or A) changes it
     m.push({ label: Config.get('skill') === AUTO_SKILL ? 'AUTO SKILL' : Config.skill().name, skill: true, act: () => Config.step('skill', 1), adjust: d => Config.step('skill', d) });
-    m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
     m.push({ label: 'SETTINGS', act: () => this.toSettings() });
+    m.push({ label: 'DAILY CHALLENGE', daily: true, act: () => this.startDaily() });
+    // left/right switches between hosting and joining an online game
+    m.push({ label: this.onlineJoin ? 'ONLINE: JOIN' : 'ONLINE: HOST', act: () => this.openOnline(), adjust: () => { this.onlineJoin = !this.onlineJoin; } });
+    m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
     return m;
   },
 

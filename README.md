@@ -48,7 +48,8 @@ fire buttons appear on screen.
 
 ## Features
 
-- **Title screen** with brick lettering, **1 PLAYER / 2 PLAYERS / CONSTRUCTION** menu and a saved hi-score.
+- **Title screen** with brick lettering, a saved hi-score and the menu: CONTINUE (when the picked mode has a save),
+  PLAYERS (left/right: 1-4), MODE, SKILL, SETTINGS, DAILY CHALLENGE, ONLINE, CONSTRUCTION.
 - **35 stages**. Stage 1 recreates the classic Tank 1990 field. After stage 35 the game loops
   with tougher enemy line-ups. Before the first stage you can pick any stage on the grey "STAGE" curtain.
 - **Terrain:** bricks break away in 4 px strips, steel needs a star-3 tank, water needs the ship,
@@ -108,7 +109,7 @@ and *show ranks and perks*, a screen with every rank's tank.
 
 ## Game modes
 
-Pick a mode on the title screen's **MODE** row (left/right), then start with 1 PLAYER or N PLAYERS (versus needs 2-4,
+Pick a mode on the title screen's **MODE** row (left/right), then start on the PLAYERS row (left/right picks 1-4; versus needs 2-4,
 on one keyboard, with pads, or online; VS eagles, deathmatch and kill race can also be played alone, against the computer).
 Survival, time attack, corridor, maze and VS CPU keep their best results; there is no shop outside Classic, Big maps,
 Maze and VS CPU, and no saving outside Classic and Big maps.
@@ -735,7 +736,7 @@ A boss's theme plays in the skill's mood like the others, and speeds up 15% in i
 on through the boss's victory picture and the score tally.
 
 The music starts after the stage's start jingle, pauses with the game and stops on game over; on AUTO it follows the
-level AUTO is at. Settings → GAME → MUSIC (on/off) and MUSIC VOLUME (50%).
+level AUTO is at. Settings → MUSIC: MUSIC (on/off), MUSIC STYLE and MUSIC VOLUME (50%); Settings → SOUND: VOLUME and ENGINE SOUND.
 
 ## Secrets: hidden power-ups and ? blocks
 
