@@ -132,7 +132,7 @@ Object.assign(Stage.prototype, {
       }
       e.hp = hp;
       // ... and more of them hunt you (none go for an eagle: there isn't one)
-      const wt = [Math.max(0.15, 1 - w * 0.012) / sk, 0, (1 + w * 0.025) * sk, 0.4 + w * 0.004];
+      const wt = [Math.max(0.1, 0.6 - w * 0.008) / sk, 0, (1 + w * 0.025) * sk, 0.4 + w * 0.004];
       let x = r() * (wt[0] + wt[2] + wt[3]);
       e.ai = x < wt[0] ? AI.WANDER : x < wt[0] + wt[2] ? AI.HUNT : AI.SNIPE;
       if (tw && tw.speed) e.extra = { speedMul: tw.speed };
@@ -485,6 +485,17 @@ Object.assign(Stage.prototype, {
   Game.ckAt = function (st) {
     if (st.survival && st.svSpawns) return { wave: st.wave, sv: st.svCheckpoint() };
     return ckAt.call(this, st);
+  };
+  // a new run's first checkpoint (taken before the map was picked) gets the map, so a reload in wave 1 brings back
+  // the same one; so does RESTART ROUND
+  const beginStage = Game.beginStage;
+  Game.beginStage = function () {
+    beginStage.apply(this, arguments);
+    const st = this.stage;
+    if (this.mode !== 'survival' || !st || !st.svSpawns) return;
+    const at = this.ckAt(st);
+    if (this.roundSave && !(this.roundSave.resume && this.roundSave.resume.sv)) this.roundSave.resume = at;
+    if (this.ck && !(this.ck.at && this.ck.at.sv)) { this.ck.at = at; this.autoSave(); }
   };
   const ckApply = Game.ckApply;
   Game.ckApply = function (at) {

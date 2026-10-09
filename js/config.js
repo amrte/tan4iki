@@ -364,7 +364,7 @@ const SETTINGS_DEF = [
   { key: 'tdSpeed', label: 'FORTRESS SPEED', values: [1, 2, 3], def: 1, fmt: v => v + 'X' },
   // classic games: every 4th stage (not a boss stage) a big scrolling map
   { key: 'bigStages', label: 'BIG MAP STAGES', values: ['OFF', 'SOME'], def: 'OFF' },
-  { key: 'darkStages', label: 'NIGHT AND FOG', values: ['SOME', 'OFF', 'ALWAYS NIGHT', 'ALWAYS FOG'], def: 'SOME',
+  { key: 'darkStages', label: 'NIGHT AND FOG', values: ['SOME', 'MANY', 'OFF', 'ALWAYS NIGHT', 'ALWAYS FOG'], def: 'SOME',
     fmt: v => (v === 'ALWAYS NIGHT' ? 'ALL NIGHT' : v === 'ALWAYS FOG' ? 'ALL FOG' : v) },
   { key: 'gameSpeed', label: 'GAME SPEED', values: [50, 75, 100, 125, 150, 200], def: 100, fmt: fmtPct },
   // intro.js: the mode's title picture

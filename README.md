@@ -822,11 +822,12 @@ Not in versus, Fortress or boss stages. Settings → GAME → SECRETS turns them
   8, deflectors in about half from 10, never next to the eagle or on entry points. Bigger fields get more. Settings →
   GAME → MUD, BELTS, PADS turns them off. In CONSTRUCTION they are among the patterns of the palette (pads pair up in
   the order you place them).
-- **Night stages** (every 6th stage from 6) are dark except around your tanks, the eagle, shells, explosions, spawns,
+- **Night stages** (stages 9, 27, 45 ...: every 18th from 9) are dark except around your tanks, the eagle, shells, explosions, spawns,
   pads, street lamps, lava and erupting vents; an enemy shows only in your light or when it fires (enemies fire a bit less at night too). Every second
   power-up on a night stage is NIGHT VISION: 20 s of seeing the whole field.
-  **Fog stages** (every 6th from 9) are the same in grey with a wider view. Never on boss stages. The stage curtain
-  says NIGHT or FOG. Settings → GAME → NIGHT AND FOG: some (default), off, all night, all fog.
+  **Fog stages** (13, 31, 49 ...) are the same in grey with a wider view. Never on boss stages. The stage curtain
+  says NIGHT or FOG. Settings → GAME → NIGHT AND FOG: some (default: one stage in nine), many (one in three, from
+  stage 6), off, all night, all fog.
 
 ## Daily challenge
 

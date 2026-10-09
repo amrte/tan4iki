@@ -29,6 +29,8 @@ The version lives in `js/version.js` and is shown on the title screen as `tanb4i
 - **New elements in any stage:** supply crates (points or a power-up), explosive barrels (chain reactions) and
   deflectors that turn shells 90°. The weapons, AI, first-meet cards, online play and the editor (a second palette
   page) all know the new tiles.
+- **Night and fog stages are rarer:** one stage in nine (night on 9, 27, 45 ..., fog on 13, 31, 49 ...) instead of
+  one in three. Settings → GAME → NIGHT AND FOG: MANY brings back the old rate.
 - Fix: saves and online play keep conveyor belts right (two belt directions were written wrongly).
 
 ## 0.49.3
