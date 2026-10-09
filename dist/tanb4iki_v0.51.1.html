@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.51</title>
+  <title>tanb4iki_v0.51.1</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.51';
+const APP_VERSION = '0.51.1';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -7141,7 +7141,9 @@ const CLAUDE_SPEED = 1, CLAUDE_EXTRA = 300;   // Claude stays for the new-power-
 const REVIVE_WAIT = 300;                      // all players out: 5 s to pay for a revival before GAME OVER
 
 const reviveCost = () => {
-  const c = Config.get('reviveCost') === 'OFF' ? 0 : Config.get('reviveCost');
+  let c = Config.get('reviveCost') === 'OFF' ? 0 : Config.get('reviveCost');
+  // SURVIVAL has no shop to spend points in: each revival costs twice the one before (survival.js)
+  if (c && typeof Game !== 'undefined' && Game.mode === 'survival' && typeof svRevivesUsed === 'function') c *= 2 ** svRevivesUsed();
   return c && typeof Game !== 'undefined' && Game.mode === 'galaxy' ? Math.max(50, Math.round(c / 100) * 10) : c;   // galaxy pays in credits (galaxy_tune.js)
 };
 // who gets the points for a turret's / Claude's / a plane's kills
@@ -27954,6 +27956,10 @@ function svNewRun() {
   const s = Config.get('seasons');
   return { seed: 1 + rnd(1e9), map: rnd(LEVELS.length), theme: s === 'CYCLE' ? THEME_ORDER[rnd(THEME_ORDER.length)] : undefined };
 }
+// revivals paid for so far this run (each one doubles the price; kept on the players, so checkpoints carry it)
+function svRevivesUsed() {
+  return typeof Game !== 'undefined' && Game.players && Game.players[0] ? Game.players[0].svRevives || 0 : 0;
+}
 // a player's perk level (survival only)
 function svPerkOf(p, key) {
   return p && p.svPerks && typeof Game !== 'undefined' && Game.mode === 'survival' ? p.svPerks[key] || 0 : 0;
@@ -28353,6 +28359,19 @@ Object.assign(Stage.prototype, {
     return addScore.call(this, p, b ? Math.round(n * (1 + 0.25 * b)) : n);
   };
 
+  // a paid revival makes the next one dearer (free ones, from SPARE TANKS or the REVIVE power-up, don't count)
+  const revive = P.revive;
+  P.revive = function (p, payer) {
+    revive.call(this, p, payer);
+    if (this.survival && payer) for (const q of this.players) q.svRevives = (q.svRevives || 0) + 1;
+  };
+  // above the field: the points you can spend on a revival, and what the next one costs
+  const objLine = P.renderObjectiveLine;
+  P.renderObjectiveLine = function (ctx) {
+    if (!this.survival || !reviveCost()) return objLine.call(this, ctx);
+    const pts = Math.max(...this.players.map(wallet));
+    Font.drawCenter(ctx, 'PTS ' + pts + '  REVIVE ' + reviveCost(), FX + VIEW_W / 2, 0, COL.black);
+  };
   const banner = P.renderModeBanner;
   P.renderModeBanner = function (ctx) {
     if (this.survival && this.svNotes) { this.svRenderBanner(ctx); return; }

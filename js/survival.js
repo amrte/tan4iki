@@ -51,6 +51,10 @@ function svNewRun() {
   const s = Config.get('seasons');
   return { seed: 1 + rnd(1e9), map: rnd(LEVELS.length), theme: s === 'CYCLE' ? THEME_ORDER[rnd(THEME_ORDER.length)] : undefined };
 }
+// revivals paid for so far this run (each one doubles the price; kept on the players, so checkpoints carry it)
+function svRevivesUsed() {
+  return typeof Game !== 'undefined' && Game.players && Game.players[0] ? Game.players[0].svRevives || 0 : 0;
+}
 // a player's perk level (survival only)
 function svPerkOf(p, key) {
   return p && p.svPerks && typeof Game !== 'undefined' && Game.mode === 'survival' ? p.svPerks[key] || 0 : 0;
@@ -450,6 +454,19 @@ Object.assign(Stage.prototype, {
     return addScore.call(this, p, b ? Math.round(n * (1 + 0.25 * b)) : n);
   };
 
+  // a paid revival makes the next one dearer (free ones, from SPARE TANKS or the REVIVE power-up, don't count)
+  const revive = P.revive;
+  P.revive = function (p, payer) {
+    revive.call(this, p, payer);
+    if (this.survival && payer) for (const q of this.players) q.svRevives = (q.svRevives || 0) + 1;
+  };
+  // above the field: the points you can spend on a revival, and what the next one costs
+  const objLine = P.renderObjectiveLine;
+  P.renderObjectiveLine = function (ctx) {
+    if (!this.survival || !reviveCost()) return objLine.call(this, ctx);
+    const pts = Math.max(...this.players.map(wallet));
+    Font.drawCenter(ctx, 'PTS ' + pts + '  REVIVE ' + reviveCost(), FX + VIEW_W / 2, 0, COL.black);
+  };
   const banner = P.renderModeBanner;
   P.renderModeBanner = function (ctx) {
     if (this.survival && this.svNotes) { this.svRenderBanner(ctx); return; }

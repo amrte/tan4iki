@@ -27,7 +27,9 @@ const CLAUDE_SPEED = 1, CLAUDE_EXTRA = 300;   // Claude stays for the new-power-
 const REVIVE_WAIT = 300;                      // all players out: 5 s to pay for a revival before GAME OVER
 
 const reviveCost = () => {
-  const c = Config.get('reviveCost') === 'OFF' ? 0 : Config.get('reviveCost');
+  let c = Config.get('reviveCost') === 'OFF' ? 0 : Config.get('reviveCost');
+  // SURVIVAL has no shop to spend points in: each revival costs twice the one before (survival.js)
+  if (c && typeof Game !== 'undefined' && Game.mode === 'survival' && typeof svRevivesUsed === 'function') c *= 2 ** svRevivesUsed();
   return c && typeof Game !== 'undefined' && Game.mode === 'galaxy' ? Math.max(50, Math.round(c / 100) * 10) : c;   // galaxy pays in credits (galaxy_tune.js)
 };
 // who gets the points for a turret's / Claude's / a plane's kills

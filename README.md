@@ -192,6 +192,9 @@ and most of them hunt you.
   star more), BOUNTY (25% more points), AP SHELLS (break steel), FIELD SHIELD (longer spawn shield). No shop.
 - **Co-op:** each extra player makes the waves 35% bigger, puts one more tank on the field at once, makes them come a
   little faster and adds a drop.
+- **Revival:** when everyone is out you still get LAST CHANCE (FIRE pays for a revival out of your points, as in
+  the other modes), but in survival each paid revival costs twice the one before (7500, 15000, 30000 ... with the
+  default REVIVE COST). The line above the field shows your points to spend and the next revival's price.
 - **Saving:** the checkpoint is the start of each wave: the same map, terrain, twists and perks when you load it.
 - The side panel's flag shows the wave. It ends when everyone is out or all 100 waves are held; the best wave and
   score are kept (holding all 100 beats reaching the last one).

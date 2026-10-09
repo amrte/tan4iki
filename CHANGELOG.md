@@ -3,6 +3,13 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.51.1
+
+- **Survival: revivals get dearer.** With no shop in survival your whole score was there to spend, so LAST CHANCE
+  could bring you back again and again. Now each paid revival costs twice the one before (7500, 15000, 30000 ...,
+  from the REVIVE COST setting), and the line above the field shows the points you have to spend and what the next
+  revival costs. Free ones (the REVIVE power-up, SPARE TANKS) don't raise the price.
+
 ## 0.51
 
 - **Construction, upgraded:** five pages (MAP, MARKERS, LEVEL, ENEMIES, POWER-UPS; Tab switches).
