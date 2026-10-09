@@ -340,6 +340,30 @@ const Sound = {
       case 'ray': // a martian ray gun
         this.note(2000, t, 0.1, { vol: 0.05, slideTo: 3200, wave: 'p12' });
         break;
+      // GALAXY, how it feels (galaxy_feel.js)
+      case 'gxSwap': // weapons swap: a quick two-step blip
+        this.seq([79, 86], 0.035, t, { vol: 0.09, wave: 'p25', decayTo: 0.5 });
+        break;
+      case 'gxEmpty': // nothing to swap to, no bombs: a dry click
+        this.note(220, t, 0.03, { vol: 0.07, wave: 'p12', flat: true });
+        break;
+      case 'gxHiss': // overheated: steam
+        this.noise(12000, t, [[0, 0.16], [0.18, 0.08], [0.3, 0]], 6000);
+        break;
+      case 'gxCharged': // the charge is full: a bright ping
+        this.note(2637, t, 0.18, { vol: 0.07, wave: 'p50', decayTo: 0.3 });
+        this.note(3520, t + 0.05, 0.14, { vol: 0.04, wave: 'p25', decayTo: 0.3 });
+        break;
+      case 'gxBlast': // the charge blast: a deep whoosh
+        this.note(600, t, 0.35, { vol: 0.18, slideTo: 70, wave: 'p50', decayTo: 0.4 });
+        this.noise(3000, t, [[0, 0.4], [0.3, 0.15], [0.45, 0]], 400);
+        break;
+      case 'gxGraze': // a shot brushes past: a tiny tick
+        this.note(3200, t, 0.02, { vol: 0.04, wave: 'p12', flat: true });
+        break;
+      case 'gxComboLost': // the chain breaks: a falling blip
+        this.seq([76, 71, 64], 0.05, t, { vol: 0.08, wave: 'p25', decayTo: 0.5 });
+        break;
       case 'burrow':
         this.noise(500, t, [[0, 0.45], [0.4, 0.3], [0.55, 0]], 300);
         break;
