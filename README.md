@@ -114,7 +114,7 @@ and *show ranks and perks*, a screen with every rank's tank.
 
 Pick a mode on the title screen's **MODE** row (left/right), then start on the PLAYERS row (left/right picks 1-4; versus needs 2-4,
 on one keyboard, with pads, or online; VS eagles, deathmatch and kill race can also be played alone, against the computer).
-Survival, time attack, corridor, maze and VS CPU keep their best results; there is no shop outside Classic, Big maps,
+Survival, time attack, corridor, maze, endless world and VS CPU keep their best results; there is no shop outside Classic, Big maps,
 Maze and VS CPU, and no saving outside Classic and Big maps.
 
 | Mode | Players | How it works |
@@ -126,6 +126,7 @@ Maze and VS CPU, and no saving outside Classic and Big maps.
 | **Big maps** | 1-4 | every stage is a big scrolling map (see below); shop and saves work as in Classic |
 | **Corridor** | 1-4 | as wide as the team (13 tiles alone, 17 for two, 21 for three or four; a narrower screen scrolls sideways), endless height: no eagle, just climb. The world is three map sections stacked (random classic maps, mirrored outwards on wider fields); once the whole team has climbed out of the bottom section it drops away and a fresh section appears on top, so the climb never ends and nobody gets left behind. Enemies keep arriving just above the screen, faster and tougher the higher you get (the flag shows the level: one per section climbed). The enemy grows slowly with the climb: only basic tanks at first, then fast (10 tiles), power (26) and armor (45), then the newer types one at a time every 20 tiles from 52 (rocket first), each starting rare and taking 40 tiles to reach its full share; veterans from about 100 tiles and elites from 230. A gold *NAME AHEAD!* tells you when a new kind joins; ones left far below drop out. Every 5 sections everyone gets a tank. And it's a race: a hazard (lava, a flood or a wall of fire) rises from below, faster the higher you are; a climb combo pays x2 and x3 points; every 100 m a new biome (city, forest, snow and ice, volcano, sky fortress); set pieces, splits, supply depots every 250 m (the checkpoint), a boss gate every 500 m, medals at 300, 600 and 1000 m and a ghost where your best run ended (see *Corridor* below). The border above the field shows how far you've climbed (in metres, a tile each) and your best, the left border the climb meter; ends when everyone is out |
 | **Maze** | 1-4 | a huge labyrinth, a new one every stage and bigger each time (17 x 11 cells at first, growing by 3 x 2 a stage up to 34 x 22; a cell is a 2-tile passage), always solvable. You start in the bottom-left corner; the one way out, a chequered **EXIT** gate, is on the outer edge as far from the start as the maze allows, and it stays sealed until the team has the maze's 3 **power cells**. On the way: coloured **gates** whose keys lie deeper in, one behind the other; rivers to bridge; pressure plates and steel doors; moving walls; cracked floor; belts and teleporters; treasure rooms, vaults and secret exits. It's dark: your lamp lights the way (and burns down; fuel cans refill it), what you've seen stays dim, and the minimap shows only that. Once every key and cell is in, the maze starts to **collapse**: a clock runs to the exit. Mazes 1-4 are a stone dungeon, 5-9 the sewers, 10-14 ice caverns, 15 on the machine, and every 5th is a **lair** with a beast in its arena (see *Maze* below). The walls are steel that nothing can break, with the odd stretch of brick you can shoot through for a shortcut. Enemy tanks (26 in the first maze, 6 more each maze, up to 100) patrol along the way, half of them from the start (none near the start), and come for you once you get close or shoot them; more turn up out of sight as you go (the side panel counts them). Lost for too long (1 minute on the easiest skill, 3 on the hardest) and the exit sends a signal: a blinking green marker at the edge of the screen. Reaching the exit is worth 2000 plus a time bonus, and every enemy left goes up in smoke; then the tally (with the time and its stars), the shop and the next maze. A destroyed tank comes back where it was a few seconds before. The border shows the maze number and the time; the best run (mazes escaped) and the best stars for each maze are kept |
+| **Endless world** | 1-4 | a land without end, made as you drive: nine biomes (grassland, forest, autumn woods, snowfields, desert, volcano, swamp, city ruins, wasteland) with their own look, twist and enemy; rivers, lakes and roads; villages to save from attack (then a safe place where the game is saved), ruins with chests and the odd guardian boss, enemy nests; more enemies the further out you go; mostly day, with a short night (7 minutes a day). The record is how far you got from home, then villages saved (see *World* below) |
 | **Fortress** | 1-4 | tower defense: hold your eagle through 30 waves (see *Fortress* below) |
 | **Galaxy** | 1-4 | a space shoot-'em-up: your tanks against alien waves, sector after sector (see *Galaxy* below) |
 | **Time attack** | 1-4 | clear stages 1-5 as fast as you can; enemies arrive twice as fast, no tally between stages, the clock runs in the border above the field; best time is kept |
@@ -146,13 +147,14 @@ usual field size and follows your tanks (online, each guest's view follows their
 edge point to objectives off screen (gold: your HQ, cyan: outposts, red: factories), and the border above the field
 shows how the objective stands.
 
-Finding the enemy on a map bigger than the screen (big maps, the corridor, the maze):
+Finding the enemy on a map bigger than the screen (big maps, the corridor, the maze, the endless world):
 
 - **Arrows** at the edge of the screen point to every enemy out of sight (darker red when it's far, a big gold one
   for a boss).
 - **A minimap** in the top right corner shows the whole map: walls, water and trees, the part you're looking at
   (white frame), you and your team, the enemies (red), the eagle and the objectives. It fades while you drive under
-  it. In the maze it shows only what your team has seen, one dot a cell (see *Maze*). Settings → SCREEN → MINIMAP.
+  it. In the maze it shows only what your team has seen, one dot a cell (see *Maze*); in the endless world it shows
+  what you've explored round you (see *World*). Settings → SCREEN → MINIMAP.
 - Enemies you couldn't see anyway get no arrow or dot: underground, cloaked, mirages, or hidden in the dark. Big stages bring twice the tanks and two more on screen at once. Each has an objective,
 taking turns:
 
@@ -383,6 +385,52 @@ The climb is planned from the run's seed: every section has its place in it, so 
   title shows them beside the best climb, the result screen with the run's. **The ghost**: a dashed line and a ghostly
   tank mark where your best run ended (NEW RECORD! as you pass it).
 
+## World
+
+**ENDLESS WORLD** is a land without end, made as you drive, the same every time for its seed (a new one every run).
+It comes in chunks of 13 x 13 tiles, a classic map's size; the field is a window of chunks round the team (3 x 3 on
+the usual screen, more on a wide one) that moves on a chunk at a time as you cross into the next, the land and
+everything on it moving with it, so it never ends. What you change stays changed: broken walls are still broken when
+you come back, even from far away.
+
+- **Biomes** cover the land in big regions with frayed borders: grassland (home is always grassland), forest, autumn
+  woods, snowfields (frozen lakes and rivers), desert (dried-up ponds, cacti, oases), volcano (lava lakes and rivers,
+  basalt, fire vents), swamp (bog, reeds, swamp gas), city ruins (concrete, rubble, street lamps, fuel drums, streets)
+  and wasteland (hot spots, crumbling walls). Each has its ground, its colours and textures (the seasons' and the
+  terrain types'), and while you're in it, its twist (showers, wildfire, gusts, blizzards, hot spots, mirages, lava
+  bombs, marsh gas, blackouts) and its own enemy among the others. Crossing into one names it at the bottom of the
+  screen.
+- **The land:** rivers and lakes run across chunks, woods stand about, and pieces of the 35 classic maps stand here and
+  there as old walls. Roads link the chunks (long ones every 4 chunks, every village on one), bridged over water and
+  lava. Every chunk is open: you (and the enemy) can always get from one chunk to the next; a pocket walled in by
+  steel, water or lava gets a way cut in.
+- **Villages** (an eagle in its brick ring, houses round a square): most are attacked as you come near (*VILLAGE UNDER
+  ATTACK!*: the first attackers are already at the gate). Hold off 2-4 waves (more further out; the line above the
+  field counts them) and it's saved: a tank for everyone, points and supplies on the ground. Lose its eagle and it
+  burns. Some are friendly from the start (a gift). A saved or friendly village is a **safe place**: no enemy comes
+  in near it, nothing hurts you in its square, its walls mend, a fallen player comes back there when it's close, and
+  the game is saved there (each time you come back to a different one too).
+- **Ruins:** a walled compound with a chest in each room (points, a star, a weapon crate, or something rare: the gun,
+  a tank, a turret, Claude, an airstrike, the ship). Come near and its guards come out, tougher than the rest. Some
+  ruins have a steel vault: reach its door and the guardian wakes, one of the bosses (Iron Bear, Harvester, Scorpion
+  or Gunship) with its own tune; it goes back in if you run off. Beat it for the big treasure (a tank for everyone,
+  the gun and plenty of points).
+- **Enemy nests** (factories) turn out tanks while you're near until you destroy them (more hits further out; they
+  stay destroyed). Enemies also come in just out of sight, from places that can reach you, and now and then a patrol
+  comes down a road. The further from home, the more of them at once and the tougher (the newer types join one by one
+  as in the corridor, then veterans and elites); the flag in the side panel shows the danger level. Enemies left far
+  behind wander off.
+- **Day and night:** a whole day is 7 minutes, mostly daylight: a gentle dusk, a short night (about a fifth of the
+  day) and dawn. At night it's dark except round your lights, villages, lamps, lava and gunfire; enemies see less, and
+  NIGHT VISION power-ups come. The night brings no more enemies than the day.
+- **The side panel:** a compass pointing to the nearest village or ruin still to visit (how far, in tiles, under it),
+  the day, villages saved and ruins looted (all their chests open). **The minimap** shows the land you've explored
+  round you (the rest stays dark), villages (green when safe, flashing red under attack), ruins (gold), nests (red).
+- **Co-op:** the window follows the whole team; anyone left behind when it moves on is brought along.
+- **Saving:** the checkpoint is the last safe village: the world (its seed, what you've changed, every village, ruin
+  and nest as you left them, what you've explored), the day and your records. RESTART ROUND goes back there too.
+- The run ends when everyone is out; its record is how far you got from home (in tiles, M), then villages saved.
+
 ## Skill levels
 
 Pick the skill on the title screen (the coloured row; left/right changes it), or change it any time during a game
@@ -546,7 +594,7 @@ endless, daily — a daily run's save only lasts its day).
 - **Classic and big maps:** pause (Enter, P or Esc) and choose **SAVE GAME** to save exactly where you are: the stage,
   terrain, tanks, scores, lives, upgrades and mines.
 - **Every other mode** saves a *checkpoint*: the start of the current stage, round, wave, the corridor's last supply depot, fortress
-  build phase or galaxy sector (after the hangar, so what you bought is kept), with everyone's score, lives, upgrades,
+  build phase or galaxy sector (after the hangar, so what you bought is kept), or the endless world's last safe village, with everyone's score, lives, upgrades,
   weapons, perks and credits as they were then. SAVE GAME says where you'll resume ("SAVED: START OF SECTOR 5").
 - The game also saves automatically at the start of every stage (and at each of those checkpoints).
 
@@ -995,6 +1043,10 @@ light, tanks driving and firing, smoke, sparks and explosions:
 - **Any side**: the map on the war-room table turns, so the eagle ends up left, at the top, on the right.
 - **Corridor**: a road of blocks climbing through the sky above the clouds, the height going up past your best.
 - **Maze**: only your lamp lights the way; what you've seen stays dim, red eyes wait in the dark, the exit glows.
+- **Endless world**: your tank drives the road past home's village, autumn woods, snowfields, the desert's ruins (a
+  chest glinting) and a ruined city, a volcano smoking far off, while a whole day goes by: sunset, a night of stars,
+  lit windows and your headlight, dawn; enemy tanks come down the road; the day and the distance count up, the
+  compass swings.
 - **Fortress**: towers along a winding road cut down the column marching on your eagle; every wreck pays gold.
 - **Galaxy**: a ringed planet, nebulae, stars streaming by; your tank flies up at the alien formation.
 - **Kill race**: a stadium under the floodlights; four tanks, four lanes, and the big board counting the kills.
@@ -1012,7 +1064,7 @@ light, tanks driving and firing, smoke, sparks and explosions:
   live. Where it fits the lead plays the chiptune's theme (re-arranged), and the folk tunes Korobeiniki and Shchedryk
   get metal versions. Classic: STEEL EAGLE (a galloping anthem); Survival: LAST MAN STANDING (thrash); Time Attack:
   RED LINE (speed metal); Big Maps: WIDE FRONT (a hard rock shuffle); Any Side: TURNED AROUND (prog metal in 7/8);
-  Corridor: THE CLIMB (power metal); Maze: LABYRINTH OF STEEL (doom); Fortress: HOLD THE WALLS; Kill Race: NITRO
+  Corridor: THE CLIMB (power metal); Maze: LABYRINTH OF STEEL (doom); Endless world: WIDE FRONT (as Big Maps); Fortress: HOLD THE WALLS; Kill Race: NITRO
   (boogie); VS CPU and Co-op: MACHINE WAR (industrial); Eagles: EAGLE DUEL; Deathmatch: NO MERCY; Flags: BRING IT
   HOME; Custom levels: BRICK BY BRICK; the tank bosses: IRON FIST, DEEP WATERS, WAR MACHINE, CLOSE ENCOUNTER; Baba
   Galya: SHCHEDRYK (METAL); Galaxy: STARFIGHTER, ALIEN OVERLORD, HYPERSPACE, ALL YOUR BASE, KOROBEINIKI, LEVEL 9,
@@ -1031,6 +1083,7 @@ light, tanks driving and firing, smoke, sparks and explosions:
 | Any side | Turned Around | 7/8, off balance |
 | Corridor | The Climb | rising arpeggios |
 | Maze | Lost in the Labyrinth | slow and creeping |
+| Endless world | Wide Front (as Big maps) | slow and wide |
 | Fortress | Hold the Line | a siege march |
 | Kill race | Kill Race Shuffle | swing |
 | VS eagles | Eagle Duel | a stand-off |
@@ -1229,6 +1282,11 @@ js/galya.js       a secret (no spoilers)
 js/modes.js       game modes: time attack, versus eagles, deathmatch, capture the flag
 js/survival.js    SURVIVAL: 100 waves, entry points all round, twists, perks, drops, terrain rebuilds
 js/sides2.js      ANY SIDE's twists: the edges in turn, two fronts, the moving eagle, wind, ice slope, mirror stage, side maps, sandbags, the streak, the curtain preview
+js/worldgen.js    ENDLESS WORLD's land: chunks from the seed (biomes, rivers, roads, old walls), villages, ruins, nests, open ways
+js/world.js       ENDLESS WORLD: the moving window, villages and sieges, ruins and guardians, nests, the enemy, day and night,
+                  checkpoints, the online view
+js/worlddraw.js   ENDLESS WORLD's drawing: chunks painted in their biomes, water, the dark, the minimap, the side panel
+js/worldart.js    ENDLESS WORLD's title picture
 js/reach.js       no dead ends: a way opened from every walled-in entry point; stuck enemies come in again
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go

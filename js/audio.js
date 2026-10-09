@@ -696,6 +696,38 @@ const Sound = {
         break;
       case 'crRecord': // past your best
         this.seq([84, 88, 91, 96], 0.06, t, { vol: 0.11, wave: 'p25', decayTo: 0.5 });
+      // ENDLESS WORLD (world.js)
+      case 'wdAlarm': // a village under attack: its bell rings, high-low
+        for (let k = 0; k < 4; k++) {
+          this.note(k & 1 ? 81 : 86, t + k * 0.16, 0.15, { vol: 0.11, wave: 'p25', decayTo: 0.2 });
+          this.note(k & 1 ? 69 : 74, t + k * 0.16, 0.15, { vol: 0.07, wave: 'tri', decayTo: 0.3 });
+        }
+        break;
+      case 'wdSaved': // a village saved: a little fanfare
+        this.seq([67, 72, 76, 0, 72, 76, 79, 0, 84], 0.08, t, { vol: 0.15, decayTo: 0.45 });
+        this.seq([55, 0, 60, 0, 64, 0, 67], 0.1, t, { vol: 0.08, wave: 'tri', decayTo: 0.6 });
+        break;
+      case 'wdLost': // a village burns: falling, then a rumble
+        this.seq([76, 72, 69, 64, 60, 57], 0.09, t, { vol: 0.12, wave: 'p25', decayTo: 0.5 });
+        this.noise(800, t + 0.3, [[0, 0.4], [0.5, 0.25], [0.8, 0]], 300);
+        break;
+      case 'wdChest': // a chest opens: coins jingle up
+        this.seq([84, 88, 91, 96, 91, 96, 100], 0.04, t, { vol: 0.1, wave: 'p12', decayTo: 0.4 });
+        this.noise(14000, t, [[0, 0.12], [0.05, 0], [0.08, 0.1], [0.12, 0]]);
+        break;
+      case 'wdDawn': // sunrise: a bird's call
+        this.note(86, t, 0.08, { vol: 0.06, wave: 'p12', slideTo: 1760 });
+        this.note(93, t + 0.1, 0.06, { vol: 0.05, wave: 'p12', slideTo: 1319 });
+        this.seq([79, 84, 88], 0.12, t + 0.25, { vol: 0.07, wave: 'tri', decayTo: 0.6 });
+        break;
+      case 'wdNight': // nightfall: an owl, low and soft
+        this.note(64, t, 0.2, { vol: 0.07, wave: 'tri', slideTo: 294, decayTo: 0.4 });
+        this.note(64, t + 0.32, 0.35, { vol: 0.07, wave: 'tri', slideTo: 262, decayTo: 0.3 });
+        break;
+      case 'wdVault': // a vault blown open: a deep boom, then grinding stone
+        this.noise(300, t, [[0, 0.8], [0.4, 0.5], [0.9, 0]], 120);
+        this.note(36, t, 0.7, { vol: 0.2, wave: 'tri', slideTo: 30 });
+        this.noise(2500, t + 0.5, [[0, 0.15], [0.3, 0.1], [0.5, 0]]);
         break;
       case 'select':
         this.noise(13000, t, [[0, 0.35], [0.03, 0]]);
