@@ -30,6 +30,9 @@ the file is named after the version in `js/version.js`.
 
 Pick 2, 3 or 4 players on the title screen with left/right on the player row. Players III and IV start in the bottom corners.
 
+In the maze, each player can drop markers on the map: player I **Q** or **E**, player II **]**, **\\**, numpad 2 or numpad +,
+player III **8** or **9**, player IV **5** or **6**, or either stick button (L3 / R3) on a gamepad (see *Maze*).
+
 **Gamepads** (USB or Bluetooth) work in every mode: pad 1 controls player I, pad 2 player II, and so on
 (in a 1-player game every pad controls player I). Press any button on a pad once so the browser reports it.
 A notice appears when a pad connects or disconnects, and pads that support it rumble when you're hit.
@@ -122,7 +125,7 @@ Maze and VS CPU, and no saving outside Classic and Big maps.
 | **Custom levels** | 1-4 | your levels from CONSTRUCTION, every filled slot in turn (see below); shop as in Classic |
 | **Big maps** | 1-4 | every stage is a big scrolling map (see below); shop and saves work as in Classic |
 | **Corridor** | 1-4 | the usual width, endless height: no eagle, just climb. The world is three map sections stacked (random classic maps, mirrored outwards on wider fields); once the whole team has climbed out of the bottom section it drops away and a fresh section appears on top, so the climb never ends and nobody gets left behind. Enemies keep arriving just above the screen, faster and tougher the higher you get (the flag shows the level: one per section climbed). The enemy grows slowly with the climb: only basic tanks at first, then fast (10 tiles), power (26) and armor (45), then the newer types one at a time every 20 tiles from 52 (rocket first), each starting rare and taking 40 tiles to reach its full share; veterans from about 100 tiles and elites from 230. A gold *NAME AHEAD!* tells you when a new kind joins; ones left far below drop out. A destroyed tank comes back at the bottom of the screen; every 5 sections everyone gets a tank. The border above the field shows how far you've climbed (in tiles) and your best; ends when everyone is out |
-| **Maze** | 1-4 | a huge labyrinth, a new one every stage and bigger each time (17 x 11 cells at first, growing by 3 x 2 a stage up to 34 x 22; a cell is a 2-tile passage). You start in the bottom-left corner; the one way out, a chequered **EXIT** gate, is on the outer edge as far from the start as the maze allows. The walls are steel that nothing can break (not power shells, rockets or blasts), with the odd stretch of brick you can shoot through for a shortcut; trees and ice fill some passages. Enemy tanks (26 in the first maze, 6 more each maze, up to 100) patrol along the way, half of them from the start (none near the start), and come for you once you get close or shoot them; more turn up out of sight as you go (the side panel counts them). Lost for too long (1 minute on the easiest skill, 3 on the hardest) and the exit sends a signal: a blinking green marker at the edge of the screen. Reaching the exit is worth 2000 plus a time bonus, and every enemy left goes up in smoke; then the tally, the shop and the next maze. A destroyed tank comes back where it was a few seconds before. The border shows the maze number and the time; the best run (mazes escaped) is kept |
+| **Maze** | 1-4 | a huge labyrinth, a new one every stage and bigger each time (17 x 11 cells at first, growing by 3 x 2 a stage up to 34 x 22; a cell is a 2-tile passage), always solvable. You start in the bottom-left corner; the one way out, a chequered **EXIT** gate, is on the outer edge as far from the start as the maze allows, and it stays sealed until the team has the maze's 3 **power cells**. On the way: coloured **gates** whose keys lie deeper in, one behind the other; rivers to bridge; pressure plates and steel doors; moving walls; cracked floor; belts and teleporters; treasure rooms, vaults and secret exits. It's dark: your lamp lights the way (and burns down; fuel cans refill it), what you've seen stays dim, and the minimap shows only that. Once every key and cell is in, the maze starts to **collapse**: a clock runs to the exit. Mazes 1-4 are a stone dungeon, 5-9 the sewers, 10-14 ice caverns, 15 on the machine, and every 5th is a **lair** with a beast in its arena (see *Maze* below). The walls are steel that nothing can break, with the odd stretch of brick you can shoot through for a shortcut. Enemy tanks (26 in the first maze, 6 more each maze, up to 100) patrol along the way, half of them from the start (none near the start), and come for you once you get close or shoot them; more turn up out of sight as you go (the side panel counts them). Lost for too long (1 minute on the easiest skill, 3 on the hardest) and the exit sends a signal: a blinking green marker at the edge of the screen. Reaching the exit is worth 2000 plus a time bonus, and every enemy left goes up in smoke; then the tally (with the time and its stars), the shop and the next maze. A destroyed tank comes back where it was a few seconds before. The border shows the maze number and the time; the best run (mazes escaped) and the best stars for each maze are kept |
 | **Fortress** | 1-4 | tower defense: hold your eagle through 30 waves (see *Fortress* below) |
 | **Galaxy** | 1-4 | a space shoot-'em-up: your tanks against alien waves, sector after sector (see *Galaxy* below) |
 | **Time attack** | 1-4 | clear stages 1-5 as fast as you can; enemies arrive twice as fast, no tally between stages, the clock runs in the border above the field; best time is kept |
@@ -149,7 +152,7 @@ Finding the enemy on a map bigger than the screen (big maps, the corridor, the m
   for a boss).
 - **A minimap** in the top right corner shows the whole map: walls, water and trees, the part you're looking at
   (white frame), you and your team, the enemies (red), the eagle and the objectives. It fades while you drive under
-  it. In the maze it shows no walls, since finding the way is the point. Settings → SCREEN → MINIMAP.
+  it. In the maze it shows only what your team has seen, one dot a cell (see *Maze*). Settings → SCREEN → MINIMAP.
 - Enemies you couldn't see anyway get no arrow or dot: underground, cloaked, mirages, or hidden in the dark. Big stages bring twice the tanks and two more on screen at once. Each has an objective,
 taking turns:
 
@@ -162,6 +165,81 @@ taking turns:
 
 Play them in the **BIG MAPS** mode (every stage), or in Classic with Settings → GAME → **BIG MAP STAGES: SOME**
 (every 4th stage that isn't a boss stage; off by default).
+
+## Maze
+
+Every maze is generated afresh, bigger each time, and it can always be solved: before you get it, a solver drives
+through it with its moving walls in every position and all its cracked floor already fallen in, and checks that every
+key, crate and power cell can be reached in turn, and then the exit (if not, the maze is made again, in the end with
+fewer things in it).
+
+- **Depths**: mazes 1-4 are a **stone dungeon** (cobwebs, old brick), 5-9 **the sewers** (mossy walls, rivers to
+  bridge, sludge that slows you, drips), 10-14 **ice caverns** (ice walls, a third of the floor slippery ice, more
+  cracked floor and moving walls, snow), 15 on **the machine** (riveted plates, moving walls everywhere, conveyor
+  belts, teleporters, sparks). The curtain names the depth.
+- **Lairs**: every 5th maze is a lair: a smaller maze with an arena in the middle where its beast waits (a Minotaur,
+  from the maze's enemies). Its exit stays sealed until the beast is dead (and the cells are in).
+- **Keys and gates**: red, blue and yellow gates (bars with a lock plate in the key's colour) stand on the way out: one
+  in the first mazes, two from maze 4, three from maze 8 when the way is long enough. Each key lies on the near side of
+  its gate, behind the gate before it (the blue key behind the red gate, the yellow behind the blue), usually in a dead
+  end off the way, sometimes with a guard beside it. Keys belong to the whole team (the side panel shows this maze's
+  key colours, lit once you hold them) and open every gate of their colour: just drive into it. A key stolen and never
+  brought back turns up again where it first lay after 45 s.
+- **Power cells**: three in every maze, spread along the way. The **EXIT** is sealed (red bars, a lock and three
+  lights) until the team has all 3 (side panel: n/3); THE EXIT IS OPEN! when it opens.
+- **Rivers**: in the sewers (and now and then from maze 3) a river cuts the maze in two, the exit on the far side. A
+  **BRIDGE** crate lies in a dead end on your side: take it (a brown dot in the side panel) and drive into the river at
+  a gap in the bank to lay a bridge across. A kit lost or used up with no bridge to show for it: a new crate turns up
+  where the first one lay. The ship power-up crosses too.
+- **Pressure plates and doors**: drive onto a plate and a steel door (yellow and black, its ends in the plate's colour)
+  opens somewhere else; it stays open while anyone is on the plate, then for **20 s**, ticking (faster at the end), with
+  the seconds over the doorway and a blinking marker at the edge of the screen pointing to it. It never shuts on a
+  tank. In co-op one of you can hold the plate. Some doors are on the way out (the plate a short drive before them),
+  others guard treasure.
+- **Moving walls**: from maze 3 (5-8 of them in the machine), a wall beside a pillar with a hub on it slides or swings
+  every 15 s, opening one way and closing another. It warns you 2 s before (a rumble, dust, the wall shaking, amber
+  lights) and never closes on a tank; whichever way they stand, nothing is ever cut off.
+- **Cracked floor**: from maze 2 (more in the ice), a cracked cell gives way once you've driven over it, as soon as
+  everyone is off it: a one-way route. Never one the maze can't do without.
+- **Conveyor belts and teleporters**: now and then from maze 4 (teleporters) and 6 (belts), lots in the machine: belts in
+  the corridors carry you (mostly towards the exit), pads in pairs take you across the maze, now and then into a dead
+  end. Settings → GAME → MUD, BELTS, PADS leaves them out.
+- **Darkness**: the maze is lit only by your lamp (walls block its light). What you've seen stays dim behind you; some
+  parts are **pitch black** even once explored, with **torches** on their walls that light up as you pass and stay lit,
+  so you can find your way back. Muzzle flashes, explosions and shells light things up for a moment, the exit glows
+  faintly, keys and cells glint. An enemy in the dark shows only as two red eyes, and gets no arrow and no dot on the
+  map.
+- **Lamp fuel**: each lamp burns down over about 3 minutes to a tile's worth of light; **fuel cans** in the side
+  passages fill it up again (side panel: a bar per player, blinking below 20%; LAMP LOW). Every maze starts with full
+  lamps.
+- **The map**: the minimap shows only what the team has seen, walls included, one dot a cell (and one a wall): gates
+  and doors in their colours, rivers and bridges, fallen floor and rubble; the exit once seen (or signalled), keys and
+  cells you've spotted, a door whose clock is running. A **MAP SCROLL** shows the whole maze for 15 s (gold frame).
+- **Markers**: each player can drop markers for the team, up to 5 (the oldest goes): a chalk cross on the floor and on
+  the map, in the player's colour. Player I **Q** or **E**, player II **]**, **\\**, numpad 2 or numpad +, player III
+  **8** or **9**, player IV **5** or **6**; on a gamepad either stick button (L3 / R3). The same key on the same spot takes
+  the marker away. Online guests use Q, E or a stick button.
+- **The collapse**: once the team has every key and power cell (and has bridged its rivers), the exit opens and the
+  maze starts to cave in. A clock runs in big digits (and in the border and the side panel): 60 s, or more when the
+  exit is far (20 s plus 1.6 s for every cell between the farthest of you and the exit; half as much again on the
+  easiest skill, a little less on the hardest). Rubble falls into the passages behind the team (never on a tank, never
+  in anyone's way out), the screen shakes, every gate springs open, the doors jam open and the moving walls stop.
+  **Too slow**: the ceiling comes down. Everyone still inside loses a tank (back a moment later, as usual) and the clock
+  starts again with two thirds of its time (at least 30 s), until you're out or out of tanks.
+- **Par times and stars**: every maze has two par times, from the shortest tour that picks up its keys, crates and
+  cells (and steps on its plates) on the way to the exit: inside the shorter one is three stars, inside the longer
+  two, getting out at all one. The tally after a maze shows the time, the stars and both pars; the best stars for each
+  maze number are kept with the mode's records (the curtain shows them for the maze ahead, the title screen and the
+  run's result the total).
+- **Treasure**: dead ends walled off by bricks (shoot your way in), a gate or a plate door hold coins, a weapon crate
+  or an extra life. From maze 3 some mazes have a **vault**: a sealed room with gold trim and padlocks that opens when
+  a Minotaur dies: three coins, a weapon crate and an extra life.
+- **Secret exits**: some mazes (from maze 2, never a lair) hide an exit in a dead end behind a wall that only looks
+  like steel (a hairline crack, a glint now and then). Shoot it down and drive in: you're out at once, with three
+  stars, and the next maze is skipped.
+- A destroyed tank comes back where it was a few seconds before, never into rubble or a fallen floor. SAVE GAME keeps
+  a checkpoint at the start of the maze: loading plays that maze number again, freshly made. Online, guests get the
+  whole world from the host and see by their own lamp; the map is the team's.
 
 ## Survival
 
@@ -936,7 +1014,8 @@ settings come back afterwards.
 ## First-meet cards
 
 The first time you meet each enemy, boss and power-up (and each new kind of ground: lava, basalt, vents, bog, reeds,
-swamp gas, concrete, barrels, crates, deflectors, manholes), a one-line card slides down at the top of the field, such as
+swamp gas, concrete, barrels, crates, deflectors, manholes; and the maze's gates, keys, power cells, plates, moving
+walls, cracked floor, torches, lamp fuel, map scrolls, bridge crates, rivers, the sealed exit, vaults and lairs), a one-line card slides down at the top of the field, such as
 **NEW: JAMMER - SLOWS YOUR SHELLS NEARBY** (a line too long for the field scrolls along once). Several new things
 queue up and show one after another. What you've met is remembered between games. Settings → GAME → FIRST-MEET CARDS
 turns them off, and SHOW ALL CARDS AGAIN brings them all back. Online, guests see the host's cards.
@@ -1047,6 +1126,9 @@ js/reach.js       no dead ends: a way opened from every walled-in entry point; s
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go
 js/maze.js        maze mode: the maze generator, patrols, reinforcements, the exit
+js/maze2.js       the maze's world: keys and gates, power cells and the sealed exit, rivers, plates and doors, moving walls,
+                  cracked floor, belts and pads, darkness and torches, lamp fuel, the map and markers, the collapse,
+                  par times and stars, treasure, vaults, secret exits, the four depths and the lairs; the solver
 js/mazefoes.js    maze mode's own enemies: the minotaur (and the lair's boss), crawlers, sentries, locksmiths, mirrors, mosslumps
 js/fortress.js    fortress mode (tower defense): towers, upgrades and specialisations, waves, gold, the build menu, maps
 js/galaxy.js      galaxy mode (a shoot-'em-up): sectors, waves, weapons, pickups, the hangar, its bosses

@@ -516,7 +516,12 @@ class Stage {
     // water and belts are listed for animation, so a change to or from them redraws everything
     const old = this.layerOf && this.layerOf[cy * GW + cx];
     if (this.bgLayer && !this.dirty && this.layerOf && old !== T_WATER && t !== T_WATER && !isBelt(old) && !isBelt(t) && !bioAnim(old) && !bioAnim(t)) (this.dirtyCells || (this.dirtyCells = [])).push(cy * GW + cx);
-    else this.dirty = true;
+    else if (this.bgLayer && !this.dirty && this.layerOf && old === T_WATER && t !== T_WATER && !isBelt(t) && !bioAnim(t) && this.waterCells) {
+      // water bridged or filled in: just that cell (a bridge over a big map's river shouldn't redraw the lot)
+      const k = this.waterCells.indexOf(cy * GW + cx);
+      if (k >= 0) this.waterCells.splice(k, 1);
+      (this.dirtyCells || (this.dirtyCells = [])).push(cy * GW + cx);
+    } else this.dirty = true;
   }
   setBlock(bx, by, t) {
     for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) this.set(bx * 2 + x, by * 2 + y, t);
@@ -1667,6 +1672,7 @@ class Stage {
     const wt = themeTex(this.theme)[(this.frame >> 5) & 1 ? 'water1' : 'water0'];
     for (const i of this.waterCells) {
       const cx = i % GW, cy = (i / GW) | 0;
+      if (cx * 4 + 4 < camX || cy * 4 + 4 < camY || cx * 4 > camX + VIEW_W || cy * 4 > camY + VIEW_H) continue;   // off screen (a big map's river)
       texCell(ctx, wt, cx, cy);
     }
     this.renderBelts(ctx);

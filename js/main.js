@@ -372,7 +372,7 @@ const Game = {
       const best = mi.key === 'survival' && rec.survival ? 'BEST WAVE ' + rec.survival.wave + '  ' + rec.survival.score
         : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack)
         : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score
-        : mi.key === 'maze' && rec.maze ? 'BEST: ' + rec.maze.escaped + ' MAZES ESCAPED  ' + rec.maze.score
+        : mi.key === 'maze' && rec.maze ? 'BEST: ' + rec.maze.escaped + ' MAZES  ' + rec.maze.score + (mzStarTotal(rec) ? '  *' + mzStarTotal(rec) : '')
         : mi.key === 'fortress' && rec.fortress ? 'STARS ' + TD_MAPS.map(m => (rec.fortress[m.key] || {}).stars || 0).reduce((a, b) => a + b, 0) + '/' + TD_MAPS.length * 3 + '  MAPS ' + TD_MAPS.filter((m, i) => tdUnlocked(i)).length + '/' + TD_MAPS.length
         : mi.key === 'galaxy' ? '1-4 PLAYERS' + (rec.galaxy ? ', BEST SECTOR ' + rec.galaxy.level + '  ' + rec.galaxy.score : '')
         : mi.key === 'coop' ? '1-4 PLAYERS TOGETHER' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '')
@@ -766,7 +766,10 @@ const Game = {
         if (c.raceSel && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + 42, '#3C3C3C');
       }
       // against the computer: what their HQ got for this round
-      if (this.mode === 'maze') Font.drawCenter(ctx, 'FIND THE EXIT', cx, cy + 14, '#A00000');
+      if (this.mode === 'maze') {
+        Font.drawCenter(ctx, mazeIsLair(this.stageNum) ? 'THE LAIR: SLAY THE BEAST' : 'FIND THE EXIT', cx, cy + 14, '#A00000');
+        if (mzStarsText(this.stageNum)) Font.drawCenter(ctx, 'BEST ' + mzStarsText(this.stageNum), cx, cy + 26, '#3C3C3C');
+      }
       if (this.mode === 'fortress') {
         const mp = TD_MAPS[this.tdMap], best = (STORE.get(MODE_KEY, {}).fortress || {})[mp.key];
         Font.drawCenter(ctx, (this.tdMap + 1) + '. ' + mp.name + ' (' + mp.diff + ')', cx, cy + 14, '#A00000');
@@ -793,13 +796,14 @@ const Game = {
       if (this.mode === 'custom' && !this.customPending) { const u = Customs.used(); lvTheme = Customs.level(u[(this.stageNum - 1) % u.length]).theme; }
       else if (this.customPending) lvTheme = this.customTheme;
       else if (this.mode === 'fortress' && Config.get('seasons') !== 'OFF') lvTheme = TD_MAPS[this.tdMap || 0].theme;   // each fortress map has its own season
+      else if (this.mode === 'maze') lvTheme = mzThemeKey(this.stageNum);   // the maze's look goes by its depth (maze2.js)
       if (lvTheme === 'auto') lvTheme = undefined;
       const ss = Config.get('seasons'), th = lvTheme ? THEMES[lvTheme] : ss === 'RANDOM' || ss === 'OFF' ? null : THEMES[stageTheme(this.stageNum)];
       if (th && th.name && !(this.mode === 'race' && c.raceSel)) {
         const fx = Config.on('seasonFx') && SEASON_FX_NAME[lvTheme || stageTheme(this.stageNum)];   // its twist (seasonal.js)
         Font.drawCenter(ctx, th.name + (fx ? ': ' + fx : ''), cx, cy - 36, '#3C3C3C');
       }
-      const wx = !this.customPending && this.mode !== 'custom' && stageWeather(this.stageNum, !!boss);
+      const wx = !this.customPending && this.mode !== 'custom' && this.mode !== 'maze' && stageWeather(this.stageNum, !!boss);   // (the maze is always dark its own way)
       if (wx) Font.drawCenter(ctx, wx === 'night' ? 'NIGHT' : 'FOG', cx, cy + (boss ? 34 : c.selectable ? 24 : 10), wx === 'night' ? '#00006C' : '#ADADAD');
       if (Config.get('skill') !== 2) Font.drawCenter(ctx, Config.skill().name, cx, cy - 24, '#3C3C3C');
       if (c.selectable && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + (boss ? 24 : 12), '#3C3C3C');
@@ -850,11 +854,13 @@ const Game = {
       fortress = { map: mp.key, spawns: md.spawns };
       if (Config.get('seasons') !== 'OFF') theme = mp.theme;
     } else if (!custom && this.mode === 'maze') {
-      // MAZE: a fresh labyrinth, bigger every stage (maze.js)
-      const [vc, vr] = this.desiredField(), [MW, MH] = mazeCells(this.stageNum, vc, vr);
+      // MAZE: a fresh labyrinth, bigger every stage (maze.js), with its keys, gates and the rest, its look by depth,
+      // a lair every 5th (maze2.js)
+      const [vc, vr] = this.desiredField(), [MW, MH] = mazeDims(this.stageNum, vc, vr);
       setFieldSize(MW * MAZE_PITCH + 1, MH * MAZE_PITCH + 1, vc, vr);
-      maze = mazeLayout(MW, MH);
+      maze = mazeWorld(this.stageNum, MW, MH);
       blocks = maze.blocks;
+      theme = maze.themeKey;
     } else if (corridor) {
       // the usual width, at least three sections high (one more than the screen needs above and below)
       const [vc, vr] = this.desiredField(), rows = Math.max(3, Math.ceil((vr + 26) / CORRIDOR_SECTION)) * CORRIDOR_SECTION;
