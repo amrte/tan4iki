@@ -118,7 +118,7 @@ Maze and VS CPU, and no saving outside Classic and Big maps.
 |---|---|---|
 | **Classic** | 1-4 | the game as always |
 | **Survival** | 1-4 | hold out for 100 waves on one map, with no eagle: you start in the middle and the enemy comes in from every edge to hunt you down. Waves grow to 28 tanks, then get tougher instead; a twist every third wave; terrain rebuilt and power-ups dropped between waves; a perk every 5 waves (see below) |
-| **Any side** | 1-4 | the classic stages with the map turned round: your eagle is on the left, right or top edge (a new one every stage; the curtain says which), you start beside it and the enemy comes in from the edge across. Base upgrades, the minefield, the eagle gun and supply drops all face the right way. Shop as in Classic |
+| **Any side** | 1-4 | the classic stages with the map turned round, and maps made for each edge: your eagle is on the left, top, right or bottom edge (the next one in turn every stage), you start beside it and the enemy comes in from the edge across. Most stages have a twist: two fronts, the eagle moving to a new fort mid-stage, wind or an ice slope, and every 5th a mirror stage with two eagles. Before each stage you can put down sandbags or a turret; clearing all four sides in a row pays a bonus. Base upgrades, the minefield, the eagle gun and supply drops all face the right way. Shop as in Classic (see *Any side* below) |
 | **Custom levels** | 1-4 | your levels from CONSTRUCTION, every filled slot in turn (see below); shop as in Classic |
 | **Big maps** | 1-4 | every stage is a big scrolling map (see below); shop and saves work as in Classic |
 | **Corridor** | 1-4 | the usual width, endless height: no eagle, just climb. The world is three map sections stacked (random classic maps, mirrored outwards on wider fields); once the whole team has climbed out of the bottom section it drops away and a fresh section appears on top, so the climb never ends and nobody gets left behind. Enemies keep arriving just above the screen, faster and tougher the higher you get (the flag shows the level: one per section climbed). The enemy grows slowly with the climb: only basic tanks at first, then fast (10 tiles), power (26) and armor (45), then the newer types one at a time every 20 tiles from 52 (rocket first), each starting rare and taking 40 tiles to reach its full share; veterans from about 100 tiles and elites from 230. A gold *NAME AHEAD!* tells you when a new kind joins; ones left far below drop out. A destroyed tank comes back at the bottom of the screen; every 5 sections everyone gets a tank. The border above the field shows how far you've climbed (in tiles) and your best; ends when everyone is out |
@@ -198,6 +198,47 @@ and most of them hunt you.
 - **Saving:** the checkpoint is the start of each wave: the same map, terrain, twists and perks when you load it.
 - The side panel's flag shows the wave. It ends when everyone is out or all 100 waves are held; the best wave and
   score are kept (holding all 100 beats reaching the last one).
+
+## Any side
+
+The eagle's edge goes round, a new one every stage: **left, top, right, bottom**, and again (where a run starts in
+that circle is random), so any four stages in a row bring all four. You start beside the eagle and the enemy comes in
+from the edge across.
+
+- **The maps:** about half the stages are the classic maps turned round; the rest are maps made for one edge, three
+  per edge: RIVER BANK (a river along the fort's edge, three bridges over it), GLACIER and CANYON on the left; CLIFF
+  TOP (the fort on a cliff, three muddy ramps up), ICE SHELF and CITY BLOCKS at the top; DELTA, FROZEN BAY and WOODS
+  on the right; THE DAM, ICE RINK and TRENCHES at the bottom. Seasons, terrain types, secrets and the rest work on
+  them as on any stage, and an entry point that ends up walled in is opened up as everywhere.
+- **The twists** (the same ones each time a run reaches that stage):
+
+| Stages | Twist | What happens |
+|---|---|---|
+| 2, 7, 12 ... | **Two fronts** | the far edge and a flank take turns, a wave each (4 tanks, one more for each extra player). Before every wave from a new edge the game holds back the next tank for a couple of seconds: a klaxon, red arrows flashing where they'll come in and ATTACK FROM THE LEFT! (or wherever) |
+| 3, 8, 13 ... | **The eagle moves** | a dirt road runs from your fort to a new fort's site in the middle of an edge beside it (marked out in gold, with a flag). Once a third of the enemy is beaten (or after 45 s) a truck pulls in, takes the eagle and drives it down the road; most of the enemy go for the truck. It waits for any tank in its way (a horn if it waits long) and breaks through whatever was put on the road. Eagle armour soaks hits first, then the truck takes 3 (pips above it); your own shells don't hurt it. Lose the truck and the eagle is lost. When it arrives the fort is built round it to your BASE WALLS level, a new minefield is laid, you respawn beside it, and the enemy now comes from across the new edge (with a warning). The stage isn't won until the truck has arrived |
+| 4, 14, 24 ... | **Wind** | the wind blows across the field: every shell flying across it (theirs, yours, the eagle gun's) drifts with it, up to half a tank over a long shot. A wind sock in the left border shows which way and how hard (one to three pips); gusts change the strength now and then, and once in a while the wind turns right round |
+| 9, 19, 29 ... | **Ice slope** | an icy map, tilted towards the eagle: any tank on the ice slides that way (you climb away from it slower, they come down faster). The left border shows the slope |
+| 5, 10, 15 ... | **Mirror stage** | two eagles on opposite edges, each in its own fort, and the enemy in from both flanks, a wave from each in turn, half of them going for each eagle. Lose either eagle and the game is over. II and IV start by the second eagle |
+
+- **Defences before the stage:** once the curtain opens you have 10 seconds to put down 2 pieces each (1 each with
+  3-4 players), with a cursor: arrows move it, **FIRE** puts a piece down, **B** swaps between a **sandbag** wall
+  and a **turret** (at most one turret). A sandbag wall faces the nearest edge they come in from: tanks can't drive
+  through it and enemy shells stop on it (4 hits; rockets take 2), while your shells fly over it. The turret is the
+  usual one. Pieces can't go on a fort, a start, next to an entry point or on the road. Red arrows show where the
+  enemy will come in. **ENTER** starts the stage at once (Esc still pauses); the stage also starts when everyone's
+  done or the time is up. Nothing moves meanwhile, but your tanks roll in.
+- **The streak:** every stage cleared adds one; clearing all four sides in a row pays **5000** to each of you, 10000
+  the next time round, up to 20000. Losing the eagle (or the truck, or either eagle in a mirror stage) ends the
+  streak, and going on from the checkpoint doesn't bring it back. The line above the field shows the streak and the
+  four sides as letters (cleared ones white, this one red).
+- **The curtain** shows the next stage in miniature: the map, the eagle (both, in a mirror stage) in gold, red arrows
+  where they come in (yellow for the flank), the road and the new fort, the wind or the slope; and beside it the
+  twist, the map's name and the streak.
+- Base upgrades work on every edge and in every twist: the walls' steel corners, the minefield, the supply drops and
+  the eagle gun face the right way at a moved fort too, and a mirror stage's second eagle gets the walls, the armour,
+  the minefield, the repair crew and an eagle gun of its own (one eagle's gun never hits the other). A shovel steels
+  both forts; a decoy eagle fools everyone.
+- Saving: the checkpoint is the start of each stage, with the run's twists, the edge and the streak.
 
 ## Skill levels
 
@@ -1007,6 +1048,7 @@ js/bossart.js     boss screens: a picture before each boss and one after it
 js/galya.js       a secret (no spoilers)
 js/modes.js       game modes: time attack, versus eagles, deathmatch, capture the flag
 js/survival.js    SURVIVAL: 100 waves, entry points all round, twists, perks, drops, terrain rebuilds
+js/sides2.js      ANY SIDE's twists: the edges in turn, two fronts, the moving eagle, wind, ice slope, mirror stage, side maps, sandbags, the streak, the curtain preview
 js/reach.js       no dead ends: a way opened from every walled-in entry point; stuck enemies come in again
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go

@@ -495,6 +495,40 @@ const Sound = {
       case 'blackout': // the power goes: a falling hum
         this.note(220, t, 0.6, { vol: 0.1, slideTo: 55, wave: 'p50' });
         break;
+      // sides2.js: ANY SIDE's twists
+      case 'sdAlarm': // a new front: a two-tone klaxon, twice
+        for (let i = 0; i < 2; i++) {
+          this.note(69, t + i * 0.3, 0.15, { vol: 0.13, flat: true, wave: 'p25' });
+          this.note(64, t + i * 0.3 + 0.15, 0.15, { vol: 0.13, flat: true, wave: 'p25' });
+        }
+        break;
+      case 'sdTruck': // the truck starts up: a rumbling engine and a horn
+        this.noise(700, t, [[0, 0.3], [0.3, 0.25], [0.5, 0]], 1100);
+        this.note(57, t + 0.45, 0.14, { vol: 0.12, flat: true, wave: 'p50' });
+        this.note(57, t + 0.62, 0.22, { vol: 0.12, decayTo: 0.5, wave: 'p50' });
+        break;
+      case 'sdHorn': // waiting for a tank to get out of the way
+        this.note(55, t, 0.12, { vol: 0.11, flat: true, wave: 'p50' });
+        this.note(55, t + 0.16, 0.12, { vol: 0.11, flat: true, wave: 'p50' });
+        break;
+      case 'sdWind': // a gust: a hiss that swells and falls
+        this.noise(9000, t, [[0, 0], [0.25, 0.12], [0.7, 0.05], [0.9, 0]], 4000);
+        break;
+      case 'sdPlace': // a sandbag or a turret goes down: a thud
+        this.noise(1200, t, [[0, 0.45], [0.05, 0.2], [0.09, 0]]);
+        this.note(45, t, 0.08, { vol: 0.2, wave: 'tri', slideTo: 60 });
+        break;
+      case 'sdGo': // placing over: a short bugle
+        this.seq([67, 72, 76], 0.06, t, { vol: 0.12, decayTo: 0.5 });
+        break;
+      case 'sdBuild': // the new fort goes up: bricks and a rising run
+        for (let i = 0; i < 4; i++) this.noise(4000, t + i * 0.07, [[0, 0.3], [0.04, 0]]);
+        this.seq([60, 64, 67, 72, 76], 0.06, t + 0.1, { vol: 0.12, decayTo: 0.5, wave: 'p25' });
+        break;
+      case 'sdStreak': // all four sides: a fanfare
+        this.seq([72, 0, 72, 76, 79, 0, 84, 84], 0.08, t, { vol: 0.15, decayTo: 0.5 });
+        this.seq([60, 0, 60, 64, 67, 0, 72, 72], 0.08, t, { vol: 0.08, decayTo: 0.5, wave: 'p25' });
+        break;
       case 'select':
         this.noise(13000, t, [[0, 0.35], [0.03, 0]]);
         break;
