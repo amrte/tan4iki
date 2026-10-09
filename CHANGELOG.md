@@ -3,6 +3,22 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.53
+
+- **Any side, reworked** (sides2.js):
+  - The eagle's edge goes round all four sides in turn (the bottom too), one per stage.
+  - *Twists* on a five-stage cycle: TWO FRONTS (waves alternate between the far edge and a flank, with a siren and
+    arrows before each new direction), THE EAGLE MOVES (mid-stage a truck carries the eagle along a road to a new fort;
+    enemies go for the truck; lose it and the eagle is lost), WIND (shells drift; a wind sock shows which way), an ICE
+    SLOPE (tanks on ice slide toward the eagle's edge), and every 5th stage a MIRROR stage: two eagles on opposite
+    edges, both must survive.
+  - *Side maps:* 12 new hand-made maps, three for each edge (River Bank, Glacier, Canyon, Cliff Top, Ice Shelf, City
+    Blocks, Delta, Frozen Bay, Woods, The Dam, Ice Rink, Trenches), mixed in with the turned classic ones.
+  - *Defences:* 10 s before each stage to put down sandbags or a turret facing the attack (FIRE puts, B swaps, ENTER
+    starts).
+  - *Streak:* clear all four sides in a row for a bonus (5000, then 10000, up to 20000); losing an eagle resets it.
+  - *Curtain preview:* a little map of the coming stage: where your eagle is, where they come in, the twist.
+
 ## 0.52
 
 - **The maze, reworked** (maze2.js, with its enemies in mazefoes.js):
