@@ -831,7 +831,9 @@ the weapon in hand; its letter and level pips show in the left border, in your c
 | **F** Flamethrower | hold fire: a short cone of fire that burns tanks, trees (sets them alight in summer) and shells; bricks crumble in it, slowly | longer and hotter |
 | **G** Mortar | lobs a shell over walls onto the first tank lined up ahead (or, with none, the first brick wall ahead); a blast that breaks brick | further, bigger blasts; breaks steel at MK IV |
 | **T** Tesla | lightning to the nearest enemy in reach: no aiming, walls don't stop it; with nobody in reach it bursts the wall ahead | longer reach, jumps on to 1 / 2 / 3 more tanks |
-| **H** Missiles | homing missiles that fly over walls, pick their own targets and blow up; with no target they blow a hole in the first wall they meet | more damage; 2 at once at MK III, 3 at MK IV |
+| **H** Missiles | homing missiles that fly over walls, pick their own targets and blow up; fired at a building straight ahead (a BIG MAPS factory, the CPU's HQ) they go for it, not the tanks round it; with no target they blow a hole in the first wall they meet | more damage; 2 at once at MK III, 3 at MK IV |
+
+Every weapon hurts the enemy's buildings too: the BIG MAPS factories and the CPU's HQ (the mortar lands on one lined up ahead, the tesla zaps one in reach, the flamethrower burns it, missiles home on it when no tank is near).
 
 Every weapon can break its way through brick, so none leaves you stuck behind a wall. A crate with the weapon you have raises its level; a different one swaps to it (each weapon remembers its level, so
 you can buy or find your way back). Losing a tank costs a level of the weapon in hand, and at MK I you're back to the

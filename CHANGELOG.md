@@ -3,6 +3,13 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.60.1
+
+- **Fixed: BIG MAPS factories you couldn't destroy** with some weapons, so the stage couldn't be finished. Missiles only
+  chased tanks (and the factories keep making them), the tesla and the flamethrower never touched buildings, and the
+  mortar never aimed at one. Now missiles fired at a factory (or the VS CPU HQ) straight ahead go for it, and home on one
+  when no tank is near; the mortar lands on one lined up ahead, the tesla zaps one in reach, the flamethrower burns it.
+
 ## 0.60
 
 - **Counter-Strike: pick your tank** on the team screen (a TANK row for each player; online friends use up/down):

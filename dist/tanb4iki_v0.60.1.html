@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.60</title>
+  <title>tanb4iki_v0.60.1</title>
   <style>
 :root {
   --bg: #000;
@@ -211,7 +211,7 @@ body.csmode .btns button.radio { display: inline-block; }
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.60';
+const APP_VERSION = '0.60.1';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -11441,6 +11441,16 @@ Object.assign(Stage.prototype, {
     }
   },
 
+  // what the weapons can aim at besides tanks: the enemy's buildings (BIG MAPS factories, the CPU's HQ); each
+  // { x, y, w, h, hit(att, n) }, n hits (fractions add up)
+  weaponStructs() {
+    const out = [];
+    for (const f of this.factories || []) if (f.hp > 0) out.push({ x: f.x, y: f.y, w: 32, h: 32, obj: f, hit: (att, n) => { f.wAcc = (f.wAcc || 0) + n; const k = Math.floor(f.wAcc); if (k > 0) { f.wAcc -= k; this.hitFactory(f, k, att); } } });
+    if (this.cpu && this.cpu.alive) { const c = this.cpu; out.push({ x: c.x, y: c.y, w: 16, h: 16, obj: c, hit: (att, n) => { c.wAcc = (c.wAcc || 0) + n; if (c.wAcc >= 1) { c.wAcc = 0; this.cpuHit(att); } } }); }
+    return out;
+  },
+  weaponStructsIn(att, x, y, w, h, dmg) { for (const st of this.weaponStructs()) if (overlap(x, y, w, h, st.x, st.y, st.w, st.h)) st.hit(att, dmg); },
+
   // bosses caught in a rectangle take damage too (fractions add up per boss)
   weaponBosses(att, x, y, w, h, dmg, only) {
     for (const bo of this.bosses) {
@@ -11525,6 +11535,7 @@ Object.assign(Stage.prototype, {
     if (this.frame % 6) return;
     for (const foe of this.weaponFoes(t)) if (overlap(x, y, fw, fh, foe.x, foe.y, 16, 16)) this.weaponHit(t, foe, s.dmg, { dir: t.dir });
     this.weaponBosses(t, x, y, fw, fh, s.dmg);
+    this.weaponStructsIn(t, x, y, fw, fh, s.dmg);
     // it burns trees away (and sets them alight in summer); reeds catch, gas and barrels go up (biomes.js)
     for (let cy = Math.max(0, y >> 2); cy <= (y + fh - 1) >> 2; cy++) for (let cx = Math.max(0, x >> 2); cx <= (x + fw - 1) >> 2; cx++) {
       const v = this.get(cx, cy);
@@ -11546,6 +11557,11 @@ Object.assign(Stage.prototype, {
       const fx = foe.x + 8 - cx, fy = foe.y + 8 - cy, ahead = fx * dx + fy * dy, side = Math.abs(dx ? fy : fx);
       if (ahead > 12 && ahead < d && side < 10) d = ahead;
     }
+    // a building lined up ahead (a factory, the CPU's HQ)
+    for (const st of this.weaponStructs()) {
+      const fx = st.x + st.w / 2 - cx, fy = st.y + st.h / 2 - cy, ahead = fx * dx + fy * dy, side = Math.abs(dx ? fy : fx);
+      if (ahead > 12 && ahead < d && side < st.w / 2 + 6) d = ahead;
+    }
     // nobody lined up: the first brick wall ahead (so it breaks a way through, not something far behind it)
     if (d === s.dist) for (let k = 12; k < s.dist; k += 4) { const v = this.get((cx + dx * k) >> 2, (cy + dy * k) >> 2); if (v === T_BRICK || (v >= T_LAVA && bioSolid(v))) { d = k + 4; break; } }
     const tx = Math.max(4, Math.min(FW - 4, cx + dx * d)), ty = Math.max(4, Math.min(FH - 4, cy + dy * d));
@@ -11560,7 +11576,9 @@ Object.assign(Stage.prototype, {
     for (const foe of foes) { const d = Math.hypot(foe.x + 8 - cx, foe.y + 8 - cy); if (d < bd) { bd = d; first = foe; } }
     if (!first) {
       const bo = this.bosses.find(b => this.bossTangible(b) && Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < s.range + b.w / 2);
+      const bd2 = this.weaponStructs().find(b => Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < s.range + b.w / 2);
       if (bo) { this.weaponBosses(t, bo.x, bo.y, bo.w, bo.h, s.dmg); this.wfx.push({ kind: 'beam', pts: [[cx, cy], [bo.x + bo.w / 2, bo.y + bo.h / 2]], t: 10, color: WEAPONS.tesla.color, w: 1, zig: true }); t.wcool = s.cd; Sound.play('zap'); }
+      else if (bd2) { bd2.hit(t, s.dmg); this.wfx.push({ kind: 'beam', pts: [[cx, cy], [bd2.x + bd2.w / 2, bd2.y + bd2.h / 2]], t: 10, color: WEAPONS.tesla.color, w: 1, zig: true }); t.wcool = s.cd; Sound.play('zap'); }
       else if (!this.teslaWall(t, s)) t.wcool = 10;
       return;
     }
@@ -11601,9 +11619,11 @@ Object.assign(Stage.prototype, {
     // targets: the nearest tanks, those ahead first
     const foes = this.weaponFoes(t).map(f => { const fx = f.x + 8 - cx, fy = f.y + 8 - cy; return [f, Math.hypot(fx, fy) - (fx * dx + fy * dy > 0 ? 60 : 0)]; })
       .filter(q => q[1] < 160).sort((a, b) => a[1] - b[1]).map(q => q[0]);
+    // a building straight ahead (a factory, the CPU's HQ): you're aiming at it, so they go for it, not the tanks round it
+    const bld = t.isPlayer ? this.weaponStructs().find(b => { const fx = b.x + b.w / 2 - cx, fy = b.y + b.h / 2 - cy, ahead = fx * dx + fy * dy; return ahead > 0 && ahead < 200 && Math.abs(dx ? fy : fx) < b.w / 2 + 10; }) : null;
     for (let k = 0; k < s.n; k++) {
       const a = Math.atan2(dy, dx) + (k - (s.n - 1) / 2) * 0.5;
-      this.wshots.push({ kind: 'missile', owner: t, x: cx + dx * 8, y: cy + dy * 8, vx: Math.cos(a) * 1.2, vy: Math.sin(a) * 1.2, target: foes.length ? foes[k % foes.length] : null, life: 150, s });
+      this.wshots.push({ kind: 'missile', owner: t, x: cx + dx * 8, y: cy + dy * 8, vx: Math.cos(a) * 1.2, vy: Math.sin(a) * 1.2, target: bld ? null : foes.length ? foes[k % foes.length] : null, struct: bld, lock: !!bld, life: 150, s });
     }
     t.wcool = s.cd;
     Sound.play('missile');
@@ -11626,14 +11646,22 @@ Object.assign(Stage.prototype, {
         continue;
       }
       // a missile: turns towards its target (a new one if it's gone), speeds up, flies over walls
-      if (!m.target || !m.target.alive) {
+      if (m.lock && !(m.struct && (m.struct.obj.hp > 0 || m.struct.obj.alive))) m.lock = false;   // its building's down
+      if (!m.lock && (!m.target || !m.target.alive)) {
         let best = null, bd = 140;
         for (const foe of this.weaponFoes(att)) { const d = Math.hypot(foe.x + 8 - m.x, foe.y + 8 - m.y); if (d < bd) { bd = d; best = foe; } }
         m.target = best;
+        // no tank near: a building (a factory, the CPU's HQ) will do
+        if (!best && att && att.isPlayer) {
+          let bs = null, bsd = 180;
+          for (const st of this.weaponStructs()) { const d = Math.hypot(st.x + st.w / 2 - m.x, st.y + st.h / 2 - m.y); if (d < bsd) { bsd = d; bs = st; } }
+          m.struct = bs;
+        } else m.struct = null;
       }
       const sp = Math.min(3.2, Math.hypot(m.vx, m.vy) + 0.1);
-      if (m.target) {
-        const ddx = m.target.x + 8 - m.x, ddy = m.target.y + 8 - m.y, d = Math.hypot(ddx, ddy) || 1;
+      const aim = m.target ? [m.target.x + 8, m.target.y + 8] : m.struct ? [m.struct.x + m.struct.w / 2, m.struct.y + m.struct.h / 2] : null;
+      if (aim) {
+        const ddx = aim[0] - m.x, ddy = aim[1] - m.y, d = Math.hypot(ddx, ddy) || 1;
         m.vx += ddx / d * 0.45; m.vy += ddy / d * 0.45;
       }
       const k = sp / (Math.hypot(m.vx, m.vy) || 1);
@@ -11641,10 +11669,13 @@ Object.assign(Stage.prototype, {
       m.x += m.vx; m.y += m.vy;
       if (this.frame % 2 === 0) this.wfx.push({ kind: 'smoke', x: m.x, y: m.y, t: 10 });
       // no target: it goes off on the first wall it meets (one fired at a wall opens it)
-      const tw = this.get(Math.floor(m.x) >> 2, Math.floor(m.y) >> 2), wall = !m.target && m.life < 146 && (tw === T_BRICK || tw === T_STEEL || (tw >= T_LAVA && bioSolid(tw)));
+      const tw = this.get(Math.floor(m.x) >> 2, Math.floor(m.y) >> 2), wall = !m.target && !m.struct && m.life < 146 && (tw === T_BRICK || tw === T_STEEL || (tw >= T_LAVA && bioSolid(tw)));
       if (wall) { m.life = 0; m.wallHit = true; }
       const hit = m.target && Math.hypot(m.target.x + 8 - m.x, m.target.y + 8 - m.y) < 7;
-      if (hit || --m.life <= 0 || m.x < 0 || m.y < 0 || m.x > FW || m.y > FH) {
+      // a player's missile meeting a building bursts on it (the blast does the damage)
+      const onBld = att && att.isPlayer && this.weaponStructs().find(b => m.x >= b.x && m.y >= b.y && m.x < b.x + b.w && m.y < b.y + b.h);
+      if (onBld) onBld.hit(att, Math.max(0, m.s.dmg - 2));
+      if (hit || onBld || --m.life <= 0 || m.x < 0 || m.y < 0 || m.x > FW || m.y > FH) {
         m.done = true;
         const tgt = hit ? m.target : null;
         this.blast(Math.max(2, Math.min(FW - 2, m.x)), Math.max(2, Math.min(FH - 2, m.y)), m.wallHit ? 12 : 8, true, att, false);   // into a wall: a hole a tank fits through
