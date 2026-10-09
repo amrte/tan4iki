@@ -43,8 +43,8 @@ const ED_MARKS = [
 const ED_MENU_TOP = 20, ED_MENU_STEP = 12, ED_TAB_STEP = 12;
 const edMenuRows = () => Math.floor((VIEW_H - ED_MENU_TOP - 4) / ED_MENU_STEP);
 
-// line-up types: every enemy but a splitter's halves; bosses: all but the secret one
-const clTypes = () => ENEMY.map((e, i) => i).filter(i => !ENEMY[i].mini);
+// line-up types: every enemy but a splitter's halves and the maze's own (they need a maze); bosses: all but the secret one
+const clTypes = () => ENEMY.map((e, i) => i).filter(i => !ENEMY[i].mini && !ENEMY[i].maze);
 const clBosses = () => BOSSES.map((b, i) => i).filter(i => BOSSES[i].kind !== 'galya');
 const clPowerups = () => POWERUPS.map((p, i) => i).filter(i => POWERUPS[i].weight > 0);
 const clShortName = t => ({ 'ROCKET TRUCK': 'R.TRUCK' })[ENEMY[t].name] || ENEMY[t].name.slice(0, 8);

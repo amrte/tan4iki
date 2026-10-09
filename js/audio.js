@@ -495,6 +495,61 @@ const Sound = {
       case 'blackout': // the power goes: a falling hum
         this.note(220, t, 0.6, { vol: 0.1, slideTo: 55, wave: 'p50' });
         break;
+      // the maze's own enemies (mazefoes.js)
+      case 'mfStep1': // the minotaur's footfall, far off: a dull thud
+        this.note(36, t, 0.12, { vol: 0.07, slideTo: 40, wave: 'tri' });
+        break;
+      case 'mfStep2': // nearer
+        this.note(38, t, 0.14, { vol: 0.13, slideTo: 38, wave: 'tri' });
+        this.noise(400, t, [[0, 0.12], [0.08, 0]]);
+        break;
+      case 'mfStep3': // right there: the ground shakes
+        this.note(40, t, 0.18, { vol: 0.2, slideTo: 35, wave: 'tri' });
+        this.noise(300, t, [[0, 0.3], [0.14, 0]], 150);
+        break;
+      case 'mfGrunt': // a snort
+        this.noise(1800, t, [[0, 0.05], [0.06, 0.3], [0.22, 0]], 600);
+        this.note(45, t, 0.2, { vol: 0.1, slideTo: 80, wave: 'p25' });
+        break;
+      case 'mfRoar': // a bellow
+        this.noise(900, t, [[0, 0.1], [0.15, 0.45], [0.8, 0.3], [1.1, 0]], 300);
+        this.note(50, t, 0.9, { vol: 0.12, slideTo: 70, wave: 'p25', decayTo: 0.5 });
+        this.note(43, t + 0.05, 0.9, { vol: 0.1, slideTo: 55, wave: 'p50', decayTo: 0.5 });
+        break;
+      case 'mfCharge': // it charges: hooves drumming
+        for (let k = 0; k < 6; k++) this.noise(500, t + k * 0.07, [[0, 0.3], [0.05, 0]], 250);
+        this.note(40, t, 0.45, { vol: 0.12, slideTo: 90, wave: 'tri' });
+        break;
+      case 'mfQuake': // a stomp, or a head against a wall: a deep boom
+        this.noise(250, t, [[0, 0.8], [0.5, 0.5], [1, 0]], 80);
+        this.note(33, t, 0.6, { vol: 0.25, slideTo: 30, wave: 'tri' });
+        break;
+      case 'mfTurn': // a sentry swings round: a servo whine
+        this.note(600, t, 0.12, { vol: 0.04, slideTo: 900, wave: 'p12' });
+        break;
+      case 'mfAim': // a sentry takes aim: rising beeps
+        this.seq([84, 0, 88, 0, 91], 0.05, t, { vol: 0.06, flat: true, wave: 'p25' });
+        break;
+      case 'mfTurret': // twin shells away
+        this.noise(5000, t, [[0, 0.45], [0.06, 0.3], [0.09, 0]]);
+        this.noise(5000, t + 0.04, [[0, 0.35], [0.06, 0.2], [0.09, 0]]);
+        break;
+      case 'mfCrack': // something stirs in the wall
+        this.noise(2500, t, [[0, 0.1], [0.03, 0], [0.08, 0.12], [0.1, 0], [0.16, 0.15], [0.19, 0]]);
+        break;
+      case 'mfBurst': // out of the wall: bricks fly
+        this.noise(1500, t, [[0, 0.6], [0.1, 0.4], [0.2, 0]]);
+        this.seq([62, 0, 70], 0.04, t + 0.05, { vol: 0.1, wave: 'p12', decayTo: 0.3 });
+        break;
+      case 'mfHide': // back into the wall: a scuttle
+        this.noise(8000, t, [[0, 0.1], [0.04, 0.02], [0.08, 0.1], [0.12, 0.02], [0.16, 0.08], [0.2, 0]]);
+        break;
+      case 'mfSteal': // a key gone: a sly little run
+        this.seq([76, 79, 83, 88, 0, 72], 0.045, t, { vol: 0.1, wave: 'p12', decayTo: 0.4 });
+        break;
+      case 'mfMirror': // a mirror wakes: a shimmer
+        this.seq([96, 91, 98, 93, 100], 0.035, t, { vol: 0.05, wave: 'p12', flat: true });
+        break;
       case 'select':
         this.noise(13000, t, [[0, 0.35], [0.03, 0]]);
         break;
