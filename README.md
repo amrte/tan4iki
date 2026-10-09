@@ -724,7 +724,29 @@ for 1-3 stars (by the eagle's HP left); the best per map is kept, and the title 
 ## Mode title screens and music
 
 Starting a game shows its mode's own pixel-art title screen before the first stage (Enter to go on, Esc back to the
-title; Settings → GAME → MODE TITLE SCREENS).
+title; Settings → GAME → MODE TITLE SCREENS). Each mode has a picture of its own, 240×136 and drawn a pixel to a pixel
+(a bigger screen shows it at 2×, 3× ... when it fits), a little animated scene of what the mode is about, with depth,
+light, tanks driving and firing, smoke, sparks and explosions:
+
+- **Classic**: dusk; your tank holds the road in front of the eagle's brick fortress and shoots the enemy tanks as they
+  come out of their spawn stars, the counter of tanks still to come going down.
+- **Custom levels**: a blueprint on the desk; the pencil puts a level down tile by tile from the palette, a tank tries
+  it out and it gets its SAVED stamp.
+- **Survival**: you alone in the middle of the map, the enemy pouring in from every edge; wave after wave, with
+  their twists (night, rocket rain, a swarm, a blitz).
+- **Time attack**: flat out at dawn, the land streaming by, a checkpoint flashing past, the stopwatch and the LCD.
+- **Big maps**: a whole war seen from high up, sliding by under the clouds, with platoons, factories, outposts and a
+  minimap.
+- **Any side**: the map on the war-room table turns, so the eagle ends up left, at the top, on the right.
+- **Corridor**: a road of blocks climbing through the sky above the clouds, the height going up past your best.
+- **Maze**: only your lamp lights the way; what you've seen stays dim, red eyes wait in the dark, the exit glows.
+- **Fortress**: towers along a winding road cut down the column marching on your eagle; every wreck pays gold.
+- **Galaxy**: a ringed planet, nebulae, stars streaming by; your tank flies up at the alien formation.
+- **Kill race**: a stadium under the floodlights; four tanks, four lanes, and the big board counting the kills.
+- **VS eagles**: two forts and their eagles in a thunderstorm, the two tanks trading shells.
+- **Deathmatch**: a steel arena, red beacons, a skull on the floor, shells meeting in the middle, the kill feed.
+- **Flags**: your tank runs their flag home over the bridge, theirs on its tail.
+- **VS CPU** (and co-op): the machine's fortress, a face on its screen; its HQ blinks red at its foot.
 
 **The soundtrack** comes in two styles (Settings → MUSIC STYLE):
 
@@ -926,7 +948,8 @@ js/weapons.js     player weapons: machine gun, laser, flamethrower, mortar, tesl
 js/seasonal.js    each season's twist (showers, wildfire, gusts, blizzards, hot spots, mirages) and its own enemy
 js/biomes.js      the terrain types (volcanic, swamp, city ruins): their tiles, twists and enemies; crates, barrels, deflectors
 js/editor.js      construction: the level editor, random levels, save slots, custom levels
-js/intro.js       mode title screens: a pixel-art picture per mode; what music plays when
+js/intro.js       mode title screens: the layout, Enter/Esc, what music plays when
+js/introart.js    the mode title pictures, one animated scene per mode
 js/bossart.js     boss screens: a picture before each boss and one after it
 js/galya.js       a secret (no spoilers)
 js/modes.js       game modes: time attack, versus eagles, deathmatch, capture the flag
