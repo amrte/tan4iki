@@ -22,7 +22,7 @@ Object.assign(Stage.prototype, {
   reachEntries() {
     if (this.svSpawns) return this.svSpawns.map(([x, y]) => [x, y]);
     if (this.spawnXs) return this.spawnXs.map(x => [x, 0]);
-    return BASE_SIDE === 'bottom' ? ENEMY_SPAWN_X.map(x => [x, 0]) : ENEMY_SPAWNS.map(([x, y]) => [x, y]);
+    return ENEMY_SPAWNS.map(([x, y]) => [x, y]);   // the far edge's, or a custom level's own
   },
   reachGoals() {
     return this.players.map(p => (this.vsSpawn || PLAYER_SPAWN)[p.i]).filter(Boolean);
