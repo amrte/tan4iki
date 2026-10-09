@@ -171,12 +171,12 @@ Object.assign(Stage.prototype, {
   // ------------------------------------------------------------ drawing
   renderBelts(ctx) {
     if (!this.beltCells || !this.beltCells.length) return;
-    const ph = (this.frame >> 2) & 3;
+    const ph = (this.frame >> 2) & 3, bk = blockLook() && themeTex(this.theme).belt;   // BLOCKS: an iron bed (blocks.js)
     for (const i of this.beltCells) {
       const cx = i % GW, cy = (i / GW) | 0, d = this.terrain[i] - T_BELT, x = cx * 4, y = cy * 4;
       ctx.fillStyle = '#383838';
-      ctx.fillRect(x, y, 4, 4);
-      ctx.fillStyle = '#9C9C9C';
+      if (bk) texCell(ctx, bk, cx, cy); else ctx.fillRect(x, y, 4, 4);
+      ctx.fillStyle = bk ? '#C8BC98' : '#9C9C9C';
       // a moving stripe across each cell, travelling with the belt
       const along = d & 1 ? cx : cy, sign = d === 1 || d === 2 ? 1 : -1;
       const k = (((ph * sign) - along * 4) % 4 + 4) % 4;
@@ -187,8 +187,9 @@ Object.assign(Stage.prototype, {
 
   renderPads(ctx) {
     for (const p of this.pads) {
-      if (p.kind === 'hole') { ctx.drawImage(manholeSprite(), p.x, p.y); continue; }   // a manhole (biomes.js)
+      if (p.kind === 'hole') { ctx.drawImage(blockLook() ? blockHole() : manholeSprite(), p.x, p.y); continue; }   // a manhole (biomes.js, blocks.js)
       const pulse = (this.frame >> 3) & 1;
+      if (blockLook()) { blockPad(ctx, p, pulse); continue; }   // a portal block (blocks.js)
       ctx.fillStyle = '#202020';
       ctx.fillRect(p.x + 1, p.y + 1, 14, 14);
       ctx.fillStyle = p.color;

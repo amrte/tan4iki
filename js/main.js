@@ -42,10 +42,10 @@ function defaultCustomMap() {
 const TITLE_MENU_Y = 126;
 const ROMAN = ['I', 'II', 'III', 'IV'];
 // the pause menu; SKILL changes the difficulty on the spot (not in the daily challenge, where it's part of the rules)
-const pauseMenu = () => ['CONTINUE'].concat(Game.daily ? [] : ['SKILL'], Game.mode === 'fortress' ? ['SPEED'] : [], ['MUSIC', 'MUSIC VOL'],
+const pauseMenu = () => ['CONTINUE'].concat(Game.daily ? [] : ['SKILL'], Game.mode === 'fortress' ? ['SPEED'] : [], ['MUSIC', 'MUSIC VOL'], Game.mode === 'galaxy' ? [] : ['LOOK'],
   Game.daily ? [] : [Game.mode === 'fortress' ? 'RESTART WAVE' : 'RESTART ROUND'], ['SAVE GAME'], Net.role ? ['ONLINE PLAYERS'] : [], ['QUIT']);
 // pause rows changed with left/right (or fire): the setting each one steps
-const PAUSE_STEP = { MUSIC: 'music', 'MUSIC VOL': 'musicVol', SPEED: 'tdSpeed' };
+const PAUSE_STEP = { MUSIC: 'music', 'MUSIC VOL': 'musicVol', SPEED: 'tdSpeed', LOOK: 'look' };
 const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
 
 // The settings as a menu tree: each section of SETTINGS_DEF becomes a page on the top level, the per-enemy sections

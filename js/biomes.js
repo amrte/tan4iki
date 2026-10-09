@@ -818,15 +818,15 @@ Object.assign(Stage.prototype, {
   // ------------------------------------------------------------ drawing
   // one cell into the terrain layers (buildLayers / redrawCells); the moving ones are listed for every frame
   bioCell(bg, fo, v, cx, cy, tex) {
-    const L = this.bioL, i = cy * GW + cx, dx = cx * 4, dy = cy * 4;
-    const draw = (ctx, im, big) => ctx.drawImage(im, (cx & (big ? 3 : 1)) * 4, (cy & (big ? 3 : 1)) * 4, 4, 4, dx, dy, 4, 4);
+    const L = this.bioL, i = cy * GW + cx;
+    const draw = (ctx, im) => texCell(ctx, im, cx, cy);   // 8px textures, 16px crates and vents (and blocks)
     if (v === T_LAVA) { if (L) L.lava.push(i); }
     else if (v === T_GAS) { draw(bg, tex.bog); if (L) L.gas.push(i); }
-    else if (v === T_VENT) { draw(bg, tex.vent, true); if (L) L.vent.push(i); }
+    else if (v === T_VENT) { draw(bg, tex.vent); if (L) L.vent.push(i); }
     else if (v === T_BOG) { draw(bg, tex.bog); if (L) L.bog.push(i); }
     else if (v === T_LAMP) { draw(bg, tex.lamp); if (L) L.lamp.push(i); }
     else if (v === T_REEDS) draw(fo, tex.reeds);
-    else if (v === T_CRATE) draw(bg, tex.crate, true);
+    else if (v === T_CRATE) draw(bg, tex.crate);
     else if (BIO_TEX[v]) draw(bg, tex[BIO_TEX[v]]);
   },
 
@@ -854,7 +854,7 @@ Object.assign(Stage.prototype, {
     const f = this.frame, tex = themeTex(this.theme);
     if (L.lava.length) {
       const lt = tex[(f >> 4) & 1 ? 'lava1' : 'lava0'];
-      for (const i of L.lava) { const cx = i % GW, cy = (i / GW) | 0; ctx.drawImage(lt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4); }
+      for (const i of L.lava) texCell(ctx, lt, i % GW, (i / GW) | 0);
       const E = this.lavaEdges(), hot = (f >> 3) & 1;
       ctx.fillStyle = hot ? '#F8B800' : '#F87800';
       for (const q of E) ctx.fillRect(q[0], q[1], q[2], q[3]);
