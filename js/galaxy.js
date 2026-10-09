@@ -530,7 +530,7 @@ Object.assign(Stage.prototype, {
       }
       if (e.st === 'gone') { g.list = g.list.filter(o => o !== e); continue; }
       // shooting: eggs straight down; the big ones aim
-      if (e.st !== 'fall' && e.st !== 'enter' && e.y > 0 && --e.fireT <= 0 && g.bullets.length < 14 + 2 * (g.d ?? g.sec) + 6 * g.loop) {
+      if (e.st !== 'fall' && e.st !== 'enter' && e.y > 0 && --e.fireT <= 0 && g.bullets.length < (14 + 2 * (g.d ?? g.sec) + 6 * g.loop) * (g.capMul || 1)) {
         let own;
         if (GX_FIRE[e.type]) own = GX_FIRE[e.type].call(this, e, g, near);   // a number: its own time to the next shot
         else if (T.noFire) { /* rams, never shoots */ }

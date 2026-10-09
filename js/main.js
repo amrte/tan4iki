@@ -1221,7 +1221,7 @@ const Game = {
       sh.msg = item.id === 'revive' ? (reviveCost() ? 'NOBODY TO REVIVE' : 'REVIVE IS OFF') : p.out ? 'REVIVE FIRST' : st.text === 'N/A' ? 'NO EAGLE IN THE MAZE' : 'YOU ALREADY HAVE IT';
       sh.msgT = 90; Sound.play('steel'); return;
     }
-    if (wallet(p) < price) { sh.msg = 'NOT ENOUGH POINTS'; sh.msgT = 90; Sound.play('steel'); return; }
+    if (wallet(p) < price) { sh.msg = this.mode === 'galaxy' ? 'NOT ENOUGH CREDITS' : 'NOT ENOUGH POINTS'; sh.msgT = 90; Sound.play('steel'); return; }
     spend(p, price);
     shopApply(item, p);
     sh.msg = 'BOUGHT ' + item.name + (item.weapon && item.weapon !== 'cannon' ? ' MK ' + MK[p.wlv[item.weapon] - 1] : '');
@@ -1268,7 +1268,7 @@ const Game = {
     ctx.drawImage(Sprites.rankTank('p' + p.level, (this.t >> 3) & 1, 1, Config.playerPal(p.i), Config.xpOn() ? p.rank : 1, true), 6, 15);
     Font.draw(ctx, ROMAN[p.i] + '-PLAYER', 26, 20, COL.red);
     Font.drawRight(ctx, wallet(p), 214, 20, COL.gold);
-    Font.draw(ctx, 'PTS', 220, 20, COL.white);
+    Font.draw(ctx, this.mode === 'galaxy' ? 'CR' : 'PTS', 220, 20, COL.white);   // the hangar takes credits (galaxy_tune.js)
     for (let r = 0; r < SHOP_ROWS; r++) {
       const i = sh.scroll + r, item = shopItems()[i];
       if (!item) break;

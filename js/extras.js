@@ -26,7 +26,10 @@ const carryable = type => type === PU.HELMET || type === PU.CLOCK || type === PU
 const CLAUDE_SPEED = 1, CLAUDE_EXTRA = 300;   // Claude stays for the new-power-up time + 5 s
 const REVIVE_WAIT = 300;                      // all players out: 5 s to pay for a revival before GAME OVER
 
-const reviveCost = () => (Config.get('reviveCost') === 'OFF' ? 0 : Config.get('reviveCost'));
+const reviveCost = () => {
+  const c = Config.get('reviveCost') === 'OFF' ? 0 : Config.get('reviveCost');
+  return c && typeof Game !== 'undefined' && Game.mode === 'galaxy' ? Math.max(50, Math.round(c / 100) * 10) : c;   // galaxy pays in credits (galaxy_tune.js)
+};
 // who gets the points for a turret's / Claude's / a plane's kills
 const gunner = p => ({ isPlayer: !!p, player: p, bullets: 0, alive: true });
 

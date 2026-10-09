@@ -247,7 +247,8 @@ function checkExtraLife(p) {
     p.lives++;
     return true;
   }
-  const n = Math.floor(p.score / 20000), had = p.extraCount || 0;
+  // galaxy's scores run far higher (combos, medals): a life every 250K there
+  const n = Math.floor(p.score / (typeof Game !== 'undefined' && Game.mode === 'galaxy' ? 250000 : 20000)), had = p.extraCount || 0;
   if (n <= had) return false;
   p.lives += n - had;
   p.extraCount = n;
