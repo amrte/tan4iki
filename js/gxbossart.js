@@ -286,7 +286,7 @@ const GX_BOSS_ART = {
       GxArt.glow(c, 6, 5, 11, 8, '#4C4C3C', 0); Pix.disc(c, 6, 5, 4, '#F8F8C8'); Pix.disc(c, 6, 5, 2, '#F8F8F8');   // a far sun
       c.drawImage(gxaBelt(), 0, 0);
       const X = 42, Y = 4 + Math.round(Math.sin(t / 30) * 1.5);
-      Art.dith(c, X + 18, Y + 18, 30, 30, '#5C1C00', 0);   // the magma's glow
+      { const b = GxArt.boss('titan'); Art.dith(c, X + Math.round(b.width * 0.3), Y + Math.round(b.height * 0.25), Math.round(b.width * 0.4), Math.round(b.height * 0.45), '#5C1C00', 0); }   // the magma's glow, inside the rock whatever its size
       c.drawImage(GxArt.boss('titan', (t >> 3) & 1), X, Y);
       // the rocks it throws at you
       for (let k = 0; k < 4; k++) {
