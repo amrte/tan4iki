@@ -19,6 +19,7 @@ const MODES = [
   { key: 'sides', name: 'ANY SIDE', desc: 'YOUR EAGLE ON ANOTHER EDGE' },   // the map turned: eagle left, right or top
   { key: 'corridor', name: 'CORRIDOR', desc: 'ENDLESS CLIMB, HOW FAR?' },
   { key: 'maze', name: 'MAZE', desc: 'FIND THE ONE WAY OUT' },   // maze.js
+  { key: 'world', name: 'ENDLESS WORLD', desc: 'EXPLORE A WORLD WITHOUT END' },   // world.js: villages, ruins, day and night
   { key: 'fortress', name: 'FORTRESS', desc: 'BUILD TOWERS, HOLD 30 WAVES' },   // fortress.js: tower defense
   { key: 'galaxy', name: 'GALAXY', desc: 'BLAST ALIEN WAVES IN SPACE' },   // galaxy.js: a shoot-em-up
   { key: 'race', name: 'KILL RACE', cpu: true, desc: 'MOST KILLS WINS THE ROUND' },   // race.js; 1 player races bots

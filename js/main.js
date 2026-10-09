@@ -8,7 +8,7 @@
 const SW = 256, SH = 224;
 const SAVE_KEY = 'tank1990_save';   // CLASSIC's slot; every other mode adds '_' + its slot (see Game.saveSlotOf)
 // modes saved as a checkpoint (CLASSIC and BIG MAPS save the stage exactly), and the game's state they keep
-const CK_MODES = ['custom', 'survival', 'timeattack', 'sides', 'corridor', 'maze', 'fortress', 'galaxy', 'cpu', 'race'];
+const CK_MODES = ['custom', 'survival', 'timeattack', 'sides', 'corridor', 'maze', 'fortress', 'galaxy', 'cpu', 'race', 'world'];
 const CK_GAME_KEYS = ['taFrames', 'taCleared', 'round', 'raceTarget', 'tdMap', 'nextSide', 'shopDiscount', 'gxRun', 'gxDate', 'gxClock', 'gxEndless'];
 const menuOX = () => (SCREEN_W - SW) >> 1;
 const menuOY = () => (SCREEN_H - SH) >> 1;
@@ -373,6 +373,7 @@ const Game = {
         : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack)
         : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score
         : mi.key === 'maze' && rec.maze ? 'BEST: ' + rec.maze.escaped + ' MAZES ESCAPED  ' + rec.maze.score
+        : mi.key === 'world' && rec.world ? 'FARTHEST ' + rec.world.dist + ' M  VILLAGES ' + rec.world.villages
         : mi.key === 'fortress' && rec.fortress ? 'STARS ' + TD_MAPS.map(m => (rec.fortress[m.key] || {}).stars || 0).reduce((a, b) => a + b, 0) + '/' + TD_MAPS.length * 3 + '  MAPS ' + TD_MAPS.filter((m, i) => tdUnlocked(i)).length + '/' + TD_MAPS.length
         : mi.key === 'galaxy' ? '1-4 PLAYERS' + (rec.galaxy ? ', BEST SECTOR ' + rec.galaxy.level + '  ' + rec.galaxy.score : '')
         : mi.key === 'coop' ? '1-4 PLAYERS TOGETHER' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '')
@@ -488,6 +489,7 @@ const Game = {
     else if (s.mode === 'fortress') w = 'WAVE ' + ((at.td && at.td.td ? at.td.td.wave | 0 : 0) + 1);
     else if (s.mode === 'survival') w = 'WAVE ' + (at.wave || 1);
     else if (s.mode === 'corridor') return (long ? 'CLIMB ' : '') + (at.climbed | 0) + ' M';
+    else if (s.mode === 'world') return 'DAY ' + ((at.wd && at.wd.day) | 0 || 1) + ', ' + ((at.wd && at.wd.dist) | 0) + ' M OUT';
     else if (s.mode === 'race') w = 'ROUND ' + (g.round || 1);
     else if (s.mode === 'cpu') w = 'ROUND ' + n;
     else if (s.mode === 'maze') w = 'MAZE ' + n;
@@ -700,7 +702,7 @@ const Game = {
     else if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
     this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
-    if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides', 'maze', 'fortress', 'galaxy'].includes(this.mode)) this.stageNum = 1;
+    if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides', 'maze', 'fortress', 'galaxy', 'world'].includes(this.mode)) this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
     // KILL RACE: the first curtain picks how many points win the game (race.js)
     if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
@@ -757,7 +759,7 @@ const Game = {
     if (c.phase === 'show') {
       const cx = SCREEN_W / 2, cy = SCREEN_H / 2;
       const race = this.mode === 'race';
-      Font.draw(ctx, this.mode === 'cpu' || race ? 'ROUND' : this.mode === 'maze' ? 'MAZE' : this.mode === 'fortress' ? 'FORTRESS' : this.mode === 'galaxy' ? 'SECTOR' : 'STAGE', cx - (this.mode === 'fortress' ? 31 : 32), cy - 8, COL.black);
+      Font.draw(ctx, this.mode === 'cpu' || race ? 'ROUND' : this.mode === 'maze' ? 'MAZE' : this.mode === 'fortress' ? 'FORTRESS' : this.mode === 'galaxy' ? 'SECTOR' : this.mode === 'world' ? 'DAY' : 'STAGE', cx - (this.mode === 'fortress' ? 31 : 32), cy - 8, COL.black);
       if (this.mode === 'galaxy') Font.drawCenter(ctx, GX_SECTORS[(this.stageNum - 1) % GX_SECTORS.length].name, cx, cy + 14, '#A00000');
       if (this.mode !== 'fortress') Font.drawRight(ctx, race ? this.round : this.stageNum, cx + 32, cy - 8, COL.black);
       if (race) {
@@ -872,6 +874,13 @@ const Game = {
       setFieldSize(sv ? sv.cols : vc + SV_GROW, sv ? sv.rows : vr + SV_GROW, vc, vr);
       map = LEVELS[this.svRun.map % LEVELS.length];
       if (this.svRun.theme) theme = this.svRun.theme;
+    } else if (!custom && this.mode === 'world') {
+      // WORLD: a window of chunks onto a land without end, round the team (world.js); a checkpoint brings its world
+      const [vc, vr] = this.desiredField(), [nx, ny] = wdWindow(vc, vr);
+      this.wdRun = resume && resume.wd || null;
+      setFieldSize(nx * WD_CH, ny * WD_CH, vc, vr);
+      blocks = Array.from({ length: ny * WD_CB }, () => '.'.repeat(nx * WD_CB));
+      theme = 'spring';
     } else if (!custom && this.mode === 'sides') {
       // ANY SIDE: the classic field, turned so the eagle's edge is the chosen one
       const side = this.nextSide || 'left';
@@ -879,9 +888,9 @@ const Game = {
       blocks = turnBlocks(mapToBlocks(map), side);
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
-      custom, boss, base: vs || corridor || maze || fortress || galaxy || this.mode === 'race' || this.mode === 'survival' ? newBase() : this.base, corridor, maze, fortress, galaxy, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
+      custom, boss, base: vs || corridor || maze || fortress || galaxy || this.mode === 'race' || this.mode === 'survival' || this.mode === 'world' ? newBase() : this.base, corridor, maze, fortress, galaxy, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
       race: this.mode === 'race' && !custom ? { target: this.raceTarget, round: this.round } : null, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
-      blocks, big: objective, theme, cl,
+      blocks, big: objective, theme, cl, world: !custom && this.mode === 'world',
     });
     // a loaded checkpoint from further in: on to its wave, section or block
     if (resume) this.ckApply(resume);
@@ -933,7 +942,7 @@ const Game = {
     if (r === 'clear' && this.mode === 'race') { this.saveHi(); this.raceRoundEnd(); return; }
     if (r && this.mode === 'timeattack' && r === 'clear') { this.saveHi(); this.taNext(); return; }
     if (r === 'gameover') AutoSkill.event('gameOver');
-    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu' || this.mode === 'maze' || this.mode === 'fortress' || this.mode === 'galaxy')) { this.saveHi(); this.toModeResult(false); return; }
+    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu' || this.mode === 'maze' || this.mode === 'fortress' || this.mode === 'galaxy' || this.mode === 'world')) { this.saveHi(); this.toModeResult(false); return; }
     // GALAXY: a sector cleared: the hangar, then the next one (galaxy.js)
     if (r === 'clear' && this.mode === 'galaxy') {
       this.saveHi(); this.lastScores = this.players.map(p => p.score); this.stageNum++;
