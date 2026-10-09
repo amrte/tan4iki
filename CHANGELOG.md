@@ -3,6 +3,12 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.49.1
+
+- **Fix: a black screen at start-up** when GALAXY was the last mode you picked (the title asked the galaxy code for
+  its run type before that code had loaded, and start-up stopped). The title no longer depends on it, and the game
+  now starts only once every script has loaded.
+
 ## 0.49
 
 - **A hard rock and heavy metal soundtrack** (Settings → MUSIC STYLE: ROCK, the default, or CHIPTUNE): 30 tunes in

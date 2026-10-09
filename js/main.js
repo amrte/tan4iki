@@ -433,7 +433,7 @@ const Game = {
   titleSlot() {
     const m = Config.get('gameMode');
     if (m === 'coop' || m === 'eagles') return 'cpu';
-    if (m === 'galaxy') return this.saveSlotOf('galaxy', gxdRun());
+    if (m === 'galaxy') return this.saveSlotOf('galaxy', typeof gxdRun === 'function' ? gxdRun() : 'campaign');
     return CK_MODES.includes(m) || m === 'classic' || m === 'bigmaps' ? m : null;
   },
 
@@ -1975,7 +1975,8 @@ function toggleFullscreen() {
 // =====================================================================
 //  Boot & main loop (fixed 60 Hz simulation)
 // =====================================================================
-(function boot() {
+// start once every script is in (the galaxy files and others load after this one and the title may need them)
+function boot() {
   const canvas = document.getElementById('screen');
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
@@ -2054,4 +2055,5 @@ function toggleFullscreen() {
     Game.render(ctx);
   }
   requestAnimationFrame(frame);
-})();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
