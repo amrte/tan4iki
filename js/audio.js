@@ -495,6 +495,81 @@ const Sound = {
       case 'blackout': // the power goes: a falling hum
         this.note(220, t, 0.6, { vol: 0.1, slideTo: 55, wave: 'p50' });
         break;
+      // the maze's world (maze2.js)
+      case 'mzKey': // a key: a bright little run up
+        this.seq([76, 79, 83, 88, 91], 0.045, t, { vol: 0.13, wave: 'p25', decayTo: 0.5 });
+        break;
+      case 'mzGate': // a gate grinds open
+        this.noise(1800, t, [[0, 0.25], [0.35, 0.2], [0.45, 0]], 700);
+        this.note(45, t, 0.4, { vol: 0.12, slideTo: 140, wave: 'p50' });
+        this.note(76, t + 0.4, 0.15, { vol: 0.1, wave: 'p25' });
+        break;
+      case 'mzLocked': // locked: a dull clunk
+        this.note(40, t, 0.12, { vol: 0.25, wave: 'tri', flat: true });
+        this.noise(700, t, [[0, 0.3], [0.06, 0]]);
+        break;
+      case 'mzCell': // a power cell: a hum rising to a ping
+        this.note(200, t, 0.25, { vol: 0.1, slideTo: 900, wave: 'p50' });
+        this.note(88, t + 0.25, 0.3, { vol: 0.12, wave: 'p12', decayTo: 0.05 });
+        break;
+      case 'mzSeal': // the exit unseals: a fanfare
+        this.seq([67, 71, 74, 79, 0, 83, 86], 0.08, t, { vol: 0.13, wave: 'p25', decayTo: 0.4 });
+        break;
+      case 'mzPlate': // a pressure plate goes down: click and thunk
+        this.noise(9000, t, [[0, 0.3], [0.02, 0]]);
+        this.note(48, t + 0.03, 0.1, { vol: 0.2, wave: 'tri' });
+        break;
+      case 'mzDoor': // a heavy steel door rolls
+        this.noise(600, t, [[0, 0.35], [0.25, 0.25], [0.35, 0]], 300);
+        this.note(36, t + 0.3, 0.12, { vol: 0.25, wave: 'tri', flat: true });
+        break;
+      case 'mzTick': // a door's (or the collapse's) clock
+        this.noise(12000, t, [[0, 0.25], [0.015, 0]]);
+        this.note(96, t, 0.02, { vol: 0.05, wave: 'p12', flat: true });
+        break;
+      case 'mzRumble': // a wall about to move, the maze shaking
+        this.noise(400, t, [[0, 0], [0.1, 0.35], [0.5, 0.3], [0.7, 0]], 200);
+        break;
+      case 'mzWall': // a wall slides home: grind and slam
+        this.noise(1200, t, [[0, 0.3], [0.2, 0.25], [0.25, 0]], 500);
+        this.note(33, t + 0.22, 0.15, { vol: 0.3, wave: 'tri', flat: true });
+        break;
+      case 'mzCrack': // the floor cracks under you
+        for (let k = 0; k < 4; k++) this.noise(5000 - k * 800, t + k * 0.05, [[0, 0.25], [0.02, 0]]);
+        break;
+      case 'mzCollapse': // stone gives way
+        this.noise(500, t, [[0, 0.6], [0.4, 0.35], [0.8, 0]], 150);
+        this.note(30, t, 0.3, { vol: 0.25, wave: 'tri' });
+        break;
+      case 'mzCaveIn': // the ceiling comes down
+        this.noise(300, t, [[0, 0.8], [0.8, 0.5], [1.4, 0]], 90);
+        this.note(40, t, 0.9, { vol: 0.3, slideTo: 25, wave: 'tri' });
+        break;
+      case 'mzAlarm': // the maze starts to collapse: a two-tone siren, three times
+        for (let k = 0; k < 3; k++) { this.note(81, t + k * 0.3, 0.15, { vol: 0.1, wave: 'p25', flat: true }); this.note(76, t + k * 0.3 + 0.15, 0.15, { vol: 0.1, wave: 'p25', flat: true }); }
+        break;
+      case 'mzFuel': // lamp fuel: a glug and a bright ping
+        this.seq([45, 40], 0.06, t, { vol: 0.15, wave: 'tri' });
+        this.note(84, t + 0.13, 0.2, { vol: 0.1, wave: 'p12', decayTo: 0.1 });
+        break;
+      case 'mzScroll': // a map unrolls: a rustle and a chime
+        this.noise(15000, t, [[0, 0.15], [0.15, 0.1], [0.2, 0]]);
+        this.seq([72, 79, 84], 0.07, t + 0.15, { vol: 0.1, wave: 'p25', decayTo: 0.3 });
+        break;
+      case 'mzMark': // a marker: chalk on stone
+        this.noise(14000, t, [[0, 0.2], [0.06, 0.12], [0.08, 0]]);
+        this.note(79, t + 0.08, 0.05, { vol: 0.08, wave: 'p12' });
+        break;
+      case 'mzTorch': // a torch catches: whoomph
+        this.noise(3000, t, [[0, 0], [0.05, 0.3], [0.3, 0]], 8000);
+        break;
+      case 'mzVault': // the vault: the lock gives, gold inside
+        this.seq([60, 0, 60, 0, 64], 0.05, t, { vol: 0.15, wave: 'p50', flat: true });
+        this.seq([72, 76, 79, 84, 88, 91], 0.06, t + 0.3, { vol: 0.12, wave: 'p25', decayTo: 0.5 });
+        break;
+      case 'mzSecret': // the secret exit: a sly little tune
+        this.seq([71, 70, 67, 62, 63, 71, 75, 79, 83], 0.07, t, { vol: 0.12, decayTo: 0.5 });
+        break;
       case 'select':
         this.noise(13000, t, [[0, 0.35], [0.03, 0]]);
         break;

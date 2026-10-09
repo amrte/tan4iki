@@ -171,9 +171,10 @@ Object.assign(Stage.prototype, {
   // ------------------------------------------------------------ drawing
   renderBelts(ctx) {
     if (!this.beltCells || !this.beltCells.length) return;
-    const ph = (this.frame >> 2) & 3;
+    const ph = (this.frame >> 2) & 3, [camX, camY] = this.camX === undefined ? [0, 0] : [this.camX, this.camY];
     for (const i of this.beltCells) {
       const cx = i % GW, cy = (i / GW) | 0, d = this.terrain[i] - T_BELT, x = cx * 4, y = cy * 4;
+      if (x + 4 < camX - 8 || y + 4 < camY - 8 || x > camX + VIEW_W + 8 || y > camY + VIEW_H + 8) continue;   // off screen
       ctx.fillStyle = '#383838';
       ctx.fillRect(x, y, 4, 4);
       ctx.fillStyle = '#9C9C9C';
