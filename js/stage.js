@@ -72,6 +72,7 @@ const ENEMY = [
   { name: 'SENTRY', kind: 'sentry', speed: 0, bullet: 3, hp: 4, pts: 600, xp: 35, ai: [1, 0, 0, 0], pal: 'sentry', maze: true, desc: 'TURNS AND FIRES ON A BEAT' },
   { name: 'LOCKSMITH', kind: 'locksmith', speed: 1.35, bullet: 2.5, hp: 2, pts: 700, xp: 40, ai: [0, 0, 1, 0], pal: 'locksmith', maze: true, desc: 'STEALS A KEY AND RUNS' },
   { name: 'MIRROR', kind: 'mirror', speed: 1, bullet: 2.5, hp: 2, pts: 800, xp: 45, ai: [0, 0, 0, 0], pal: 'mirror', maze: true, desc: 'COPIES YOUR MOVES MIRRORED' },
+  { name: 'MOSSLUMP', kind: 'creeper', speed: 0.6, bullet: 2.5, hp: 2, pts: 600, xp: 35, ai: [0, 0, 1, 0], pal: 'creeper', maze: true, desc: 'CREEPS UP, HISSES, BLOWS UP' },
 ];
 // types that can join a line-up, and every non-classic type (the tally's NEW row)
 const NEW_TYPES = ENEMY.map((e, i) => i).filter(i => i >= 4 && !ENEMY[i].mini && !ENEMY[i].season && !ENEMY[i].maze);   // the seasons' and the maze's own come their own way
