@@ -322,7 +322,7 @@ Object.assign(Stage.prototype, {
     } else t.moving = false;
     if (t.gcool > 0) t.gcool--;
     if (inp.fire || inp.firePressed) this.gxFire(t, p, gp);
-    if (inp.altPressed && gp.bombs > 0) this.gxBomb(t, p);
+    this.gxButtonB(t, p, gp, inp);   // B: tap swaps, hold focuses, double-tap bombs (galaxy_feel.js)
     // wingman drones: little guns either side
     const nd = gxUp(p, 'drones');
     if (nd && (this.frame + p.i * 4) % 14 === 0 && (inp.fire || this.galaxy.list.length)) {
