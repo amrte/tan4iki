@@ -11,11 +11,12 @@ const CTL_DIRS = [['ARROWS', ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
 const CTL_W = 22;   // characters a value may take
 
 // what B does in each mode (the stage's own B otherwise: mines and turrets when you have them, else a shot)
-const CTL_ALT = { cs: 'GRENADE/MINE', galaxy: 'SWAP / FOCUS', fortress: 'BUILD MENU' };
+const CTL_ALT = { cs: 'GRENADE/MINE', galaxy: 'SWAP / FOCUS', fortress: 'BUILD MENU', rally: 'DROP: MINE/OIL/SMOKE' };
 // what a mode adds to the keys
 const CTL_EXTRA = {
   cs: n => [['B STILL', 'PLANT/DEFUSE'], [n > 1 ? '123 / 890' : '1 2 3', 'BOT ORDERS'], ['Q', 'NEXT ORDER'], ['TAB', 'SCOREBOARD']],
   galaxy: () => [['B TWICE', 'BOMB']],
+  rally: () => [['FIRE', 'FORWARD WEAPON'], ['FIRE + B', 'BOOST']],
 };
 
 // the keys a player uses with n players at the keyboard (as Input.player reads them)
