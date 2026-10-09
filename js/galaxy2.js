@@ -534,7 +534,7 @@ GX_BOSSES.push(
     },
   },
   // the martian saucer: a big brain in a dome and four wingmen; a bomb (the yodel) hurts it three times as much
-  { key: 'martian', name: 'MARTIAN SAUCER', w: 58, h: 36, hp: 378, pts: 40800, move: 'sway',
+  { key: 'martian', name: 'MARTIAN SAUCER', w: 58, h: 36, hp: 520, pts: 40800, move: 'sway',
     phases: [['rays', 'wingFire', 'fan5'], ['rays', 'abduct', 'wingFire', 'ring12'], ['rays', 'spiral', 'abduct', 'wingFire', 'fan9', 'aimed5']],
     init(b) { this.gxWingmen(b); this.gxSay(b, 'ACK ACK!', 90); b.ackT = 220; },
     update(b) {
@@ -550,7 +550,7 @@ GX_BOSSES.push(
     onPhase(b) { this.gxWingmen(b); this.gxDrop(b.x, b.y + b.h, 'bomb'); },
   },
   // the cube: it adapts to the weapon that hurts it most (switch guns!)
-  { key: 'cube', name: 'THE CUBE', w: 60, h: 58, hp: 540, pts: 43200, move: 'slow',
+  { key: 'cube', name: 'THE CUBE', w: 60, h: 58, hp: 470, pts: 43200, move: 'slow',
     phases: [['grid', 'cutter', 'assimilate'], ['tractorCut', 'grid', 'assimilate', 'aimed5'], ['tractorCut', 'grid', 'spiral2', 'assimilate', 'cutter', 'ring12']],
     init(b) { b.adapt = {}; b.immune = []; b.boxT = 480; this.gxSay(b, 'RESISTANCE IS FUTILE.', 160); },
     update(b, g) {
