@@ -105,10 +105,11 @@ Object.assign(Stage.prototype, {
     // BOSS RUSH: no waves, the boss
     if (g.run === 'rush') { g.wave = 1; g.phase = 'wave'; g.t = 0; g.spawnQ = []; this.gxBossStart(); return; }
     if (g.run !== 'endless') return gxdNextWave.call(this);
-    const boss = g.wave >= g.plan.length;
-    if (!boss) { g.ew++; gxdEndlessDiff(g, g.ew); }
+    const boss = g.wave >= g.plan.length, w0 = g.wave;
     const r = gxdNextWave.call(this);
-    if (!boss && g.phase === 'wave') g.banner = { text: 'WAVE ' + g.ew + ': ' + (GX_WAVE_NAMES[g.kind] || String(g.kind).toUpperCase()), t: 110 };
+    if (boss || g.wave === w0) return r;   // the boss, or held back (perks on offer)
+    g.ew++; gxdEndlessDiff(g, g.ew);
+    if (g.phase === 'wave') g.banner = { text: 'WAVE ' + g.ew + ': ' + (GX_WAVE_NAMES[g.kind] || String(g.kind).toUpperCase()), t: 110 };
     return r;
   },
 
