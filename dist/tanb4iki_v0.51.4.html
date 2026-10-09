@@ -2652,6 +2652,10 @@ const SETTINGS_DEF = [
   { section: 'MIRROR *', enemy: 31 },
   { key: 'e31Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 31 },
   { key: 'e31On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 31 },
+  { section: 'MOSSLUMP *', enemy: 32 },
+  { key: 'e32Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 32 },
+  { key: 'e32Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 32 },
+  { key: 'e32On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 32 },
 
   { section: 'POWER-UPS' },
   { key: 'helmetTime', label: 'HELMET TIME', values: SECS.slice(1), def: 10, fmt: fmtSec },
@@ -3376,6 +3380,13 @@ const Sound = {
         break;
       case 'mfMirror': // a mirror wakes: a shimmer
         this.seq([96, 91, 98, 93, 100], 0.035, t, { vol: 0.05, wave: 'p12', flat: true });
+        break;
+      case 'mfHiss': // a mosslump's fuse: a long rising hiss
+        this.noise(15000, t, [[0, 0.02], [0.4, 0.14], [1.4, 0.3], [1.5, 0]], 11000);
+        break;
+      case 'mfBoom': // and then it goes: a crump of bricks and earth
+        this.noise(700, t, [[0, 0.8], [0.25, 0.55], [0.7, 0]], 160);
+        this.note(40, t, 0.4, { vol: 0.2, slideTo: 32, wave: 'tri' });
         break;
       case 'select':
         this.noise(13000, t, [[0, 0.35], [0.03, 0]]);
@@ -4589,6 +4600,7 @@ const ENEMY = [
   { name: 'SENTRY', kind: 'sentry', speed: 0, bullet: 3, hp: 4, pts: 600, xp: 35, ai: [1, 0, 0, 0], pal: 'sentry', maze: true, desc: 'TURNS AND FIRES ON A BEAT' },
   { name: 'LOCKSMITH', kind: 'locksmith', speed: 1.35, bullet: 2.5, hp: 2, pts: 700, xp: 40, ai: [0, 0, 1, 0], pal: 'locksmith', maze: true, desc: 'STEALS A KEY AND RUNS' },
   { name: 'MIRROR', kind: 'mirror', speed: 1, bullet: 2.5, hp: 2, pts: 800, xp: 45, ai: [0, 0, 0, 0], pal: 'mirror', maze: true, desc: 'COPIES YOUR MOVES MIRRORED' },
+  { name: 'MOSSLUMP', kind: 'creeper', speed: 0.6, bullet: 2.5, hp: 2, pts: 600, xp: 35, ai: [0, 0, 1, 0], pal: 'creeper', maze: true, desc: 'CREEPS UP, HISSES, BLOWS UP' },
 ];
 // types that can join a line-up, and every non-classic type (the tally's NEW row)
 const NEW_TYPES = ENEMY.map((e, i) => i).filter(i => i >= 4 && !ENEMY[i].mini && !ENEMY[i].season && !ENEMY[i].maze);   // the seasons' and the maze's own come their own way
@@ -11229,6 +11241,10 @@ Object.assign(Stage.prototype, {
 //              With no key to take it's just a fast hunter
 //    MIRROR    waits in an open room and copies the nearest player there, left for right, a moment late; it fires
 //              when you fire (its shells meet yours head on). A hit makes it reel
+//    MOSSLUMP  a dull, mossy lump that creeps up on you without a sound and never fires; no arrow or dot until it's
+//              a few cells off. Close by it hisses and flashes white, and 1.5 s later it blows up: a crater in the
+//              brick (never steel), and every tank in reach is hit, its own side too. Shoot it while it hisses
+//              and it goes up there and then; get away before the fuse runs out and it calms down and creeps on
 //  The maze world (keys, gates, vaults, the lair: maze2.js) is optional here: every call to it is guarded.
 // =====================================================================
 
@@ -11243,6 +11259,8 @@ const MF_QUAKE_R = 60;                              // its stomp reaches this fa
 const MF_WAKE = 44;                                 // a crawler bursts out when you pass this close
 const MF_SENTRY_WAKE = 360;                         // a sentry works while someone is this near
 const MF_LAG = 10;                                  // frames a mirror is behind you
+const MF_FUSE = 90, MF_FUSE_R = 28, MF_FUSE_OFF = 72;   // a mosslump's fuse: frames; it lights within, calms beyond (px)
+const MF_BOOM_R = 34, MF_LUMP_SEEN = 144;           // its blast (px); it shows on the arrows and the minimap this close
 const MF_KEYS = { red: '#F83800', blue: '#3CBCFC', green: '#58D854', gold: '#F8B800', yellow: '#F8D878', silver: '#BCBCBC', purple: '#B048F8', white: '#F8F8F8' };
 const mfKeyCol = c => (typeof c === 'string' && c[0] === '#' ? c : MF_KEYS[c] || '#F8B800');
 
@@ -11253,6 +11271,8 @@ Object.assign(PALS, {
   sentry: [null, '#D8DCE4', '#6C7480', '#141820', '#F8B800', '#F83800'],
   locksmith: [null, '#F8D878', '#5C5474', '#100C14'],
   mirror: [null, '#FFFFFF', '#A8E8F8', '#3C7C9C'],
+  creeper: [null, '#7C8C5C', '#4C5C38', '#1C2014', '#5C5844', '#A8B07C'],
+  creeperLit: [null, '#FFFFFF', '#F0F0E8', '#BCBCB0', '#F8F8F8', '#FFFFFF'],
 });
 // the big minotaur (24px): outline, iron, bronze, highlight, horn, horn shade, eyes, tread, tread light
 const MF_MINO_PAL = {
@@ -11384,6 +11404,22 @@ TANK_GRIDS.e30 = [0, 1].map(f => mfPaint(16, 16, set => {
   for (let y = 0; y <= 4; y++) { set(7, y, 1); set(8, y, y ? 2 : 1); }   // the blade
   set(9, 1, 1); set(9, 3, 1); set(6, 0, 3); set(9, 0, 3);   // its teeth
 }));
+// MOSSLUMP: a squat block overgrown with moss, tufts sticking out of its ragged edge, two glinting eyes, a stubby
+// wick at the back, four short legs that shuffle in turn
+TANK_GRIDS.e32 = [0, 1].map(f => mfPaint(16, 16, set => {
+  for (const [x0, y0, front] of [[0, 3, 1], [14, 3, 1], [0, 10, 0], [14, 10, 0]]) {   // legs
+    const dy = (front ^ f) ? -1 : 1;
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 2; x++) set(x0 + x, y0 + y + dy, 3);
+  }
+  for (let y = 2; y <= 13; y++) for (let x = 2; x <= 13; x++) {
+    const edge = x === 2 || x === 13 || y === 2 || y === 13, h = (x * 7 + y * 13 + x * y) % 9;
+    if (edge) { if (h !== 4) set(x, y, 3); continue; }   // a ragged outline
+    set(x, y, h < 2 ? 4 : h < 4 ? 1 : (x + y < 9 && h < 6) ? 5 : 2);   // mottled moss
+  }
+  for (const [x, y] of [[4, 1], [9, 1], [1, 7], [14, 9], [11, 14], [3, 14], [14, 4]]) set(x, y, 1);   // tufts
+  for (const x of [5, 10]) { set(x, 4, 3); set(x + 1, 4, 3); set(x, 5, 3); set(x + 1, 5, 5); }   // eyes
+  set(7, 14, 3); set(8, 14, 3); set(8, 15, 4);   // the wick
+}));
 // MIRROR: a player's tank in glass (in play it takes the look of the tank it copies)
 TANK_GRIDS.e31 = TANK_GRIDS.p0;
 
@@ -11482,6 +11518,7 @@ Object.assign(Stage.prototype, {
     if (k === 'crawler') { t.slither = true; t.mfSeed = rnd(170); }
     if (k === 'sentry') this.mfSentryInit(t);
     if (k === 'mirror') { t.maxBullets = 2; t.mfHist = []; t.mfWho = -1; }
+    if (k === 'creeper') { t.mfFuse = 0; t.mfCalm = 0; t.mfBan = new Map(); t.mfPlanT = 0; t.mfD = 99; }
     return t;
   },
 
@@ -11540,6 +11577,17 @@ Object.assign(Stage.prototype, {
         const [x, y] = this.mfMid(...pool[rnd(pool.length)]);
         if (!clear(x, y) || !free(x, y)) continue;
         put(MF_T.locksmith, x, y, { ai: AI.WANDER, mazeAwake: false });
+        k++;
+      }
+    }
+    // mosslumps lie about the passages (most in the damp: the dungeon and the sewers)
+    if (n >= 2) {
+      const want = count('creeper', (1 + Math.floor((n - 1) / 3)) * ({ dungeon: 1.4, sewer: 1.4, ice: 0.8, machine: 0.6 }[theme] || 1), 6);
+      const pool = cells.filter(([i, j]) => fromStart(i, j) >= 6);
+      for (let k = 0, tries = 0; k < want && pool.length && tries < 80; tries++) {
+        const [x, y] = this.mfMid(...pool[rnd(pool.length)]);
+        if (!clear(x, y) || !free(x, y)) continue;
+        put(MF_T.creeper, x, y, { ai: AI.WANDER, mazeAwake: false });
         k++;
       }
     }
@@ -11708,7 +11756,7 @@ Object.assign(Stage.prototype, {
   mfPlan(t, ps, from) {
     const W = this.maze.MW, [ci, cj] = this.mfCellOf(t.x, t.y), here = from === undefined ? cj * W + ci : from;
     t.mfPlanT = 30; t.mfPlanned = this.frame;
-    const r = this.mfRoute(here % W, Math.floor(here / W), true, t.mfBan);
+    const crush = !!t.crusher, r = this.mfRoute(here % W, Math.floor(here / W), crush, t.mfBan);
     let best = -1, bd = 1e9;
     for (const o of ps) {
       const [i, j] = this.mfCellOf(o.x, o.y), d = r.dist[j * W + i];
@@ -11717,7 +11765,7 @@ Object.assign(Stage.prototype, {
     if (best < 0) {
       // nobody it can reach: it prowls
       t.mfD = 99;
-      const bits = this.mfLinks(true), ks = [0, 1, 2, 3].filter(k => (bits[here] >> k) & 1 && !(t.mfBan.get(here * 4 + k) > this.frame));
+      const bits = this.mfLinks(crush), ks = [0, 1, 2, 3].filter(k => (bits[here] >> k) & 1 && !(t.mfBan.get(here * 4 + k) > this.frame));
       t.mfNext = ks.length ? here + [-W, 1, W, -1][ks[rnd(ks.length)]] : -1;
       return;
     }
@@ -11729,11 +11777,12 @@ Object.assign(Stage.prototype, {
   },
 
   // walk the middle of the passages, cell to cell (t.mfFrom -> t.mfTo); a new plan on arriving in each
+  // (the minotaur flattens the brick on its way; a mosslump goes round)
   mfWalk(t, ps) {
     const W = this.maze.MW, mid = c => this.mfMid(c % W, Math.floor(c / W));
     let mult = 1;
-    // it spots you down a corridor: it comes faster
-    for (const o of ps) {
+    // the minotaur spots you down a corridor: it comes faster
+    if (t.minotaur) for (const o of ps) {
       const dx = o.x - t.x, dy = o.y - t.y, ahead = [-dy, dx, dy, -dx][t.dir], side = Math.abs((t.dir & 1) ? dy : dx);
       if (ahead > 0 && ahead < 240 && side < 12 && this.sightLine(t.x + 8, t.y + 8, o.x + 8, o.y + 8)) { mult = 1.6; break; }
     }
@@ -11755,23 +11804,23 @@ Object.assign(Stage.prototype, {
       if (d === undefined) { this.mfBlocked(t, tries[0]); t.acc = 0; break; }
       t.dir = d;
       t.x += DXY[d][0]; t.y += DXY[d][1];
-      this.crush(t);
+      if (t.crusher) this.crush(t);
       t.animTick++;
       t.mfStuck = 0; t.mfBump = 0; t.mfLost = 0;
     }
     t.anim = (t.animTick >> 2) & 1;
   },
 
-  // something in the way: a tank of its own side gets trampled; a wall it can't break (or anything else) gets
-  // avoided for a while: back to the cell it came from and another way round
+  // something in the way: a tank of its own side gets trampled (by the minotaur); a wall it can't break (or anything
+  // else) gets avoided for a while: back to the cell it came from and another way round
   mfBlocked(t, d) {
     t.dir = d;
     const o = this.tankAhead(t);
-    if (o && !o.isPlayer) {
+    if (o && !o.isPlayer && t.minotaur) {
       if (++t.mfBump > 40) { t.mfBump = 0; this.mfTrample(t, o); }
       return;
     }
-    if (o) return;   // one of you, shielded: it leans on you
+    if (o && o.isPlayer) return;   // one of you, shielded: it leans on you (or, a mosslump, waits for its fuse)
     if (++t.mfLost > 240) {
       // lost for good (it never should be): a step any way it can, and a fresh start from the nearest cell
       this.chooseDir(t, true); this.move(t, t.dir);
@@ -12136,6 +12185,50 @@ Object.assign(Stage.prototype, {
     if (fired) this.fire(t);
   },
 
+  // ------------------------------------------------------------ mosslump
+  mfCreeper(t) {
+    if (t.mfBoomed) return;
+    const ps = this.mfPrey(), d = o => Math.hypot(o.x - t.x, o.y - t.y), near = ps.length ? Math.min(...ps.map(d)) : 1e9;
+    if (t.mfFuse > 0) {
+      // lit: it stands and hisses; you got away, it calms down; the fuse runs out, it goes
+      if (this.mfTick(t)) return;
+      if (near > MF_FUSE_OFF) { t.mfFuse = 0; t.mfCalm = 40; t.hold = 0; return; }
+      if (--t.mfFuse <= 0) this.mfBoom(t, null);
+      return;
+    }
+    if (t.mfCalm > 0) t.mfCalm--;
+    // it notices you from further off than the patrols do, and then it never lets go
+    if (!t.mazeAwake && near < 200) { t.mazeAwake = true; t.ai = AI.HUNT; t.mfTo = -1; }
+    if (t.mazeAwake) {
+      // after you, along the passages (it can't shoot its way through brick: it never fires)
+      if (t.ai !== AI.HUNT) { t.ai = AI.HUNT; t.mfTo = -1; }
+      this.mfMeet(t);
+      if (this.mfTick(t)) return;
+      if (--t.mfPlanT <= 0) this.mfPlan(t, ps);
+      this.mfWalk(t, ps);
+    } else {
+      t.cool = Math.max(t.cool, 2);
+      mfUpdateEnemy.call(this, t);   // a patrol, until it notices you
+    }
+    if (!t.alive || this.freezeE > 0 || t.mfCalm > 0 || near > MF_FUSE_R) return;
+    t.mfFuse = MF_FUSE; t.hold = 0; t.mazeAwake = true;
+    Sound.play('mfHiss');
+  },
+
+  // it blows up: a crater in the brick (steel holds), every tank in reach hit, its own side too (by: who set it off)
+  mfBoom(t, by) {
+    if (t.mfBoomed || !t.alive) return;
+    t.mfBoomed = true; t.mfFuse = 0;
+    const cx = t.x + 8, cy = t.y + 8;
+    if (by && by.isPlayer) this.killEnemy(t, by, true, true); else this.killEnemy(t, null, false, true);
+    this.blast(cx, cy, MF_BOOM_R, false, t, false, t);
+    // (an enemy's blast spares the enemy: this one doesn't)
+    const reaches = o => Math.hypot(Math.max(o.x, Math.min(cx, o.x + 16)) - cx, Math.max(o.y, Math.min(cy, o.y + 16)) - cy) < MF_BOOM_R - 2;
+    for (const o of this.tanks.slice()) if (o !== t && o.alive && !o.isPlayer && reaches(o)) this.hitEnemy(o, null, true);
+    this.mfShake = Math.max(this.mfShake || 0, 10);
+    Sound.play('mfBoom');
+  },
+
   // ------------------------------------------------------------ drawing
   mfDraw(ctx, t) {
     const k = mfKind(t), f = this.frame;
@@ -12156,6 +12249,12 @@ Object.assign(Stage.prototype, {
     else if (k === 'locksmith') {
       ctx.drawImage(Sprites.tank('e' + t.type, t.anim, t.dir, t.reveal > 80 && (f >> 1) & 1 ? 'silver' : 'locksmith'), t.x, t.y);
       if (t.key) mfDrawKey(ctx, t.x + 4, t.y - 7 + ((f >> 4) & 1), mfKeyCol(t.key));
+    } else if (k === 'creeper') {
+      // lit: flashing white, faster and faster, swelling at the end
+      const lit = t.mfFuse > 0 && ((f >> (t.mfFuse > 45 ? 3 : t.mfFuse > 20 ? 2 : 1)) & 1);
+      const img = Sprites.tank('e' + t.type, t.anim, t.dir, lit || (t.reveal > 82 && (f >> 1) & 1) ? 'creeperLit' : 'creeper');
+      if (t.mfFuse > 0 && t.mfFuse < 30) ctx.drawImage(Sprites.outline(img, lit ? '#FFFFFF' : '#A8B07C'), t.x - 1, t.y - 1);
+      ctx.drawImage(img, t.x, t.y);
     } else if (k === 'mirror') {
       if (t.mfDaze > 0 && (f >> 1) & 1) return;
       const img = Sprites.tank('p' + Math.max(0, Math.min(3, t.mfLv || 0)), t.anim, t.dir, 'mirror');
@@ -12319,6 +12418,7 @@ Object.assign(Stage.prototype, {
       else if (k === 'crawler') out.push([i, t.maxHp, t.mfHid ? 1 : 0, t.mfCrack || 0, t.mfSeed || 0]);
       else if (k === 'sentry') out.push([i, t.maxHp, t.mfHead || 0, t.mfPhase || 0, t.mfT || 0, t.mfFlash || 0]);
       else if (k === 'locksmith') out.push([i, t.maxHp, t.key || 0]);
+      else if (k === 'creeper') out.push([i, t.maxHp, t.mfFuse || 0]);
       else out.push([i, t.maxHp, t.mfDaze || 0, t.mfLv || 0]);
     });
     return out.length || this.mfShake ? { t: out, sh: this.mfShake || 0 } : null;
@@ -12336,6 +12436,7 @@ Object.assign(Stage.prototype, {
       } else if (k === 'crawler') Object.assign(t, { mfHid: !!a[2], sub: !!a[2], mfCrack: a[3], mfSeed: a[4] });
       else if (k === 'sentry') Object.assign(t, { mfHead: a[2], mfPhase: a[3], mfT: a[4], mfFlash: a[5] });
       else if (k === 'locksmith') t.key = a[2] || null;
+      else if (k === 'creeper') t.mfFuse = a[2];
       else Object.assign(t, { mfDaze: a[2], mfLv: a[3] });
     }
   },
@@ -12389,6 +12490,7 @@ const mfUpdateEnemy = Stage.prototype.updateEnemy;
       case 'crawler': this.mfCrawler(t); break;
       case 'locksmith': this.mfLocksmith(t); break;
       case 'mirror': this.mfMirror(t); break;
+      case 'creeper': this.mfCreeper(t); break;
       default: mfUpdateEnemy.call(this, t);
     }
   };
@@ -12411,6 +12513,7 @@ const mfUpdateEnemy = Stage.prototype.updateEnemy;
       if (t.mfDaze > 0 && t.hp > 1 && t.shield <= 0) t.hp--;   // reeling: double damage
     }
     if (k === 'crawler' && t.mfHid) this.mfBurst(t);   // a blast in its wall: out it comes
+    if (k === 'creeper' && t.mfFuse > 0) { this.mfBoom(t, by); return; }   // shot while it hisses: it goes up there and then
     hit.call(this, t, by, blast);
     if (!t.alive) return;
     if (k === 'mirror') t.mfDaze = 45;
@@ -12457,9 +12560,13 @@ const mfUpdateEnemy = Stage.prototype.updateEnemy;
     return shove.call(this, t, d);
   };
 
-  // a crawler in its wall gets no arrow and no dot on the minimap
+  // a crawler in its wall gets no arrow and no dot on the minimap, nor a mosslump until it's a few cells off
   const seen = P.enemySeen;
-  P.enemySeen = function (t) { return !t.mfHid && seen.call(this, t); };
+  P.enemySeen = function (t) {
+    if (t.mfHid) return false;
+    if (mfKind(t) === 'creeper' && !(t.mfFuse > 0) && !this.tanks.some(o => o.isPlayer && o.alive && Math.hypot(o.x - t.x, o.y - t.y) < MF_LUMP_SEEN)) return false;
+    return seen.call(this, t);
+  };
 
   // a destroyed player doesn't come back right under the minotaur's nose
   const back = P.mazeSpawnPoint;

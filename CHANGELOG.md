@@ -11,7 +11,9 @@ The version lives in `js/version.js` and is shown on the title screen as `tanb4i
   pages). Bosses met before this version are filled in from your records.
 - **Maze: new enemies** (the first part of the maze overhaul; the rest — keys, gates, themes, lairs — is coming): the
   MINOTAUR (a huge hunter you hear before you see, from maze 3), CRAWLERS hiding in brick walls, twin-barrelled
-  SENTRIES at junctions, and the LOCKSMITH, a fast tank that will steal keys once the keys arrive.
+  SENTRIES at junctions, the LOCKSMITH, a fast tank that will steal keys once the keys arrive, and the MOSSLUMP: a
+  silent, mossy lump that never fires, creeps up, flashes white and blows a crater in the walls (and in you) —
+  shoot it while it flashes and it goes off early, or get away and it calms down.
 
 ## 0.51.3
 
