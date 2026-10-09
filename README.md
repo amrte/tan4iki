@@ -1010,7 +1010,7 @@ up. 1-4 players together, here or online.
   - **Mothership**: fans, rings and spirals of shots, drones
   - **War Crab**: claw shots, charges down at you
   - **Rock Titan**: throws asteroids
-  - **Frost Queen**: shards, a freezing beam that stops you, an ice storm
+  - **Frost Queen**: shards; volleys of icicles dropping in the columns round you; a blizzard wall coming down with one gap to slip through; three freezing beams at once (one on you), then three more in the gaps; frost novas (two rings of shards); she blinks away in a flurry of snow and comes back over you; an ice storm. She follows you faster the more she's hurt
   - **Elder Eye**: hit it only while it's open; it stares a beam at you
   - **Overmind**: four orbiting orbs shield it until they're shot down; spirals
   - The bosses of sectors 7-11 and 14 are after flying things from 90s films and games:
@@ -1393,6 +1393,7 @@ js/mazefoes.js    maze mode's own enemies: the minotaur (and the lair's boss), c
 js/fortress.js    fortress mode (tower defense): towers, upgrades and specialisations, waves, gold, the build menu, maps
 js/galaxy.js      galaxy mode (a shoot-'em-up): sectors, waves, weapons, pickups, the hangar, its bosses
 js/galaxy2.js     galaxy sectors 7-11 and 14: their bosses, the newer enemies and waves, skies and music
+js/gxfrost.js     galaxy: the Frost Queen's harder set of attacks (icicles, blizzard walls, triple beams, novas, blink)
 js/galaxy3.js     galaxy sectors The Well and The Slop Feed (12 and 13): their enemies, waves, bosses, skies and music
 js/galaxy_feel.js galaxy controls and feel: B gestures, focus, two weapons, heat and the charge blast, combo, grazing, shake
 js/galaxy_prog.js galaxy progression and co-op: power cells back after a loss, perks, fair loot, escape pods

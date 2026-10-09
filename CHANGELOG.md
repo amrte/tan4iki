@@ -3,6 +3,13 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.56.1
+
+- **Galaxy: the Frost Queen is no pushover any more** (gxfrost.js): more life (560, was 446), she follows you faster
+  as she weakens, and new attacks: volleys of icicles dropping in the columns round you, a BLIZZARD WALL coming down
+  with one gap to find (two in her last phase), three freezing beams at once and three more in the gaps, frost novas
+  (double rings of shards), and a blink: gone in a flurry of snow, back right over you.
+
 ## 0.56
 
 - **New mode: COUNTER-STRIKE** (cs*.js), on a top-down DUST 2: the T and CT spawns, long A with its doors and pit,
