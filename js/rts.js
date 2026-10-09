@@ -92,7 +92,8 @@ class RtsGame {
     };
     this.addHouse(P, 0, true, takeStart(P.start));
     for (const a of opts.allies || []) this.addHouse(a, 0, false, takeStart(a.start));
-    for (const f of opts.foes || []) this.addHouse(f, 1, false, takeStart(f.start));
+    // the computer's Houses stand together (as in the original) unless each is given a team of its own
+    for (const f of opts.foes || []) this.addHouse(f, f.team > 0 ? f.team | 0 : 1, false, takeStart(f.start));
     this.pathInit();
     this.uiInit && this.uiInit();
     // ---- bases and units
@@ -104,7 +105,9 @@ class RtsGame {
     this.reinf = (opts.reinforcements || []).map(r => Object.assign({ done: false }, r));
     this.objectives = opts.objectives || { destroy: true };
     // computer players
-    for (const Hs of this.houseList) if (!Hs.human && Hs.ai !== null && Hs.ai !== undefined && typeof RTS_AI !== 'undefined') {
+    // (player.ai given: the player's House plays itself too, a demo)
+    if (typeof P.ai === 'number') this.P.ai = P.ai;
+    for (const Hs of this.houseList) if ((!Hs.human || typeof P.ai === 'number') && Hs.ai !== null && Hs.ai !== undefined && typeof RTS_AI !== 'undefined') {
       try { Hs.brain = RTS_AI.make(this, Hs.id, Hs.ai); } catch (e) { console.error(e); }
     }
     this.uiStart && this.uiStart();
@@ -837,7 +840,8 @@ class RtsGame {
       const foes = this.enemiesOf(this.player).filter(h => !h.nomads);
       if (foes.length && foes.every(h => h.defeated || (o.destroy === 'buildings' && !h.buildings.some(b => !b.d.wall)))) win = true;
     }
-    if (typeof this.opts.checkWin === 'function') { const w = this.opts.checkWin(this); if (w === true || w === false) win = w; }
+    // a mission's own rule: true / false ends it so, null keeps it going, anything else leaves it to the above
+    if (typeof this.opts.checkWin === 'function') { const w = this.opts.checkWin(this); if (w === true || w === false || w === null) win = w; }
     if (win !== null) this.finish(win);
   }
   finish(win) {
@@ -956,10 +960,10 @@ Object.assign(Game, {
   rtsStartMission(opts) {
     opts = Object.assign({}, opts || {});
     this.mode = 'rts';
-    if (Net.role === 'host') Net.hangUp();
-    Input.remote = {};
+    // online (the host): the guests watch the host's screen (js/netstream.js) and each moves a cursor of its own
+    if (Net.role !== 'host') Input.remote = {};
     if (!this.players || this.players.length !== 1 || this.players[0].bot) this.players = [newPlayer(0)];
-    Input.numPlayers = 1; this.twoP = false;
+    Input.numPlayers = 1 + Object.keys(Input.remote).length; this.twoP = false;
     const [vc, vr] = this.rtsLayout();
     setFieldSize(vc, vr, vc, vr);
     // keep the mission as it was given (RESTART ROUND plays it again from the start)

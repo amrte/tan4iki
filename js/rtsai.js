@@ -138,7 +138,8 @@ class RtsBasicAi {
       if (!q.length) R.startBuild(h, 'heavy', 'harvester');
       else if (!harv && q[0] !== 'harvester' && !q.includes('harvester')) { R.cancelBuild(h, 'heavy'); R.startBuild(h, 'heavy', 'harvester'); }
     }
-    this.broke = refs > 0 && harv === 0 && H.credits < 600;
+    // short of harvesters and money: nothing else until there's one more
+    this.broke = refs > 0 && (harv === 0 && H.credits < 600 || harv < refs && H.credits < 350 && canHarv);
     // the placeholder's one cheat: a House left with a refinery, no harvester and no way to buy one gets one by frigate
     if (refs && !harv && (!canHarv || H.credits < 300) && !this.dropT) this.dropT = R.frame + 1800;
     if (this.dropT && R.frame >= this.dropT) {

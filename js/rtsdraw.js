@@ -632,15 +632,32 @@ Object.assign(RtsGame.prototype, {
       if (b === ui.selB) { ctx.strokeStyle = '#FFF'; ctx.setLineDash([3, 3]); ctx.strokeRect(px + 0.5, py + 0.5, W - 1, H - 1); ctx.setLineDash([]); }
       bar(px + 2, py - 3, W - 4, b.hp / b.max);
     }
+    // online guests' selections: their colour's corners
+    for (const co of this.coList ? this.coList() : []) {
+      ctx.fillStyle = RTS_CO_COL[co.who % 4];
+      for (const u of co.sel) {
+        if (u.dead || u.carried || !units.includes(u)) continue;
+        const r = u.d.cls === 'inf' ? 5 : (RTS_DEF_SIZE[u.key] || 16) / 2;
+        const x = Math.round(u.x), y = Math.round(u.y - (u.d.cls === 'air' ? (u.alt || 1) * 10 : 0));
+        ctx.fillRect(x - r, y + r, 3, 1); ctx.fillRect(x + r - 2, y + r, 3, 1); ctx.fillRect(x - r, y - r, 1, 2); ctx.fillRect(x + r, y - r, 1, 2);
+      }
+      const b = co.selB;
+      if (b && !b.dead) { ctx.strokeStyle = RTS_CO_COL[co.who % 4]; ctx.strokeRect(b.x * 16 + 1.5, b.y * 16 + 1.5, b.w * 16 - 3, b.hh * 16 - 3); }
+      if (co.drag && co.drag.active) { ctx.strokeStyle = RTS_CO_COL[co.who % 4]; const w0 = co.drag, w1 = this.toWorld(co.mx, co.my); ctx.strokeRect(Math.min(w0.wx0, w1.x) + 0.5, Math.min(w0.wy0, w1.y) + 0.5, Math.abs(w1.x - w0.wx0), Math.abs(w1.y - w0.wy0)); }
+    }
     // where the last order went
-    if (ui.mark && this.frame - ui.mark.t < 24) {
-      const m = ui.mark, k = (this.frame - m.t) / 24, r = 2 + k * 6;
+    for (const m of [ui.mark].concat(this.coList ? this.coList().map(c => c.mark) : [])) {
+      if (!m || this.frame - m.t >= 24) continue;
+      const k = (this.frame - m.t) / 24, r = 2 + k * 6;
       ctx.strokeStyle = m.attack ? '#F83818' : '#58F858';
       ctx.strokeRect(m.x - r + 0.5, m.y - r + 0.5, r * 2, r * 2);
     }
   },
   drawGhost(ctx) {
-    const ui = this.ui;
+    this.drawGhostOf(ctx, this.ui);
+    for (const co of this.coList ? this.coList() : []) { const host = this.ui; this.ui = co; try { this.drawGhostOf(ctx, co); } finally { this.ui = host; } }
+  },
+  drawGhostOf(ctx, ui) {
     if (ui.mode !== 'place' || !ui.placeKey || !ui.overMap) return;
     const d = RTS_BUILDINGS[ui.placeKey], p = this.ghostPos();
     if (!p) return;

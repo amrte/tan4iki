@@ -25,10 +25,13 @@ const RTS_CREDITS = [1000, 1500, 2500, 5000, 10000];
 const RTS_KEYS_DIR = { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'] };
 const RTS_FIRE_KEYS = ['Space', 'KeyJ', 'KeyK', 'KeyZ', 'KeyX', 'KeyF', 'TFire'];
 const RTS_KEYMODS = { ctrl: false, shift: false };
+const RTS_CO_COL = ['#F8F8F8', '#F8D878', '#78F8F8', '#F878F8'];   // online guests' cursors and selections
 
+// the set-up rows' height: ten pixels, closer when there are many
+function rtsSetupRowH(n) { return Math.max(8, Math.min(10, Math.floor((SH - 40) / Math.max(1, n)))); }
 function rtsSetupPrefs() {
   const d = { house: 'aquila', foes: [{ house: 'drakon', ai: 1 }, { house: 'serpens', ai: 1 }, { house: 'regent', ai: 1 }], nfoes: 1, size: 1, style: 0,
-    credits: 1, tech: 9, worms: 1, fog: false, clicks: 'CLASSIC', speed: 1 };
+    credits: 1, tech: 9, worms: 1, fog: false, clicks: 'CLASSIC', speed: 1, ffa: false };
   const s = STORE.get(RTS_SETUP_KEY, null);
   if (s && typeof s === 'object') {
     for (const k in d) if (s[k] !== undefined && typeof s[k] === typeof d[k]) d[k] = s[k];
@@ -41,11 +44,15 @@ Object.assign(RtsGame.prototype, {
   // ================================================================ set-up
   uiInit() {
     const prefs = rtsSetupPrefs();
-    this.ui = { sel: [], selB: null, mode: null, placeKey: null, tab: 'yard', scroll: 0, groups: {}, mx: -99, my: -99, mIn: false, kbd: false,
-      cx: 100, cy: 100, overMap: false, hover: null, cursor: 'normal', cred: 0, drag: null, touches: new Map(), pan: null, mark: null,
-      lastGroup: { n: -1, t: -99 }, sellArm: null, mmDrag: false, clicks: this.opts.clicks || prefs.clicks || 'CLASSIC', holdT: 0, side: false, tip: '' };
+    this.ui = this.newUi(this.opts.clicks || prefs.clicks || 'CLASSIC');
+    this.coUis = {};   // online: a guest's own cursor and selection (they command the same House)
     this.cam = { x: 0, y: 0 };
     rtsInstallInput();
+  },
+  newUi(clicks) {
+    return { sel: [], selB: null, mode: null, placeKey: null, tab: 'yard', scroll: 0, groups: {}, mx: -99, my: -99, mIn: false, kbd: false,
+      cx: 100, cy: 100, overMap: false, hover: null, cursor: 'normal', cred: 0, drag: null, touches: new Map(), pan: null, mark: null,
+      lastGroup: { n: -1, t: -99 }, sellArm: null, mmDrag: false, clicks: clicks || 'CLASSIC', holdT: 0, side: false, tip: '' };
   },
   uiStart() {
     this.uiLayout();
@@ -56,6 +63,8 @@ Object.assign(RtsGame.prototype, {
     this.ui.cred = P.credits;
     this.ui.cx = this.L.mx + this.L.mw / 2; this.ui.cy = this.L.my + this.L.mh / 2;
     if (u && u.d.deploys) { this.ui.sel = [u]; this.say('DEPLOY THE MCV ON ROCK TO BUILD YOUR BASE'); }
+    if (this.opts.objectiveText) this.say(String(this.opts.objectiveText).toUpperCase());
+    else if (this.objectives.harvest) this.say('HARVEST ' + this.objectives.harvest + ' CREDITS OF GLIMMER');
     this.onDeployed = (yard) => { this.ui.sel = []; this.ui.selB = yard; this.ui.tab = 'yard'; };
   },
   uiLayout() {
@@ -179,7 +188,7 @@ Object.assign(RtsGame.prototype, {
   },
   pressAt(x, y, btn) {
     const ui = this.ui, L = this.L;
-    if (y < L.top) { if (x < 30) this.openMenu(); return; }
+    if (y < L.top) { if (x < 30 && !this.coActive) this.openMenu(); return; }
     if (x >= L.sx) { this.sideClick(x, y, btn); return; }
     if (!this.inMapView(x, y)) return;
     if (btn === 2) { this.mapClick(x, y, 2); return; }
@@ -519,25 +528,7 @@ Object.assign(RtsGame.prototype, {
     const cancelD = down('KeyB') || down('KeyC') || pr(1) || (ui.kbd && down('ShiftLeft'));
     const cancelJ = just('KeyB') || just('KeyC') || prJ(1) || (ui.kbd && just('ShiftLeft'));
     if (ui.kbd) {
-      // the cursor: the d-pad moves it (faster the longer it's held); B held pans instead; at the edge it scrolls
-      const mx = dx || pdx, my = dy || pdy;
-      if (mx || my) ui.holdT++; else ui.holdT = 0;
-      const sp = Math.min(6, 1.2 + ui.holdT * 0.12);
-      if (cancelD && (mx || my)) { this.cam.x += mx * 8; this.cam.y += my * 8; ui.panned = true; }
-      else {
-        ui.cx = Math.max(0, Math.min(L.W - 1, ui.cx + mx * sp)); ui.cy = Math.max(0, Math.min(L.H - 1, ui.cy + my * sp));
-        if (ui.cx < L.mw) {
-          if (ui.cx < L.mx + 6 && mx < 0) this.cam.x -= 5;
-          if (ui.cx > L.mx + L.mw - 6 && mx > 0) this.cam.x += 5;
-          if (ui.cy < L.my + 6 && my < 0) this.cam.y -= 5;
-          if (ui.cy > L.my + L.mh - 6 && my > 0) this.cam.y += 5;
-        }
-      }
-      ui.mx = ui.cx; ui.my = ui.cy; ui.mIn = true;
-      if (fireJ) this.pressAt(ui.cx, ui.cy, 0);
-      if (!fireD && (ui.fireWas || fireJ)) this.releaseAt(ui.cx, ui.cy, 0, false);
-      if (cancelJ) ui.panned = false;
-      if (!cancelD && (ui.cancelWas || cancelJ) && !ui.panned) this.cancel();
+      this.cursorStep({ mx: dx || pdx, my: dy || pdy, fireJ, fireD, cancelJ, cancelD });
       if (just('Tab') || prJ(2)) {
         ui.side = !ui.side;
         if (ui.side) { ui.mapCur = { x: ui.cx, y: ui.cy }; ui.cx = L.grid.x + 20; ui.cy = L.grid.y + 12; }
@@ -562,6 +553,7 @@ Object.assign(RtsGame.prototype, {
     }
     ui.fireWas = fireD; ui.cancelWas = cancelD;
     ui.padPrev = pads.map(p => p.raw ? p.raw.slice() : []);
+    this.coUpdate();
     if (prJ(3)) this.goHome();
     if (prJ(4) || prJ(5)) { const tabs = this.sideTabs(); if (tabs.length) { const k = tabs.indexOf(ui.tab); ui.tab = tabs[(k + (prJ(5) ? 1 : tabs.length - 1)) % tabs.length]; ui.scroll = 0; } }
     // hotkeys
@@ -604,6 +596,54 @@ Object.assign(RtsGame.prototype, {
     if (Math.abs(dc) < 1) ui.cred = c;
     else ui.cred += Math.sign(dc) * Math.min(Math.abs(dc), Math.max(1, Math.abs(dc) * 0.06));
   },
+  // the keyboard / pad cursor of this.ui: the d-pad moves it (faster the longer it's held); B held pans instead; at
+  // the edge it scrolls; FIRE clicks (held: drags a box), B cancels
+  cursorStep(inp) {
+    const ui = this.ui, L = this.L, mx = inp.mx, my = inp.my;
+    if (mx || my) ui.holdT++; else ui.holdT = 0;
+    const sp = Math.min(6, 1.2 + ui.holdT * 0.12);
+    if (inp.cancelD && (mx || my)) { this.cam.x += mx * 8; this.cam.y += my * 8; ui.panned = true; }
+    else {
+      ui.cx = Math.max(0, Math.min(L.W - 1, ui.cx + mx * sp)); ui.cy = Math.max(0, Math.min(L.H - 1, ui.cy + my * sp));
+      if (ui.cx < L.mw) {
+        if (ui.cx < L.mx + 6 && mx < 0) this.cam.x -= 5;
+        if (ui.cx > L.mx + L.mw - 6 && mx > 0) this.cam.x += 5;
+        if (ui.cy < L.my + 6 && my < 0) this.cam.y -= 5;
+        if (ui.cy > L.my + L.mh - 6 && my > 0) this.cam.y += 5;
+      }
+    }
+    ui.mx = ui.cx; ui.my = ui.cy; ui.mIn = true;
+    if (inp.fireJ) this.pressAt(ui.cx, ui.cy, 0);
+    if (!inp.fireD && (ui.fireWas || inp.fireJ)) this.releaseAt(ui.cx, ui.cy, 0, false);
+    if (inp.cancelJ) ui.panned = false;
+    if (!inp.cancelD && (ui.cancelWas || inp.cancelJ) && !ui.panned) this.cancel();
+  },
+  // online: each guest moves a cursor of their own over the host's screen (the d-pad, FIRE clicks, B cancels) and
+  // commands the same House with its own selection
+  coUpdate() {
+    const keys = typeof Net !== 'undefined' && Net.role === 'host' ? Object.keys(Input.remote || {}) : [];
+    for (const k in this.coUis) if (!keys.includes(k)) delete this.coUis[k];
+    if (!keys.length) return;
+    const host = this.ui;
+    for (const k of keys) {
+      let co = this.coUis[k];
+      if (!co) { co = this.coUis[k] = this.newUi(host.clicks); co.kbd = true; co.cx = this.L.mx + this.L.mw / 2 + 12 * k; co.cy = this.L.my + this.L.mh / 2; co.who = +k; co.tab = host.tab; }
+      const pl = Input.player(+k), d = pl.dir;
+      this.ui = co; this.coActive = true;
+      try {
+        this.cursorStep({ mx: d === 1 ? 1 : d === 3 ? -1 : 0, my: d === 0 ? -1 : d === 2 ? 1 : 0, fireJ: pl.firePressed, fireD: pl.fire, cancelJ: pl.altPressed, cancelD: pl.alt });
+        co.fireWas = pl.fire; co.cancelWas = pl.alt;
+        if (co.drag && !co.drag.active && Math.hypot(co.mx - co.drag.x0, co.my - co.drag.y0) > 4 && !co.mode) co.drag.active = true;
+        co.sel = co.sel.filter(u => u && u.isU && !u.dead && u.h === this.player && !u.carried);
+        if (co.selB && co.selB.dead) co.selB = null;
+        if (co.mode === 'place' && !this.P.prod.yard.ready) { co.mode = null; co.placeKey = null; }
+        co.overMap = this.inMapView(co.mx, co.my);
+        if (co.overMap) { const w = this.toWorld(co.mx, co.my); co.hover = this.pick(w.x, w.y, true); } else co.hover = null;
+        co.cursor = this.cursorKind();
+      } finally { this.ui = host; this.coActive = false; }
+    }
+  },
+  coList() { return Object.values(this.coUis || {}); },
   goHome() {
     const yards = this.P.buildings.filter(b => b.key === 'yard');
     const list = yards.length ? yards : this.P.buildings.length ? this.P.buildings : this.P.units;
@@ -641,6 +681,17 @@ Object.assign(RtsGame.prototype, {
     this.renderTop(ctx);
     this.renderSide(ctx);
     if (this.done) this.renderBanner(ctx);
+    else if (this.frame < 330 && (this.opts.title || this.opts.objectiveText)) this.renderIntro(ctx);
+    // the guests' cursors (online), each with its number
+    for (const co of this.coList()) {
+      const kind = co.overMap ? co.cursor : 'normal';
+      if (co.mode === 'place' && co.overMap) continue;
+      const c = rtsPicCursor(kind, (this.frame >> 4) & 1), hot = rtsHotOfCursor(kind, c);
+      const x = Math.round(co.mx) - hot[0], y = Math.round(co.my) - hot[1];
+      ctx.drawImage(c, x, y);
+      ctx.fillStyle = '#000'; ctx.fillRect(x + c.width - 2, y + c.height - 3, 6, 7);
+      rtsTiny(ctx, String(co.who + 1), x + c.width - 1, y + c.height - 2, RTS_CO_COL[co.who % 4]);
+    }
     // the cursor
     if (ui.mIn || ui.kbd) {
       const kind = ui.overMap ? ui.cursor : 'normal';
@@ -819,7 +870,10 @@ Object.assign(RtsGame.prototype, {
     const bar = (x, y, w, k) => { ctx.fillStyle = '#000'; ctx.fillRect(x, y, w, 3); ctx.fillStyle = k > 0.5 ? '#38D838' : k > 0.25 ? '#F8D038' : '#F83818'; ctx.fillRect(x + 1, y + 1, Math.max(1, Math.round((w - 2) * k)), 1); };
     const subject = sel[0] || other || ui.selB;
     if (!subject) {
-      rtsTiny(ctx, (RTS_HOUSES[this.player] || {}).name || '', P.x + 4, P.y + 3, RTS_HOUSE_PAL[this.player][0]);
+      const o = this.objectives;
+      if (o.harvest) rtsTiny(ctx, 'GOAL ' + Math.floor(Hs.stats.harvested) + '/' + o.harvest, P.x + 4, P.y + 3, '#F8B838');
+      else if (o.survive) { const r = Math.max(0, Math.ceil((o.survive - this.frame) / 60)); rtsTiny(ctx, 'HOLD ' + Math.floor(r / 60) + ':' + String(r % 60).padStart(2, '0'), P.x + 4, P.y + 3, '#F8B838'); }
+      else rtsTiny(ctx, (RTS_HOUSES[this.player] || {}).name || '', P.x + 4, P.y + 3, RTS_HOUSE_PAL[this.player][0]);
       rtsTiny(ctx, 'STORAGE ' + Math.floor(Hs.credits) + '/' + Hs.storage, P.x + 4, P.y + 11, Hs.credits > Hs.storage ? '#F8B838' : '#C8B898');
       rtsTiny(ctx, 'POWER ' + Hs.powerOut + '/' + Hs.powerUse, P.x + 4, P.y + 18, this.lowPower(Hs) ? '#F86848' : '#C8B898');
       rtsTiny(ctx, 'UNITS ' + Hs.units.length + ' BLDGS ' + Hs.buildings.length, P.x + 4, P.y + 25, '#A89878');
@@ -846,7 +900,10 @@ Object.assign(RtsGame.prototype, {
       if (b.h !== this.player) info = (RTS_HOUSES[b.h] || {}).name || '';
       else if (b.d.power > 0) info = 'POWER +' + Math.round(b.d.power * b.hp / b.max);
       else if (b.d.storage) info = 'STORES ' + b.d.storage;
-      else if (b.d.fac && b.d.fac !== 'starport') { const q = Hs.prod[b.d.fac]; info = q.queue.length ? rtsNameOf(q.queue[0]).split(' ')[0] + ' ' + Math.floor(this.progress(this.player, b.d.fac) * 100) + '%' : 'LEVEL ' + (this.upgLevel(Hs, b.d.fac) + 1); }
+      else if (b.d.fac && b.d.fac !== 'starport') {
+        const q = Hs.prod[b.d.fac], first = q.queue.length ? rtsNameOf(q.queue[0]).split(' ')[0] : '';
+        info = !q.queue.length ? 'LEVEL ' + (this.upgLevel(Hs, b.d.fac) + 1) : q.ready ? (b.d.fac === 'yard' ? 'PLACE ' : 'WAIT ') + first : first.slice(0, 8) + ' ' + Math.floor(this.progress(this.player, b.d.fac) * 100) + '%';
+      }
       else if (b.d.palace) info = RTS_PALACE[this.palaceKind(this.player)] ? RTS_PALACE[this.palaceKind(this.player)].name.split(' ')[0] : '';
       if (b.h === this.player && b.d.power < 0) info2 = 'USES ' + (-b.d.power) + ' PWR';
       if (b.bare && b.h === this.player && !b.d.wall) info2 = 'ON BARE ROCK';
@@ -860,6 +917,27 @@ Object.assign(RtsGame.prototype, {
       ctx.fillStyle = b.dis ? '#2A2218' : '#8C7450'; ctx.fillRect(r.x, r.y, r.w, 1);
       rtsTinyCenter(ctx, b.label, r.x + r.w / 2, r.y + 1, b.dis ? '#5C4C3C' : '#F8E8C0');
     }
+  },
+  // the mission's name and objective over the map for its first seconds
+  renderIntro(ctx) {
+    const L = this.L, a = Math.min(1, (330 - this.frame) / 40);
+    const lines = [];
+    if (this.opts.title) lines.push([String(this.opts.title).toUpperCase(), '#F8C838']);
+    if (this.opts.objectiveText) for (const ln of this.wrapText(String(this.opts.objectiveText).toUpperCase(), Math.floor((L.mw - 24) / 8))) lines.push([ln, '#F0E0B0']);
+    const h = lines.length * 10 + 10, y = L.my + 18;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(L.mx + 8, y - 5, L.mw - 16, h);
+    lines.forEach(([t, c], k) => Font.drawCenter(ctx, t, L.mx + L.mw / 2, y + k * 10, c));
+    ctx.globalAlpha = 1;
+  },
+  wrapText(t, n) {
+    const out = [];
+    let line = '';
+    for (const w of t.split(' ')) {
+      if (line && (line + ' ' + w).length > n) { out.push(line); line = w; } else line = line ? line + ' ' + w : w;
+    }
+    if (line) out.push(line);
+    return out;
   },
   renderBanner(ctx) {
     const L = this.L, win = this.resultData && this.resultData.win;
@@ -932,6 +1010,7 @@ Object.assign(Game, {
       rows.push({ label: 'FOE ' + (i + 1), val: houseName(f.house), col: RTS_HOUSES[f.house].color, adj: d => this.rtsStepFoe(i, d) });
       rows.push({ label: '  SKILL', val: RTS_SKILLS[f.ai], adj: d => { f.ai = Math.max(0, Math.min(4, f.ai + d)); } });
     }
+    if (s.nfoes > 1) rows.push({ label: 'FOES', val: s.ffa ? 'EACH ALONE' : 'ALLIED', adj: () => { s.ffa = !s.ffa; }, tip: s.ffa ? 'THE COMPUTER\'S HOUSES FIGHT EACH OTHER TOO' : 'THE COMPUTER\'S HOUSES STAND TOGETHER' });
     rows.push({ label: 'MAP SIZE', val: RTS_SIZES[s.size] + 'X' + RTS_SIZES[s.size], adj: d => { s.size = (s.size + d + RTS_SIZES.length) % RTS_SIZES.length; } });
     rows.push({ label: 'MAP STYLE', val: RTS_STYLES[s.style].toUpperCase(), adj: d => { s.style = (s.style + d + RTS_STYLES.length) % RTS_STYLES.length; } });
     rows.push({ label: 'CREDITS', val: String(RTS_CREDITS[s.credits]), adj: d => { s.credits = (s.credits + d + RTS_CREDITS.length) % RTS_CREDITS.length; } });
@@ -975,7 +1054,7 @@ Object.assign(Game, {
     if (m.back) this.rtsSetupBack();
   },
   rtsSetupPointer(x, y) {
-    const rows = this.rtsSetupRows(), i = Math.floor((y - 30) / 10);
+    const rows = this.rtsSetupRows(), i = Math.floor((y - 29) / rtsSetupRowH(rows.length));
     if (i < 0 || i >= rows.length) return;
     const row = rows[i];
     if (i !== this.rtsSetIdx) { this.rtsSetIdx = i; Sound.play('select'); if (!row.act) return; }
@@ -991,8 +1070,8 @@ Object.assign(Game, {
     Font.drawCenter(ctx, 'DESERT DOMINION', SW / 2, 6, '#F8B838');
     Font.drawCenter(ctx, 'SKIRMISH', SW / 2, 17, '#C8A878');
     rows.forEach((r, i) => {
-      const y = 30 + i * 10, sel = i === this.rtsSetIdx;
-      if (sel) { ctx.fillStyle = '#3A2A18'; ctx.fillRect(8, y - 2, SW - 16, 10); }
+      const rh = rtsSetupRowH(rows.length), y = 30 + i * rh, sel = i === this.rtsSetIdx;
+      if (sel) { ctx.fillStyle = '#3A2A18'; ctx.fillRect(8, y - 1 - (rh > 9 ? 1 : 0), SW - 16, rh); }
       if (r.start || !r.adj && r.act) Font.drawCenter(ctx, r.label, SW / 2, y, sel ? '#F8D878' : r.start ? '#78D878' : '#ADADAD');
       else {
         Font.draw(ctx, r.label, 14, y, sel ? '#F8F8F8' : '#ADADAD');
@@ -1022,7 +1101,7 @@ Object.assign(Game, {
     this.rtsStartMission({
       map, seed, tech: s.tech, worms: s.worms, fog: s.fog, speed: s.speed, clicks: s.clicks,
       player: { house: s.house, credits, units: escort(s.house) },
-      foes: s.foes.slice(0, nf).map(f => ({ house: f.house, credits, ai: f.ai, units: escort(f.house) })),
+      foes: s.foes.slice(0, nf).map((f, i) => ({ house: f.house, credits, ai: f.ai, units: escort(f.house), team: s.ffa ? i + 1 : 1 })),
       objectives: { destroy: true }, music: true, skirmish: true,
     });
   },
@@ -1055,14 +1134,24 @@ Object.assign(Game, {
   rtsEnter() {
     if (typeof this.rtsMenu === 'function') this.rtsMenu(); else this.rtsSkirmishSetup();
   },
+  // the in-game tune: the House's theme to open, then the peace tunes in turn while you build and harvest; battle
+  // tunes once fighting comes near your things, and back to peace after a quiet spell (each change holds a while)
   rtsMusic(st) {
     const has = k => typeof SONGS !== 'undefined' && !!SONGS[k];
     if (st.done) { const k = st.resultData && st.resultData.win ? 'rtsWin' : 'rtsLose'; return has(k) ? k : st.resultData && st.resultData.win && has('victory') ? 'victory' : null; }
-    const battle = st.frame - st.battleT < 600 && st.frame > 120;
-    const n = Math.floor(st.frame / 10800) % 3;
-    if (battle) { const k = 'rtsBattle' + (n + 1); return has(k) ? k : has('rtsBattle1') ? 'rtsBattle1' : has('cpu') ? 'cpu' : null; }
-    const k = 'rtsPeace' + (n + 1);
-    return has(k) ? k : has('rtsPeace1') ? 'rtsPeace1' : has('fortress') ? 'fortress' : null;
+    const m = st.mus || (st.mus = { battle: false, since: -9999, peace: 0, battles: 0, peaceT: 0 });
+    const hot = st.frame - st.battleT < 120 && st.frame > 120;
+    if (!m.battle && hot && st.frame - m.since > 300) { m.battle = true; m.since = st.frame; m.battles++; }
+    else if (m.battle && st.frame - st.battleT > 900 && st.frame - m.since > 1200) { m.battle = false; m.since = st.frame; m.peace++; m.peaceT = st.frame; }
+    if (m.battle) {
+      const list = ['rtsBattle1', 'rtsBattle2', 'rtsBattle3'].filter(has);
+      return list.length ? list[(m.battles - 1) % list.length] : has('cpu') ? 'cpu' : null;
+    }
+    // a peace tune plays about three minutes before the next one
+    if (st.frame - m.peaceT > 10800) { m.peace++; m.peaceT = st.frame; }
+    const th = (RTS_HOUSES[st.player] || {}).theme;
+    const list = [th].concat(['rtsPeace1', 'rtsPeace2', 'rtsPeace3']).filter(k => k && has(k));
+    return list.length ? list[m.peace % list.length] : has('fortress') ? 'fortress' : null;
   },
 });
 const rtsKernelStart = Game.rtsStartMission, rtsKernelSetup = Game.rtsSkirmishSetup;

@@ -158,6 +158,7 @@ Object.assign(RtsGame.prototype, {
   },
   // every unit within r px of (x, y): fn(u, d2)
   unitsNear(x, y, r, fn) {
+    if (!this.grid) this.gridBuild();
     const cw = this.gw, ch = this.grid.length / cw;
     const x0 = Math.max(0, ((x - r) / 128) | 0), x1 = Math.min(cw - 1, ((x + r) / 128) | 0);
     const y0 = Math.max(0, ((y - r) / 128) | 0), y1 = Math.min(ch - 1, ((y + r) / 128) | 0), r2 = r * r;
@@ -175,16 +176,28 @@ Object.assign(RtsGame.prototype, {
     const N = this.N;
     this.pG = new Float32Array(N); this.pFrom = new Int32Array(N); this.pSeen = new Uint32Array(N); this.pDone = new Uint32Array(N);
     this.pHeap = new Int32Array(N * 2 + 16); this.pHeapF = new Float32Array(N * 2 + 16); this.pGen = 0;
-    this.pathQ = [];
+    this.pathQ = []; this.pathLater = [];
     this.bfsQ = new Int32Array(N); this.bfsSeen = new Uint32Array(N); this.bfsGen = 0;
   },
   requestPath(u, gx, gy, avoid, keep) {
     u.goal = { x: gx, y: gy };
     u.wantPath = { gx, gy, avoid: !!avoid };
     if (!keep) { u.path = null; u.pi = 0; }
+    // the same goal just came back with no way there: ask again a little later, not every frame
+    const f = u.pathFail;
+    if (f && this.frame - f.t < 40 && f.gx === gx && f.gy === gy) { if (!u.later) { u.later = true; this.pathLater.push(u); } return; }
     if (!u.inQ) { u.inQ = true; this.pathQ.push(u); }
   },
   pathTick() {
+    if (this.pathLater.length && this.frame % 10 === 0) {
+      this.pathLater = this.pathLater.filter(u => {
+        if (u.dead || !u.wantPath) { u.later = false; return false; }
+        if (this.frame - u.pathFail.t < 40) return true;
+        u.later = false;
+        if (!u.inQ) { u.inQ = true; this.pathQ.push(u); }
+        return false;
+      });
+    }
     let budget = 5000;
     while (this.pathQ.length && budget > 0) {
       const u = this.pathQ.shift();
@@ -196,6 +209,7 @@ Object.assign(RtsGame.prototype, {
       budget -= r.nodes + 50;
       u.path = r.path; u.pi = 0; u.pathT = this.frame; u.wait = 0;
       if (!r.path.length) u.path = null;
+      u.pathFail = r.fail ? { t: this.frame, gx: w.gx, gy: w.gy } : null;
     }
   },
   // the nearest tile to (gx, gy) that move class mc can stand on
@@ -219,7 +233,7 @@ Object.assign(RtsGame.prototype, {
     const sx = u.mv ? u.mv.ni % W : u.tx, sy = u.mv ? (u.mv.ni / W) | 0 : u.ty;
     gx = Math.max(0, Math.min(W - 1, gx | 0)); gy = Math.max(0, Math.min(H - 1, gy | 0));
     const goal = this.nearestPassable(mc, gx, gy, sx, sy);
-    if (!goal) return { path: [], nodes: 10 };
+    if (!goal) return { path: [], nodes: 10, fail: true };
     const s = sy * W + sx, gi = goal.y * W + goal.x;
     if (s === gi) return { path: [], nodes: 1 };
     const gen = ++this.pGen, G = this.pG, from = this.pFrom, seen = this.pSeen, done = this.pDone, heap = this.pHeap, hf = this.pHeapF;
@@ -273,7 +287,7 @@ Object.assign(RtsGame.prototype, {
         // units in the way: dearer (standing ones more); with avoid, the standing ones near the start are walls
         const v = this.vAt[n];
         if (v && v !== u) {
-          if (!v.mv && !v.path) {
+          if (!v.mv && (!v.path || v.wait > 10)) {
             if (avoid && Math.abs(nx - sx) <= 3 && Math.abs(ny - sy) <= 3) continue;
             cost += this.isEnemy(v.h, u.h) ? 6 : 3;
           } else cost += 0.5;
@@ -296,7 +310,7 @@ Object.assign(RtsGame.prototype, {
     const path = [];
     for (let k = best; k !== s && k >= 0; k = from[k]) path.push(k);
     path.reverse();
-    return { path, nodes };
+    return { path, nodes, fail: best === s };
   },
   // breadth-first over tiles mc can cross from (sx, sy): the first one test(i) likes (null: none within maxNodes)
   bfs(mc, sx, sy, test, maxNodes) {
@@ -313,6 +327,7 @@ Object.assign(RtsGame.prototype, {
         if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
         const n = ny * W + nx;
         if (seen[n] === gen) continue;
+        if ((d & 1) && !(this.passStatic(mc, cy * W + nx) && this.passStatic(mc, ny * W + cx))) continue;
         seen[n] = gen;
         if (this.passStatic(mc, n)) q[tail++] = n;
       }
@@ -367,6 +382,8 @@ Object.assign(RtsGame.prototype, {
     if (bl) {
       u.wait++;
       if (u.wait % 12 === 1 && !this.isEnemy(bl.h, u.h)) this.nudge(bl, u, ni);
+      // two friends stuck nose to nose (or in a jam): the newer one steps aside, then goes on its way
+      if (u.wait > 24 && u.wait % 8 === 1 && bl.isU && !bl.mv && bl.wait > 12 && !this.isEnemy(bl.h, u.h) && (u.id > bl.id || bl.wait > 90) && this.sidestep(u, bl)) return;
       const last = u.pi === u.path.length - 1;
       if (last && u.wait > 20) { u.path = null; u.wait = 0; return; }   // someone stands on the goal: near enough
       if (u.wait % 30 === 0 && u.goal) this.requestPath(u, u.goal.x, u.goal.y, true, true);
@@ -397,6 +414,25 @@ Object.assign(RtsGame.prototype, {
       if (q && q !== u && this.isEnemy(q.h, u.h)) { this.killUnit(q, u.h, 'crushed'); this.sfx('nom', u.x, u.y); }
     }
     if (this.map.t[i] === RTS_T.BLOOM) this.burstBloom(i, u.h);
+  },
+  // u gives way to v: one step to a free tile next to it, off v's way (false if there's none)
+  sidestep(u, v) {
+    const W = this.W, avoid = new Set([v.ty * W + v.tx]);
+    if (v.path) for (let k = v.pi; k < Math.min(v.path.length, v.pi + 3); k++) avoid.add(v.path[k]);
+    let best = null, bs = -1e9;
+    for (let d = 0; d < 8; d++) {
+      const x = u.tx + RTS_DX8[d], y = u.ty + RTS_DY8[d];
+      if (!this.inMap(x, y)) continue;
+      const i = y * W + x;
+      if (avoid.has(i) || !this.tileFreeFor(u.d, i, u) || this.blockerAt(u, i)) continue;
+      if ((d & 1) && !(this.passStatic(u.d.move, u.ty * W + x) && this.passStatic(u.d.move, y * W + u.tx))) continue;
+      const side = Math.abs(RTS_DX8[d] * RTS_DY8[v.dir] - RTS_DY8[d] * RTS_DX8[v.dir]);
+      const sc = side * 2 - (d & 1) * 0.5 + this.rnd() * 0.5;
+      if (sc > bs) { bs = sc; best = i; }
+    }
+    if (best === null) return false;
+    u.path = [best]; u.pi = 0; u.wait = 0; u.wantPath = null;
+    return true;
   },
   // a friend standing in the way steps aside (if it isn't busy)
   nudge(v, by, ni) {
@@ -876,6 +912,13 @@ Object.assign(RtsGame.prototype, {
         const i = this.bfs('track', from.x, from.y, c => g[c] > 0 && this.map.t[c] !== RTS_T.BLOOM && (!res[c] || res[c] === me || !this.byId.has(res[c])) && (!this.vAt[c] || this.vAt[c] === u), 6000);
         if (i === null) {
           if (u.cargo > 0) { u.hs = 'back'; return; }
+          // none it can drive to: a glimmer bloom it can (driving over one bursts it into a new field)
+          const bi = this.bfs('track', from.x, from.y, c => this.map.t[c] === RTS_T.BLOOM, 6000);
+          if (bi !== null) { u.hs = 'bloom'; u.bloomAt = bi; u.bloomT = this.frame; this.requestPath(u, bi % W, (bi / W) | 0); return; }
+          // else a skylifter to the nearest field anywhere
+          let fi = -1, fd = 1e9;
+          for (let c = 0; c < this.N; c += 1) if (g[c] > 0 && this.map.t[c] !== RTS_T.BLOOM && !res[c]) { const d = Math.abs(c % W - u.tx) + Math.abs(((c / W) | 0) - u.ty); if (d < fd) { fd = d; fi = c; } }
+          if (fi >= 0 && this.callLifter(u, { x: fi % W, y: (fi / W) | 0 }, 'field')) { this.reserveGlim(u, fi); return; }
           if (!u.noGlim && u.h === this.player) this.say('NO GLIMMER IN REACH', null, 1200);
           u.noGlim = true;
           return;
@@ -887,6 +930,16 @@ Object.assign(RtsGame.prototype, {
         if (Math.abs(tx - u.tx) + Math.abs(ty - u.ty) > 16 && this.callLifter(u, { x: tx, y: ty }, 'field')) return;
         this.requestPath(u, tx, ty);
         u.hs = 'go';
+        return;
+      }
+      case 'bloom': {
+        // on the way to burst a bloom: done when it's gone (or it can't get there)
+        if (this.map.t[u.bloomAt] !== RTS_T.BLOOM || this.frame - u.bloomT > 3000) { u.hs = 'seek'; return; }
+        if (!u.path && !u.mv && !u.wantPath) {
+          if (u.ty * W + u.tx === u.bloomAt) { this.burstBloom(u.bloomAt, u.h); u.hs = 'seek'; return; }
+          if ((u.tries = (u.tries || 0) + 1) > 4) { u.tries = 0; u.hs = 'seek'; return; }
+          this.requestPath(u, u.bloomAt % W, (u.bloomAt / W) | 0);
+        }
         return;
       }
       case 'go': {
@@ -916,7 +969,7 @@ Object.assign(RtsGame.prototype, {
           u.hs = 'seek';
           return;
         }
-        if (u.anim % 3 === 0) {
+        if (u.anim % 2 === 0) {
           const take = Math.min(g[i], 2, cap - u.cargo);
           g[i] -= take; u.cargo += take;
           const k = this.map.t[i];
@@ -940,9 +993,15 @@ Object.assign(RtsGame.prototype, {
         if (!u.path && !u.mv && !u.wantPath) {
           const far = Math.abs(ref.cx / 16 - u.tx) + Math.abs(ref.cy / 16 - u.ty);
           if (far > 14 && u.cargo > 0 && this.callLifter(u, { x: ref.x + 1, y: ref.y + ref.hh }, 'home', ref)) return;
-          // as near as a free tile beside it (others wait their turn there)
-          const spot = this.besideSpot(u, ref);
+          // the nearest free tile beside it that can be driven to (others wait their turn there); none (it's boxed
+          // in by buildings): a skylifter, or wait by it
+          const spot = this.dockSpot(u, ref);
           if (spot) this.requestPath(u, spot.x, spot.y);
+          else if (!(u.cargo > 0 && this.callLifter(u, { x: ref.x + 1, y: ref.y + ref.hh }, 'home', ref))) {
+            const s2 = this.besideSpot(u, ref);
+            this.requestPath(u, s2.x, s2.y);
+            if (u.h === this.player) this.say('THE REFINERY IS BOXED IN', null, 1800);
+          }
         }
         return;
       }
@@ -960,6 +1019,20 @@ Object.assign(RtsGame.prototype, {
       if (d < bd) { bd = d; best = b; }
     }
     return best;
+  },
+  // a tile beside building b that u can drive to (breadth-first from u: the nearest by the way there), free of
+  // other vehicles if any is; null if none can be reached
+  dockSpot(u, b) {
+    const W = this.W;
+    const ring = i => { const x = i % W, y = (i / W) | 0; return x >= b.x - 1 && x <= b.x + b.w && y >= b.y - 1 && y <= b.y + b.hh && !(x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.hh); };
+    let any = null;
+    const i = this.bfs(u.d.move, u.tx, u.ty, c => {
+      if (!ring(c)) return false;
+      if (any === null) any = c;
+      return !this.vAt[c] || this.vAt[c] === u;
+    }, 3000);
+    const k = i !== null ? i : any;
+    return k === null ? null : { x: k % W, y: (k / W) | 0 };
   },
   adjacent(u, b) { return u.tx >= b.x - 1 && u.tx <= b.x + b.w && u.ty >= b.y - 1 && u.ty <= b.y + b.hh; },
   // a free tile next to building b for unit u, nearest to u (its own tile if it's there already)
@@ -1435,6 +1508,13 @@ Object.assign(RtsGame.prototype, {
   },
   // new blooms now and then on the open sand
   bloomTick() {
+    // now and then a ripe bloom bursts by itself (the sand keeps giving, slowly)
+    if (this.bloomBurstT === undefined) this.bloomBurstT = 7200 + ((this.rnd() * 7200) | 0);
+    if (--this.bloomBurstT <= 0) {
+      this.bloomBurstT = 5400 + ((this.rnd() * 5400) | 0);
+      const bl = this.map.blooms;
+      if (bl.length) { const [bx, by] = bl[(this.rnd() * bl.length) | 0]; if (this.inMap(bx, by) && this.map.t[by * this.W + bx] === RTS_T.BLOOM) this.burstBloom(by * this.W + bx, null); }
+    }
     if (--this.bloomT > 0) return;
     this.bloomT = 2400 + ((this.rnd() * 2400) | 0);
     const cap = Math.max(2, Math.round(this.N / 1200));
