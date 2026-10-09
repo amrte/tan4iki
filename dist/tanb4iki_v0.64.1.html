@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.64</title>
+  <title>tanb4iki_v0.64.1</title>
   <style>
 :root {
   --bg: #000;
@@ -211,7 +211,7 @@ body.csmode .btns button.radio { display: inline-block; }
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.64';
+const APP_VERSION = '0.64.1';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -21548,7 +21548,7 @@ const Net = {
     if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover', 'vsResult', 'modeResult', 'modeIntro', 'bossIntro', 'bossOutro'].includes(G.state)) v.s = 'wait';
     if (G.state === 'bossIntro' || G.state === 'bossOutro') v.bsc = G.bossScreen;
     v.as = AutoSkill.rating;
-    v.mode = G.mode; v.ta = G.taFrames; v.tac = G.taCleared; v.vw = G.vsWins; v.rt = G.raceTarget; v.rd = G.round;
+    v.mode = G.mode; v.tdm = G.tdMap; v.ta = G.taFrames; v.tac = G.taCleared; v.vw = G.vsWins; v.rt = G.raceTarget; v.rd = G.round;
     if (v.s === 'vsResult') v.vsr = G.vsRes;
     if (v.s === 'modeResult') v.mr = G.modeRes;
     v.pl = G.players.map(p => ({
@@ -21729,7 +21729,7 @@ const Net = {
     G.players = v.pl.map((o, k) => Object.assign(G.players[k] && G.players[k].i === o.i ? G.players[k] : newPlayer(o.i), o, { tank: null }));
     if (v.base) G.base = v.base;
     if (v.as !== undefined && AutoSkill.rating !== v.as) { AutoSkill.rating = v.as; AutoSkill.cache = null; }
-    G.mode = v.mode; G.taFrames = v.ta; G.taCleared = v.tac; G.vsWins = v.vw || []; G.raceTarget = v.rt; G.round = v.rd;
+    G.mode = v.mode; if (v.tdm !== undefined) G.tdMap = v.tdm; G.taFrames = v.ta; G.taCleared = v.tac; G.vsWins = v.vw || []; G.raceTarget = v.rt; G.round = v.rd;
     if (v.vsr) G.vsRes = v.vsr;
     if (v.mr) G.modeRes = v.mr;
     G.twoP = G.players.length > 1;
@@ -21984,6 +21984,8 @@ const Net = {
   },
 
   startGame() {
+    // what the title screen won't start, the lobby won't either
+    if (Config.get('gameMode') === 'custom' && !Customs.used().length) { Game.toast('NO LEVELS YET: TRY CONSTRUCTION'); Sound.play('steel'); return; }
     this.closePanel();
     Game.newGame(this.slots.length, false, true);
     this.applySlots();
@@ -50546,6 +50548,140 @@ const AstroArt = {
 };
 
 INTRO_SCENES.astro = (c, t) => AstroArt.draw(c, t);
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  ONLINE for the modes that draw themselves (TANK RALLY, ASTRO TANKS, DESERT DOMINION): instead of sending the
+//  game's state for the guest to draw (as the tank modes do, net.js), the host sends its screen. Every third frame
+//  the host's canvas goes out as a small WebP picture over the data channel (only one in the works at a time, and a
+//  guest that's falling behind gets fewer); the guest shows the latest one, hears the host's sounds and music, and
+//  its keys drive its player on the host as always (Input.remote). Loaded after the modes so its wrappers are the
+//  outermost.
+// =====================================================================
+
+const NET_STREAM_MODES = new Set(['rally', 'astro', 'rts']);
+const NET_STREAM_EVERY = 3;            // frames between pictures (20 a second)
+const NET_STREAM_QUALITY = 0.72;
+
+const NetStream = {
+  busy: false, n: 0,
+  img: null, decoding: false, pending: null, size: [0, 0],
+  // the host is in one of those modes (past the title)
+  on() {
+    return Net.role === 'host' && Net.inGame && NET_STREAM_MODES.has(Game.mode) && Game.state !== 'title';
+  },
+  // host: the next picture, when it's time and the last one's gone
+  send() {
+    if (this.busy || ++this.n % NET_STREAM_EVERY) return;
+    const open = Net.openPeers().filter(p => p.ch.bufferedAmount < 4e5);
+    if (!open.length) return;
+    const cv = document.getElementById('screen');
+    if (!cv || !cv.toBlob) return;
+    this.busy = true;
+    cv.toBlob(b => {
+      this.busy = false;
+      if (!b) return;
+      b.arrayBuffer().then(buf => {
+        for (const p of Net.openPeers()) {
+          if (p.ch.bufferedAmount > 6e5) continue;   // a slow guest skips pictures instead of lagging behind
+          try { p.ch.send(buf); } catch (e) { /* closing */ }
+        }
+      });
+    }, 'image/webp', NET_STREAM_QUALITY);
+  },
+  // guest: a picture arrived (decode the newest; drop any that came in meanwhile but the last)
+  got(buf) {
+    if (this.decoding) { this.pending = buf; return; }
+    this.decoding = true;
+    createImageBitmap(new Blob([buf], { type: 'image/webp' })).then(bm => {
+      if (this.img && this.img.close) this.img.close();
+      this.img = bm;
+    }).catch(() => {}).finally(() => {
+      this.decoding = false;
+      if (this.pending) { const b = this.pending; this.pending = null; this.got(b); }
+    });
+  },
+};
+
+(() => {
+  // the host: the music it's playing (whatever chose it), for the guests to play too
+  const want = Music.want;
+  Music.want = function (mode, skill, paused) { this.lastWant = [mode || null, skill, !!paused]; return want.apply(this, arguments); };
+
+  // the host: pictures instead of the stage for these modes; sounds in every state of them
+  const hostTick = Net.hostTick;
+  Net.hostTick = function () {
+    hostTick.apply(this, arguments);
+    if (NetStream.on()) NetStream.send();
+  };
+  const buildView = Net.buildView;
+  Net.buildView = function (full) {
+    if (!NetStream.on()) return buildView.apply(this, arguments);
+    const G = Game, cv = document.getElementById('screen');
+    return {
+      t: 'v', s: 'stream', gt: G.t, mode: G.mode, hi: G.hi, stn: G.stageNum,
+      pl: G.players.map(p => ({ i: p.i, score: p.score, lives: p.lives, out: p.out })),
+      snd: this.sndQueue.splice(0), mw: Music.lastWant || null, cw: cv ? cv.width : SCREEN_W, chh: cv ? cv.height : SCREEN_H,
+    };
+  };
+  const play = Sound.play;
+  Sound.play = function (name) {
+    const r = play.apply(this, arguments);
+    // net.js forwards the tank modes' sounds in their states; these modes' screens are all game
+    if (NetStream.on() && !NET_SOUND_STATES.has(Game.state)) Net.sndQueue.push(name);
+    return r;
+  };
+
+  // the guest: pictures come as binary messages
+  const wireClient = Net.wireClient;
+  Net.wireClient = function (ch) {
+    ch.binaryType = 'arraybuffer';
+    wireClient.apply(this, arguments);
+    const onmessage = ch.onmessage;
+    ch.onmessage = e => { if (e.data instanceof ArrayBuffer) NetStream.got(e.data); else onmessage(e); };
+  };
+  const applyView = Net.applyView;
+  Net.applyView = function (v) {
+    if (v.s !== 'stream') { if (Game.state === 'netstream') NetStream.img = null; return applyView.apply(this, arguments); }
+    const G = Game;
+    G.mode = v.mode; G.hi = v.hi; G.stageNum = v.stn; G.t = v.gt;
+    G.players = v.pl.map((o, k) => Object.assign(G.players[k] && G.players[k].i === o.i ? G.players[k] : newPlayer(o.i), o, { tank: null }));
+    G.stage = null;
+    G.state = 'netstream';
+    NetStream.size = [v.cw, v.chh];
+    NetStream.mw = v.mw;
+    for (const s of v.snd || []) Sound.play(s);
+    Sound.setEngine(0);
+  };
+
+  // the guest's screen: the host's picture, the canvas the host's size
+  const update = Game.update;
+  Game.update = function () {
+    if (this.state === 'netstream' && Net.role === 'client') {
+      const [w, h] = NetStream.size;
+      if (w && h && (SCREEN_W !== w || SCREEN_H !== h)) { SCREEN_W = w; SCREEN_H = h; }
+    }
+    return update.apply(this, arguments);
+  };
+  const renderState = Game.renderState;
+  Game.renderState = function (ctx) {
+    if (this.state !== 'netstream') return renderState.apply(this, arguments);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = COL.black; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    if (NetStream.img) ctx.drawImage(NetStream.img, 0, 0, ctx.canvas.width, ctx.canvas.height);
+    else Font.drawCenter(ctx, 'CONNECTING TO THE HOST...', ctx.canvas.width / 2, ctx.canvas.height / 2, COL.lgrey);
+    ctx.restore();
+  };
+  const musicFrame = Game.musicFrame;
+  Game.musicFrame = function () {
+    if (this.state !== 'netstream') return musicFrame.apply(this, arguments);
+    const w = NetStream.mw;
+    Music.want(w ? w[0] : null, w ? w[1] : Music.skillLevel(), w ? w[2] : false);
+  };
+})();
 
 </script>
   <script>

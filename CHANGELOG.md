@@ -3,6 +3,15 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.64.1
+
+- **Online play checked in every mode** (two browsers connected by codes, the guest driving player II):
+  - **Tank Rally and Astro Tanks now work online** (netstream.js). They drew nothing for the guest (who waited forever)
+    and threw errors on the host. The host now sends its screen as pictures, 20 a second, with its sounds and music;
+    the guest's keys drive player II.
+  - **Fixed: Fortress** — the guest's stage curtain threw an error (it didn't know the map).
+  - **Fixed: Custom levels** — starting it online with no levels made crashed; the lobby now says so, as the title does.
+
 ## 0.64
 
 - **New mode: ASTRO TANKS** — a tribute to Asteroids (astro.js, astroup.js, astroboss.js, astromusic.js, astroart.js).

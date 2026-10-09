@@ -189,7 +189,7 @@ const Net = {
     if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover', 'vsResult', 'modeResult', 'modeIntro', 'bossIntro', 'bossOutro'].includes(G.state)) v.s = 'wait';
     if (G.state === 'bossIntro' || G.state === 'bossOutro') v.bsc = G.bossScreen;
     v.as = AutoSkill.rating;
-    v.mode = G.mode; v.ta = G.taFrames; v.tac = G.taCleared; v.vw = G.vsWins; v.rt = G.raceTarget; v.rd = G.round;
+    v.mode = G.mode; v.tdm = G.tdMap; v.ta = G.taFrames; v.tac = G.taCleared; v.vw = G.vsWins; v.rt = G.raceTarget; v.rd = G.round;
     if (v.s === 'vsResult') v.vsr = G.vsRes;
     if (v.s === 'modeResult') v.mr = G.modeRes;
     v.pl = G.players.map(p => ({
@@ -370,7 +370,7 @@ const Net = {
     G.players = v.pl.map((o, k) => Object.assign(G.players[k] && G.players[k].i === o.i ? G.players[k] : newPlayer(o.i), o, { tank: null }));
     if (v.base) G.base = v.base;
     if (v.as !== undefined && AutoSkill.rating !== v.as) { AutoSkill.rating = v.as; AutoSkill.cache = null; }
-    G.mode = v.mode; G.taFrames = v.ta; G.taCleared = v.tac; G.vsWins = v.vw || []; G.raceTarget = v.rt; G.round = v.rd;
+    G.mode = v.mode; if (v.tdm !== undefined) G.tdMap = v.tdm; G.taFrames = v.ta; G.taCleared = v.tac; G.vsWins = v.vw || []; G.raceTarget = v.rt; G.round = v.rd;
     if (v.vsr) G.vsRes = v.vsr;
     if (v.mr) G.modeRes = v.mr;
     G.twoP = G.players.length > 1;
@@ -625,6 +625,8 @@ const Net = {
   },
 
   startGame() {
+    // what the title screen won't start, the lobby won't either
+    if (Config.get('gameMode') === 'custom' && !Customs.used().length) { Game.toast('NO LEVELS YET: TRY CONSTRUCTION'); Sound.play('steel'); return; }
     this.closePanel();
     Game.newGame(this.slots.length, false, true);
     this.applySlots();

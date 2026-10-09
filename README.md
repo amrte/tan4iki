@@ -744,7 +744,7 @@ right by the start.
 ## Online play
 
 Play with friends over the internet, peer-to-peer: the game data goes directly between your computers, with no
-game server. Everyone needs the **same version** of the game file (send them `tanb4iki_v0.6.html`).
+game server. Everyone needs the **same version** of the game file (send them the same `tanb4iki_v….html` file you have).
 It works in the downloaded file or a hosted copy (e.g. GitHub Pages) in Chrome, Safari, Firefox or Edge;
 the claude.ai preview link blocks these connections.
 
@@ -759,6 +759,10 @@ The host's computer runs the game and the host's settings apply. Friends use the
 host's game, with its sounds. Each friend chooses their own items in the shop; the host controls stages, pausing and saving.
 If a friend drops out, their tank waits; the host can send a new invite from the pause menu → **ONLINE PLAYERS**.
 A friend leaves with Esc → **Leave game**. Codes work once; if a page is reloaded, make new ones.
+
+Every mode plays online. **Tank Rally** and **Astro Tanks** (which draw their own screens) send the host's screen to
+the friends as pictures, 20 a second (about 120-270 KB/s each), with its sounds and music; the friend's keys drive
+their tank as in the other modes. The host runs the career and hangar menus there.
 
 **If it says "couldn't connect":** some networks (offices, schools, some mobile hotspots) block direct connections
 between computers. Try another network (e.g. a home Wi-Fi), or this would need a relay server.
@@ -1571,6 +1575,7 @@ js/astroup.js     ASTRO TANKS's upgrades, the tank's look with them, the hangar 
 js/astroboss.js   ASTRO TANKS's mini bosses: CINDER COLOSSUS, VOID MATRIARCH, COMET WYRM
 js/astromusic.js  ASTRO TANKS's songs in all three music styles and the heartbeat
 js/astroart.js    ASTRO TANKS's title picture
+js/netstream.js   online for the modes that draw themselves (Tank Rally, Astro Tanks): the host's screen as pictures
 js/csart.js       COUNTER-STRIKE's title picture
 js/reach.js       no dead ends: a way opened from every walled-in entry point; stuck enemies come in again
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
