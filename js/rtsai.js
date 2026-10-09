@@ -171,7 +171,7 @@ class RtsBasicAi {
     }
     if (!pick && H.credits > 1500 && list.includes('turret') && (H.count.turret || 0) < 8) pick = list.includes('rturret') && this.rnd() < 0.5 ? 'rturret' : 'turret';
     if (this.broke && pick !== 'vapor' && pick !== 'refinery') return;
-    if (pick && H.credits >= rtsCostOf(h, pick) * 0.25) R.startBuild(h, 'yard', pick);
+    if (pick && H.credits >= rtsPriceOf(h, pick) * 0.25) R.startBuild(h, 'yard', pick);
     // the yard's upgrade when there's money
     const y = H.buildings.find(b => b.key === 'yard');
     if (y && H.credits > 900 && R.nextUpgrade(y) && !H.prod.yard.queue.length) R.upgrade(h, y);

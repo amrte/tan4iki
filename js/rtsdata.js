@@ -171,6 +171,7 @@ for (const k in RTS_BUILDINGS) RTS_BUILDINGS[k].key = k;
 const RTS_FACTORIES = ['yard', 'barracks', 'hall', 'light', 'heavy', 'hightech'];
 const RTS_FAC_NAME = { yard: 'BUILD', barracks: 'BARRACKS', hall: 'TROOPERS', light: 'LIGHT', heavy: 'HEAVY', hightech: 'AIR', starport: 'STARPORT' };
 const RTS_FAC_TAB = { yard: 'BLD', barracks: 'INF', hall: 'TRP', light: 'LT', heavy: 'HV', hightech: 'AIR', starport: 'PRT' };
+const RTS_FAC_TAB2 = { yard: 'BD', barracks: 'IN', hall: 'TR', light: 'LT', heavy: 'HV', hightech: 'AR', starport: 'SP' };
 const RTS_UPGRADE_TIME = 600;
 
 // the palace powers: charge time (frames), what they do
@@ -208,7 +209,7 @@ function rtsAllowed(h, key, tech, upg) {
   const need = d.upgBy && d.upgBy[h] !== undefined ? d.upgBy[h] : d.upg || 0;
   return (upg | 0) >= need;
 }
-function rtsCostOf(h, key) {
+function rtsPriceOf(h, key) {
   if (key === '_upg') return 0;
   const d = RTS_UNITS[key] || RTS_BUILDINGS[key];
   if (!d) return 0;

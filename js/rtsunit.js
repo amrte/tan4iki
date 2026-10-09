@@ -425,6 +425,7 @@ Object.assign(RtsGame.prototype, {
     if (u.cd > 0) u.cd--;
     if (u.flash > 0) u.flash--;
     if (u.firing > 0) u.firing--;
+    if (u.d.cls === 'veh' && u.hp < u.max * 0.5 && u.anim % (u.hp < u.max * 0.25 ? 14 : 28) === 0) this.addFx('smoke', u.x, u.y - 4, 0, 0, true);
     if (u.conv && --u.conv.t <= 0) this.unconvert(u);
     if (u.d.cls === 'air') { this.airTick(u); return; }
     if (u.salvo > 0 && --u.salvoT <= 0) {

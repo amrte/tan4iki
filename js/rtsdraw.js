@@ -172,7 +172,7 @@ function rtsDefTurret(key, h, dir, firing) {
     if (firing) { g.fillStyle = '#F8E060'; g.fillRect(-1, -len - 2, 2, 2); }
   });
 }
-function rtsUnitPic(key, h, dir, frame) {
+function rtsPicUnit(key, h, dir, frame) {
   if (typeof rtsUnitArt === 'function' && !RTS_ART_BAD.unit) { try { const c = rtsUnitArt(key, h, dir, frame); if (c) return c; } catch (e) { rtsArtFail('unit', e); } }
   return rtsDefUnit(key, h, dir, frame);
 }
@@ -187,7 +187,7 @@ function rtsDeathPic(key, h, f) {
     if (f < 5) { g.fillStyle = rtsPal(h)[1]; g.fillRect(6, 7 + Math.min(2, f), 4, 3); }
   });
 }
-function rtsWreckPic(key, f, dir) {
+function rtsPicWreck(key, f, dir) {
   if (typeof rtsWreckArt === 'function' && !RTS_ART_BAD.wreck) { try { const c = rtsWreckArt(key, f, dir); if (c) return c; } catch (e) { rtsArtFail('wreck', e); } }
   return rtsDefCached('wr' + (RTS_DEF_SIZE[key] || 16) + (f & 3), 20, 20, g => {
     g.fillStyle = '#2A2420'; g.fillRect(4, 5, 12, 10); g.fillStyle = '#463C34'; g.fillRect(6, 7, 7, 5);
@@ -228,7 +228,7 @@ function rtsFxPic(kind, f) {
     else if (kind === 'glimmerBurst') { g.fillStyle = 'rgba(248,140,40,' + (0.9 - k * 0.7) + ')'; g.beginPath(); g.arc(c, c, 3 + k * 9, 0, 7); g.fill(); g.fillStyle = '#F8D060'; g.fillRect(c - 1, c - 1 - k * 8, 2, 2); }
   });
 }
-function rtsUnitIconPic(key, h) {
+function rtsPicUnitIcon(key, h) {
   if (typeof rtsUnitIcon === 'function' && !RTS_ART_BAD.uicon) { try { const c = rtsUnitIcon(key, h); if (c) return c; } catch (e) { rtsArtFail('uicon', e); } }
   return rtsDefCached('ui' + key + h, 32, 24, g => {
     g.fillStyle = '#3A3028'; g.fillRect(0, 0, 32, 24); g.fillStyle = '#5C4C3C'; g.fillRect(1, 1, 30, 22);
@@ -247,7 +247,7 @@ function rtsBuildingIconPic(key, h) {
     rtsTiny(g, (d ? d.name : key).split(' ')[0].slice(0, 7), 2, 18, '#F0E0C0');
   });
 }
-function rtsIconOf(key, h) { return key === '_upg' ? rtsDefCached('upgicon', 32, 24, g => { g.fillStyle = '#304030'; g.fillRect(0, 0, 32, 24); rtsTinyCenter(g, 'UPGRADE', 16, 10, '#C0F0C0'); }) : RTS_BUILDINGS[key] ? rtsBuildingIconPic(key, h) : rtsUnitIconPic(key, h); }
+function rtsIconOf(key, h) { return key === '_upg' ? rtsDefCached('upgicon', 32, 24, g => { g.fillStyle = '#304030'; g.fillRect(0, 0, 32, 24); rtsTinyCenter(g, 'UPGRADE', 16, 10, '#C0F0C0'); }) : RTS_BUILDINGS[key] ? rtsBuildingIconPic(key, h) : rtsPicUnitIcon(key, h); }
 
 // buildings: a block with a roof in the House colour and a detail for each kind
 function rtsDefBuilding(key, h, st) {
@@ -295,7 +295,7 @@ function rtsBuildingPic(key, h, st) {
   if (typeof rtsBuildingArt === 'function' && !RTS_ART_BAD.bld) { try { const c = rtsBuildingArt(key, h, st); if (c) return c; } catch (e) { rtsArtFail('bld', e); } }
   return rtsDefBuilding(key, h, st);
 }
-function rtsWormPic(phase, f, dir) {
+function rtsPicWorm(phase, f, dir) {
   if (typeof rtsWormArt === 'function' && !RTS_ART_BAD.worm) { try { const c = rtsWormArt(phase, f, dir); if (c) return c; } catch (e) { rtsArtFail('worm', e); } }
   return rtsDefCached('wm' + phase + f, 32, 32, g => {
     if (phase === 'under') {
@@ -310,11 +310,11 @@ function rtsWormPic(phase, f, dir) {
     g.fillStyle = '#E8E0C8'; for (let k = 0; k < 8; k++) { const a = k * 0.785; g.fillRect(16 + Math.cos(a) * (3 + open * 4), 18 + Math.sin(a) * (3 + open * 4), 1, 1); }
   });
 }
-function rtsCursorHot(kind, c) {
+function rtsHotOfCursor(kind, c) {
   if (typeof RTS_W_CURSOR_HOT !== 'undefined' && RTS_W_CURSOR_HOT[kind] && typeof rtsCursorArt === 'function' && !RTS_ART_BAD.cursor) return RTS_W_CURSOR_HOT[kind];
   return kind === 'normal' ? [0, 0] : [c.width >> 1, c.height >> 1];
 }
-function rtsCursorPic(kind, frame) {
+function rtsPicCursor(kind, frame) {
   if (typeof rtsCursorArt === 'function' && !RTS_ART_BAD.cursor) { try { const c = rtsCursorArt(kind, frame | 0); if (c) return c; } catch (e) { rtsArtFail('cursor', e); } }
   return rtsDefCached('cur' + kind, 16, 16, g => {
     const ln = (col, pts) => { g.fillStyle = col; for (const [x, y, w, h] of pts) g.fillRect(x, y, w, h); };
@@ -473,7 +473,7 @@ Object.assign(RtsGame.prototype, {
     // wrecks and the fallen
     for (const w of this.wrecks) {
       if (!inView(w.x, w.y, 16) || !this.playerSees((w.x / 16) | 0, (w.y / 16) | 0)) continue;
-      const c = rtsWreckPic(w.key, w.t >> 3, w.dir);
+      const c = rtsPicWreck(w.key, w.t >> 3, w.dir);
       if (w.t > w.life - 60) ctx.globalAlpha = Math.max(0, (w.life - w.t) / 60);
       ctx.drawImage(c, Math.round(w.x - c.width / 2), Math.round(w.y - c.height / 2));
       ctx.globalAlpha = 1;
@@ -491,7 +491,7 @@ Object.assign(RtsGame.prototype, {
       if (w.phase === 'away' || !inView(w.x, w.y, 32)) continue;
       const tx = (w.x / 16) | 0, ty = (w.y / 16) | 0;
       if (!this.playerSees(tx, ty)) continue;
-      if (w.phase === 'roam' || w.phase === 'hunt') { const c = rtsWormPic('under', (w.f >> 3) & 3, w.dir); ctx.drawImage(c, Math.round(w.x - c.width / 2), Math.round(w.y - c.height / 2)); }
+      if (w.phase === 'roam' || w.phase === 'hunt') { const c = rtsPicWorm('under', (w.f >> 3) & 3, w.dir); ctx.drawImage(c, Math.round(w.x - c.width / 2), Math.round(w.y - c.height / 2)); }
       else risen.push(w);
     }
     // ground units, by depth
@@ -505,8 +505,8 @@ Object.assign(RtsGame.prototype, {
     for (const u of ground) this.drawUnit(ctx, u);
     for (const w of risen) {
       const ph = w.phase === 'rise' ? (w.t < 16 ? 'rise' : 'eat') : 'dive';
-      const f = ph === 'rise' ? Math.min(5, w.t >> 2) : ph === 'eat' ? (w.t >> 3) & 3 : Math.min(5, w.t / 5 | 0);
-      const c = rtsWormPic(ph, f, w.dir);
+      const f = ph === 'rise' ? Math.min(5, (w.t * 6 / 16) | 0) : ph === 'eat' ? ((w.t - 16) >> 3) & 3 : Math.min(5, w.t / 5 | 0);
+      const c = rtsPicWorm(ph, f, w.dir);
       ctx.drawImage(c, Math.round(w.ex - c.width / 2), Math.round(w.ey - c.height / 2));
     }
     // shots and effects
@@ -533,10 +533,10 @@ Object.assign(RtsGame.prototype, {
       const h = (u.alt || 1) * 10;
       ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(u.x + h * 0.4, u.y + h * 0.3, u.key === 'frigate' ? 14 : 6, u.key === 'frigate' ? 8 : 3, 0, 0, 7); ctx.fill();
       if (u.job && u.job.phase === 'carry' && u.job.unit) {
-        const v = u.job.unit, c = rtsUnitPic(v.key, v.h, u.dir, 0);
+        const v = u.job.unit, c = rtsPicUnit(v.key, v.h, u.dir, 0);
         ctx.drawImage(c, Math.round(u.x - c.width / 2), Math.round(u.y - h + 6 - c.height / 2));
       }
-      const c = rtsUnitPic(u.key, u.h, u.dir, this.unitFrame(u));
+      const c = rtsPicUnit(u.key, u.h, u.dir, this.unitFrame(u));
       ctx.drawImage(c, Math.round(u.x - c.width / 2), Math.round(u.y - h - c.height / 2));
     }
     // fog: what was seen but isn't now goes dim
@@ -584,7 +584,6 @@ Object.assign(RtsGame.prototype, {
         const nf = this.fxFrames('fire');
         const c2 = rtsFxPic('fire', ((this.frame >> 3) + k) % nf);
         ctx.drawImage(c2, Math.round(fx - c2.width / 2), Math.round(fy - c2.height / 2));
-        if ((this.frame + k * 17) % 40 === 0) this.addFx('smoke', fx, fy - 4);
       }
     }
     if (b.repairing && b.h === this.player && (this.frame >> 4) & 1) {
@@ -594,7 +593,7 @@ Object.assign(RtsGame.prototype, {
   },
   drawUnit(ctx, u) {
     const fr = this.unitFrame(u);
-    const c = rtsUnitPic(u.key, u.h, u.dir, fr);
+    const c = rtsPicUnit(u.key, u.h, u.dir, fr);
     const x = Math.round(u.x), y = Math.round(u.y);
     if (u.d.stealth && u.still > 60) ctx.globalAlpha = u.h === this.player || this.team(u.h) === this.P.team ? 0.55 : 0.35;
     if (u.docked && u.d.harvester) ctx.globalAlpha = Math.min(ctx.globalAlpha, 0.85);

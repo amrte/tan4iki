@@ -489,7 +489,7 @@ class RtsGame {
   itemTime(key) { return key === '_upg' ? RTS_UPGRADE_TIME : Math.max(30, (rtsDefOf(key) || {}).time || 300); }
   itemCost(Hs, key, kind) {
     if (key === '_upg') { const f = this.factoryOf(Hs, kind), u = f && this.nextUpgrade(f); return u ? u.cost : 0; }
-    return rtsCostOf(Hs.id, key);
+    return rtsPriceOf(Hs.id, key);
   }
   prodTick(Hs) {
     const pf = this.powerFactor(Hs) * (Hs.aiBoost || 1);
@@ -577,7 +577,7 @@ class RtsGame {
   sell(h, b) {
     if (!b || b.dead || b.h !== h) return false;
     const Hs = this.houses[h];
-    const back = Math.floor(rtsCostOf(h, b.key) / 2 * Math.max(0, b.hp / b.max));
+    const back = Math.floor(rtsPriceOf(h, b.key) / 2 * Math.max(0, b.hp / b.max));
     Hs.credits += back;
     this.addFx('smoke', b.cx, b.cy);
     this.removeBuilding(b, 'sold');
@@ -608,10 +608,11 @@ class RtsGame {
       if (b.flash > 0) b.flash--;
       if (b.doorT > 0 && --b.doorT === 0) b.door = 0;
       if (b.working > 0) b.working--;
+      if (b.hp < b.max * 0.5 && !b.d.wall && (f + b.id * 5) % (b.hp < b.max * 0.25 ? 20 : 40) === 0) { const r = rtsHash(b.id, f); this.addFx('smoke', b.x * 16 + 4 + r % Math.max(1, b.w * 16 - 8), b.y * 16 + 2 + (r >> 8) % Math.max(1, b.hh * 16 - 8), 0, 0, true); }
       b.anim++;
       // repair: 2 hp a time, paid as it goes
       if (b.repairing && (f + b.id) % 6 === 0) {
-        const cost = Math.max(0.2, rtsCostOf(Hs.id, b.key) / b.max * 0.5) * 2;
+        const cost = Math.max(0.2, rtsPriceOf(Hs.id, b.key) / b.max * 0.5) * 2;
         if (Hs.credits >= cost) { Hs.credits -= cost; b.hp = Math.min(b.max, b.hp + 2); if (b.d.power > 0) this.recalcHouse(Hs); }
         else if (Hs.human) this.say(null, 'insufficient', 600);
         if (b.hp >= b.max) b.repairing = false;

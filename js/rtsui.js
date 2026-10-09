@@ -24,7 +24,7 @@ const RTS_STYLES = ['open', 'canyons', 'islands', 'basin'];
 const RTS_CREDITS = [1000, 1500, 2500, 5000, 10000];
 const RTS_KEYS_DIR = { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'] };
 const RTS_FIRE_KEYS = ['Space', 'KeyJ', 'KeyK', 'KeyZ', 'KeyX', 'KeyF', 'TFire'];
-const RTS_MODS = { ctrl: false, shift: false };
+const RTS_KEYMODS = { ctrl: false, shift: false };
 
 function rtsSetupPrefs() {
   const d = { house: 'aquila', foes: [{ house: 'drakon', ai: 1 }, { house: 'serpens', ai: 1 }, { house: 'regent', ai: 1 }], nfoes: 1, size: 1, style: 0,
@@ -169,7 +169,7 @@ Object.assign(RtsGame.prototype, {
     }
     if (e && e.pointerType === 'touch') { this.touchEvent(kind, x, y, e); return; }
     ui.mx = x; ui.my = y; ui.kbd = false;
-    if (e) { RTS_MODS.ctrl = e.ctrlKey || e.metaKey; RTS_MODS.shift = e.shiftKey; }
+    if (e) { RTS_KEYMODS.ctrl = e.ctrlKey || e.metaKey; RTS_KEYMODS.shift = e.shiftKey; }
     const btn = e ? e.button : 0;
     if (kind === 'down') this.pressAt(x, y, btn);
     else if (kind === 'up' || kind === 'cancel') this.releaseAt(x, y, btn, kind === 'cancel');
@@ -242,7 +242,7 @@ Object.assign(RtsGame.prototype, {
   boxSelect(wx0, wy0, w1) {
     const x0 = Math.min(wx0, w1.x), x1 = Math.max(wx0, w1.x), y0 = Math.min(wy0, w1.y), y1 = Math.max(wy0, w1.y);
     const got = this.P.units.filter(u => !u.dead && !u.carried && u.x >= x0 - 3 && u.x <= x1 + 3 && u.y - (u.d.cls === 'air' ? 10 : 0) >= y0 - 3 && u.y <= y1 + 3);
-    if (RTS_MODS.shift) { for (const u of got) if (!this.ui.sel.includes(u)) this.ui.sel.push(u); }
+    if (RTS_KEYMODS.shift) { for (const u of got) if (!this.ui.sel.includes(u)) this.ui.sel.push(u); }
     else this.ui.sel = got;
     if (got.length) { this.ui.selB = null; if (typeof Sound !== 'undefined') Sound.play('select'); }
   },
@@ -269,7 +269,7 @@ Object.assign(RtsGame.prototype, {
         // CLASSIC: a click on one of your own units selects it instead (except an MCV deploying, or a refinery / pad)
         const own = t && t.h === this.player;
         const special = own && ((t.isB && (t.key === 'refinery' || t.d.repairPad)) || (t.isU && t.d.deploys && sel.length === 1 && sel[0] === t));
-        if (modern || !own || special || RTS_MODS.ctrl) { this.order(sel, t, tx, ty, w); return; }
+        if (modern || !own || special || RTS_KEYMODS.ctrl) { this.order(sel, t, tx, ty, w); return; }
       } else if (fb && fb.d.fac && fb.key !== 'yard' && !t && this.inMap(tx, ty)) {
         this.setRally(this.player, fb, tx, ty);
         ui.mark = { x: tx * 16 + 8, y: ty * 16 + 8, t: this.frame };
@@ -282,7 +282,7 @@ Object.assign(RtsGame.prototype, {
   selectThing(t) {
     const ui = this.ui;
     ui.sellArm = null;
-    if (!t) { if (!RTS_MODS.shift) { ui.sel = []; ui.selB = null; } return; }
+    if (!t) { if (!RTS_KEYMODS.shift) { ui.sel = []; ui.selB = null; } return; }
     if (t.isB) {
       ui.sel = []; ui.selB = t;
       if (t.h === this.player) {
@@ -292,7 +292,7 @@ Object.assign(RtsGame.prototype, {
       }
       return;
     }
-    if (RTS_MODS.shift && t.h === this.player) {
+    if (RTS_KEYMODS.shift && t.h === this.player) {
       const k = ui.sel.indexOf(t);
       if (k >= 0) ui.sel.splice(k, 1); else ui.sel.push(t);
     } else ui.sel = [t];
@@ -303,7 +303,7 @@ Object.assign(RtsGame.prototype, {
   order(sel, t, tx, ty, w) {
     const ui = this.ui;
     let attack = false;
-    if (RTS_MODS.ctrl) {
+    if (RTS_KEYMODS.ctrl) {
       for (const u of sel) if (u.d.wpn) this.cmdAttack(u, t && t !== u ? t : { x: tx, y: ty });
       attack = true;
     } else if (t && this.isEnemy(this.player, t.h)) {
@@ -574,7 +574,7 @@ Object.assign(RtsGame.prototype, {
     }
     for (let n = 1; n <= 9; n++) {
       if (!just('Digit' + n)) continue;
-      const ld = RTS_MODS.digit;
+      const ld = RTS_KEYMODS.digit;
       if (ctrl || shift || (ld && ld.code === 'Digit' + n && ld.mod)) { ui.groups[n] = this.selUnits().map(u => u.id); this.say('GROUP ' + n + ' SET'); continue; }
       const ids = ui.groups[n] || [];
       const units = ids.map(id => this.byId.get(id)).filter(u => u && u.isU && !u.dead && u.h === this.player);
@@ -616,7 +616,7 @@ Object.assign(RtsGame.prototype, {
       const key = this.sideItems(ui.tab)[(r + ui.scroll) * G.cols + c];
       if (!key) return '';
       const d = rtsDefOf(key);
-      const price = ui.tab === 'starport' ? this.P.port.price[key] : rtsCostOf(this.player, key);
+      const price = ui.tab === 'starport' ? this.P.port.price[key] : rtsPriceOf(this.player, key);
       return d.name + ' $' + price + (d.power < 0 ? ' PWR ' + (-d.power) : d.power > 0 ? ' +' + d.power + ' PWR' : '');
     }
     if (this.inRect(x, y, L.pwr)) return 'POWER ' + this.P.powerOut + ' MADE, ' + this.P.powerUse + ' USED';
@@ -642,8 +642,8 @@ Object.assign(RtsGame.prototype, {
     if (ui.mIn || ui.kbd) {
       const kind = ui.overMap ? ui.cursor : 'normal';
       if (kind !== 'place' || !ui.overMap) {
-        const c = rtsCursorPic(kind, (this.frame >> 4) & 1);
-        const hot = rtsCursorHot(kind, c);
+        const c = rtsPicCursor(kind, (this.frame >> 4) & 1);
+        const hot = rtsHotOfCursor(kind, c);
         ctx.drawImage(c, Math.round(ui.mx) - hot[0], Math.round(ui.my) - hot[1]);
       }
     }
@@ -724,7 +724,7 @@ Object.assign(RtsGame.prototype, {
         const x = Math.round(T.x + i * tw), on = k === ui.tab, q = P.prod[k];
         ctx.fillStyle = on ? '#6C5638' : '#3A2E20'; ctx.fillRect(x + 1, T.y, Math.round(tw) - 1, T.h);
         const ready = q && q.ready && k === 'yard';
-        rtsTinyCenter(ctx, RTS_FAC_TAB[k], x + tw / 2, T.y + 2, ready && (this.frame >> 4) & 1 ? '#78F878' : on ? '#F8E8C0' : '#A89878');
+        rtsTinyCenter(ctx, tabs.length > 5 ? RTS_FAC_TAB2[k] : RTS_FAC_TAB[k], x + tw / 2, T.y + 2, ready && (this.frame >> 4) & 1 ? '#78F878' : on ? '#F8E8C0' : '#A89878');
       });
     }
     this.renderGrid(ctx, tabs);
@@ -794,7 +794,7 @@ Object.assign(RtsGame.prototype, {
         }
       }
       if (n > 1 || (n === 1 && q.queue[0] !== key)) { ctx.fillStyle = '#5C2A10'; ctx.fillRect(x + 27, y + 18, 9, 7); rtsTinyCenter(ctx, String(n), x + 31, y + 19, '#F8E8C0'); }
-      if (P.credits < rtsCostOf(h, key) && q.queue[0] !== key) { ctx.fillStyle = 'rgba(40,0,0,0.35)'; ctx.fillRect(x + 4, y + 2, 32, 24); }
+      if (P.credits < rtsPriceOf(h, key) && q.queue[0] !== key) { ctx.fillStyle = 'rgba(40,0,0,0.35)'; ctx.fillRect(x + 4, y + 2, 32, 24); }
     }
     // scroll arrows
     if (rows > G.rows) {
@@ -895,12 +895,12 @@ function rtsInstallInput() {
   window.addEventListener('dblclick', e => { if (live() && e.target === cv) { e.stopPropagation(); send('dbl', e); } }, true);
   // Ctrl+1..9 makes a group (the browser would switch tabs)
   window.addEventListener('keydown', e => {
-    RTS_MODS.ctrl = e.ctrlKey || e.metaKey; RTS_MODS.shift = e.shiftKey;
-    if (/^Digit[1-9]$/.test(e.code)) RTS_MODS.digit = { code: e.code, mod: e.ctrlKey || e.metaKey || e.shiftKey };
+    RTS_KEYMODS.ctrl = e.ctrlKey || e.metaKey; RTS_KEYMODS.shift = e.shiftKey;
+    if (/^Digit[1-9]$/.test(e.code)) RTS_KEYMODS.digit = { code: e.code, mod: e.ctrlKey || e.metaKey || e.shiftKey };
     if (Game.mode === 'rts' && Game.state === 'play' && (e.ctrlKey || e.metaKey) && /^Digit[1-9]$/.test(e.code)) e.preventDefault();
     if (Game.mode === 'rts' && Game.state === 'play' && e.code === 'Tab') e.preventDefault();
   }, true);
-  window.addEventListener('keyup', e => { RTS_MODS.ctrl = e.ctrlKey || e.metaKey; RTS_MODS.shift = e.shiftKey; }, true);
+  window.addEventListener('keyup', e => { RTS_KEYMODS.ctrl = e.ctrlKey || e.metaKey; RTS_KEYMODS.shift = e.shiftKey; }, true);
 }
 
 // ================================================================== the skirmish setup screen
@@ -1059,7 +1059,7 @@ Object.assign(Game, {
     return has(k) ? k : has('rtsPeace1') ? 'rtsPeace1' : has('fortress') ? 'fortress' : null;
   },
 });
-const rtsCoreStart = Game.rtsStartMission, rtsCoreSetup = Game.rtsSkirmishSetup;
+const rtsKernelStart = Game.rtsStartMission, rtsKernelSetup = Game.rtsSkirmishSetup;
 
 // ================================================================== hooks into the game
 (() => {
@@ -1105,6 +1105,21 @@ const rtsCoreStart = Game.rtsStartMission, rtsCoreSetup = Game.rtsSkirmishSetup;
       }
     }
     updatePlay.apply(this, arguments);
+  };
+  // QUIT in a campaign mission: back to the campaign (it hears of it as a result with quit: true)
+  const pauseAction = G.pauseAction;
+  G.pauseAction = function (a) {
+    const st = this.stage;
+    if (a === 'QUIT' && this.mode === 'rts' && st && st.rts && st.opts.mission && typeof this.rtsMissionOver === 'function' && !this.rtsMissionOver.core) {
+      this.paused = false;
+      const s = st.P.stats;
+      const res = { win: false, quit: true, mission: st.opts.mission, time: st.frame, harvested: Math.round(s.harvested), unitsKilled: s.unitsKilled, unitsLost: s.unitsLost,
+        buildingsKilled: s.buildingsKilled, buildingsLost: s.buildingsLost, score: 0 };
+      st.reported = true;
+      this.rtsMissionOver(res);
+      return;
+    }
+    return pauseAction.apply(this, arguments);
   };
   // RESTART ROUND: the same mission (and map) from the start
   const restartRound = G.restartRound;
@@ -1159,10 +1174,10 @@ const rtsCoreStart = Game.rtsStartMission, rtsCoreSetup = Game.rtsSkirmishSetup;
 
 // once every script is in: the contract's CORE entry points are these; the campaign's own menu and results replace
 // the stand-ins (a campaign stub for rtsStartMission is put back to this one)
-function rtsCoreHook() {
-  if (Game.rtsStartMission !== rtsCoreStart && (!Game.rtsStartMission || Game.rtsStartMission.stub)) Game.rtsStartMission = rtsCoreStart;
-  if (Game.rtsSkirmishSetup !== rtsCoreSetup && (!Game.rtsSkirmishSetup || Game.rtsSkirmishSetup.stub)) Game.rtsSkirmishSetup = rtsCoreSetup;
+function rtsKernelHook() {
+  if (Game.rtsStartMission !== rtsKernelStart && (!Game.rtsStartMission || Game.rtsStartMission.stub)) Game.rtsStartMission = rtsKernelStart;
+  if (Game.rtsSkirmishSetup !== rtsKernelSetup && (!Game.rtsSkirmishSetup || Game.rtsSkirmishSetup.stub)) Game.rtsSkirmishSetup = rtsKernelSetup;
   if (typeof Game.rtsMenu !== 'function') { Game.rtsMenu = function () { this.rtsSkirmishSetup(); }; Game.rtsMenu.core = true; }
   if (typeof Game.rtsMissionOver !== 'function') { Game.rtsMissionOver = Game.rtsCoreMissionOver; Game.rtsMissionOver.core = true; }
 }
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', rtsCoreHook); else setTimeout(rtsCoreHook, 0);
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', rtsKernelHook); else setTimeout(rtsKernelHook, 0);
