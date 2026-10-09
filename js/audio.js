@@ -777,6 +777,10 @@ const Sound = {
       case 'csPick': // the bomb picked up
         this.seq([67, 74], 0.05, t, { vol: 0.12, decayTo: 0.4, wave: 'p25' });
         break;
+      case 'csFlash': // a flashbang: a sharp bang, then a high ring in the ears
+        this.noise(2600, t, [[0, 0.55], [0.08, 0.1], [0.25, 0]]);
+        this.note(3520, t + 0.02, 1.4, { wave: 'p25', vol: 0.05, decayTo: 0.1 });
+        break;
       case 'csSmoke': // a smoke grenade pops and hisses
         this.noise(1800, t, [[0, 0.3], [0.04, 0.05]]);
         this.noise(12000, t + 0.04, [[0, 0.12], [0.6, 0.08], [0.9, 0]], 6000);

@@ -17,7 +17,10 @@
 //  The bots are in csbots.js, the title picture in csart.js.
 // =====================================================================
 
-const CS_BUY_TIME = 600, CS_ROUND_TIME = 115 * 60, CS_END_TIME = 330, CS_BOMB_TIME = 40 * 60;
+const CS_BUY_TIME = 600, CS_ROUND_TIME = 115 * 60, CS_END_TIME = 330, CS_BOMB_TIME = 36 * 60;
+// a flashbang: thrown up to six tiles, it bangs after a moment and blinds every tank that can see the bang within its
+// reach (the longer the nearer, and the more it was looking that way)
+const CS_FLASH_R = 120, CS_FLASH_FUSE = 24, CS_FLASH_TIME = 200, CS_FLASH_THROW = 96;
 const CS_PLANT_TIME = 180, CS_DEFUSE_TIME = 600, CS_KIT_TIME = 300, CS_BOMB_R = 76, CS_SMOKE_TIME = 900, CS_SMOKE_R = 26;
 const CS_VIS_R = 18, CS_VIS_EVERY = 6, CS_HEAR = 200, CS_KEY = 'tank1990_cs';
 const CS_MONEY = { start: 800, max: 16000, win: 3250, winBomb: 3500, lose: 1400, loseStep: 500, loseMax: 3400, plant: 300, plantTeam: 800, defuse: 300 };
@@ -29,6 +32,7 @@ const CS_BUY = [
   { id: 'armor', name: 'ARMOUR PLATE', price: 650, desc: 'SOAKS ONE HIT, UP TO 2' },
   { id: 'star', name: 'STAR', price: 600, desc: 'FASTER SHELLS, THEN TWO' },
   { id: 'smoke', name: 'SMOKE', price: 300, desc: 'B: A WALL OF SMOKE' },
+  { id: 'flash', name: 'FLASHBANG', price: 200, desc: 'B: BLINDS ALL WHO SEE IT' },
   { id: 'mines', name: 'MINES X3', price: 400, desc: 'B: DROP ONE' },
   { id: 'kit', name: 'DEFUSE KIT', price: 400, desc: 'DEFUSE IN 5 S, NOT 10', ct: true },
   { id: 'flame', weapon: 'flame', mk: 2, name: 'FLAMETHROWER', price: 1200, desc: 'CLOSE AND DEADLY' },
@@ -114,7 +118,7 @@ Object.assign(Game, {
 
   // everything bought goes (on death, and at half time with the money)
   csResetGear(p, money) {
-    Object.assign(p, { weapon: 'cannon', wlv: {}, level: 0, mines: 0, turrets: 0, bridges: 0, csArmor: 0, csSmokes: 0, csKit: false });
+    Object.assign(p, { weapon: 'cannon', wlv: {}, level: 0, mines: 0, turrets: 0, bridges: 0, csArmor: 0, csSmokes: 0, csFlashes: 0, csNades: [], csKit: false, csBlind: 0 });
     if (money) Object.assign(p, { csMoney: CS_MONEY.start, csK: 0, csD: 0, csMvp: 0 });
   },
 
@@ -186,13 +190,17 @@ Object.assign(Stage.prototype, {
     for (let by = 0; by < blocks.length; by++) for (let bx = 0; bx < blocks[by].length; bx++) this.setBlock(bx, by, BLOCK_TYPE[blocks[by][bx]] || T_EMPTY);
     this.netDiff = []; this.dirty = true; this.origTerrain = this.terrain.slice(); this.terrainVer = (this.terrainVer || 0) + 1;
     this.csM = M;
-    this.cs = { phase: 'buy', t: 0, clock: CS_ROUND_TIME, bomb: null, feed: [], smokes: [], notes: [], buy: {}, noise: [], vis: {}, ghosts: { T: [], CT: [] },
+    this.cs = { phase: 'buy', t: 0, clock: CS_ROUND_TIME, bomb: null, feed: [], smokes: [], flashes: [], notes: [], buy: {}, noise: [], vis: {}, ghosts: { T: [], CT: [] },
       winner: null, why: '', mvp: -1, round: M.round, half: M.half, score: M.score.slice(), target: M.target, id: M.id, flash: 0 };
     const starts = { T: CS_STARTS.T.at.slice(), CT: CS_STARTS.CT.at.slice() };
     this.vsSpawn = [];
     for (const p of players) {
       p.csTeam = csSide(p.csSquad, M.half);
-      p.out = false; p.tank = null; p.kills = zeroKills(); p.csRoundK = 0; p.csSpec = -1;
+      p.out = false; p.tank = null; p.kills = zeroKills(); p.csRoundK = 0; p.csSpec = -1; p.csBlind = 0;
+      // the defenders get a star and an armour plate every round, free; the terrorists a plate (without it the
+      // defenders, two hits each, won nine rounds in ten)
+      if (p.csTeam === 'CT') p.level = Math.max(p.level || 0, 1);
+      p.csArmor = Math.max(p.csArmor || 0, 1);
       const at = starts[p.csTeam].shift() || CS_STARTS[p.csTeam].at[rnd(5)];
       const t = new Tank({ x: at[0] * 16, y: at[1] * 16, dir: CS_STARTS[p.csTeam].dir, isPlayer: true, player: p });
       t.applyLevel();
@@ -236,6 +244,7 @@ Object.assign(Stage.prototype, {
     C.feed = C.feed.filter(f => f.t < 360); C.notes = C.notes.filter(n => n.t < n.life); C.noise = C.noise.filter(n => n.t < 40);
     for (const s of C.smokes) s.t++;
     C.smokes = C.smokes.filter(s => s.t < CS_SMOKE_TIME);
+    this.csFlashTick();
     if (B.state === 'carried') { const c = this.csP(B.carrier); if (c && c.tank) { B.x = c.tank.x + 8; B.y = c.tank.y + 8; } }
     this.csSpectate();
     if (C.phase === 'buy') {
@@ -372,7 +381,7 @@ Object.assign(Stage.prototype, {
   csBuyStatus(p, it) {
     if (it.id === 'go') return '';
     if (it.ct && p.csTeam !== 'CT') return 'CT ONLY';
-    const own = { armor: (p.csArmor || 0) >= 2, star: (p.level || 0) >= 2, smoke: (p.csSmokes || 0) >= 2, mines: (p.mines || 0) >= 6, kit: !!p.csKit }[it.id];
+    const own = { armor: (p.csArmor || 0) >= 2, star: (p.level || 0) >= 2, smoke: (p.csSmokes || 0) >= 2, flash: (p.csFlashes || 0) >= 2, mines: (p.mines || 0) >= 6, kit: !!p.csKit }[it.id];
     if (own || (it.weapon && p.weapon === it.weapon)) return 'HAVE IT';
     if ((p.csMoney || 0) < it.price) return 'NO MONEY';
     return '';
@@ -386,7 +395,8 @@ Object.assign(Stage.prototype, {
     switch (it.id) {
       case 'armor': p.csArmor = (p.csArmor || 0) + 1; if (t) t.plates = p.csArmor; break;
       case 'star': p.level = (p.level || 0) + 1; if (t) t.applyLevel(); break;
-      case 'smoke': p.csSmokes = (p.csSmokes || 0) + 1; break;
+      case 'smoke': p.csSmokes = (p.csSmokes || 0) + 1; (p.csNades || (p.csNades = [])).push('smoke'); break;
+      case 'flash': p.csFlashes = (p.csFlashes || 0) + 1; (p.csNades || (p.csNades = [])).push('flash'); break;
       case 'mines': p.mines = (p.mines || 0) + 3; break;
       case 'kit': p.csKit = true; break;
       default: p.weapon = it.weapon; p.wlv = { [it.weapon]: it.mk }; if (t) t.wcool = 0;
@@ -405,12 +415,52 @@ Object.assign(Stage.prototype, {
     const busy = (B.state === 'carried' && B.carrier === p.i && this.csSiteAt(t.x + 8, t.y + 8))
       || (B.state === 'planted' && p.csTeam === 'CT' && Math.hypot(t.x + 8 - B.x, t.y + 8 - B.y) < 16);
     if (busy) return Object.assign({}, inp, { alt: false, altPressed: false, fire: inp.dir < 0 && inp.alt ? false : inp.fire });
-    if (inp.altPressed && p.csSmokes > 0) {
-      p.csSmokes--;
-      this.csThrowSmoke(t);
+    if (inp.altPressed && (p.csSmokes > 0 || p.csFlashes > 0)) {
+      this.csThrowNade(p, t, inp.nade && (inp.nade === 'flash' ? p.csFlashes > 0 : p.csSmokes > 0) ? inp.nade : null);
       return Object.assign({}, inp, { alt: false, altPressed: false });
     }
     return inp;
+  },
+
+  // B with grenades: the one bought first goes first
+  csThrowNade(p, t, kind) {
+    const q = p.csNades || (p.csNades = []);
+    while (q.length && !(q[0] === 'flash' ? p.csFlashes > 0 : p.csSmokes > 0)) q.shift();
+    if (kind) q.splice(q.indexOf(kind) >>> 0, 1); else kind = q.shift() || (p.csSmokes > 0 ? 'smoke' : 'flash');
+    if (kind === 'flash') { p.csFlashes--; this.csThrowFlash(t); } else { p.csSmokes--; this.csThrowSmoke(t); }
+  },
+
+  // a flashbang flies up to six tiles ahead (short of a wall) and bangs a moment later
+  csThrowFlash(t) {
+    const [dx, dy] = DXY[t.dir];
+    let x = t.x + 8, y = t.y + 8;
+    for (let k = 0; k < CS_FLASH_THROW; k += 4) {
+      const v = this.get((x + dx * 4) >> 2, (y + dy * 4) >> 2);
+      if (v === T_STEEL || v === T_BRICK || v === -1) break;
+      x += dx * 4; y += dy * 4;
+    }
+    this.cs.flashes.push({ x, y, t: 0, team: t.player ? t.player.csTeam : '' });
+    Sound.play('csSmoke');
+  },
+
+  // the bang: who sees it is blinded (players: the screen goes white; bots: can't aim) for a while
+  csFlashTick() {
+    const C = this.cs;
+    for (const p of this.players) if (p.csBlind > 0) p.csBlind--;
+    for (const f of C.flashes) {
+      if (++f.t !== CS_FLASH_FUSE) continue;
+      Sound.play('csFlash');
+      for (const o of this.tanks) {
+        if (!o.alive || !o.player) continue;
+        const cx = o.x + 8, cy = o.y + 8, d = Math.hypot(f.x - cx, f.y - cy);
+        if (d >= CS_FLASH_R || (d > 10 && !this.clearLine(cx, cy, f.x, f.y))) continue;
+        // looking at it: all of it; side on: half; away: a little
+        const [fx, fy] = DXY[o.dir], dot = d > 1 ? ((f.x - cx) * fx + (f.y - cy) * fy) / d : 1;
+        const face = dot > 0.4 ? 1 : dot > -0.4 ? 0.5 : 0.22;
+        o.player.csBlind = Math.max(o.player.csBlind || 0, Math.round(CS_FLASH_TIME * face * (1 - 0.6 * d / CS_FLASH_R)));
+      }
+    }
+    C.flashes = C.flashes.filter(f => f.t < CS_FLASH_FUSE + 20);
   },
 
   // a smoke grenade lands up to three tiles ahead (short of a wall) and blooms into a cloud
@@ -594,6 +644,18 @@ Object.assign(Stage.prototype, {
 
   // smoke clouds: grey puffs rolling in place, thinning out at the end
   csRenderSmokes(ctx) {
+    for (const f of this.cs.flashes || []) {
+      if (f.t < CS_FLASH_FUSE) {
+        // the grenade on the ground, its fuse blinking
+        ctx.fillStyle = '#3C3C3C'; ctx.fillRect(Math.round(f.x) - 2, Math.round(f.y) - 2, 5, 5);
+        ctx.fillStyle = (f.t >> 2) & 1 ? '#F8F8F8' : '#7C7C7C'; ctx.fillRect(Math.round(f.x) - 1, Math.round(f.y) - 1, 3, 3);
+      } else {
+        // the bang: a white burst, gone in a third of a second
+        const k = (f.t - CS_FLASH_FUSE) / 20, r = 6 + k * 30;
+        ctx.fillStyle = 'rgba(255,255,240,' + (0.9 * (1 - k)).toFixed(2) + ')';
+        ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, Math.PI * 2); ctx.fill();
+      }
+    }
     for (const s of this.cs.smokes) {
       const k = Math.min(1, s.t / 40, (CS_SMOKE_TIME - s.t) / 90), r = CS_SMOKE_R * k;
       if (r < 2) continue;
@@ -729,6 +791,7 @@ Object.assign(Stage.prototype, {
       for (let j = 0; j < (t ? t.plates : 0); j++) kit.push('#BCBCBC');
       if (p.csKit) kit.push('#3CBCFC');
       for (let j = 0; j < (p.csSmokes || 0); j++) kit.push('#F8F8F8');
+      for (let j = 0; j < (p.csFlashes || 0); j++) kit.push('#F8D838');
       for (let j = 0; j < Math.min(4, p.mines || 0); j++) kit.push('#3C3C3C');
       kit.slice(0, 8).forEach((c, j) => { ctx.fillStyle = COL.black; ctx.fillRect(H + j * 3, y + 18, 3, 4); ctx.fillStyle = c; ctx.fillRect(H + j * 3, y + 18, 2, 3); });
     });
@@ -739,6 +802,9 @@ Object.assign(Stage.prototype, {
   // words over the field: the kill feed, the round's news, what B does here, the buy menu, the end of the round
   csRenderBanner(ctx) {
     const C = this.cs, V = this.csViewer(), B = C.bomb, cx = VIEW_W >> 1;
+    // flashed: the field goes white, fading back over the last second
+    const blind = Math.max(0, ...V.ps.filter(p => this.csTankOf(p)).map(p => p.csBlind || 0));
+    if (blind > 0) { ctx.fillStyle = 'rgba(255,255,248,' + Math.min(1, blind / 60).toFixed(2) + ')'; ctx.fillRect(0, 0, VIEW_W, VIEW_H); }
     C.feed.forEach((f, k) => {
       const kp = this.csP(f.k), vp = this.csP(f.v), y = 4 + k * 10, a = kp ? csName(kp) : '', b = csName(vp);
       const w = (a.length + b.length + (a ? 3 : 2)) * 8 + 2;
@@ -870,13 +936,14 @@ Object.assign(Stage.prototype, {
       fd: C.feed, nt: C.notes, sm: C.smokes.map(s => [Math.round(s.x), Math.round(s.y), s.t]), nz: C.noise.map(n => [n.x, n.y, n.team, n.t]),
       by: Object.keys(C.buy).map(i => [+i, C.buy[i].idx, C.buy[i].ready ? 1 : 0, C.buy[i].msgT > 0 ? C.buy[i].msg : '']),
       mt: this.mines.map(m => (m.owner && m.owner.player ? m.owner.player.csTeam : '')),
-      pl: this.players.map(p => [p.i, p.csTeam, p.csSquad, p.csMoney, p.csK, p.csD, p.csMvp, p.csKit ? 1 : 0, p.csSmokes || 0, p.csName || '', p.csRoundK || 0, p.csSpec, p.mines || 0]) };
+      pl: this.players.map(p => [p.i, p.csTeam, p.csSquad, p.csMoney, p.csK, p.csD, p.csMvp, p.csKit ? 1 : 0, p.csSmokes || 0, p.csName || '', p.csRoundK || 0, p.csSpec, p.mines || 0, p.csFlashes || 0, p.csBlind || 0]),
+      fb: (C.flashes || []).map(f => [Math.round(f.x), Math.round(f.y), f.t]) };
   },
   applyCsView(v) {
     const C = this.cs || (this.cs = { vis: {}, ghosts: { T: [], CT: [] } });
     if (v.mp) csUseMap(v.mp);
     Object.assign(C, { phase: v.ph, t: v.t, clock: v.ck, flash: v.fl, winner: v.w, why: v.why, mvp: v.mvp, round: v.rd, half: v.hf, score: v.sc, target: v.tg, id: v.id,
-      feed: v.fd, notes: v.nt, smokes: v.sm.map(a => ({ x: a[0], y: a[1], t: a[2] })), noise: v.nz.map(a => ({ x: a[0], y: a[1], team: a[2], t: a[3] })) });
+      feed: v.fd, notes: v.nt, smokes: v.sm.map(a => ({ x: a[0], y: a[1], t: a[2] })), flashes: (v.fb || []).map(a => ({ x: a[0], y: a[1], t: a[2] })), noise: v.nz.map(a => ({ x: a[0], y: a[1], team: a[2], t: a[3] })) });
     const b = v.b;
     C.bomb = { state: b[0], carrier: b[1], x: b[2], y: b[3], site: b[4], timer: b[5], plant: b[6], planter: b[7], defuse: b[8], defuser: b[9] };
     C.buy = {};
@@ -884,7 +951,7 @@ Object.assign(Stage.prototype, {
     this.mines.forEach((m, k) => { m.team = v.mt[k] || ''; });
     for (const a of v.pl) {
       const p = this.players.find(q => q.i === a[0]);
-      if (p) Object.assign(p, { csTeam: a[1], csSquad: a[2], csMoney: a[3], csK: a[4], csD: a[5], csMvp: a[6], csKit: !!a[7], csSmokes: a[8], csName: a[9] || undefined, csRoundK: a[10], csSpec: a[11], mines: a[12] });
+      if (p) Object.assign(p, { csTeam: a[1], csSquad: a[2], csMoney: a[3], csK: a[4], csD: a[5], csMvp: a[6], csKit: !!a[7], csSmokes: a[8], csName: a[9] || undefined, csRoundK: a[10], csSpec: a[11], mines: a[12], csFlashes: a[13] || 0, csBlind: a[14] || 0 });
     }
     this.vs = 'cs'; this.noBase = true; this.hardSteel = true; this.weather = null;
   },

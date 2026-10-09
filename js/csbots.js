@@ -102,7 +102,7 @@ Object.assign(Stage.prototype, {
   csBotBuy(p) {
     const team = p.csTeam, mates = this.players.filter(q => q.csTeam === team), pistol = p.csMoney <= CS_MONEY.start;
     const buy = id => { const it = CS_BUY.find(b => b.id === id); return it && !this.csBuy(p, it); };
-    if (pistol) { if (Math.random() < 0.6) buy('armor'); else buy('star'); if (team === 'T' && Math.random() < 0.3) buy('smoke'); return; }
+    if (pistol) { if (Math.random() < 0.6) buy('armor'); else buy('star'); if (team === 'T' && Math.random() < 0.3) buy('smoke'); else if (Math.random() < 0.3) buy('flash'); return; }
     if (p.csMoney < 1900 && (!p.weapon || p.weapon === 'cannon')) { if (Math.random() < 0.3) buy('star'); return; }   // an eco round: save up
     if (!p.csArmor) buy('armor');
     if (!p.weapon || p.weapon === 'cannon') {
@@ -115,6 +115,7 @@ Object.assign(Stage.prototype, {
     }
     if (team === 'CT' && !p.csKit) buy('kit');
     if (team === 'T' && Math.random() < 0.6) buy('smoke');
+    if (p.csMoney > 700 && Math.random() < 0.55) buy('flash');
     if ((p.csArmor || 0) < 2 && p.csMoney > 2500) buy('armor');
     if (team === 'CT' && p.csMoney > 1500 && Math.random() < 0.4) buy('mines');
     if ((p.level || 0) < 1 && p.weapon === 'cannon') buy('star');
@@ -178,6 +179,8 @@ Object.assign(Stage.prototype, {
       const d = [(behind.dir + 1) % 4, (behind.dir + 3) % 4, behind.dir].find(k => this.canStep(t, k));
       if (d !== undefined) { out.dir = d; ai.want = true; return out; }
     }
+    // flashed: can't see to aim; it sits tight till it can
+    if (p.csBlind > 20) { ai.aim = 0; ai.tgt = null; return out; }
     // a fight first
     const fight = this.csBotFight(t, out);
     if (fight === 'shoot') return out;
@@ -187,7 +190,8 @@ Object.assign(Stage.prototype, {
     const goal = this.csBotGoal(t, p, pl, B);
     if (goal && goal.act) { out.alt = true; out.altPressed = !ai.alt; ai.alt = true; return out; }
     ai.alt = false;
-    if (goal && goal.smoke && p.csSmokes > 0) { out.alt = true; out.altPressed = true; return out; }
+    if (goal && goal.smoke && p.csSmokes > 0) { out.alt = true; out.altPressed = true; out.nade = 'smoke'; return out; }
+    if (goal && goal.flash && p.csFlashes > 0) { out.alt = true; out.altPressed = true; out.nade = 'flash'; return out; }
     if (!goal) return out;
     const d = this.csField(goal.node), dist = this.csDist(t, d);
     ai.holding = dist >= 0 && dist <= (goal.near !== undefined ? goal.near : CSB_ARRIVE);
@@ -310,11 +314,12 @@ Object.assign(Stage.prototype, {
       }
       const path = P.exec ? R.go : R.path;
       if (!P.exec && pl.k >= path.length) pl.k = path.length - 1;
-      if (P.exec && !pl.go) { pl.go = true; pl.k = 0; pl.smoked = false; }
+      if (P.exec && !pl.go) { pl.go = true; pl.k = 0; pl.smoked = false; pl.flashed = false; }
       const last = pl.k >= path.length - 1, posts = CSB_POST[R.site];
       const name = P.exec && last ? posts[p.i % posts.length] : path[Math.min(pl.k, path.length - 1)], node = spot(name, last), dd = this.csDist(t, this.csField(node));
       if (dd >= 0 && dd <= 4 && pl.k < path.length - 1) pl.k++;
       if (P.exec && !pl.smoked && p.csSmokes > 0 && pl.k === 1) { pl.smoked = true; return { smoke: true, node }; }
+      if (P.exec && !pl.flashed && p.csFlashes > 0 && pl.k >= path.length - 2 && pl.k >= 1) { pl.flashed = true; return { flash: true, node }; }
       // waiting to go in: anywhere round the gathering point will do (they'd only jostle for the spot)
       return { node, near: last ? (P.exec ? 3 : 6) : CSB_ARRIVE };
     }
@@ -323,6 +328,8 @@ Object.assign(Stage.prototype, {
       const cts = this.csAlive('CT').filter(o => o.player.bot), bn = at(B.x - 8, B.y - 8), d = this.csField(bn, true);
       const dist = o => { const v = this.csDist(o, d); return v < 0 ? 1e4 : v - (o.player.csKit ? 12 : 0); };
       const defuser = cts.sort((a, b) => dist(a) - dist(b))[0];
+      // the retake: a flashbang onto the site first
+      if (p.csFlashes > 0 && !pl.retook && Math.hypot(t.x + 8 - B.x, t.y + 8 - B.y) < 110) { pl.retook = true; return { node: bn, flash: true }; }
       if (defuser === t) {
         if (Math.hypot(t.x + 8 - B.x, t.y + 8 - B.y) < 13 && !enemyNear(80)) return { act: true };
         return { node: bn, near: 0 };
@@ -380,7 +387,10 @@ Object.assign(Stage.prototype, {
     const c = this.csBotContact();
     if (!c || !c.hunters.includes(t.player.i)) return null;
     // there and nothing to see: the trail's gone cold
-    if (this.csDist(t, this.csField(c.node, true)) <= 3 && this.frame - c.at > 60) { c.hunters = c.hunters.filter(i => i !== t.player.i); return null; }
+    const dd = this.csDist(t, this.csField(c.node, true));
+    if (dd <= 3 && this.frame - c.at > 60) { c.hunters = c.hunters.filter(i => i !== t.player.i); return null; }
+    // close: a flashbang round the corner first
+    if (dd > 0 && dd <= 14 && t.player.csFlashes > 0 && !(c.flashed || (c.flashed = [])).includes(t.player.i)) { c.flashed.push(t.player.i); return { node: c.node, flash: true }; }
     return { node: c.node, near: 2 };
   },
 
