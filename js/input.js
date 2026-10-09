@@ -47,18 +47,6 @@ const KEYS_MULTI = [
 
 const IS_MAC = /Mac|iPhone|iPad|iPod/.test([navigator.userAgentData && navigator.userAgentData.platform, navigator.platform, navigator.userAgent].join(' '));
 
-// help line under the game, per control scheme
-const HELP = {
-  PC: '<b>1P</b> Arrows/WASD move · Space/Z/J fire · B/C/Left Shift mines &nbsp;|&nbsp; '
-    + '<b>2P</b> P1 WASD + Space/F, mines C/B · P2 Arrows + Right Ctrl/Numpad0/L, mines Numpad1/K/; &nbsp;|&nbsp; '
-    + '<b>3-4P</b> P3 IJKL fire U mines O · P4 TFGH/numpad fire R mines Y &nbsp;|&nbsp; '
-    + '<b>Enter</b> pause · <b>M</b> mute · <b>double-click</b> fullscreen · gamepads supported',
-  MAC: '<b>1P</b> ←↑↓→ or WASD move · Space/Z/J fire · B/C/⇧ mines &nbsp;|&nbsp; '
-    + '<b>2P</b> P1 WASD + Space/F, mines C/B · P2 ←↑↓→ + right ⌥ option / right ⇧ / slash fire, mines ; or \' &nbsp;|&nbsp; '
-    + '<b>3-4P</b> P3 IJKL fire U mines O · P4 TFGH fire R mines Y &nbsp;|&nbsp; '
-    + '<b>return</b> pause · <b>M</b> mute · <b>double-click</b> or ⌃⌘F fullscreen · <b>fn+delete</b> clears a map in Construction',
-};
-
 // ---------------------------------------------------------- user bindings
 // Keyboard: two keys per action for each player (null = the scheme's defaults).
 // Gamepad: one set of buttons shared by all pads (standard mapping indices).
@@ -224,10 +212,6 @@ const Input = {
     return v === 'AUTO' || !v ? (IS_MAC ? 'MAC' : 'PC') : v;
   },
   keys() { return this.scheme() === 'MAC' ? KEYS_MAC : KEYS; },
-  updateHelp() {
-    const el = document.getElementById('help');
-    if (el) el.innerHTML = HELP[this.scheme()];
-  },
 
   anyJust(codes) { return codes.some(c => this.just.has(c)); },
   anyDown(codes) { return codes.some(c => this.down.has(c)); },

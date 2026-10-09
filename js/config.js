@@ -364,6 +364,7 @@ const SETTINGS_DEF = [
   // blocks.js: the terrain as voxel-style blocks; only how this screen draws it (not sent online)
   { key: 'look', label: 'LOOK', values: ['CLASSIC', 'BLOCKS'], def: 'CLASSIC' },
   { key: 'controls', label: 'CONTROLS', values: ['AUTO', 'PC', 'MAC'], def: 'AUTO' },
+  { action: 'controls', label: 'SHOW CONTROLS' },
   { action: 'keys', label: 'SET UP KEYS AND PADS' },
   { key: 'rumble', label: 'GAMEPAD RUMBLE', values: ONOFF, def: 'ON' },
   { action: 'fitScreen', label: 'FIT TO MY SCREEN' },
@@ -479,7 +480,6 @@ const Config = {
     if (typeof Sound !== 'undefined') Sound.applyVolume();
     if (typeof Music !== 'undefined') Music.applyVolume();
     if (typeof Game !== 'undefined' && Game.onResize) Game.onResize();
-    if (typeof Input !== 'undefined' && Input.updateHelp) Input.updateHelp();
   },
 
   // ---- helpers used by the game rules

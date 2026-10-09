@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.58</title>
+  <title>tanb4iki_v0.59</title>
   <style>
 :root {
   --bg: #000;
@@ -51,18 +51,9 @@ body {
   background: #000;
 }
 
-#help {
-  text-align: center;
-  padding: 4px 16px 8px;
-  font-size: 11px;
-}
-
-#help b { color: #ddd; font-weight: normal; }
-
 /* ---------- touch controls ---------- */
 #touch { display: none; }
 
-body.touch #help { display: none; }
 
 body.touch #touch {
   display: flex;
@@ -203,11 +194,6 @@ body.csmode .btns button.radio { display: inline-block; }
     <canvas id="screen" width="256" height="224" aria-label="Tank 1990 game screen"></canvas>
   </main>
 
-  <aside id="help">
-    <b>1P</b> Arrows/WASD move · Space/Z/J fire &nbsp;|&nbsp;
-    <b>2P</b> P1 WASD + Space/F · P2 Arrows + Right Ctrl/Numpad0/L &nbsp;|&nbsp;
-    <b>Enter</b> start/pause · <b>M</b> mute · <b>double-click</b> fullscreen · Gamepads supported
-  </aside>
 
   <div id="touch" aria-hidden="true">
     <div id="dpad" data-dir="-1"><span class="u"></span><span class="r"></span><span class="d"></span><span class="l"></span></div>
@@ -225,7 +211,7 @@ body.csmode .btns button.radio { display: inline-block; }
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.58';
+const APP_VERSION = '0.59';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2695,6 +2681,7 @@ const SETTINGS_DEF = [
   // blocks.js: the terrain as voxel-style blocks; only how this screen draws it (not sent online)
   { key: 'look', label: 'LOOK', values: ['CLASSIC', 'BLOCKS'], def: 'CLASSIC' },
   { key: 'controls', label: 'CONTROLS', values: ['AUTO', 'PC', 'MAC'], def: 'AUTO' },
+  { action: 'controls', label: 'SHOW CONTROLS' },
   { action: 'keys', label: 'SET UP KEYS AND PADS' },
   { key: 'rumble', label: 'GAMEPAD RUMBLE', values: ONOFF, def: 'ON' },
   { action: 'fitScreen', label: 'FIT TO MY SCREEN' },
@@ -2810,7 +2797,6 @@ const Config = {
     if (typeof Sound !== 'undefined') Sound.applyVolume();
     if (typeof Music !== 'undefined') Music.applyVolume();
     if (typeof Game !== 'undefined' && Game.onResize) Game.onResize();
-    if (typeof Input !== 'undefined' && Input.updateHelp) Input.updateHelp();
   },
 
   // ---- helpers used by the game rules
@@ -4989,18 +4975,6 @@ const KEYS_MULTI = [
 
 const IS_MAC = /Mac|iPhone|iPad|iPod/.test([navigator.userAgentData && navigator.userAgentData.platform, navigator.platform, navigator.userAgent].join(' '));
 
-// help line under the game, per control scheme
-const HELP = {
-  PC: '<b>1P</b> Arrows/WASD move · Space/Z/J fire · B/C/Left Shift mines &nbsp;|&nbsp; '
-    + '<b>2P</b> P1 WASD + Space/F, mines C/B · P2 Arrows + Right Ctrl/Numpad0/L, mines Numpad1/K/; &nbsp;|&nbsp; '
-    + '<b>3-4P</b> P3 IJKL fire U mines O · P4 TFGH/numpad fire R mines Y &nbsp;|&nbsp; '
-    + '<b>Enter</b> pause · <b>M</b> mute · <b>double-click</b> fullscreen · gamepads supported',
-  MAC: '<b>1P</b> ←↑↓→ or WASD move · Space/Z/J fire · B/C/⇧ mines &nbsp;|&nbsp; '
-    + '<b>2P</b> P1 WASD + Space/F, mines C/B · P2 ←↑↓→ + right ⌥ option / right ⇧ / slash fire, mines ; or \' &nbsp;|&nbsp; '
-    + '<b>3-4P</b> P3 IJKL fire U mines O · P4 TFGH fire R mines Y &nbsp;|&nbsp; '
-    + '<b>return</b> pause · <b>M</b> mute · <b>double-click</b> or ⌃⌘F fullscreen · <b>fn+delete</b> clears a map in Construction',
-};
-
 // ---------------------------------------------------------- user bindings
 // Keyboard: two keys per action for each player (null = the scheme's defaults).
 // Gamepad: one set of buttons shared by all pads (standard mapping indices).
@@ -5166,10 +5140,6 @@ const Input = {
     return v === 'AUTO' || !v ? (IS_MAC ? 'MAC' : 'PC') : v;
   },
   keys() { return this.scheme() === 'MAC' ? KEYS_MAC : KEYS; },
-  updateHelp() {
-    const el = document.getElementById('help');
-    if (el) el.innerHTML = HELP[this.scheme()];
-  },
 
   anyJust(codes) { return codes.some(c => this.just.has(c)); },
   anyDown(codes) { return codes.some(c => this.down.has(c)); },
@@ -6010,8 +5980,8 @@ class Stage {
     this.popups = this.popups.filter(p => p.t < p.delay + (p.life || 48));
     if (this.rankMsg && --this.rankMsg.t <= 0) this.rankMsg = null;
 
-    // engine hum
-    const pt = this.tanks.filter(t => t.isPlayer);
+    // engine hum: the players' own tanks (bots driving player tanks, as in Counter-Strike, don't count)
+    const pt = this.tanks.filter(t => t.isPlayer && !(t.player && t.player.bot));
     Sound.setEngine(pt.length === 0 ? 0 : (pt.some(t => t.moving || t.slide > 0) ? 2 : 1));
 
     // stage end
@@ -21974,7 +21944,7 @@ const TITLE_MENU_Y = 126;
 const ROMAN = ['I', 'II', 'III', 'IV'];
 // the pause menu; SKILL changes the difficulty on the spot (not in the daily challenge, where it's part of the rules)
 const pauseMenu = () => ['CONTINUE'].concat(Game.daily ? [] : ['SKILL'], Game.mode === 'fortress' ? ['SPEED'] : [], ['MUSIC', 'MUSIC VOL'], Game.mode === 'galaxy' ? [] : ['LOOK'],
-  Game.daily ? [] : [Game.mode === 'fortress' ? 'RESTART WAVE' : 'RESTART ROUND'], ['SAVE GAME'], Net.role ? ['ONLINE PLAYERS'] : [], ['QUIT']);
+  Game.daily ? [] : [Game.mode === 'fortress' ? 'RESTART WAVE' : 'RESTART ROUND'], ['SAVE GAME', 'CONTROLS'], Net.role ? ['ONLINE PLAYERS'] : [], ['QUIT']);
 // pause rows changed with left/right (or fire): the setting each one steps
 const PAUSE_STEP = { MUSIC: 'music', 'MUSIC VOL': 'musicVol', SPEED: 'tdSpeed', LOOK: 'look' };
 const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
@@ -23701,6 +23671,8 @@ const Game = {
       Sound.play('pickup');
     } else if (row.action === 'keys') {
       this.toKeys();
+    } else if (row.action === 'controls') {
+      this.toControls();   // controls.js
     } else if (row.action === 'ranks') {
       this.setState('ranks');
     } else if (row.action === 'bossbook') {
@@ -23836,6 +23808,7 @@ const Game = {
     Sound.unlock();
     if (this.state === 'ranks') { this.setState('settings'); return; }
     if (this.state === 'bossbook') { this.bookPointer(x, y); return; }
+    if (this.state === 'controls') { this.setState('settings'); return; }
     if (this.state === 'construct') { this.constructPointer(x, y, false); return; }
     if (this.state === 'title' || this.state === 'settings' || this.state === 'shop') { x -= menuOX(); y -= menuOY(); }
     if (this.state === 'shop') {
@@ -23885,6 +23858,7 @@ const Game = {
       case 'keys': this.updateKeys(); break;
       case 'ranks': this.updateRanks(); break;
       case 'bossbook': this.updateBossBook(); break;
+      case 'controls': this.updateControls(); break;
       case 'dailyResult': this.updateDailyResult(); break;
       case 'vsResult': this.updateVsResult(); break;
       case 'modeResult': this.updateModeResult(); break;
@@ -23935,6 +23909,7 @@ const Game = {
       case 'keys': this.renderKeys(ctx); break;
       case 'ranks': this.renderRanks(ctx); break;
       case 'bossbook': this.renderBossBook(ctx); break;
+      case 'controls': this.renderControls(ctx); break;
       case 'dailyResult': this.renderDailyResult(ctx); break;
       case 'vsResult': this.renderVsResult(ctx); break;
       case 'modeResult': this.renderModeResult(ctx); break;
@@ -23974,7 +23949,6 @@ function boot() {
   Input.init();
   window.addEventListener('gamepadconnected', e => Game.toast('GAMEPAD ' + (e.gamepad.index + 1) + ' CONNECTED'));
   window.addEventListener('gamepaddisconnected', e => Game.toast('GAMEPAD ' + (e.gamepad.index + 1) + ' DISCONNECTED'));
-  Input.updateHelp();
   Game.init();
 
   const toScreen = e => {
@@ -33328,6 +33302,136 @@ Object.assign(Game, {
   <script>
 'use strict';
 // =====================================================================
+//  CONTROLS: the keys on a page of the game's own (it used to be a line of text under the game). From the pause menu
+//  it shows the players of the game in hand and what this mode adds; from Settings it shows every layout (left/right:
+//  one player, two, three or four). Read from the bindings in use, so keys set up in SET UP KEYS AND PADS show too.
+// =====================================================================
+
+// a set of four keys that reads better by its name
+const CTL_DIRS = [['ARROWS', ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']], ['WASD', ['KeyW', 'KeyS', 'KeyA', 'KeyD']],
+  ['IJKL', ['KeyI', 'KeyK', 'KeyJ', 'KeyL']], ['TFGH', ['KeyT', 'KeyG', 'KeyF', 'KeyH']], ['NUM 8 5 4 6', ['Numpad8', 'Numpad5', 'Numpad4', 'Numpad6']]];
+const CTL_W = 22;   // characters a value may take
+
+// what B does in each mode (the stage's own B otherwise: mines and turrets when you have them, else a shot)
+const CTL_ALT = { cs: 'GRENADE/MINE', galaxy: 'SWAP / FOCUS', fortress: 'BUILD MENU' };
+// what a mode adds to the keys
+const CTL_EXTRA = {
+  cs: n => [['B STILL', 'PLANT/DEFUSE'], [n > 1 ? '123 / 890' : '1 2 3', 'BOT ORDERS'], ['Q', 'NEXT ORDER'], ['TAB', 'SCOREBOARD']],
+  galaxy: () => [['B TWICE', 'BOMB']],
+};
+
+// the keys a player uses with n players at the keyboard (as Input.player reads them)
+function ctlMap(i, n) {
+  const K = Input.keys();
+  return Keymap.inputMap(i) || (n >= 3 ? KEYS_MULTI[i] : n === 2 ? (i ? K.p2 : K.p1) : K.solo);
+}
+function ctlKeys(list) {
+  const ks = list.filter(c => !TOUCH_CODES.has(c)).map(keyLabel);
+  for (let k = Math.min(3, ks.length); k > 0; k--) { const s = ks.slice(0, k).join(' / '); if (s.length <= CTL_W) return s; }
+  return '-';
+}
+function ctlMove(map) {
+  const has = (d, c) => map[d].includes(c), sets = [];
+  for (const [name, [u, dn, l, r]] of CTL_DIRS) if (has(0, u) && has(2, dn) && has(3, l) && has(1, r)) sets.push(name);
+  if (sets.length) return sets.slice(0, 2).join(' / ');
+  return [0, 2, 3, 1].map(d => keyLabel(map[d].filter(c => !TOUCH_CODES.has(c))[0])).join(' ');
+}
+
+// the page's lines: [label, value, colour] (a label alone is a heading)
+function controlsLines(n, mode) {
+  const L = [], compact = mode && n > 2;
+  for (let i = 0; i < n; i++) {
+    const m = ctlMap(i, n);
+    L.push([n > 1 ? ROMAN[i] + '-PLAYER' : 'PLAYER', null, COL.gold]);
+    L.push(['MOVE', ctlMove(m)], ['FIRE', ctlKeys(m.fire)], [mode ? 'B' : 'B MINES', ctlKeys(m.alt)]);
+  }
+  // in a game: what B does in this mode, and the mode's own keys
+  if (mode) {
+    L.push([modeInfo(mode).name.slice(0, 26), null, COL.gold]);
+    L.push(['B', CTL_ALT[mode] || 'MINES'], ...(CTL_EXTRA[mode] ? CTL_EXTRA[mode](n) : []));
+  }
+  if (compact) return L;   // three or four players: their keys and the mode's only (the page would overflow)
+  const pm = Keymap.padMap(), pads = l => l.slice(0, 2).map(padLabel).join(' / ');
+  L.push(['GAMEPADS', null, COL.gold]);
+  L.push(['MOVE', 'D-PAD / STICK'], ['FIRE / B', pads(pm.fire) + ', ' + pads(pm.alt)], ['PAUSE', padLabel(pm.start[0])]);
+  L.push(['ANY TIME', null, COL.gold]);
+  L.push([Input.scheme() === 'MAC' ? 'RETURN / P' : 'ENTER / P', 'PAUSE'], ['M', 'MUTE'],
+    ['DBL-CLICK', Input.scheme() === 'MAC' ? 'FULLSCREEN, CTRL CMD F' : 'FULLSCREEN']);
+  return L;
+}
+
+// draw the lines in a box (x, y, w, h); rows of 9 px, or 8 when they wouldn't fit
+function drawControls(ctx, lines, x, y, w, h) {
+  const rh = lines.length * 9 <= h ? 9 : 8, col2 = x + 84;
+  lines.forEach(([label, val, col], k) => {
+    const ly = y + k * rh;
+    if (ly + 7 > y + h) return;
+    if (val === null || val === undefined) Font.draw(ctx, label, x, ly, col || COL.gold);
+    else { Font.draw(ctx, label.slice(0, 10), x + 4, ly, COL.lgrey); Font.draw(ctx, String(val).slice(0, Math.floor((x + w - col2) / 8)), col2, ly, COL.white); }
+  });
+}
+
+Object.assign(Game, {
+  // from Settings: every layout, one player count at a time
+  toControls() {
+    this.ctl = { n: Math.max(1, Math.min(3, Input.localCount ? Input.localCount() || 1 : 1)) };
+    this.setState('controls');
+    Sound.play('select');
+  },
+  updateControls() {
+    const m = Input.menu();
+    if (m.left || m.right) { this.ctl.n = m.right ? this.ctl.n % 3 + 1 : (this.ctl.n + 1) % 3 + 1; Sound.play('select'); }
+    else if (m.back || m.ok || m.start) { this.setState('settings'); Sound.play('select'); }
+  },
+  renderControls(ctx) {
+    ctx.fillStyle = COL.black; ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
+    const ox = (SCREEN_W - SW) >> 1, oy = (SCREEN_H - SH) >> 1, n = this.ctl.n;
+    ctx.save(); ctx.translate(ox, oy);
+    Font.drawCenter(ctx, 'CONTROLS', SW / 2, 6, COL.red);
+    Font.drawCenter(ctx, '< ' + (n === 1 ? '1 PLAYER' : n === 2 ? '2 PLAYERS' : '3-4 PLAYERS') + ' >', SW / 2, 18, COL.white);
+    drawControls(ctx, controlsLines(n === 3 ? 4 : n, ''), 16, 32, SW - 24, SH - 46);
+    Font.drawCenter(ctx, 'ESC: BACK', SW / 2, SH - 10, COL.lgrey);
+    ctx.restore();
+  },
+});
+
+// ------------------------------------------------------------------ in the pause menu: a page over the field
+(() => {
+  const G = Game;
+  const action = G.pauseAction;
+  G.pauseAction = function (a) {
+    if (a === 'CONTROLS') { this.pauseCtl = true; Sound.play('select'); return; }
+    return action.apply(this, arguments);
+  };
+  const updatePlay = G.updatePlay;
+  G.updatePlay = function () {
+    if (this.paused && this.pauseCtl) {
+      const m = Input.menu();
+      if (m.ok || m.back || m.start || Input.anyJust(['KeyP'])) { this.pauseCtl = false; Sound.play('select'); }
+      return;
+    }
+    if (!this.paused) this.pauseCtl = false;
+    return updatePlay.apply(this, arguments);
+  };
+  const renderPlay = G.renderPlay;
+  G.renderPlay = function (ctx) {
+    if (!(this.paused && this.pauseCtl)) return renderPlay.apply(this, arguments);
+    const paused = this.paused;
+    this.paused = false;   // the field without the pause box
+    try { renderPlay.apply(this, arguments); } finally { this.paused = paused; }
+    const n = Math.max(1, Input.localCount()), lines = controlsLines(Math.min(4, n), this.mode);
+    const w = Math.min(VIEW_W - 4, 240), h = Math.min(VIEW_H - 4, 26 + lines.length * 9), x = FX + ((VIEW_W - w) >> 1), y = FY + ((VIEW_H - h) >> 1);
+    ctx.fillStyle = COL.black; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = COL.lgrey; ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + h - 1, w, 1); ctx.fillRect(x, y, 1, h); ctx.fillRect(x + w - 1, y, 1, h);
+    Font.drawCenter(ctx, 'CONTROLS', x + w / 2, y + 5, COL.orange);
+    drawControls(ctx, lines, x + 6, y + 17, w - 10, h - 21);
+  };
+})();
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
 //  The mode title pictures (intro.js puts them on the screen): one scene per mode, 240x136, a pixel to a pixel.
 //  Each is a little film of what its mode is about, with depth (sky, far hills, near ground), its own light and
 //  things going on: tanks driving and firing, shells, muzzle flashes, smoke, sparks, debris and explosions.
@@ -40430,7 +40534,7 @@ Object.assign(Stage.prototype, {
     this.vsSpawn = [];
     for (const p of players) {
       p.csTeam = csSide(p.csSquad, M.half);
-      p.out = false; p.tank = null; p.kills = zeroKills(); p.csRoundK = 0; p.csSpec = -1; p.csBlind = 0;
+      p.out = false; p.tank = null; p.kills = zeroKills(); p.csRoundK = 0; p.csSpec = -1; p.csBlind = 0; p.csTook = false;
       // the defenders get a star and an armour plate every round, free; the terrorists a plate (without it the
       // defenders, two hits each, won nine rounds in ten)
       if (p.csTeam === 'CT') p.level = Math.max(p.level || 0, 1);
@@ -40463,9 +40567,12 @@ Object.assign(Stage.prototype, {
   // whose eyes the screen uses: an online guest's own team, the players at this computer's team (null: everything,
   // a match of bots only)
   csViewer() {
-    if (Net.role === 'client') { const p = this.csP(Net.slot); return { team: p ? p.csTeam : null, ps: p ? [p] : [] }; }
-    const ps = this.players.filter(p => !p.bot && !Input.remote[p.i]);
-    return { team: ps.length ? ps[0].csTeam : null, ps };
+    let team, ps;
+    if (Net.role === 'client') { const p = this.csP(Net.slot); team = p ? p.csTeam : null; ps = p ? [p] : []; }
+    else { ps = this.players.filter(p => !p.bot && !Input.remote[p.i]); team = ps.length ? ps[0].csTeam : null; }
+    // your whole team out (and the round still on): no fog, the camera is yours to move round the map
+    const out = !!team && this.cs.phase !== 'buy' && !this.tanks.some(t => t.alive && t.player && t.player.csTeam === team);
+    return { team: out ? null : team, ps, out };
   },
 
   // ------------------------------------------------------------ every frame (instead of updateVersus)
@@ -40736,10 +40843,30 @@ Object.assign(Stage.prototype, {
       const mates = this.csAlive(p.csTeam).map(t => t.player.i);
       if (!mates.length) { p.csSpec = -1; continue; }
       let k = mates.indexOf(p.csSpec);
+      const inp = Input.player(p.i);
       if (k < 0) k = 0;
-      else if (Input.player(p.i).firePressed) k = (k + 1) % mates.length;
+      else if (inp.firePressed) k = (k + 1) % mates.length;
       p.csSpec = mates[k];
+      // B: take over the bot you're watching (once a round)
+      const b = this.csP(p.csSpec);
+      if (inp.altPressed && b && b.bot && !p.csTook && this.cs.phase === 'live') this.csTakeOver(p, b);
     }
+  },
+
+  // a fallen player drives a living bot of the team from here on: its tank, its gear, the bomb if it has it; the bot
+  // is out of the round
+  csTakeOver(p, b) {
+    const t = this.csTankOf(b), B = this.cs.bomb;
+    if (!t) return;
+    for (const k of ['weapon', 'wlv', 'level', 'mines', 'turrets', 'csArmor', 'csSmokes', 'csFlashes', 'csNades', 'csKit']) p[k] = b[k] === undefined ? b[k] : JSON.parse(JSON.stringify(b[k]));
+    Game.csResetGear(b, false);
+    b.out = true; b.tank = null;
+    t.player = p; t.csAi = null;
+    Object.assign(p, { tank: t, out: false, csTook: true, csSpec: -1, csBlind: Math.max(p.csBlind || 0, b.csBlind || 0) });
+    if (B.carrier === b.i) B.carrier = p.i;
+    if (B.defuser === b.i) { B.defuser = -1; B.defuse = 0; }
+    this.csNote(csName(p) + ' TAKES OVER ' + csName(b), CS_COL[p.csTeam], 150, p.csTeam);
+    Sound.play('select');
   },
 
   // ------------------------------------------------------------ fog of war
@@ -40948,7 +41075,7 @@ Object.assign(Stage.prototype, {
     for (const t of this.tanks) {
       const p = t.player;
       if (!t.alive || !p) continue;
-      if (!p.bot) Font.draw(ctx, ROMAN[p.i], t.x + 8 - ROMAN[p.i].length * 4 + 1, t.y - 9, COL.white);
+      if (!p.bot && ROMAN[p.i]) Font.draw(ctx, ROMAN[p.i], t.x + 8 - ROMAN[p.i].length * 4 + 1, t.y - 9, COL.white);
       if (B && B.state === 'carried' && B.carrier === p.i && V.team !== 'CT') csDrawBomb(ctx, t.x + 8, t.y + (p.bot ? -5 : -15), false);
       const prog = B && B.state === 'carried' && B.carrier === p.i && B.plant ? B.plant / CS_PLANT_TIME
         : B && B.state === 'planted' && B.defuser === p.i && B.defuse ? B.defuse / (p.csKit ? CS_KIT_TIME : CS_DEFUSE_TIME) : 0;
@@ -41066,8 +41193,14 @@ Object.assign(Stage.prototype, {
     const dead = V.ps.find(p => !this.csTankOf(p));
     if (dead && !me && C.phase !== 'buy') {
       const sp = this.csP(dead.csSpec);
-      Font.drawCenter(ctx, sp && this.csTankOf(sp) ? 'WATCHING ' + csName(sp) : 'YOUR TEAM IS OUT', cx, VIEW_H - 12, COL.white);
-      if (sp && (this.frame >> 5) & 1) Font.drawCenter(ctx, 'FIRE: NEXT', cx, VIEW_H - 22, COL.lgrey);
+      if (V.out) {
+        Font.drawCenter(ctx, 'YOUR TEAM IS OUT', cx, VIEW_H - 22, COL.white);
+        if ((this.frame >> 5) & 1) Font.drawCenter(ctx, 'ARROWS: LOOK  FIRE: NEXT TANK', cx, VIEW_H - 12, COL.lgrey);
+      } else {
+        Font.drawCenter(ctx, sp && this.csTankOf(sp) ? 'WATCHING ' + csName(sp) : 'YOUR TEAM IS OUT', cx, VIEW_H - 12, COL.white);
+        const take = sp && sp.bot && !dead.csTook && C.phase === 'live';
+        if (sp && (this.frame >> 5) & 1) Font.drawCenter(ctx, take ? 'FIRE: NEXT  B: TAKE OVER' : 'FIRE: NEXT', cx, VIEW_H - 22, take ? COL.gold : COL.lgrey);
+      }
     }
     if (C.phase === 'buy' && V.ps.some(p => this.csTankOf(p))) this.csRenderBuy(ctx);
     if (C.phase === 'end') this.csRenderEnd(ctx);
@@ -41140,6 +41273,7 @@ Object.assign(Stage.prototype, {
   // the screen follows your tank; once it's gone, the teammate you watch (a match of bots only: the bomb)
   csCamera() {
     const V = this.csViewer();
+    if (V.out && this.cs.phase === 'live') return this.csFreeCamera(V);
     let ts = V.ps.map(p => this.csTankOf(p)).filter(Boolean);
     if (ts.length > 1) {
       const xs = ts.map(t => t.x), ys = ts.map(t => t.y);
@@ -41160,6 +41294,26 @@ Object.assign(Stage.prototype, {
     this.camX += (tx - this.camX) * (far ? 0.35 : 0.2);
     this.camY += (ty - this.camY) * (far ? 0.35 : 0.2);
     return [Math.round(this.camX), Math.round(this.camY)];
+  },
+
+  // the team's out: arrows move the camera round the map, FIRE jumps to the next tank still in it (and follows it
+  // till the arrows take over again); read here so an online guest's own keys work too
+  csFreeCamera(V) {
+    const C = this.cs, me = V.ps[0], inp = Net.role === 'client' ? Input.player(0) : me ? Input.player(me.i) : null;
+    const F = C.free || (C.free = { x: this.camX || 0, y: this.camY || 0, follow: -1, fire: false });
+    if (inp) {
+      if (inp.dir >= 0) { F.follow = -1; F.x += DXY[inp.dir][0] * 4; F.y += DXY[inp.dir][1] * 4; }
+      if (inp.fire && !F.fire) {
+        const alive = this.tanks.filter(t => t.alive && t.player);
+        if (alive.length) { const k = alive.findIndex(t => t.player.i === F.follow); F.follow = alive[(k + 1) % alive.length].player.i; }
+      }
+      F.fire = !!inp.fire;
+    }
+    const ft = F.follow >= 0 ? this.csTankOf(this.csP(F.follow)) : null;
+    if (ft) { F.x += (ft.x + 8 - VIEW_W / 2 - F.x) * 0.2; F.y += (ft.y + 8 - VIEW_H / 2 - F.y) * 0.2; }
+    F.x = Math.max(0, Math.min(FW - VIEW_W, F.x)); F.y = Math.max(0, Math.min(FH - VIEW_H, F.y));
+    this.camX = F.x; this.camY = F.y;
+    return [Math.round(F.x), Math.round(F.y)];
   },
 
   // online: what a guest needs on top of the stage view (tanks, shells and terrain come with it)

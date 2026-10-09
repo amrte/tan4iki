@@ -3,6 +3,18 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.59
+
+- **CONTROLS page** instead of the line of keys under the game: in the pause menu (the keys of the players in this
+  game and what the mode adds) and in Settings → SCREEN → SHOW CONTROLS (every layout, 1, 2 or 3-4 players). It shows
+  the keys in use, set-ups of your own included.
+- **Counter-Strike: take over a bot** when you're out: watching a bot of your team, B takes its tank, its gear and the
+  bomb if it has it (once a round).
+- **Counter-Strike: your whole team out**, the round going on: no fog, the arrows move the camera round the map,
+  FIRE follows the next tank still in it.
+- **The engine hum is your own tank's**: bots driving player tanks (Counter-Strike, deathmatch, kill race) no
+  longer keep it roaring all the time.
+
 ## 0.58
 
 - **Counter-Strike: three new maps**, each laid out after the real one: **DE_AZTEC** (the rope bridge over the

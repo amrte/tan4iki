@@ -196,7 +196,7 @@ Object.assign(Stage.prototype, {
     this.vsSpawn = [];
     for (const p of players) {
       p.csTeam = csSide(p.csSquad, M.half);
-      p.out = false; p.tank = null; p.kills = zeroKills(); p.csRoundK = 0; p.csSpec = -1; p.csBlind = 0;
+      p.out = false; p.tank = null; p.kills = zeroKills(); p.csRoundK = 0; p.csSpec = -1; p.csBlind = 0; p.csTook = false;
       // the defenders get a star and an armour plate every round, free; the terrorists a plate (without it the
       // defenders, two hits each, won nine rounds in ten)
       if (p.csTeam === 'CT') p.level = Math.max(p.level || 0, 1);
@@ -229,9 +229,12 @@ Object.assign(Stage.prototype, {
   // whose eyes the screen uses: an online guest's own team, the players at this computer's team (null: everything,
   // a match of bots only)
   csViewer() {
-    if (Net.role === 'client') { const p = this.csP(Net.slot); return { team: p ? p.csTeam : null, ps: p ? [p] : [] }; }
-    const ps = this.players.filter(p => !p.bot && !Input.remote[p.i]);
-    return { team: ps.length ? ps[0].csTeam : null, ps };
+    let team, ps;
+    if (Net.role === 'client') { const p = this.csP(Net.slot); team = p ? p.csTeam : null; ps = p ? [p] : []; }
+    else { ps = this.players.filter(p => !p.bot && !Input.remote[p.i]); team = ps.length ? ps[0].csTeam : null; }
+    // your whole team out (and the round still on): no fog, the camera is yours to move round the map
+    const out = !!team && this.cs.phase !== 'buy' && !this.tanks.some(t => t.alive && t.player && t.player.csTeam === team);
+    return { team: out ? null : team, ps, out };
   },
 
   // ------------------------------------------------------------ every frame (instead of updateVersus)
@@ -502,10 +505,30 @@ Object.assign(Stage.prototype, {
       const mates = this.csAlive(p.csTeam).map(t => t.player.i);
       if (!mates.length) { p.csSpec = -1; continue; }
       let k = mates.indexOf(p.csSpec);
+      const inp = Input.player(p.i);
       if (k < 0) k = 0;
-      else if (Input.player(p.i).firePressed) k = (k + 1) % mates.length;
+      else if (inp.firePressed) k = (k + 1) % mates.length;
       p.csSpec = mates[k];
+      // B: take over the bot you're watching (once a round)
+      const b = this.csP(p.csSpec);
+      if (inp.altPressed && b && b.bot && !p.csTook && this.cs.phase === 'live') this.csTakeOver(p, b);
     }
+  },
+
+  // a fallen player drives a living bot of the team from here on: its tank, its gear, the bomb if it has it; the bot
+  // is out of the round
+  csTakeOver(p, b) {
+    const t = this.csTankOf(b), B = this.cs.bomb;
+    if (!t) return;
+    for (const k of ['weapon', 'wlv', 'level', 'mines', 'turrets', 'csArmor', 'csSmokes', 'csFlashes', 'csNades', 'csKit']) p[k] = b[k] === undefined ? b[k] : JSON.parse(JSON.stringify(b[k]));
+    Game.csResetGear(b, false);
+    b.out = true; b.tank = null;
+    t.player = p; t.csAi = null;
+    Object.assign(p, { tank: t, out: false, csTook: true, csSpec: -1, csBlind: Math.max(p.csBlind || 0, b.csBlind || 0) });
+    if (B.carrier === b.i) B.carrier = p.i;
+    if (B.defuser === b.i) { B.defuser = -1; B.defuse = 0; }
+    this.csNote(csName(p) + ' TAKES OVER ' + csName(b), CS_COL[p.csTeam], 150, p.csTeam);
+    Sound.play('select');
   },
 
   // ------------------------------------------------------------ fog of war
@@ -714,7 +737,7 @@ Object.assign(Stage.prototype, {
     for (const t of this.tanks) {
       const p = t.player;
       if (!t.alive || !p) continue;
-      if (!p.bot) Font.draw(ctx, ROMAN[p.i], t.x + 8 - ROMAN[p.i].length * 4 + 1, t.y - 9, COL.white);
+      if (!p.bot && ROMAN[p.i]) Font.draw(ctx, ROMAN[p.i], t.x + 8 - ROMAN[p.i].length * 4 + 1, t.y - 9, COL.white);
       if (B && B.state === 'carried' && B.carrier === p.i && V.team !== 'CT') csDrawBomb(ctx, t.x + 8, t.y + (p.bot ? -5 : -15), false);
       const prog = B && B.state === 'carried' && B.carrier === p.i && B.plant ? B.plant / CS_PLANT_TIME
         : B && B.state === 'planted' && B.defuser === p.i && B.defuse ? B.defuse / (p.csKit ? CS_KIT_TIME : CS_DEFUSE_TIME) : 0;
@@ -832,8 +855,14 @@ Object.assign(Stage.prototype, {
     const dead = V.ps.find(p => !this.csTankOf(p));
     if (dead && !me && C.phase !== 'buy') {
       const sp = this.csP(dead.csSpec);
-      Font.drawCenter(ctx, sp && this.csTankOf(sp) ? 'WATCHING ' + csName(sp) : 'YOUR TEAM IS OUT', cx, VIEW_H - 12, COL.white);
-      if (sp && (this.frame >> 5) & 1) Font.drawCenter(ctx, 'FIRE: NEXT', cx, VIEW_H - 22, COL.lgrey);
+      if (V.out) {
+        Font.drawCenter(ctx, 'YOUR TEAM IS OUT', cx, VIEW_H - 22, COL.white);
+        if ((this.frame >> 5) & 1) Font.drawCenter(ctx, 'ARROWS: LOOK  FIRE: NEXT TANK', cx, VIEW_H - 12, COL.lgrey);
+      } else {
+        Font.drawCenter(ctx, sp && this.csTankOf(sp) ? 'WATCHING ' + csName(sp) : 'YOUR TEAM IS OUT', cx, VIEW_H - 12, COL.white);
+        const take = sp && sp.bot && !dead.csTook && C.phase === 'live';
+        if (sp && (this.frame >> 5) & 1) Font.drawCenter(ctx, take ? 'FIRE: NEXT  B: TAKE OVER' : 'FIRE: NEXT', cx, VIEW_H - 22, take ? COL.gold : COL.lgrey);
+      }
     }
     if (C.phase === 'buy' && V.ps.some(p => this.csTankOf(p))) this.csRenderBuy(ctx);
     if (C.phase === 'end') this.csRenderEnd(ctx);
@@ -906,6 +935,7 @@ Object.assign(Stage.prototype, {
   // the screen follows your tank; once it's gone, the teammate you watch (a match of bots only: the bomb)
   csCamera() {
     const V = this.csViewer();
+    if (V.out && this.cs.phase === 'live') return this.csFreeCamera(V);
     let ts = V.ps.map(p => this.csTankOf(p)).filter(Boolean);
     if (ts.length > 1) {
       const xs = ts.map(t => t.x), ys = ts.map(t => t.y);
@@ -926,6 +956,26 @@ Object.assign(Stage.prototype, {
     this.camX += (tx - this.camX) * (far ? 0.35 : 0.2);
     this.camY += (ty - this.camY) * (far ? 0.35 : 0.2);
     return [Math.round(this.camX), Math.round(this.camY)];
+  },
+
+  // the team's out: arrows move the camera round the map, FIRE jumps to the next tank still in it (and follows it
+  // till the arrows take over again); read here so an online guest's own keys work too
+  csFreeCamera(V) {
+    const C = this.cs, me = V.ps[0], inp = Net.role === 'client' ? Input.player(0) : me ? Input.player(me.i) : null;
+    const F = C.free || (C.free = { x: this.camX || 0, y: this.camY || 0, follow: -1, fire: false });
+    if (inp) {
+      if (inp.dir >= 0) { F.follow = -1; F.x += DXY[inp.dir][0] * 4; F.y += DXY[inp.dir][1] * 4; }
+      if (inp.fire && !F.fire) {
+        const alive = this.tanks.filter(t => t.alive && t.player);
+        if (alive.length) { const k = alive.findIndex(t => t.player.i === F.follow); F.follow = alive[(k + 1) % alive.length].player.i; }
+      }
+      F.fire = !!inp.fire;
+    }
+    const ft = F.follow >= 0 ? this.csTankOf(this.csP(F.follow)) : null;
+    if (ft) { F.x += (ft.x + 8 - VIEW_W / 2 - F.x) * 0.2; F.y += (ft.y + 8 - VIEW_H / 2 - F.y) * 0.2; }
+    F.x = Math.max(0, Math.min(FW - VIEW_W, F.x)); F.y = Math.max(0, Math.min(FH - VIEW_H, F.y));
+    this.camX = F.x; this.camY = F.y;
+    return [Math.round(F.x), Math.round(F.y)];
   },
 
   // online: what a guest needs on top of the stage view (tanks, shells and terrain come with it)

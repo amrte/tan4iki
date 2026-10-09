@@ -43,18 +43,9 @@ body {
   background: #000;
 }
 
-#help {
-  text-align: center;
-  padding: 4px 16px 8px;
-  font-size: 11px;
-}
-
-#help b { color: #ddd; font-weight: normal; }
-
 /* ---------- touch controls ---------- */
 #touch { display: none; }
 
-body.touch #help { display: none; }
 
 body.touch #touch {
   display: flex;

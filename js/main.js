@@ -43,7 +43,7 @@ const TITLE_MENU_Y = 126;
 const ROMAN = ['I', 'II', 'III', 'IV'];
 // the pause menu; SKILL changes the difficulty on the spot (not in the daily challenge, where it's part of the rules)
 const pauseMenu = () => ['CONTINUE'].concat(Game.daily ? [] : ['SKILL'], Game.mode === 'fortress' ? ['SPEED'] : [], ['MUSIC', 'MUSIC VOL'], Game.mode === 'galaxy' ? [] : ['LOOK'],
-  Game.daily ? [] : [Game.mode === 'fortress' ? 'RESTART WAVE' : 'RESTART ROUND'], ['SAVE GAME'], Net.role ? ['ONLINE PLAYERS'] : [], ['QUIT']);
+  Game.daily ? [] : [Game.mode === 'fortress' ? 'RESTART WAVE' : 'RESTART ROUND'], ['SAVE GAME', 'CONTROLS'], Net.role ? ['ONLINE PLAYERS'] : [], ['QUIT']);
 // pause rows changed with left/right (or fire): the setting each one steps
 const PAUSE_STEP = { MUSIC: 'music', 'MUSIC VOL': 'musicVol', SPEED: 'tdSpeed', LOOK: 'look' };
 const SETTINGS_ROWS = 15, SETTINGS_TOP = 24, SETTINGS_ROW_H = 12;
@@ -1770,6 +1770,8 @@ const Game = {
       Sound.play('pickup');
     } else if (row.action === 'keys') {
       this.toKeys();
+    } else if (row.action === 'controls') {
+      this.toControls();   // controls.js
     } else if (row.action === 'ranks') {
       this.setState('ranks');
     } else if (row.action === 'bossbook') {
@@ -1905,6 +1907,7 @@ const Game = {
     Sound.unlock();
     if (this.state === 'ranks') { this.setState('settings'); return; }
     if (this.state === 'bossbook') { this.bookPointer(x, y); return; }
+    if (this.state === 'controls') { this.setState('settings'); return; }
     if (this.state === 'construct') { this.constructPointer(x, y, false); return; }
     if (this.state === 'title' || this.state === 'settings' || this.state === 'shop') { x -= menuOX(); y -= menuOY(); }
     if (this.state === 'shop') {
@@ -1954,6 +1957,7 @@ const Game = {
       case 'keys': this.updateKeys(); break;
       case 'ranks': this.updateRanks(); break;
       case 'bossbook': this.updateBossBook(); break;
+      case 'controls': this.updateControls(); break;
       case 'dailyResult': this.updateDailyResult(); break;
       case 'vsResult': this.updateVsResult(); break;
       case 'modeResult': this.updateModeResult(); break;
@@ -2004,6 +2008,7 @@ const Game = {
       case 'keys': this.renderKeys(ctx); break;
       case 'ranks': this.renderRanks(ctx); break;
       case 'bossbook': this.renderBossBook(ctx); break;
+      case 'controls': this.renderControls(ctx); break;
       case 'dailyResult': this.renderDailyResult(ctx); break;
       case 'vsResult': this.renderVsResult(ctx); break;
       case 'modeResult': this.renderModeResult(ctx); break;
@@ -2043,7 +2048,6 @@ function boot() {
   Input.init();
   window.addEventListener('gamepadconnected', e => Game.toast('GAMEPAD ' + (e.gamepad.index + 1) + ' CONNECTED'));
   window.addEventListener('gamepaddisconnected', e => Game.toast('GAMEPAD ' + (e.gamepad.index + 1) + ' DISCONNECTED'));
-  Input.updateHelp();
   Game.init();
 
   const toScreen = e => {

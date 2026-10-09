@@ -37,6 +37,10 @@ player III **8** or **9**, player IV **5** or **6**, or either stick button (L3 
 (in a 1-player game every pad controls player I). Press any button on a pad once so the browser reports it.
 A notice appears when a pad connects or disconnects, and pads that support it rumble when you're hit.
 
+**See the keys:** the **CONTROLS** page, in the pause menu (the keys of the players in the game, and what the mode
+adds: Counter-Strike's orders and scoreboard, Galaxy's bomb, what B does) and in Settings → SCREEN → **SHOW CONTROLS**
+(every layout: left/right for one player, two, or three and four). It reads the keys in use, your own set-ups too.
+
 **Change any key or button:** Settings → SCREEN → **SET UP KEYS AND PADS**. Choose a player, select a slot, press A,
 then press the new key (or a gamepad button for the pad rows). Each action has two key slots; Delete clears a slot; Esc cancels.
 A key can only do one thing, so assigning it takes it away from wherever it was. Custom keys for a player apply in every mode.
@@ -191,7 +195,9 @@ counter-terrorists in the north (CT spawn, between the two bombsites).
 - **A round ends** when one team is wiped out (with the bomb down, the counter-terrorists must still defuse it), the
   bomb goes off (TERRORISTS WIN, TARGET BOMBED), it's defused (COUNTER-TERRORISTS WIN, BOMB DEFUSED) or the clock runs
   out with no bomb down (TARGET SAVED). There are no respawns: a destroyed player watches a teammate (FIRE: the next
-  one). The banner names the winners, how, and the round's MVP (the planter of a bomb that went off, the defuser, else
+  one) and can **take over a bot** they're watching with **B**, once a round: its tank, its gear and the bomb if it
+  has it (the bot is out). With the **whole team out** while the round goes on (the bomb down, the other side to
+  defuse it) the fog lifts: the arrows move the camera round the map and FIRE follows the next tank still in it. The banner names the winners, how, and the round's MVP (the planter of a bomb that went off, the defuser, else
   the most kills on the winning side), with the scoreboard under it; then the next round on the map as new.
 - **The match:** first to 8 rounds (or 5, 13); after the 7th round (half the most there can be) it's **half time**:
   the sides switch and the money and the guns start over. The result screen shows the score and each player's kills,
@@ -1453,6 +1459,7 @@ js/csmap.js       COUNTER-STRIKE's map: DE_DUST2 tile by tile, its zones and cal
 js/cs.js          COUNTER-STRIKE: the team screen, rounds, the bomb, buying and money, the fog of war, its HUD, online
 js/csbots.js      COUNTER-STRIKE's bots: buying, the terrorists' and counter-terrorists' plans, routes, fighting
 js/csorders.js    COUNTER-STRIKE's orders to the bots: FOLLOW ME, HOLD HERE, GO ON (keys, pads, touch, online)
+js/controls.js    the CONTROLS page (pause menu and Settings): the keys in use, per player and mode
 js/csmap_aztec.js  COUNTER-STRIKE's DE_AZTEC (jungle stone, the river, the rope bridge, temples)
 js/csmap_train.js  COUNTER-STRIKE's DE_TRAIN (train cars on rails, concrete halls)
 js/csmap_mirage.js COUNTER-STRIKE's DE_MIRAGE (plaster, terracotta, mosaics, the market)

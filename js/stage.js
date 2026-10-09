@@ -657,8 +657,8 @@ class Stage {
     this.popups = this.popups.filter(p => p.t < p.delay + (p.life || 48));
     if (this.rankMsg && --this.rankMsg.t <= 0) this.rankMsg = null;
 
-    // engine hum
-    const pt = this.tanks.filter(t => t.isPlayer);
+    // engine hum: the players' own tanks (bots driving player tanks, as in Counter-Strike, don't count)
+    const pt = this.tanks.filter(t => t.isPlayer && !(t.player && t.player.bot));
     Sound.setEngine(pt.length === 0 ? 0 : (pt.some(t => t.moving || t.slide > 0) ? 2 : 1));
 
     // stage end
