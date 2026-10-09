@@ -3,6 +3,20 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.54
+
+- **Corridor, reworked** (corridor2.js):
+  - *A rising hazard:* a flood, a wall of fire or lava creeps up from below, faster the higher you are (gentler on the
+    easy skills); fall into it and you lose a tank. The bottom edge glows and counts down how close it is.
+  - *Climb combo:* keep climbing to fill the meter in the left border: x2, then x3 points; stop and it drains.
+  - *Bands every 100 m:* city, forest, snow and ice, volcano (lava down both sides), sky fortress (steel walkways over
+    a drop — fall off and you lose a tank), each with its own look, twist, enemy and music.
+  - *Set pieces:* a bridge under fire, a convoy crossing, a minefield, a gate that opens when its 3 turrets are down, a
+    conveyor climb, a dark tunnel; and splits into a FAST route (more enemies, more loot) and a SAFE one.
+  - *Supply depots every 250 m* repair you, give a tank to anyone without one, bring back the fallen — and are the
+    checkpoint. *A boss gate every 500 m:* the classic bosses, one after the other, block the way.
+  - *Medals* at 300, 600 and 1000 m (on the title), and a ghost marking where your best run ended.
+
 ## 0.53
 
 - **Any side, reworked** (sides2.js):
