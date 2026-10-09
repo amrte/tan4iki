@@ -763,7 +763,8 @@ const Game = {
         news.forEach((t, i) => Font.drawCenter(ctx, t, cx, cy + 26 + i * 10, '#3C3C3C'));
         if (this.stageNum === 1) Font.drawCenter(ctx, 'DESTROY THE ENEMY HQ', cx, cy + 14, '#A00000');
       }
-      const boss = bossForStage(this.stageNum);
+      // bosses come only in classic (as in beginStage): no boss name on other modes' curtains
+      const boss = this.mode === 'classic' && !this.customPending ? bossForStage(this.stageNum) : null;
       if (boss) Font.drawCenter(ctx, BOSSES[boss.idx].kind === 'galya' ? 'BOSS: ???' : (BOSSES[boss.idx].kind === 'ufo' ? 'FINAL BOSS: ' : 'BOSS: ') + BOSSES[boss.idx].name, cx, cy + 10, '#A00000');
       // the season (when it's known in advance)
       let lvTheme;
