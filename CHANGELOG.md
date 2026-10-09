@@ -3,6 +3,20 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.55
+
+- **New mode: ENDLESS WORLD** (world*.js): a land without end, made as you drive — the same land every time for its
+  seed, a new one every run. Nine biomes from the seasons and terrain types with smooth borders between them, rivers,
+  lakes, roads and city streets; whatever you break stays broken.
+  - *Villages* come under siege: hold them off the attack and a saved village becomes your safe spot (you come back
+    there, and it's the checkpoint).
+  - *Ruins* with chests and their guards; some hide a vault with a classic boss on a big chest.
+  - *Nests* turn out tanks until destroyed; patrols drive the roads; the further from home, the tougher the enemy, and
+    each biome has its own.
+  - *Day and night:* a 7-minute day, mostly daylight, with a short night at the end.
+  - A compass to the nearest village or ruin, the day, villages saved and chests looted on the side panel, a minimap
+    of what you've explored; records: the farthest distance and the villages saved. 1-4 players, online too.
+
 ## 0.54.1
 
 - **Every weapon breaks brick now**, so none leaves you stuck behind a wall (in the corridor above all): the laser

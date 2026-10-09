@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.54.1</title>
+  <title>tanb4iki_v0.55</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.54.1';
+const APP_VERSION = '0.55';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2697,7 +2697,7 @@ const SETTINGS_DEF = [
   { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
   { section: 'GAME' },
-  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'custom', 'survival', 'timeattack', 'bigmaps', 'sides', 'corridor', 'maze', 'fortress', 'galaxy', 'coop', 'race', 'eagles', 'dm', 'ctf'], def: 'classic',
+  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'custom', 'survival', 'timeattack', 'bigmaps', 'sides', 'corridor', 'maze', 'world', 'fortress', 'galaxy', 'coop', 'race', 'eagles', 'dm', 'ctf'], def: 'classic',
     fmt: v => modeInfo(v).name },
   { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4, 5], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!', 'AUTO'][v] },
   { key: 'raceTarget', label: 'RACE: FIRST TO', values: [1, 2, 3, 5, 7, 10], def: 3, fmt: v => v + ' PTS' },
@@ -3529,6 +3529,38 @@ const Sound = {
         break;
       case 'crRecord': // past your best
         this.seq([84, 88, 91, 96], 0.06, t, { vol: 0.11, wave: 'p25', decayTo: 0.5 });
+      // ENDLESS WORLD (world.js)
+      case 'wdAlarm': // a village under attack: its bell rings, high-low
+        for (let k = 0; k < 4; k++) {
+          this.note(k & 1 ? 81 : 86, t + k * 0.16, 0.15, { vol: 0.11, wave: 'p25', decayTo: 0.2 });
+          this.note(k & 1 ? 69 : 74, t + k * 0.16, 0.15, { vol: 0.07, wave: 'tri', decayTo: 0.3 });
+        }
+        break;
+      case 'wdSaved': // a village saved: a little fanfare
+        this.seq([67, 72, 76, 0, 72, 76, 79, 0, 84], 0.08, t, { vol: 0.15, decayTo: 0.45 });
+        this.seq([55, 0, 60, 0, 64, 0, 67], 0.1, t, { vol: 0.08, wave: 'tri', decayTo: 0.6 });
+        break;
+      case 'wdLost': // a village burns: falling, then a rumble
+        this.seq([76, 72, 69, 64, 60, 57], 0.09, t, { vol: 0.12, wave: 'p25', decayTo: 0.5 });
+        this.noise(800, t + 0.3, [[0, 0.4], [0.5, 0.25], [0.8, 0]], 300);
+        break;
+      case 'wdChest': // a chest opens: coins jingle up
+        this.seq([84, 88, 91, 96, 91, 96, 100], 0.04, t, { vol: 0.1, wave: 'p12', decayTo: 0.4 });
+        this.noise(14000, t, [[0, 0.12], [0.05, 0], [0.08, 0.1], [0.12, 0]]);
+        break;
+      case 'wdDawn': // sunrise: a bird's call
+        this.note(86, t, 0.08, { vol: 0.06, wave: 'p12', slideTo: 1760 });
+        this.note(93, t + 0.1, 0.06, { vol: 0.05, wave: 'p12', slideTo: 1319 });
+        this.seq([79, 84, 88], 0.12, t + 0.25, { vol: 0.07, wave: 'tri', decayTo: 0.6 });
+        break;
+      case 'wdNight': // nightfall: an owl, low and soft
+        this.note(64, t, 0.2, { vol: 0.07, wave: 'tri', slideTo: 294, decayTo: 0.4 });
+        this.note(64, t + 0.32, 0.35, { vol: 0.07, wave: 'tri', slideTo: 262, decayTo: 0.3 });
+        break;
+      case 'wdVault': // a vault blown open: a deep boom, then grinding stone
+        this.noise(300, t, [[0, 0.8], [0.4, 0.5], [0.9, 0]], 120);
+        this.note(36, t, 0.7, { vol: 0.2, wave: 'tri', slideTo: 30 });
+        this.noise(2500, t + 0.5, [[0, 0.15], [0.3, 0.1], [0.5, 0]]);
         break;
       case 'select':
         this.noise(13000, t, [[0, 0.35], [0.03, 0]]);
@@ -10934,6 +10966,7 @@ const MODES = [
   { key: 'sides', name: 'ANY SIDE', desc: 'YOUR EAGLE ON ANOTHER EDGE' },   // the map turned: eagle left, right or top
   { key: 'corridor', name: 'CORRIDOR', desc: 'ENDLESS CLIMB, HOW FAR?' },
   { key: 'maze', name: 'MAZE', desc: 'FIND THE ONE WAY OUT' },   // maze.js
+  { key: 'world', name: 'ENDLESS WORLD', desc: 'EXPLORE A WORLD WITHOUT END' },   // world.js: villages, ruins, day and night
   { key: 'fortress', name: 'FORTRESS', desc: 'BUILD TOWERS, HOLD 30 WAVES' },   // fortress.js: tower defense
   { key: 'galaxy', name: 'GALAXY', desc: 'BLAST ALIEN WAVES IN SPACE' },   // galaxy.js: a shoot-em-up
   { key: 'race', name: 'KILL RACE', cpu: true, desc: 'MOST KILLS WINS THE ROUND' },   // race.js; 1 player races bots
@@ -21213,7 +21246,7 @@ const Net = {
 const SW = 256, SH = 224;
 const SAVE_KEY = 'tank1990_save';   // CLASSIC's slot; every other mode adds '_' + its slot (see Game.saveSlotOf)
 // modes saved as a checkpoint (CLASSIC and BIG MAPS save the stage exactly), and the game's state they keep
-const CK_MODES = ['custom', 'survival', 'timeattack', 'sides', 'corridor', 'maze', 'fortress', 'galaxy', 'cpu', 'race'];
+const CK_MODES = ['custom', 'survival', 'timeattack', 'sides', 'corridor', 'maze', 'fortress', 'galaxy', 'cpu', 'race', 'world'];
 const CK_GAME_KEYS = ['taFrames', 'taCleared', 'round', 'raceTarget', 'tdMap', 'nextSide', 'shopDiscount', 'gxRun', 'gxDate', 'gxClock', 'gxEndless'];
 const menuOX = () => (SCREEN_W - SW) >> 1;
 const menuOY = () => (SCREEN_H - SH) >> 1;
@@ -21578,6 +21611,7 @@ const Game = {
         : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack)
         : mi.key === 'corridor' && (rec.corridor || rec.crMedal) ? crTitleBest(rec)   // the medals go beside it (corridor2.js)
         : mi.key === 'maze' && rec.maze ? 'BEST: ' + rec.maze.escaped + ' MAZES  ' + rec.maze.score + (mzStarTotal(rec) ? '  *' + mzStarTotal(rec) : '')
+        : mi.key === 'world' && rec.world ? 'FARTHEST ' + rec.world.dist + ' M  VILLAGES ' + rec.world.villages
         : mi.key === 'fortress' && rec.fortress ? 'STARS ' + TD_MAPS.map(m => (rec.fortress[m.key] || {}).stars || 0).reduce((a, b) => a + b, 0) + '/' + TD_MAPS.length * 3 + '  MAPS ' + TD_MAPS.filter((m, i) => tdUnlocked(i)).length + '/' + TD_MAPS.length
         : mi.key === 'galaxy' ? '1-4 PLAYERS' + (rec.galaxy ? ', BEST SECTOR ' + rec.galaxy.level + '  ' + rec.galaxy.score : '')
         : mi.key === 'coop' ? '1-4 PLAYERS TOGETHER' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '')
@@ -21693,6 +21727,7 @@ const Game = {
     else if (s.mode === 'fortress') w = 'WAVE ' + ((at.td && at.td.td ? at.td.td.wave | 0 : 0) + 1);
     else if (s.mode === 'survival') w = 'WAVE ' + (at.wave || 1);
     else if (s.mode === 'corridor') return (long ? 'CLIMB ' : '') + (at.climbed | 0) + ' M';
+    else if (s.mode === 'world') return 'DAY ' + ((at.wd && at.wd.day) | 0 || 1) + ', ' + ((at.wd && at.wd.dist) | 0) + ' M OUT';
     else if (s.mode === 'race') w = 'ROUND ' + (g.round || 1);
     else if (s.mode === 'cpu') w = 'ROUND ' + n;
     else if (s.mode === 'maze') w = 'MAZE ' + n;
@@ -21905,7 +21940,7 @@ const Game = {
     else if (modeInfo(this.mode).vs && n < 2) this.mode = 'classic';
     this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
     this.toCurtain(!custom && (this.mode === 'classic' || this.mode === 'bigmaps'));
-    if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides', 'maze', 'fortress', 'galaxy'].includes(this.mode)) this.stageNum = 1;
+    if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides', 'maze', 'fortress', 'galaxy', 'world'].includes(this.mode)) this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
     // KILL RACE: the first curtain picks how many points win the game (race.js)
     if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
@@ -21962,7 +21997,7 @@ const Game = {
     if (c.phase === 'show') {
       const cx = SCREEN_W / 2, cy = SCREEN_H / 2;
       const race = this.mode === 'race';
-      Font.draw(ctx, this.mode === 'cpu' || race ? 'ROUND' : this.mode === 'maze' ? 'MAZE' : this.mode === 'fortress' ? 'FORTRESS' : this.mode === 'galaxy' ? 'SECTOR' : 'STAGE', cx - (this.mode === 'fortress' ? 31 : 32), cy - 8, COL.black);
+      Font.draw(ctx, this.mode === 'cpu' || race ? 'ROUND' : this.mode === 'maze' ? 'MAZE' : this.mode === 'fortress' ? 'FORTRESS' : this.mode === 'galaxy' ? 'SECTOR' : this.mode === 'world' ? 'DAY' : 'STAGE', cx - (this.mode === 'fortress' ? 31 : 32), cy - 8, COL.black);
       if (this.mode === 'galaxy') Font.drawCenter(ctx, GX_SECTORS[(this.stageNum - 1) % GX_SECTORS.length].name, cx, cy + 14, '#A00000');
       if (this.mode !== 'fortress') Font.drawRight(ctx, race ? this.round : this.stageNum, cx + 32, cy - 8, COL.black);
       if (race) {
@@ -22085,14 +22120,21 @@ const Game = {
       setFieldSize(sv ? sv.cols : vc + SV_GROW, sv ? sv.rows : vr + SV_GROW, vc, vr);
       map = LEVELS[this.svRun.map % LEVELS.length];
       if (this.svRun.theme) theme = this.svRun.theme;
+    } else if (!custom && this.mode === 'world') {
+      // WORLD: a window of chunks onto a land without end, round the team (world.js); a checkpoint brings its world
+      const [vc, vr] = this.desiredField(), [nx, ny] = wdWindow(vc, vr);
+      this.wdRun = resume && resume.wd || null;
+      setFieldSize(nx * WD_CH, ny * WD_CH, vc, vr);
+      blocks = Array.from({ length: ny * WD_CB }, () => '.'.repeat(nx * WD_CB));
+      theme = 'spring';
     } else if (!custom && this.mode === 'sides') {
       // ANY SIDE: the classic field, turned so the eagle's edge is the chosen one, with the stage's twist (sides2.js)
       blocks = this.sidesLayout(map);
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
-      custom, boss, base: vs || corridor || maze || fortress || galaxy || this.mode === 'race' || this.mode === 'survival' ? newBase() : this.base, corridor, maze, fortress, galaxy, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
+      custom, boss, base: vs || corridor || maze || fortress || galaxy || this.mode === 'race' || this.mode === 'survival' || this.mode === 'world' ? newBase() : this.base, corridor, maze, fortress, galaxy, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
       race: this.mode === 'race' && !custom ? { target: this.raceTarget, round: this.round } : null, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
-      blocks, big: objective, theme, cl,
+      blocks, big: objective, theme, cl, world: !custom && this.mode === 'world',
     });
     // a loaded checkpoint from further in: on to its wave, section or block
     if (resume) this.ckApply(resume);
@@ -22144,7 +22186,7 @@ const Game = {
     if (r === 'clear' && this.mode === 'race') { this.saveHi(); this.raceRoundEnd(); return; }
     if (r && this.mode === 'timeattack' && r === 'clear') { this.saveHi(); this.taNext(); return; }
     if (r === 'gameover') AutoSkill.event('gameOver');
-    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu' || this.mode === 'maze' || this.mode === 'fortress' || this.mode === 'galaxy')) { this.saveHi(); this.toModeResult(false); return; }
+    if (r === 'gameover' && (this.mode === 'survival' || this.mode === 'timeattack' || this.mode === 'corridor' || this.mode === 'cpu' || this.mode === 'maze' || this.mode === 'fortress' || this.mode === 'galaxy' || this.mode === 'world')) { this.saveHi(); this.toModeResult(false); return; }
     // GALAXY: a sector cleared: the hangar, then the next one (galaxy.js)
     if (r === 'clear' && this.mode === 'galaxy') {
       this.saveHi(); this.lastScores = this.players.map(p => p.score); this.stageNum++;
@@ -35856,6 +35898,2412 @@ CK_GAME_KEYS.push('sdSeed', 'sdStreak', 'sdDone');   // the run's twists and the
     if (Game.sdPlan) Game.nextSide = Game.sdPlan.side;
   };
 })();
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  WORLD: the land itself (world.js plays it). An endless land in chunks of 13 x 13 tiles (the size of one
+//  classic map), laid out from the run's seed, so the same seed always gives the same world:
+//    BIOMES    grassland, forest, autumn woods, snowfields, desert, volcano, swamp, city ruins and wasteland: big
+//              regions from smooth noise (heat, wet, and two rarer ones), their borders frayed; each with its own
+//              ground, walls, trees and water (frozen in the snow, dried to mud in the desert, lava in the volcano)
+//    TERRAIN   rivers and lakes running across chunks, woods, and pieces of the 35 classic maps standing about
+//              as old walls
+//    ROADS     a loose net between chunk centres (long roads every 4 chunks, every village on it), bridged over
+//              water and lava; city chunks get streets all round
+//    FEATURES  now and then a village (its eagle in a brick ring, houses round a square), ruins (a walled
+//              compound, a chest in each room, sometimes a vault with a guardian and the big treasure) or an
+//              enemy nest; HOME at the start
+//  Every chunk is open: its four edge midpoints are clear and joined up inside it, and any sizeable pocket walled
+//  in by steel, water or lava gets a way cut in (bridged), so the whole world hangs together: you and the enemy
+//  can always get from one chunk to the next.
+// =====================================================================
+
+const WD_CH = 13, WD_CB = 26, WD_CC = 52, WD_PX = 208;   // a chunk: 16px tiles, 8px blocks, 4px cells, pixels
+const WD_THEMES = ['spring', 'summer', 'autumn', 'winter', 'desert', 'volcanic', 'swamp', 'city', 'nuclear'];
+const WD_BNAME = ['GRASSLAND', 'FOREST', 'AUTUMN WOODS', 'SNOWFIELDS', 'DESERT', 'VOLCANO', 'SWAMP', 'CITY RUINS', 'WASTELAND'];
+const WDB = { GRASS: 0, FOREST: 1, AUTUMN: 2, SNOW: 3, DESERT: 4, VOLCANO: 5, SWAMP: 6, CITY: 7, WASTE: 8 };
+// per biome: how high the noise must be for old walls (pieces of the classic maps), trees and lakes
+const WD_STAMP = [0.6, 0.67, 0.63, 0.64, 0.6, 0.63, 0.69, 0.42, 0.56];
+const WD_TREE = [0.66, 0.5, 0.53, 0.62, 0.74, 0.69, 0.56, 0.72, 0.66];
+const WD_LAKE = [0.73, 0.75, 0.73, 0.7, 0.77, 0.63, 0.64, 0.8, 0.73];
+// what a classic map's block may leave standing (the rest of it is left out)
+const WD_STAMPED = { '#': T_BRICK, '@': T_STEEL, '~': T_WATER, '%': T_FOREST, '_': T_ICE };
+// the ground's own kinds (per 8px block): wild, road, a village's cobbles, a ruin's flagstones, a nest's scorch
+const WG = { WILD: 0, ROAD: 1, COBBLE: 2, FLAG: 3, SCORCH: 4 };
+// cells drawn differently from the tile they are (world.js): a house roof, ruin stone
+const WD_HOUSE = 1, WD_RUIN = 2;
+// chests in ruins: what's in them
+const WD_CHESTS = ['coins', 'star', 'weapon', 'rare'];
+
+// ------------------------------------------------------------------ noise
+// a number from 0 to 1 for a spot (the same every time for the seed)
+function wdHash(s, x, y, k = 0) {
+  let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul((s + k * 1013) | 0, 1274126177);
+  h = Math.imul(h ^ (h >>> 13), 1103515245);
+  h = Math.imul(h ^ (h >>> 16), 2246822519);
+  return ((h ^ (h >>> 13)) >>> 0) / 4294967296;
+}
+// smooth value noise over the plane (one bump per unit)
+function wdNoise(s, x, y) {
+  const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+  const a = wdHash(s, i, j), b = wdHash(s, i + 1, j), c = wdHash(s, i, j + 1), d = wdHash(s, i + 1, j + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+// a few octaves of it (bumps of every size)
+function wdFbm(s, x, y, oct) {
+  let t = 0, amp = 1, n = 0;
+  for (let o = 0; o < oct; o++) { t += wdNoise(s + o * 7919, x, y) * amp; n += amp; amp *= 0.5; x *= 2.03; y *= 2.03; }
+  return t / n;
+}
+// noise bunches up round the middle: spread it out again
+const wdSpread = (v, k) => Math.max(0, Math.min(1, (v - 0.5) * k + 0.5));
+
+// the biome at a world block (8px units); near the start it's always grassland
+function wdBiomeAt(seed, gx, gy) {
+  const x = gx + (wdNoise(seed + 5, gx / 6, gy / 6) - 0.5) * 10, y = gy + (wdNoise(seed + 6, gx / 6, gy / 6) - 0.5) * 10;   // frayed borders
+  let temp = wdSpread(wdFbm(seed + 11, x / 210, y / 210, 3), 2.6), wet = wdSpread(wdFbm(seed + 23, x / 170, y / 170, 3), 2.6);
+  let odd = wdSpread(wdFbm(seed + 37, x / 250, y / 250, 2), 2), urb = wdSpread(wdFbm(seed + 41, x / 140, y / 140, 2), 2);
+  const d = Math.hypot(gx, gy) / 2;   // tiles from the start
+  if (d < 40) { const f = Math.min(1, 1.6 - d / 25); temp += (0.5 - temp) * f; wet += (0.45 - wet) * f; odd *= 1 - f; urb *= 1 - f; }
+  if (odd > 0.8) return temp > 0.5 ? WDB.VOLCANO : WDB.WASTE;
+  if (urb > 0.84) return WDB.CITY;
+  if (temp < 0.23) return WDB.SNOW;
+  if (temp > 0.73) return wet < 0.5 ? WDB.DESERT : WDB.SWAMP;
+  if (wet > 0.54) return temp > 0.5 ? WDB.FOREST : WDB.AUTUMN;
+  return WDB.GRASS;
+}
+
+// the classic maps as 26x26 block rows (worked out once)
+let wdLevelBlocks = null;
+function wdLevels() { return wdLevelBlocks || (wdLevelBlocks = LEVELS.map(m => mapToBlocks(m))); }
+
+// ------------------------------------------------------------------ features (decided without building the chunk)
+const wdFeatCache = new Map();
+// what stands in chunk (cx, cy): null, or { kind: 'home' | 'village' | 'ruin' | 'nest', ... }
+function wdFeatureOf(seed, cx, cy) {
+  const key = seed + ':' + cx + ',' + cy;
+  let f = wdFeatCache.get(key);
+  if (f !== undefined) return f;
+  f = null;
+  const d = Math.hypot(cx, cy);
+  if (cx === 0 && cy === 0) f = { kind: 'home' };
+  else {
+    // one place of note in every 3 x 3 chunks, at a chunk the dice pick
+    const sx = Math.floor(cx / 3), sy = Math.floor(cy / 3), pick = Math.floor(wdHash(seed, sx, sy, 31) * 9);
+    if (cx - sx * 3 + (cy - sy * 3) * 3 === pick && d >= 2) {
+      const r = wdHash(seed, sx, sy, 32), b = wdBiomeAt(seed, cx * WD_CB + 13, cy * WD_CB + 13);
+      // no villages in the volcano or the wasteland: ruins there
+      if (r < 0.56 && b !== WDB.VOLCANO && b !== WDB.WASTE) f = { kind: 'village', siege: wdHash(seed, cx, cy, 34) < Math.min(0.8, 0.45 + d * 0.02) };
+      else if (r < 0.94) f = { kind: 'ruin', boss: d >= 4 && wdHash(seed, cx, cy, 35) < 0.4 ? Math.floor(wdHash(seed, cx, cy, 36) * 4) : -1 };
+    }
+    // nests: more of them further out, never next to home
+    if (!f && d >= 3 && wdHash(seed, cx, cy, 33) < Math.min(0.12, 0.02 + d * 0.005)) f = { kind: 'nest' };
+  }
+  if (wdFeatCache.size > 40000) wdFeatCache.clear();
+  wdFeatCache.set(key, f);
+  return f;
+}
+const wdTown = f => f && (f.kind === 'village' || f.kind === 'home');
+
+// is there a road from chunk (cx, cy) to its right (horiz) or down neighbour?
+function wdRoadEdge(seed, cx, cy, horiz) {
+  if (wdTown(wdFeatureOf(seed, cx, cy)) || wdTown(horiz ? wdFeatureOf(seed, cx + 1, cy) : wdFeatureOf(seed, cx, cy + 1))) return true;
+  if (horiz ? cy % 4 === 0 : cx % 4 === 0) return wdHash(seed, cx, cy, horiz ? 41 : 42) < 0.85;   // the long roads
+  return wdHash(seed, cx, cy, horiz ? 43 : 44) < 0.2;
+}
+
+// ------------------------------------------------------------------ building a chunk
+// tiles that a tank can neither drive nor shoot through (a way has to go round or over them)
+const wdHard = v => v === T_STEEL || v === T_WATER || v === T_LAVA || isBasalt(v) || isDefl(v) || v === T_DRUM || v === T_LAMP;
+
+// the chunk at (cx, cy) as the seed makes it:
+//   cells (52x52 4px cells: terrain types), deco (52x52: house roofs, ruin stone), bio and gnd (26x26 blocks: the
+//   biome and the ground's kind), feat (its feature laid out, positions in pixels from the chunk's corner),
+//   zones (wasteland hot spots)
+function wdGenChunk(seed, cx, cy) {
+  const B = WD_CB, gx0 = cx * B, gy0 = cy * B;
+  const bio = new Uint8Array(B * B), gnd = new Uint8Array(B * B), blk = new Uint8Array(B * B), solid = new Uint8Array(B * B);
+  // the biome a 16px tile at a time (the ground's drawing frays its borders finer); lakes and rivers from noise
+  // sampled every other block and blended between (they're smooth at that size: a third of the work)
+  for (let ty = 0; ty < WD_CH; ty++) for (let tx = 0; tx < WD_CH; tx++) {
+    const b = wdBiomeAt(seed, gx0 + tx * 2, gy0 + ty * 2), i = ty * 2 * B + tx * 2;
+    bio[i] = bio[i + 1] = bio[i + B] = bio[i + B + 1] = b;
+  }
+  const SN = B / 2 + 1, lakeN = new Float32Array(SN * SN), riverN = new Float32Array(SN * SN);
+  for (let y = 0; y < SN; y++) for (let x = 0; x < SN; x++) {
+    const gx = gx0 + x * 2, gy = gy0 + y * 2;
+    lakeN[y * SN + x] = wdFbm(seed + 61, gx / 28, gy / 28, 3);
+    riverN[y * SN + x] = wdFbm(seed + 51, gx / 110, gy / 110, 3);
+  }
+  const blend = (a, bx, by) => {
+    const x = bx >> 1, y = by >> 1, fx = (bx & 1) * 0.5, fy = (by & 1) * 0.5, k = y * SN + x;
+    return (a[k] * (1 - fx) + a[k + 1] * fx) * (1 - fy) + (a[k + SN] * (1 - fx) + a[k + SN + 1] * fx) * fy;
+  };
+  const lvs = wdLevels(), lv = lvs[Math.floor(wdHash(seed, cx, cy, 9) * lvs.length)], flip = wdHash(seed, cx, cy, 10) < 0.5;
+  const tileH = (bx, by, k) => wdHash(seed, (gx0 + bx) >> 1, (gy0 + by) >> 1, k);   // one die per 16px tile
+  for (let by = 0; by < B; by++) for (let bx = 0; bx < B; bx++) {
+    const i = by * B + bx, gx = gx0 + bx, gy = gy0 + by, b = bio[i];
+    let t = T_EMPTY;
+    // old walls: a piece of a classic map shows through where the walls noise is high
+    if (wdFbm(seed + 81, gx / 13, gy / 13, 2) > WD_STAMP[b]) t = WD_STAMPED[lv[by][flip ? B - 1 - bx : bx]] || T_EMPTY;
+    if (t === T_EMPTY && wdFbm(seed + 71, gx / 7, gy / 7, 2) > WD_TREE[b]) t = T_FOREST;
+    const lake = blend(lakeN, bx, by) > WD_LAKE[b];
+    const river = Math.abs(blend(riverN, bx, by) - 0.5) < 0.011;
+    if (lake || river) t = T_WATER;
+    // the biome's own take on it
+    switch (b) {
+      case WDB.GRASS: if (t === T_EMPTY && wdNoise(seed + 91, gx / 5, gy / 5) > 0.86) t = T_MUD; break;
+      case WDB.SNOW: if (t === T_WATER && (river || wdNoise(seed + 93, gx / 24, gy / 24) < 0.8)) t = T_ICE; break;
+      case WDB.DESERT:
+        if (t === T_WATER && (river || wdNoise(seed + 95, gx / 24, gy / 24) < 0.65)) t = T_MUD;   // dried up; the rest are oases
+        else if (t === T_FOREST && tileH(bx, by, 12) > 0.4) t = T_EMPTY;   // cacti stand alone
+        break;
+      case WDB.VOLCANO:
+        if (t === T_WATER && (river || wdNoise(seed + 97, gx / 24, gy / 24) < 0.8)) t = T_LAVA;
+        else if (t === T_STEEL) t = T_BASALT;
+        else if (t === T_ICE) t = T_EMPTY;
+        else if (t === T_EMPTY && tileH(bx, by, 13) < 0.02) t = T_VENT;
+        break;
+      case WDB.SWAMP:
+        if ((t === T_EMPTY && wdNoise(seed + 99, gx / 6, gy / 6) > 0.62) || t === T_MUD) t = tileH(bx, by, 14) < 0.05 ? T_GAS : T_BOG;
+        else if (t === T_FOREST && tileH(bx, by, 15) < 0.35) t = T_REEDS;
+        break;
+      case WDB.CITY:
+        if (t === T_BRICK && tileH(bx, by, 16) < 0.45) t = T_CONC;
+        else if (t === T_FOREST && tileH(bx, by, 17) < 0.5) t = T_RUBBLE;
+        else if (t === T_ICE) t = T_EMPTY;
+        break;
+      case WDB.WASTE:
+        if (t === T_BRICK && tileH(bx, by, 18) < 0.2) t = T_RUBBLE;
+        break;
+    }
+    blk[i] = t;
+  }
+  // reeds along the swamp's shores, a few crates and barrels anywhere, drums and lamps in the city
+  for (let by = 0; by < B; by++) for (let bx = 0; bx < B; bx++) {
+    const i = by * B + bx, b = bio[i];
+    if (blk[i] !== T_EMPTY) continue;
+    const near = v => (bx > 0 && blk[i - 1] === v) || (bx < B - 1 && blk[i + 1] === v) || (by > 0 && blk[i - B] === v) || (by < B - 1 && blk[i + B] === v);
+    const h = wdHash(seed, gx0 + bx, gy0 + by, 19);
+    if (b === WDB.SWAMP && near(T_WATER) && h < 0.45) blk[i] = T_REEDS;
+    else if (b === WDB.CITY && h < 0.03 && (near(T_BRICK) || near(T_CONC))) blk[i] = T_LAMP;
+    else if (h > (b === WDB.CITY ? 0.985 : 0.9985)) blk[i] = T_DRUM;
+  }
+  for (let ty = 1; ty < WD_CH - 1; ty++) for (let tx = 1; tx < WD_CH - 1; tx++) {
+    if (wdHash(seed, cx * WD_CH + tx, cy * WD_CH + ty, 20) > 0.006) continue;
+    const ks = [0, 1, B, B + 1].map(k => ty * 2 * B + tx * 2 + k);
+    if (ks.every(k => blk[k] === T_EMPTY)) for (const k of ks) blk[k] = T_CRATE;
+  }
+  // roads: from the middle to each edge that has one, wiggling a little (straight through a village)
+  const town = wdTown(wdFeatureOf(seed, cx, cy)), amp = town ? 0 : Math.round((wdHash(seed, cx, cy, 45) - 0.5) * 4);
+  const lay = (bx, by) => {
+    if (bx < 0 || by < 0 || bx >= B || by >= B) return;
+    const i = by * B + bx, v = blk[i];
+    blk[i] = v === T_WATER || v === T_LAVA ? T_BRIDGE : v === T_ICE ? T_ICE : T_EMPTY;
+    gnd[i] = WG.ROAD;
+  };
+  const roadH = (x0, x1) => { for (let x = x0; x <= x1; x++) { const y = 12 + Math.round(amp * Math.sin(Math.PI * (x + 0.5 - 13) / 13)); lay(x, y); lay(x, y + 1); } };
+  const roadV = (y0, y1) => { for (let y = y0; y <= y1; y++) { const x = 12 + Math.round(amp * Math.sin(Math.PI * (y + 0.5 - 13) / 13)); lay(x, y); lay(x + 1, y); } };
+  const E = wdRoadEdge(seed, cx, cy, true), W = wdRoadEdge(seed, cx - 1, cy, true), S = wdRoadEdge(seed, cx, cy, false), N = wdRoadEdge(seed, cx, cy - 1, false);
+  if (E) roadH(12, B - 1);
+  if (W) roadH(0, 13);
+  if (S) roadV(12, B - 1);
+  if (N) roadV(0, 13);
+  // the city: streets all round each chunk (two chunks side by side make a street two blocks wide)
+  if (bio[13 * B + 13] === WDB.CITY) for (let k = 0; k < B; k++) for (const [x, y] of [[k, 0], [k, B - 1], [0, k], [B - 1, k]]) if (bio[y * B + x] === WDB.CITY) lay(x, y);
+  const feat = wdLayFeature(seed, cx, cy, blk, gnd, solid, bio);
+  wdOpenUp(blk, solid);
+  // into 4px cells; ruin walls crumble here and there
+  const cells = new Uint8Array(WD_CC * WD_CC), deco = new Uint8Array(WD_CC * WD_CC);
+  for (let by = 0; by < B; by++) for (let bx = 0; bx < B; bx++) {
+    const i = by * B + bx, v = blk[i];
+    for (let k = 0; k < 4; k++) {
+      const c = (by * 2 + (k >> 1)) * WD_CC + bx * 2 + (k & 1);
+      cells[c] = v;
+      if (solid[i] === 2 && v === T_BRICK) deco[c] = WD_HOUSE;
+      else if (solid[i] === 3 && v === T_BRICK) { deco[c] = WD_RUIN; if (wdHash(seed, gx0 * 2 + bx * 2 + (k & 1), gy0 * 2 + by * 2 + (k >> 1), 22) < 0.22) cells[c] = T_EMPTY; }
+    }
+  }
+  // hot spots in the wasteland, on open ground away from the road
+  const zones = [];
+  if (bio[13 * B + 13] === WDB.WASTE && !feat) {
+    for (let k = 0, n = 1 + Math.floor(wdHash(seed, cx, cy, 23) * 2), tries = 0; k < n && tries < 20; tries++) {
+      const bx = 3 + Math.floor(wdHash(seed, cx, cy, 24 + tries) * 20), by = 3 + Math.floor(wdHash(seed, cx, cy, 50 + tries) * 20);
+      if (blk[by * B + bx] !== T_EMPTY || gnd[by * B + bx] || zones.some(z => Math.hypot(z[0] - bx * 8, z[1] - by * 8) < 56)) continue;
+      zones.push([bx * 8 + 4, by * 8 + 4, 18 + Math.floor(wdHash(seed, cx, cy, 80 + k) * 3) * 3]);
+      k++;
+    }
+  }
+  return { cx, cy, cells, deco, bio, gnd, feat, zones };
+}
+
+// the chunk's feature, laid out over its terrain; solid marks blocks taken by things that aren't tiles
+// (1: an eagle or a nest, which tanks can't drive through) and the houses (2) and ruin walls (3)
+function wdLayFeature(seed, cx, cy, blk, gnd, solid, bio) {
+  const f0 = wdFeatureOf(seed, cx, cy);
+  if (!f0) return null;
+  const B = WD_CB, at = (bx, by) => by * B + bx;
+  const fill = (x0, y0, x1, y1, v, g) => {
+    for (let by = y0; by <= y1; by++) for (let bx = x0; bx <= x1; bx++) {
+      const i = at(bx, by);
+      if (v !== undefined) blk[i] = v;
+      if (g !== undefined && gnd[i] !== WG.ROAD) gnd[i] = g;
+    }
+  };
+  const h = k => wdHash(seed, cx, cy, k);
+  if (f0.kind === 'home' || f0.kind === 'village') {
+    // the square: cobbles, nothing in the way; the eagle in its brick ring in the middle; houses round it
+    fill(5, 5, 20, 20, T_EMPTY, WG.COBBLE);
+    for (let by = 11; by <= 14; by++) for (let bx = 11; bx <= 14; bx++) blk[at(bx, by)] = bx >= 12 && bx <= 13 && by >= 12 && by <= 13 ? T_EMPTY : T_BRICK;
+    for (let by = 12; by <= 13; by++) for (let bx = 12; bx <= 13; bx++) solid[at(bx, by)] = 1;
+    const spots = [[3, 3], [9, 3], [3, 9], [9, 9], [1, 1], [11, 1], [1, 11], [11, 11], [4, 1], [8, 11], [1, 8], [11, 4]];
+    const houses = spots.slice(0, 4).concat(spots.slice(4).filter((s, k) => h(60 + k) < 0.45));
+    for (const [tx, ty] of houses) for (let by = ty * 2; by <= ty * 2 + 1; by++) for (let bx = tx * 2; bx <= tx * 2 + 1; bx++) { blk[at(bx, by)] = T_BRICK; solid[at(bx, by)] = 2; gnd[at(bx, by)] = WG.COBBLE; }
+    // hedges round the square
+    for (let k = 4; k <= 21; k++) for (const [bx, by] of [[k, 4], [k, 21], [4, k], [21, k]]) {
+      const i = at(bx, by);
+      if (gnd[i] !== WG.ROAD && !solid[i] && blk[i] === T_EMPTY && wdHash(seed, cx * B + bx, cy * B + by, 61) < 0.5) blk[i] = bio[i] === WDB.DESERT ? T_EMPTY : T_FOREST;
+    }
+    return { kind: f0.kind, ex: 96, ey: 96, siege: !!f0.siege, houses };
+  }
+  if (f0.kind === 'nest') {
+    // an enemy factory in a scorched clearing, a few barricades round it
+    fill(7, 6, 18, 19, T_EMPTY, WG.SCORCH);
+    for (let by = 9; by <= 12; by++) for (let bx = 11; bx <= 14; bx++) solid[at(bx, by)] = 1;
+    for (let k = 7; k <= 18; k++) for (const [bx, by] of [[7, k], [18, k]]) if (k < 11 || k > 14) blk[at(bx, by)] = T_BRICK;
+    return { kind: 'nest', x: 88, y: 72 };
+  }
+  // ruins: a walled compound (gates in the middle of each side), a room in each corner with a chest, the middle
+  // open, or a steel vault with a guardian in it and the big treasure
+  fill(4, 4, 21, 21, T_EMPTY, WG.FLAG);
+  const wall = (bx, by) => { const i = at(bx, by); blk[i] = T_BRICK; solid[i] = 3; };
+  for (let k = 4; k <= 21; k++) if (k < 12 || k > 13) { wall(k, 4); wall(k, 21); wall(4, k); wall(21, k); }
+  for (const [rx, ry] of [[10, 10], [15, 10], [10, 15], [15, 15]]) {
+    // each room's two inner walls (the outer ones are the compound's), a doorway in each
+    const sx = rx === 10 ? 5 : 15, sy = ry === 10 ? 5 : 15;
+    for (let k = 0; k < 6; k++) if (k !== 2 && k !== 3) { wall(rx, sy + k); wall(sx + k, ry); }
+  }
+  for (const [bx, by] of [[4, 4], [21, 4], [4, 21], [21, 21]]) { blk[at(bx, by)] = T_STEEL; solid[at(bx, by)] = 0; }   // corner posts
+  const chests = [[48, 48], [136, 48], [48, 136], [136, 136]].map(([x, y], k) => ({ x, y, kind: WD_CHESTS[Math.floor(h(70 + k) * WD_CHESTS.length)] }));
+  const boss = f0.boss;
+  if (boss >= 0) {
+    // the vault: steel round a 4x4-block room, brick doors
+    for (let k = 10; k <= 15; k++) for (const [bx, by] of [[k, 10], [k, 15], [10, k], [15, k]]) { blk[at(bx, by)] = k === 12 || k === 13 ? T_BRICK : T_STEEL; solid[at(bx, by)] = 0; }
+    fill(11, 11, 14, 14, T_EMPTY);
+    chests.push({ x: 96, y: 96, kind: 'big' });
+  } else chests.push({ x: 96, y: 96, kind: 'coins' });
+  return { kind: 'ruin', boss, chests, guards: [[96, 40], [96, 152], [40, 96], [152, 96]] };
+}
+
+// keep every chunk open (see the top): the four edge midpoints clear and joined, big pockets cut into.
+// Works on the 8px node grid the enemy's path finding uses (a node is a tank's place: 2x2 blocks).
+function wdOpenUp(blk, solid) {
+  const B = WD_CB, N = B - 1;
+  const clear = i => { if (solid[i] === 1) return; const v = blk[i]; if (wdHard(v)) blk[i] = v === T_WATER || v === T_LAVA ? T_BRIDGE : T_EMPTY; };
+  const blocksOf = n => { const x = n % N, y = (n / N) | 0, i = y * B + x; return [i, i + 1, i + B, i + B + 1]; };
+  const hard = i => solid[i] === 1 || wdHard(blk[i]);
+  const open = n => blocksOf(n).every(i => !hard(i));
+  const seeds = [12 * N, 12 * N + N - 1, 12, (N - 1) * N + 12];
+  for (const n of seeds) for (const i of blocksOf(n)) clear(i);
+  const reached = new Uint8Array(N * N);
+  const flood = starts => {
+    const q = starts.filter(n => !reached[n] && open(n));
+    for (const n of q) reached[n] = 1;
+    for (let k = 0; k < q.length; k++) {
+      const n = q[k], x = n % N, y = (n / N) | 0;
+      for (const [dx, dy] of DXY) {
+        const ux = x + dx, uy = y + dy, u = uy * N + ux;
+        if (ux < 0 || uy < 0 || ux >= N || uy >= N || reached[u] || !open(u)) continue;
+        reached[u] = 1; q.push(u);
+      }
+    }
+  };
+  flood([seeds[0]]);
+  // what's still cut off: the other midpoints, and one node of every pocket of 4 or more
+  const todo = seeds.slice(1);
+  const seen = new Uint8Array(N * N);
+  for (let n = 0; n < N * N; n++) {
+    if (reached[n] || seen[n] || !open(n)) continue;
+    const q = [n]; seen[n] = 1;
+    for (let k = 0; k < q.length; k++) {
+      const x = q[k] % N, y = (q[k] / N) | 0;
+      for (const [dx, dy] of DXY) {
+        const ux = x + dx, uy = y + dy, u = uy * N + ux;
+        if (ux < 0 || uy < 0 || ux >= N || uy >= N || seen[u] || reached[u] || !open(u)) continue;
+        seen[u] = 1; q.push(u);
+      }
+    }
+    if (q.length >= 4) todo.push(n);
+  }
+  for (const t of todo) {
+    if (reached[t]) continue;
+    // the cheapest way from it to what's open (through as few hard blocks as it can), cleared
+    const dist = new Float64Array(N * N).fill(Infinity), prev = new Int32Array(N * N).fill(-1), h = new NavHeap();
+    dist[t] = 0; h.push(0, t);
+    let hit = -1;
+    while (h.size) {
+      const [d, v] = h.pop();
+      if (d > dist[v]) continue;
+      if (reached[v]) { hit = v; break; }
+      const x = v % N, y = (v / N) | 0;
+      for (const [dx, dy] of DXY) {
+        const ux = x + dx, uy = y + dy, u = uy * N + ux;
+        if (ux < 0 || uy < 0 || ux >= N || uy >= N) continue;
+        const bs = blocksOf(u);
+        if (bs.some(i => solid[i] === 1)) continue;
+        const nd = d + 1 + 30 * bs.filter(i => wdHard(blk[i])).length;
+        if (nd < dist[u]) { dist[u] = nd; prev[u] = v; h.push(nd, u); }
+      }
+    }
+    if (hit < 0) continue;
+    const path = [];
+    for (let v = hit; v >= 0; v = prev[v]) { path.push(v); for (const i of blocksOf(v)) clear(i); }
+    flood(path);
+  }
+}
+
+// a chunk's changes as a short string (each changed cell: 3 base-36 digits for where, a character for what) and back
+function wdDiff(base, cur) {
+  let s = '';
+  for (let i = 0; i < base.length; i++) if (base[i] !== cur[i]) s += i.toString(36).padStart(3, '0') + String.fromCharCode(48 + cur[i]);
+  return s;
+}
+function wdUndiff(base, s) {
+  const c = base.slice();
+  for (let k = 0; k + 3 < s.length; k += 4) { const i = parseInt(s.substr(k, 3), 36); if (i >= 0 && i < c.length) c[i] = s.charCodeAt(k + 3) - 48; }
+  return c;
+}
+
+// the last chunks built, kept for a while (each one takes a millisecond or two)
+const wdGenCache = new Map();
+function wdGen(seed, cx, cy) {
+  const key = seed + ':' + cx + ',' + cy;
+  let g = wdGenCache.get(key);
+  if (g) { wdGenCache.delete(key); wdGenCache.set(key, g); return g; }
+  g = wdGenChunk(seed, cx, cy);
+  wdGenCache.set(key, g);
+  while (wdGenCache.size > 160) wdGenCache.delete(wdGenCache.keys().next().value);
+  return g;
+}
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  WORLD (ENDLESS WORLD): a land without end, made as you drive (worldgen.js lays it out)
+//    - the field is a window of chunks (3 x 3 on the usual screen) round the team. Cross into the next chunk and
+//      the window moves with you: the chunks on the far side drop off (what you did there is kept, as a short list
+//      of changes once it's been a while), new ones come in, and everything on the field moves with the land, so
+//      the rest of the game never meets an edge
+//    - biomes, each with its own look, its twist while you're in it (showers, wildfire, gusts, blizzards, hot
+//      spots, mirages, lava bombs, marsh gas, blackouts) and its own enemy among the rest
+//    - VILLAGES: most are attacked when you find them: hold off the waves and the village is saved (a tank for
+//      everyone, points, supplies) and from then on it's a safe place: you come back there, and the game is saved
+//      there. Some are friendly from the start (a gift, and a safe place too). Lose the eagle and the village burns
+//    - RUINS: walled compounds with a chest in each room, and guards; some have a vault, and in it a guardian (one of
+//      the bosses) and the big treasure
+//    - NESTS turn out tanks until destroyed; enemies roam everywhere, more and tougher the further out you are (and
+//      the longer you've been out); patrols along the roads
+//    - day and night: mostly day (7 minutes a cycle); a short night (a fifth of it) is dark round your lights
+//    - the compass in the side panel points to the nearest village or ruin still to visit; the minimap shows what
+//      you've seen. The run's record: how far you got from home, and how many villages you saved
+// =====================================================================
+
+// the cycle: day until WD_DUSK, a gentle dusk to WD_NIGHT, night to WD_DAWN, then dawn (fractions of WD_DAY)
+const WD_DAY = 25200, WD_DUSK = 0.74, WD_NIGHT = 0.8, WD_DAWN = 0.93, WD_DROP_LIFE = 3600, WD_SAFE_R = 144, WD_SIEGE_R = 144, WD_KEEP = 48, WD_RECS = 3000;
+// it never runs out of enemies: this one stays in the queue so the stage never counts as clear (and isn't spawned)
+const WD_SENTINEL = { type: 0, world: true };
+// the guardians a vault may hold (bosses that get about by themselves, away from an arena)
+const WD_BOSSES = ['bear', 'harvester', 'scorpion', 'gunship'];
+// power-ups that may lie about as supplies, and the rare ones in chests
+const WD_SUPPLY = [PU.STAR, PU.HELMET, PU.WEAPON, PU.TURRET, PU.MINES, PU.STAR, PU.HELMET];
+const WD_RARE = [PU.GUN, PU.TANK, PU.TURRET, PU.CLAUDE, PU.AIRSTRIKE, PU.SHIP];
+const WD_NOTE = 150;
+const wdKey = (cx, cy) => cx + ',' + cy;
+
+// how many chunks the window holds across and down for a screen of vc x vr tiles: one more than it needs each way
+function wdWindow(vc, vr) {
+  const m = v => Math.max(1, Math.ceil((v / 2 + 3) / WD_CH));
+  return [2 * m(vc) + 1, 2 * m(vr) + 1];
+}
+
+// a new run, or one from a checkpoint
+function wdNewRun() { return { seed: 1 + rnd(1e9) }; }
+
+// ------------------------------------------------------------------ the look (textures as pixels, for painting chunks)
+const wdColor = hex => { const v = parseInt(hex.slice(1), 16); return (255 << 24 | (v & 255) << 16 | (v >> 8 & 255) << 8 | v >> 16) >>> 0; };
+// a house roof from above (16px): its colours change with the land
+const WD_HOUSE_ROWS = ['.kkkkkkkkkkkkkk.', 'kRRRRRRRRRRkCCkk', 'krrrrrrrrrrkcckk', 'kRRRRRRRRRRkcckk', 'krrrrrrrrrrrrrrk', 'kRRRRRRRRRRRRRRk',
+  'krrrrrrrrrrrrrrk', 'kHHHHHHHHHHHHHHk', 'kkkkkkkkkkkkkkkk', 'kDDDDDDDDDDDDDDk', 'kddddddddddddddk', 'kDDDDDDDDDDDDDDk', 'kddddddddddddddk',
+  'kDDDDDDDDDDDDDDk', 'keeeeeeeeeeeeeek', '.kkkkkkkkkkkkkk.'];
+const WD_ROOF = {
+  spring: ['#E05C1C', '#A83010', '#A02C08', '#701C04', '#F8A070'], summer: ['#E05C1C', '#A83010', '#A02C08', '#701C04', '#F8A070'],
+  autumn: ['#B87C3C', '#7C4C1C', '#7C4818', '#4C2C0C', '#E0B078'], winter: ['#F8F8FF', '#B8C8DC', '#B8C4D8', '#8494AC', '#FFFFFF'],
+  desert: ['#E8B070', '#B87C3C', '#B88040', '#8C5820', '#F8D8A0'], swamp: ['#8C7C38', '#5C5020', '#5C5020', '#3C3410', '#B8A858'],
+  city: ['#9C9CA4', '#6C6C74', '#6C6C74', '#4C4C54', '#C8C8D0'], volcanic: ['#6C4438', '#3C2018', '#4C2C24', '#2C1810', '#9C7464'],
+  nuclear: ['#7C7C6C', '#54544C', '#54544C', '#3C3C34', '#A8A898'],
+};
+// ruin stone: old grey blocks, moss in the joints
+const WD_RUIN_ROWS = ['GGGgGGGs', 'GgGGGGgs', 'GGGmGGGs', 'ssssssss', 'GGsGGGGG', 'gGsGGmGg', 'GGsGgGGG', 'ssssssss'];
+const wdTexCan = {};
+function wdTexCanvas(theme, key) {
+  if (key === 'bridge') return Sprites.bridgeTex;
+  if (key === 'mud') return Sprites.mudTex;
+  if (key === 'house' || key === 'ruin') {
+    const k = theme + key;
+    if (!wdTexCan[k]) {
+      const r = WD_ROOF[theme] || WD_ROOF.spring;
+      wdTexCan[k] = key === 'house' ? paintRows(WD_HOUSE_ROWS, { k: '#1C0C04', R: r[0], r: r[1], D: r[2], d: r[3], H: r[4], e: '#140804', c: '#4C4C4C', C: '#8C8C8C' })
+        : paintRows(WD_RUIN_ROWS, theme === 'desert' ? { G: '#B89C68', g: '#987C4C', m: '#7C6C3C', s: '#5C4824' } : { G: '#8C8C7C', g: '#6C6C5C', m: '#4C7C3C', s: '#34342C' });
+    }
+    return wdTexCan[k];
+  }
+  return themeTex(theme)[key];
+}
+const wdTexPx = {};
+function wdTexOf(theme, key) {
+  const T = wdTexPx[theme] || (wdTexPx[theme] = {});
+  if (!T[key]) {
+    const c = wdTexCanvas(theme, key), d = c.getContext('2d').getImageData(0, 0, c.width, c.height);
+    T[key] = { w: c.width, d: new Uint32Array(d.data.buffer) };
+  }
+  return T[key];
+}
+// which texture a cell shows (null: none on the layers: water, lava and belts move and are drawn every frame)
+function wdKeyOf(v, deco) {
+  switch (v) {
+    case T_BRICK: return deco === WD_HOUSE ? 'house' : deco === WD_RUIN ? 'ruin' : 'brick';
+    case T_STEEL: return 'steel';
+    case T_ICE: return 'ice';
+    case T_BRIDGE: return 'bridge';
+    case T_MUD: return 'mud';
+    case T_FOREST: return 'forest';
+    case T_REEDS: return 'reeds';
+    case T_BOG: case T_GAS: return 'bog';
+    case T_VENT: return 'vent';
+    case T_LAMP: return 'lamp';
+    case T_CRATE: return 'crate';
+    default: return BIO_TEX[v] || null;
+  }
+}
+const wdOnForest = v => v === T_FOREST || v === T_REEDS;
+const wdCapSolid = v => v === T_BRICK || v === T_STEEL || v === T_FOREST;
+const WD_BIOMES_ALL = WD_THEMES.map((t, b) => b);
+// the ground of each biome as packed pixels: base, specks, roads, and a few details
+const wdGroundCols = {};
+function wdGroundOf(b) {
+  if (wdGroundCols[b]) return wdGroundCols[b];
+  const th = THEMES[WD_THEMES[b]], c = wdColor;
+  const road = ['#2E2614', '#20200E', '#33240F', '#566070', '#7C603A', '#2E2420', '#3C2C18', '#1C1C20', '#3A3A2E'][b];
+  const det = [['#F878B8', '#F8D838', '#F8F8F8'], ['#1E3A12', '#284A16'], ['#C85010', '#E08020', '#A03008'], ['#8C9CB0', '#B8C8D8'],
+    ['#4C3818', '#6C5028'], ['#5C1808', '#A83008'], ['#0A1006', '#2C4018'], ['#18181A', '#3A3A3C'], ['#3C3C30', '#4C4C40']][b];
+  return (wdGroundCols[b] = {
+    base: c(th.ground), specks: (th.specks || [th.ground]).map(c), det: det.map(c),
+    road: c(road), roadEdge: c(['#1A160A', '#10100A', '#1C1408', '#3C4858', '#5C4420', '#140C08', '#24180C', '#141416', '#24241C'][b]),
+    pebble: c(['#4C4024', '#34301C', '#4C3818', '#6C7888', '#9C8050', '#443830', '#5C4428', '#2C2C30', '#4C4C40'][b]),
+    lane: c(b === WDB.CITY ? '#7C7C6C' : road),
+    cobble: c(b === WDB.SNOW ? '#7C8898' : b === WDB.DESERT ? '#A08050' : '#4C4436'), cobLine: c(b === WDB.SNOW ? '#56606E' : b === WDB.DESERT ? '#6C5430' : '#2C261C'),
+    flag: c(b === WDB.DESERT ? '#8C7448' : '#3C3C34'), flagLine: c(b === WDB.DESERT ? '#5C4824' : '#24241E'), moss: c('#3C5C28'),
+    scorch: c('#140E0C'), ember: c('#7C2408'), ash: c('#3C3430'),
+  });
+}
+// a pixel's own number (the same every time for a place in the world)
+const wdPixHash = (x, y) => { let h = Math.imul(x, 0x27d4eb2d) ^ Math.imul(y, 0x165667b1); h = Math.imul(h ^ (h >>> 15), 0x85ebca6b); return (h ^ (h >>> 13)) >>> 0; };
+
+// ------------------------------------------------------------------ sprites of its own
+// a chest (16px; the big one in gold), drawn once
+const WD_CHEST_ROWS = ['................', '................', '..kkkkkkkkkkkk..', '.kWWWWWWWWWWWWk.', '.kWwwwwwwwwwwWk.', '.kwwwwwwwwwwwwk.',
+  '.kGGGGGGGGGGGGk.', '.kkkkkkYYkkkkkk.', '.kWWWWWkYkWWWWk.', '.kwwwwwkkkwwwwk.', '.kwwwwwwwwwwwwk.', '.kGwwwwwwwwwwGk.', '.kGGGGGGGGGGGGk.',
+  '..kkkkkkkkkkkk..', '................', '................'];
+const wdSpr = {};
+function wdChestSprite(big) {
+  const k = big ? 'bigChest' : 'chest';
+  if (!wdSpr[k]) wdSpr[k] = paintRows(WD_CHEST_ROWS, big ? { k: '#3C2400', W: '#F8F078', w: '#F8B800', G: '#F8F8F8', Y: '#E45C10' } : { k: '#2C1400', W: '#C88848', w: '#8C5418', G: '#F8B800', Y: '#F8F8F8' });
+  return wdSpr[k];
+}
+
+Object.assign(Stage.prototype, {
+  // ------------------------------------------------------------ set-up
+  // run: { seed } for a new world, or a checkpoint's world (seed, the safe village it starts at, states, changes, explored ...)
+  setupWorld(run) {
+    run = run || wdNewRun();
+    const NX = COLS / WD_CH, NY = ROWS / WD_CH;
+    const W = this.world = {
+      seed: run.seed | 0 || 1, NX, NY, ox: 0, oy: 0, chunks: new Map(), feats: new Map(),
+      clock: run.clock || Math.round(WD_DAY * 0.04), day: run.day || 1, dist: run.dist || 0, saved: run.saved || 0, looted: run.looted || 0,
+      time: run.time || 0, at: Array.isArray(run.at) ? [run.at[0] | 0, run.at[1] | 0] : [0, 0], ckN: 0, spawned: 0, notes: [], featVer: 0,
+    };
+    this.wdLoadState(run);
+    this.noBase = true; this.baseAlive = false; this.big = 'world';
+    this.outposts = []; this.factories = []; this.pads = []; this.weather = null;
+    this.queue = [WD_SENTINEL]; this.total = 0;
+    this.reachApplies = () => false;   // the land itself keeps every place reachable (worldgen.js)
+    this.wdDrops = []; this.wdVillages = []; this.wdRuins = []; this.wdChests = []; this.wdSpawnCd = 240;
+    const [hx, hy] = W.at;
+    W.ox = hx - (NX >> 1); W.oy = hy - (NY >> 1);
+    this.wdBuild();
+    // everyone starts in the safe village's square (they were put at the usual places before the land was here)
+    for (const s of this.spawns) if (s.player) [s.x, s.y] = this.wdHomeSpot(s.player.i);
+    this.wdBiome = this.wdBioAt(this.wdHomeSpot(0)[0] + 8, this.wdHomeSpot(0)[1] + 8);
+    // every land's textures as pixels now, rather than the first time each one turns up
+    for (const th of WD_THEMES) for (const k of ['brick', 'house', 'ruin', 'steel', 'ice', 'bridge', 'mud', 'forest', 'reeds', 'bog', 'vent', 'lamp', 'crate'].concat(Object.values(BIO_TEX))) wdTexOf(th, k);
+    this.theme = WD_THEMES[this.wdBiome];
+    this.num = 1;
+  },
+
+  // the checkpoint's world: what happened to villages, ruins and nests, the land's changes, what you'd seen
+  wdLoadState(run) {
+    const W = this.world;
+    for (const f of Array.isArray(run.feats) ? run.feats : []) if (Array.isArray(f) && f.length >= 3) W.feats.set(wdKey(f[0], f[1]), Object.assign({}, f[2]));
+    for (const c of Array.isArray(run.chunks) ? run.chunks : []) if (Array.isArray(c) && typeof c[2] === 'string') this.wdRec(c[0], c[1]).diff = c[2];
+    if (typeof run.seen === 'string') for (const p of run.seen.split(';')) { const [a, b] = p.split(',').map(Number); if (isFinite(a) && isFinite(b) && p) this.wdRec(a, b).seen = true; }
+  },
+
+  // a chunk's record: { cells (as you left it, for a while), diff (its changes, after that), seen, thumb }
+  wdRec(cx, cy) {
+    const W = this.world, k = wdKey(cx, cy);
+    let r = W.chunks.get(k);
+    if (!r) {
+      r = { cx, cy, cells: null, diff: '', seen: false, thumb: null, at: this.frame || 0 };
+      W.chunks.set(k, r);
+      if (W.chunks.size > WD_RECS) this.wdForget();
+    }
+    return r;
+  },
+
+  // too many chunks remembered: the oldest go (their changes and their place on the map with them)
+  wdForget() {
+    const W = this.world, recs = [...W.chunks.values()].sort((a, b) => a.at - b.at);
+    for (const r of recs.slice(0, recs.length - Math.round(WD_RECS * 0.9))) if (!this.wdInWindow(r.cx, r.cy)) W.chunks.delete(wdKey(r.cx, r.cy));
+  },
+
+  wdInWindow(cx, cy) { const W = this.world; return cx >= W.ox && cy >= W.oy && cx < W.ox + W.NX && cy < W.oy + W.NY; },
+
+  // a feature's state (made the first time it's asked for)
+  wdFeat(cx, cy) {
+    const W = this.world, k = wdKey(cx, cy);
+    let s = W.feats.get(k);
+    if (!s) {
+      const f = wdFeatureOf(W.seed, cx, cy);
+      if (!f) return null;
+      s = f.kind === 'home' ? { s: 'saved' } : f.kind === 'village' ? { s: 'wild' } : f.kind === 'ruin' ? { open: 0, guards: 0, boss: 0 } : { hp: 0, dead: 0 };
+      W.feats.set(k, s);
+    }
+    return s;
+  },
+
+  // ------------------------------------------------------------ the window
+  wdBuild() {
+    const W = this.world;
+    if (this.bosses && this.bosses.length) this.wdBossAway();
+    this.terrain = new Uint8Array(GW * GH);
+    this.origTerrain = new Uint8Array(GW * GH);
+    this.wdDeco = new Uint8Array(GW * GH);
+    this.wdBio = new Uint8Array((GW >> 1) * (GH >> 1));
+    this.wdGnd = new Uint8Array((GW >> 1) * (GH >> 1));
+    for (let j = 0; j < W.NY; j++) for (let i = 0; i < W.NX; i++) this.wdPut(i, j);
+    this.layerOf = null; this.dirty = true; this.wdPending = new Set(); this.wdPart = new Map();
+    this.wdTouched();
+    this.wdSync();
+  },
+
+  // the terrain changed wholesale: the path finding and the online view start over
+  wdTouched() {
+    this.terrainVer = (this.terrainVer || 0) + 1;
+    this.navCost = {}; this.navBaseF = {}; this.navPlayerF = new Map();
+    this.netDiff = []; this.netFull = true;
+  },
+
+  // chunk (cx, cy)'s land, as you left it
+  wdCellsOf(cx, cy, g) {
+    const r = this.world.chunks.get(wdKey(cx, cy));
+    if (r && r.cells) return r.cells;
+    if (r && r.diff) return wdUndiff(g.cells, r.diff);
+    return g.cells;
+  },
+
+  // the chunk for window slot (i, j) into the window's arrays (look: only how it looks, for an online guest, whose
+  // terrain comes from the host)
+  wdPut(i, j, look) {
+    const W = this.world, cx = W.ox + i, cy = W.oy + j, g = wdGen(W.seed, cx, cy), C = WD_CC, B = WD_CB, BW = GW >> 1;
+    const cur = look ? null : this.wdCellsOf(cx, cy, g);
+    for (let y = 0; y < C; y++) {
+      const o = (j * C + y) * GW + i * C;
+      if (cur) { this.terrain.set(cur.subarray(y * C, y * C + C), o); this.origTerrain.set(g.cells.subarray(y * C, y * C + C), o); }
+      this.wdDeco.set(g.deco.subarray(y * C, y * C + C), o);
+    }
+    for (let y = 0; y < B; y++) {
+      const o = (j * B + y) * BW + i * B;
+      this.wdBio.set(g.bio.subarray(y * B, y * B + B), o);
+      this.wdGnd.set(g.gnd.subarray(y * B, y * B + B), o);
+    }
+    const r = W.chunks.get(wdKey(cx, cy));
+    if (r && !look) { r.cells = null; r.at = this.frame || 0; }   // the window holds it now
+  },
+
+  // window slot (i, j) is leaving: keep its land as it is (the oldest kept ones become a list of changes)
+  wdTake(i, j) {
+    const W = this.world, cx = W.ox + i, cy = W.oy + j, C = WD_CC, cells = new Uint8Array(C * C);
+    for (let y = 0; y < C; y++) { const o = (j * C + y) * GW + i * C; cells.set(this.terrain.subarray(o, o + C), y * C); }
+    const r = this.wdRec(cx, cy);
+    r.cells = cells; r.at = this.frame || 0;
+    r.diff = wdDiff(wdGen(W.seed, cx, cy).cells, cells);   // it was just in the window: still built, so this is quick
+    const kept = [...W.chunks.values()].filter(q => q.cells && !this.wdInWindow(q.cx, q.cy));
+    if (kept.length > WD_KEEP) kept.reduce((a, b) => (a.at <= b.at ? a : b)).cells = null;
+  },
+
+  // a slot's land as changes from how it was made (for the checkpoint)
+  wdDiffOf(i, j) {
+    const W = this.world, C = WD_CC, cells = new Uint8Array(C * C);
+    for (let y = 0; y < C; y++) { const o = (j * C + y) * GW + i * C; cells.set(this.terrain.subarray(o, o + C), y * C); }
+    return wdDiff(wdGen(W.seed, W.ox + i, W.oy + j).cells, cells);
+  },
+
+  // the window moves one chunk (dx or dy is +1 or -1): see the top
+  wdShift(dx, dy) {
+    const W = this.world, NX = W.NX, NY = W.NY;
+    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) if (i - dx < 0 || j - dy < 0 || i - dx >= NX || j - dy >= NY) this.wdTake(i, j);
+    this.wdSlide(dx, dy, false);
+    this.wdMoveAll(-dx * WD_PX, -dy * WD_PX);
+    this.wdTouched();
+    this.wdSync();
+    this.bioCards();   // first-meet cards for the new chunks' ground
+    W.shifts = (W.shifts || 0) + 1;
+  },
+
+  // the window's arrays and layers slide a chunk; the chunks coming in are put in (to be painted soon)
+  wdSlide(dx, dy, look) {
+    const W = this.world, NX = W.NX, NY = W.NY, C = WD_CC, B = WD_CB;
+    const move = (a, w, h, ox, oy) => {
+      if (!a) return a;
+      const out = new a.constructor(a.length), x0 = Math.max(0, -ox), x1 = Math.min(w, w - ox);
+      for (let y = 0; y < h; y++) { const yy = y + oy; if (yy >= 0 && yy < h && x1 > x0) out.set(a.subarray(yy * w + x0 + ox, yy * w + x1 + ox), y * w + x0); }
+      return out;
+    };
+    if (!look) {
+      this.terrain = move(this.terrain, GW, GH, dx * C, dy * C);
+      this.origTerrain = move(this.origTerrain, GW, GH, dx * C, dy * C);
+    }
+    this.wdDeco = move(this.wdDeco, GW, GH, dx * C, dy * C);
+    this.layerOf = move(this.layerOf, GW, GH, dx * C, dy * C);
+    this.wdBio = move(this.wdBio, GW >> 1, GH >> 1, dx * B, dy * B);
+    this.wdGnd = move(this.wdGnd, GW >> 1, GH >> 1, dx * B, dy * B);
+    W.ox += dx; W.oy += dy;
+    // chunks still to be painted move with the rest (how far along each one is, too); the new ones join them
+    const pend = new Set(), part = new Map(), was = this.wdPart || new Map();
+    for (const s of this.wdPending || []) {
+      const i = s % NX - dx, j = ((s / NX) | 0) - dy;
+      if (i >= 0 && j >= 0 && i < NX && j < NY) { pend.add(j * NX + i); if (was.has(s)) part.set(j * NX + i, was.get(s)); }
+    }
+    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) if (i + dx < 0 || j + dy < 0 || i + dx >= NX || j + dy >= NY) { this.wdPut(i, j, look); pend.add(j * NX + i); part.delete(j * NX + i); }
+    this.wdPending = pend; this.wdPart = part;
+    this.wdScrollLayers(-dx * WD_PX, -dy * WD_PX);
+    this.dirty = true;   // the moving tiles' lists are made again with the next drawing
+  },
+
+  // everything on the field moves (dx, dy) pixels with the land; what ends up off it goes
+  wdMoveAll(dx, dy) {
+    const inF = (x, y, m = 0) => x > -m && y > -m && x < FW + m && y < FH + m;
+    const mv = o => { o.x += dx; o.y += dy; return o; };
+    for (const t of this.tanks) {
+      t.x += dx; t.y += dy;
+      if (t.lx !== undefined) { t.lx += dx; t.ly += dy; }
+      if (t.hop) t.hop = [t.hop[0] + dx, t.hop[1] + dy, t.hop[2] + dx, t.hop[3] + dy];
+      if (t.seen) t.seen = [t.seen[0] + dx, t.seen[1] + dy, t.seen[2]];
+      if (t.trail) for (const p of t.trail) { p[0] += dx; p[1] += dy; }
+      if (t.segs) for (const p of t.segs) { p[0] += dx; p[1] += dy; }
+      if (t.flame) { t.flame.x += dx; t.flame.y += dy; }
+    }
+    // the enemy left behind is gone; a straggler of yours catches up with the rest
+    for (const t of this.tanks) if (!t.isPlayer && t.alive && !inF(t.x + 8, t.y + 8)) t.alive = false;
+    this.tanks = this.tanks.filter(t => t.alive);
+    for (const b of this.bullets) { mv(b); if (!inF(b.x, b.y)) this.killBullet(b, false); }
+    this.bullets = this.bullets.filter(b => b.alive);
+    for (const k of ['spawns', 'mines', 'turrets', 'claudes', 'shells', 'fx', 'popups', 'flames', 'wdDrops', 'wrecks', 'zones']) {
+      if (!this[k]) continue;
+      for (const o of this[k]) mv(o);
+      this[k] = this[k].filter(o => inF(o.x, o.y, 8));
+    }
+    for (const s of this.strikes) mv(s);
+    for (const h of this.heals) { h.x1 += dx; h.y1 += dy; h.x2 += dx; h.y2 += dy; }
+    for (const q of this.booms || []) { mv(q); if (q.sx !== undefined) { q.sx += dx; q.sy += dy; } }
+    this.booms = (this.booms || []).filter(q => inF(q.x, q.y));
+    for (const f of this.wfx) { if (f.pts) f.pts = f.pts.map(p => [p[0] + dx, p[1] + dy]); if (f.box) f.box = [f.box[0] + dx, f.box[1] + dy, f.box[2], f.box[3]]; if (f.x !== undefined) mv(f); }
+    for (const m of this.wshots) { mv(m); for (const [a, b] of [['x0', 'y0'], ['tx', 'ty']]) if (m[a] !== undefined) { m[a] += dx; m[b] += dy; } }
+    this.wshots = this.wshots.filter(m => inF(m.x, m.y));
+    if (this.powerup) { mv(this.powerup); if (!inF(this.powerup.x, this.powerup.y)) this.powerup = null; }
+    // a guardian moves with the land, and what it's left about (bales, fires, bombs, venom, stings, its next spot)
+    for (const b of this.bosses) {
+      mv(b);
+      for (const k of ['bales', 'fires', 'bombs', 'pools', 'stings']) for (const o of b[k] || []) { mv(o); if (o.x0 !== undefined) { o.x0 += dx; o.y0 += dy; o.tx += dx; o.ty += dy; } }
+      if (b.wp) b.wp = [b.wp[0] + dx, b.wp[1] + dy];
+    }
+    if (this.bosses.some(b => b.alive && !inF(b.x + b.w / 2, b.y + b.h / 2))) this.wdBossAway();
+    for (const p of this.puffs || []) mv(p);
+    this.beams = []; this.tracks = []; this.dust = [];
+    // cells: fires and puddles
+    const cell = i => { const x = (i % GW) + dx / 4, y = ((i / GW) | 0) + dy / 4; return x >= 0 && y >= 0 && x < GW && y < GH ? y * GW + x : -1; };
+    const fires = new Map();
+    for (const [i, f] of this.fires || []) { const n = cell(i); if (n >= 0) fires.set(n, f); }
+    this.fires = fires;
+    for (const pd of this.puddles || []) pd.cells = pd.cells.map(cell).filter(i => i >= 0);
+    if (this.camX !== undefined) { this.camX += dx; this.camY += dy; }
+    if (this.wdLast) { this.wdLast[0] += dx; this.wdLast[1] += dy; }
+    // a player that's off the field now (left behind on the far side) joins the others
+    const ps = this.tanks.filter(t => t.isPlayer && t.alive);
+    for (const t of ps) {
+      if (t.x >= 0 && t.y >= 0 && t.x <= FW - 16 && t.y <= FH - 16) continue;
+      const [cx, cy] = this.wdCenter(), spot = this.wdFreeNear(cx - 8, cy - 8, 96);
+      t.x = spot[0]; t.y = spot[1]; t.acc = 0; t.shield = Math.max(t.shield, 60);
+      this.addFx(t.x + 8, t.y + 8, [Sprites.sparkle[3], Sprites.sparkle[2], Sprites.sparkle[1], Sprites.sparkle[0]], 6);
+    }
+  },
+
+  // ------------------------------------------------------------ what's in the window
+  // villages, ruins, nests and hot spots in the window, from their states; the eagles under siege are outposts
+  // (enemies go for them, bigmap.js) and live nests are factories
+  wdSync() {
+    const W = this.world;
+    this.wdVillages = []; this.wdRuins = []; this.wdChests = []; this.outposts = []; this.zones = [];
+    const facs = [];
+    for (let j = 0; j < W.NY; j++) for (let i = 0; i < W.NX; i++) {
+      const cx = W.ox + i, cy = W.oy + j, g = wdGen(W.seed, cx, cy), f = g.feat, x0 = i * WD_PX, y0 = j * WD_PX;
+      for (const z of g.zones) this.zones.push({ x: x0 + z[0], y: y0 + z[1], r: z[2] });
+      if (!f) continue;
+      const st = this.wdFeat(cx, cy), key = wdKey(cx, cy);
+      if (f.kind === 'home' || f.kind === 'village') {
+        const v = { key, cx, cy, x: x0 + f.ex, y: y0 + f.ey, f, st, home: f.kind === 'home' };
+        this.wdVillages.push(v);
+        if (st.s === 'siege') { const o = { x: v.x, y: v.y, alive: true, wd: key }; this.outposts.push(o); v.post = o; if (st.ehp === undefined) st.ehp = 3; }
+      } else if (f.kind === 'ruin') {
+        const r = { key, cx, cy, x: x0 + 104, y: y0 + 104, x0, y0, f, st };
+        this.wdRuins.push(r);
+        f.chests.forEach((c, k) => {
+          if (st.open & (1 << k)) return;
+          if (c.kind === 'big' && st.boss !== 2) return;   // behind the guardian
+          this.wdChests.push({ x: x0 + c.x, y: y0 + c.y, kind: c.kind, k, ruin: r });
+        });
+      } else if (f.kind === 'nest') {
+        const old = this.factories.find(q => q.wd === key);
+        if (!st.hp) st.hp = FACTORY_HP + Math.min(8, Math.floor(Math.hypot(cx, cy) / 4));
+        facs.push(Object.assign(old || { cd: 300, flash: 0 }, { x: x0 + f.x, y: y0 + f.y, hp: st.dead ? 0 : st.hp, wd: key, st }));
+      }
+    }
+    this.factories = facs;
+    W.featVer++;
+  },
+
+  // ------------------------------------------------------------ places and distances
+  wdBioAt(x, y) {
+    const bx = Math.max(0, Math.min((GW >> 1) - 1, x >> 3)), by = Math.max(0, Math.min((GH >> 1) - 1, y >> 3));
+    return this.wdBio[by * (GW >> 1) + bx];
+  },
+  // the middle of the team (field pixels); the last one known while everyone's between tanks
+  wdCenter() {
+    const ps = this.tanks.filter(t => t.isPlayer && t.alive && !t.ally);
+    if (ps.length) this.wdLast = [ps.reduce((a, t) => a + t.x + 8, 0) / ps.length, ps.reduce((a, t) => a + t.y + 8, 0) / ps.length];
+    return this.wdLast || [FW / 2, FH / 2];
+  },
+  // field pixels to world tiles from the middle of home (chunk 0, 0)
+  wdTiles(x, y) {
+    const W = this.world, wx = W.ox * WD_PX + x - 104, wy = W.oy * WD_PX + y - 104;
+    return Math.hypot(wx, wy) / 16;
+  },
+  wdDistNow() { const [x, y] = this.wdCenter(); return this.wdTiles(x, y); },
+  // how dangerous it is here: 1 at home, one more every 2 chunks out
+  wdTier() { return 1 + Math.floor(this.wdDistNow() / 26); },
+  // the screen's window onto the field, where the camera is heading (no smoothing: the game's logic uses it)
+  wdView() {
+    const [cx, cy] = this.wdCenter();
+    return [Math.max(0, Math.min(FW - VIEW_W, cx - VIEW_W / 2)), Math.max(0, Math.min(FH - VIEW_H, cy - VIEW_H / 2))];
+  },
+  wdNearest(x, y) {
+    let d = Infinity;
+    for (const t of this.tanks) if (t.isPlayer && t.alive && !t.ally) d = Math.min(d, Math.hypot(t.x + 8 - x, t.y + 8 - y));
+    return d;
+  },
+  // ground a 16px tank can stand on (and nothing standing there)
+  wdFree16(x, y, tanksToo = true) {
+    if (x < 0 || y < 0 || x > FW - 16 || y > FH - 16) return false;
+    for (let cy = y >> 2; cy < (y + 16) >> 2; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
+      const v = this.terrain[cy * GW + cx];
+      if (!(v === T_EMPTY || v === T_FOREST || v === T_ICE || v === T_MUD || v === T_BRIDGE || v === T_REEDS || v === T_RUBBLE)) return false;
+    }
+    if (this.wdVillages.some(v => overlap(x, y, 16, 16, v.x, v.y, 16, 16))) return false;
+    if (this.factories.some(f => f.hp > 0 && overlap(x, y, 16, 16, f.x, f.y, 32, 32))) return false;
+    if (!tanksToo) return true;
+    return !this.tanks.some(t => t.alive && overlap(t.x, t.y, 16, 16, x, y, 16, 16)) && !this.spawns.some(s => overlap(s.x, s.y, 16, 16, x, y, 16, 16));
+  },
+  // a free spot near (x, y), searching outwards; cleared if there's none
+  wdFreeNear(x, y, r = 64) {
+    x = Math.round(x / 8) * 8; y = Math.round(y / 8) * 8;
+    for (let d = 0; d <= r; d += 8) for (let k = 0; k < Math.max(1, d); k++) {
+      const a = k / Math.max(1, d) * Math.PI * 2, sx = Math.round((x + Math.cos(a) * d) / 8) * 8, sy = Math.round((y + Math.sin(a) * d) / 8) * 8;
+      if (this.wdFree16(sx, sy)) return [sx, sy];
+    }
+    x = Math.max(0, Math.min(FW - 16, x)); y = Math.max(0, Math.min(FH - 16, y));
+    this.clearArea(x, y, 16, 16);
+    return [x, y];
+  },
+  // where player i starts (or comes back) in a safe village's square
+  wdHomeSpot(i, v) {
+    const W = this.world;
+    v = v || this.wdVillages.find(q => q.cx === W.at[0] && q.cy === W.at[1]) || this.wdVillages.find(q => q.home) || this.wdVillages[0];
+    const [x, y] = v ? [v.x, v.y] : [FW / 2 - 8, FH / 2 - 8];
+    return [[x - 40, y], [x + 40, y], [x - 40, y + 32], [x + 40, y + 32]][i & 3];
+  },
+
+  // a fallen player comes back: in the nearest safe village close by, or near the others
+  wdRespawnSpot(p) {
+    const [cx, cy] = this.wdCenter(), safe = this.wdVillages.filter(v => v.st.s === 'saved' || v.st.s === 'friend');
+    const near = safe.filter(v => Math.hypot(v.x - cx, v.y - cy) < Math.max(VIEW_W, VIEW_H) * 1.2).sort((a, b) => Math.hypot(a.x - cx, a.y - cy) - Math.hypot(b.x - cx, b.y - cy))[0];
+    if (near) { const [x, y] = this.wdHomeSpot(p.i, near); return this.wdFreeNear(x, y, 48); }
+    const mates = this.tanks.filter(t => t.isPlayer && t.alive && !t.ally);
+    return this.wdFreeNear(cx - 8, cy + (mates.length ? 24 : 0) - 8, 96);
+  },
+});
+
+// the minimap's colours: tiles, roads and squares, and the bare ground of each biome
+const WD_MINI = Object.assign({ [T_BRICK]: [168, 72, 16], [T_STEEL]: [180, 180, 188], [T_WATER]: [32, 64, 200], [T_FOREST]: [28, 108, 28], [T_ICE]: [168, 200, 232],
+  [T_MUD]: [108, 72, 32], [T_BRIDGE]: [140, 100, 50] }, BIO_MINI);
+const WD_MINI_ROAD = [92, 80, 56], WD_MINI_TOWN = [120, 104, 80];
+const WD_MINI_GROUND = [[36, 56, 28], [24, 48, 20], [64, 44, 20], [92, 104, 120], [128, 100, 52], [52, 32, 24], [36, 44, 24], [56, 56, 60], [56, 56, 44]];
+
+Object.assign(Stage.prototype, {
+  // ------------------------------------------------------------ every frame (the host's game)
+  wdTick() {
+    const W = this.world;
+    W.time++;
+    this.wdClock();
+    for (const n of W.notes) n.t++;
+    W.notes = W.notes.filter(n => n.t < (n.life || WD_NOTE));
+    if (this.over) return;
+    // the window follows the team (one chunk a frame at most)
+    const [cx, cy] = this.wdCenter(), mx = W.NX >> 1, my = W.NY >> 1, H = 32;
+    if (this.tanks.some(t => t.isPlayer && t.alive && !t.ally)) {
+      if (cx < mx * WD_PX - H) this.wdShift(-1, 0);
+      else if (cx > (mx + 1) * WD_PX + H) this.wdShift(1, 0);
+      else if (cy < my * WD_PX - H) this.wdShift(0, -1);
+      else if (cy > (my + 1) * WD_PX + H) this.wdShift(0, 1);
+    }
+    this.wdLand();
+    const dn = this.wdDistNow();
+    this.num = 1 + Math.floor(dn / 26);   // what the rest of the game takes as the stage: how far out you are
+    for (const t of this.tanks) if (t.isPlayer && t.alive && !t.ally) W.dist = Math.max(W.dist, Math.floor(this.wdTiles(t.x + 8, t.y + 8)));
+    if (W.time % 15 === 0) this.wdExplore();
+    this.wdVillageTick();
+    this.wdRuinTick();
+    this.wdNestTick();
+    this.wdDropTick();
+    this.wdSpawnTick();
+    this.wdDespawn();
+    if (W.time % 30 === 1) this.wdCompassFind();
+    this.wdPrefetch();
+    if (this.wdBossEnd && this.frame >= this.wdBossEnd) { this.wdBossEnd = 0; this.bossDefeated = false; this.bossIdx = undefined; this.bosses = []; }
+  },
+
+  // the day: light, then dusk, night and dawn; the day count goes up at sunrise
+  wdClock() {
+    const W = this.world, p0 = (W.clock % WD_DAY) / WD_DAY;
+    W.clock++;
+    const p = (W.clock % WD_DAY) / WD_DAY;
+    if (p0 < WD_NIGHT && p >= WD_NIGHT) { this.wdNote('NIGHT FALLS', '#7C7CF8'); Sound.play('wdNight'); }
+    if (p0 < WD_DAWN && p >= WD_DAWN) { W.day++; this.wdNote('DAY ' + W.day, COL.gold); Sound.play('wdDawn'); }
+    this.weather = this.wdDark() > 0.6 ? 'night' : null;
+  },
+  // how dark it is: 0 by day, 1 at night
+  wdDark() {
+    const W = this.world;
+    if (!W) return 0;
+    const p = (W.clock % WD_DAY) / WD_DAY;
+    // (a smooth ramp, so dusk and dawn come on gently)
+    const e = t => t * t * (3 - 2 * t);
+    return p < WD_DUSK ? 0 : p < WD_NIGHT ? e((p - WD_DUSK) / (WD_NIGHT - WD_DUSK)) : p < WD_DAWN ? 1 : e(Math.max(0, 1 - (p - WD_DAWN) / (1 - WD_DAWN)));
+  },
+
+  // the land you're in: its look, its twist, its own enemy
+  wdLand() {
+    const W = this.world, [cx, cy] = this.wdCenter(), b = this.wdBioAt(cx, cy);
+    if (b === this.wdBiome) { this.wdBioT = 0; return; }
+    if (++this.wdBioT < 90) return;   // well inside it first
+    this.wdBioT = 0; this.wdBiome = b;
+    const th = WD_THEMES[b], was = this.seasonFx;
+    this.theme = th;
+    this.seasonFx = Config.on('seasonFx') && SEASON_FX_NAME[th] ? th : null;
+    // the last land's weather stays behind
+    if (was !== this.seasonFx) {
+      if (th !== 'winter') this.blizzard = 0;
+      if (th !== 'spring') this.shower = 0;
+      if (th !== 'autumn') this.wind = null;
+      if (th !== 'city') this.blackout = 0;
+      this.seaT = Math.min(this.seaT || 1e9, 900 + rnd(900));
+    }
+    this.wdNote(WD_BNAME[b], THEMES[th].color || COL.white, this.seasonFx ? SEASON_FX_NAME[th] : '');
+    W.biomes = (W.biomes || 0) | (1 << b);
+  },
+
+  // a line low on the screen (and a second under it)
+  wdNote(text, color, sub) {
+    const W = this.world;
+    W.notes = W.notes.filter(n => n.text !== text).slice(-2);
+    W.notes.push({ text, color, sub: sub || '', t: 0 });
+  },
+
+  // the chunks on screen are explored: on the minimap from now on
+  wdExplore() {
+    const W = this.world, [vx, vy] = this.wdView();
+    for (let j = 0; j < W.NY; j++) for (let i = 0; i < W.NX; i++) {
+      if (!overlap(vx - 16, vy - 16, VIEW_W + 32, VIEW_H + 32, i * WD_PX, j * WD_PX, WD_PX, WD_PX)) continue;
+      const r = this.wdRec(W.ox + i, W.oy + j);
+      if (!r.seen) { r.seen = true; W.seenN = (W.seenN || 0) + 1; }
+      r.at = this.frame;
+      if (!r.thumb || W.time % 120 < 15) r.thumb = this.wdThumb(i, j, r.thumb);
+    }
+  },
+
+  // a chunk as the minimap shows it: a pixel a tile
+  wdThumb(i, j, out) {
+    out = out || new Uint8Array(WD_CH * WD_CH * 3);
+    const BW = GW >> 1;
+    for (let ty = 0; ty < WD_CH; ty++) for (let tx = 0; tx < WD_CH; tx++) {
+      const cx = i * WD_CC + tx * 4 + 1, cy = j * WD_CC + ty * 4 + 1, v = this.terrain[cy * GW + cx], o = (ty * WD_CH + tx) * 3;
+      let col = WD_MINI[v];
+      if (!col) {
+        const b = this.wdBio[(cy >> 1) * BW + (cx >> 1)], gd = this.wdGnd[(cy >> 1) * BW + (cx >> 1)];
+        col = gd === WG.ROAD ? WD_MINI_ROAD : gd === WG.COBBLE || gd === WG.FLAG ? WD_MINI_TOWN : WD_MINI_GROUND[b];
+      }
+      out[o] = col[0]; out[o + 1] = col[1]; out[o + 2] = col[2];
+    }
+    return out;
+  },
+
+  // ------------------------------------------------------------ villages
+  wdVillageTick() {
+    const W = this.world, tier = this.wdTier(), far = Math.max(VIEW_W, VIEW_H) * 1.5;
+    for (const v of this.wdVillages) {
+      const st = v.st, near = this.wdNearest(v.x + 8, v.y + 8);
+      if (st.s === 'wild') {
+        if (v.f.siege && near < 9 * 16) {
+          // under attack: hold off the waves
+          Object.assign(st, { s: 'siege', wave: 1, waves: Math.min(4, 2 + Math.floor(tier / 3)), left: this.wdWaveSize(tier), cd: 90 });
+          this.wdNote('VILLAGE UNDER ATTACK!', COL.red, 'DEFEND ITS EAGLE');
+          Sound.play('wdAlarm');
+          this.wdSync();
+          // the first of them are already at its gates
+          for (let k = 0; k < 2 && st.left > 0; k++) if (this.wdSiegeTank(v, tier, true)) st.left--;
+        } else if (!v.f.siege && near < 4 * 16) {
+          // friendly: a gift, and a safe place from now on
+          st.s = 'friend';
+          W.ckN++; W.safeAt = [v.cx, v.cy];
+          this.wdDrop(WD_SUPPLY[rnd(WD_SUPPLY.length)], v.x, v.y - 24);
+          this.wdNote('FRIENDLY VILLAGE', '#58D854', 'A SAFE PLACE: GAME SAVED');
+          Sound.play('wdSaved');
+        }
+        continue;
+      }
+      if (st.s === 'siege') {
+        if (near > far) continue;   // nobody's there to fight for it: it holds its breath
+        const mine = this.tanks.some(t => t.alive && t.wdSiege === v.key) || this.spawns.some(s => s.enemy && s.enemy.extra && s.enemy.extra.wdSiege === v.key);
+        if (st.left > 0) {
+          if (--st.cd <= 0 && this.wdSiegeTank(v, tier)) { st.left--; st.cd = Math.max(40, 110 - tier * 6); }
+        } else if (!mine) {
+          if (st.wave < st.waves) {
+            st.wave++; st.left = this.wdWaveSize(tier); st.cd = 200;
+            this.wdNote('WAVE ' + st.wave + ' OF ' + st.waves, COL.gold);
+          } else this.wdVillageSaved(v, tier);
+        }
+        continue;
+      }
+      if (st.s !== 'saved' && st.s !== 'friend') continue;
+      if (W.time % 600 === 0) this.wdMend(v);
+      // back in a safe village's square: the game is saved here (unless it was the last one saved)
+      const at = W.safeAt || W.at;
+      if (near < 48 && (at[0] !== v.cx || at[1] !== v.cy)) { W.safeAt = [v.cx, v.cy]; W.ckN++; this.wdNote('GAME SAVED', '#58D854'); }
+      // a safe place: nothing hurts you in the square
+      for (const t of this.tanks) if (t.isPlayer && t.alive && Math.hypot(t.x - v.x, t.y - v.y) < 40) t.shield = Math.max(t.shield, 20);
+    }
+  },
+
+  wdWaveSize(tier) { return Math.min(10, 2 + Math.floor(tier / 2) + this.extraPlayers + rnd(2)); },
+
+  // one of the attackers comes in from the wild, out of sight if it can (close: already at the village)
+  wdSiegeTank(v, tier, close) {
+    const spot = close ? this.wdSpawnSpot(v.x + 8, v.y + 8, 4 * 16, 7 * 16, false)
+      : this.wdSpawnSpot(v.x + 8, v.y + 8, 7 * 16, 13 * 16) || this.wdSpawnSpot(v.x + 8, v.y + 8, 5 * 16, 13 * 16, false);
+    if (!spot) return false;
+    const q = this.wdEnemy(spot[0], spot[1], tier);
+    q.ai = Math.random() < 0.65 ? AI.RUSH : AI.HUNT;
+    q.extra.wdSiege = v.key;
+    this.spawns.push({ x: spot[0], y: spot[1], t: SPARKLE_TIME, enemy: q });
+    this.total++;
+    return true;
+  },
+
+  wdVillageSaved(v, tier) {
+    const W = this.world;
+    v.st.s = 'saved';
+    W.saved++; W.ckN++; W.safeAt = [v.cx, v.cy];
+    for (const p of this.players) {
+      if (p.out) continue;
+      if (!Config.infiniteLives()) p.lives++;
+      this.addScore(p, 2000 + 500 * tier);
+      this.addXp(p, 60);
+    }
+    const n = 2 + this.extraPlayers;
+    for (let k = 0; k < n; k++) this.wdDrop(Math.random() < 0.15 ? (Math.random() < 0.5 ? PU.TANK : PU.GUN) : WD_SUPPLY[rnd(WD_SUPPLY.length)], v.x - 32 + (k % 3) * 32, v.y + (k < 3 ? -32 : 40));
+    this.popups.push({ x: v.x + 8, y: v.y - 12, text: '+1 TANK', label: true, color: COL.gold, t: 0, delay: 0, life: 120 });
+    this.wdNote('VILLAGE SAVED!', COL.gold, 'A SAFE PLACE: GAME SAVED');
+    Sound.play('wdSaved');
+    this.wdSync();
+  },
+
+  // the eagle fell: the village burns
+  wdVillageLost(v) {
+    v.st.s = 'lost';
+    const C = WD_CC, i = v.cx - this.world.ox, j = v.cy - this.world.oy;
+    for (const [tx, ty] of v.f.houses) for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+      const cx = i * C + tx * 4 + x, cy = j * C + ty * 4 + y;
+      if (this.get(cx, cy) === T_BRICK && (x + y + tx) % 3) this.set(cx, cy, T_EMPTY);
+      if (this.fires && (x + y) % 2 === 0) this.ignite(cy * GW + cx, true);
+    }
+    for (let k = 0; k < 5; k++) this.fx.push({ x: v.x + 8 + rnd(48) - 24, y: v.y + 8 + rnd(48) - 24, frames: BIG_EXPLOSION(), per: 5, tick: -k * 8 });
+    for (const t of this.tanks) if (t.wdSiege === v.key) { t.ai = AI.HUNT; t.wdSiege = null; }
+    this.wdNote('VILLAGE LOST', COL.red, 'IT BURNS');
+    Sound.play('wdLost');
+    this.wdSync();
+  },
+
+  // a safe village puts its eagle's brick ring back (where nothing stands)
+  wdMend(v) {
+    const bx = v.x >> 3, by = v.y >> 3;
+    for (let y = by - 1; y <= by + 2; y++) for (let x = bx - 1; x <= bx + 2; x++) {
+      if (x >= bx && x <= bx + 1 && y >= by && y <= by + 1) continue;
+      if (this.tanks.some(t => t.alive && overlap(t.x, t.y, 16, 16, x * 8, y * 8, 8, 8))) continue;
+      for (let k = 0; k < 4; k++) { const cx = x * 2 + (k & 1), cy = y * 2 + (k >> 1); if (this.get(cx, cy) === T_EMPTY) this.set(cx, cy, T_BRICK); }
+    }
+  },
+
+  // ------------------------------------------------------------ ruins
+  wdRuinTick() {
+    const tier = this.wdTier();
+    for (const r of this.wdRuins) {
+      const st = r.st, near = this.wdNearest(r.x, r.y);
+      if (!st.guards && near < 8 * 16) {
+        // the guards: tougher than the rest
+        st.guards = 1;
+        const n = Math.min(6, 2 + Math.floor(tier / 2) + this.extraPlayers);
+        for (let k = 0; k < n; k++) {
+          const [gx, gy] = r.f.guards[k % 4], spot = this.wdFreeNear(r.x0 + gx - 8 + (k >> 2) * 16, r.y0 + gy - 8, 24);
+          const q = this.wdEnemy(spot[0], spot[1], tier + 2);
+          q.rank = Math.min(2, (q.rank || 0) + 1); q.ai = AI.HUNT; q.extra.wdGuard = r.key;
+          this.spawns.push({ x: spot[0], y: spot[1], t: SPARKLE_TIME + k * 10, enemy: q });
+          this.total++;
+        }
+        this.wdNote('RUIN GUARDS!', '#F87858', r.f.boss >= 0 ? 'SOMETHING STIRS IN THE VAULT' : 'A CHEST IN EVERY ROOM');
+      }
+      // the guardian wakes when you reach its vault, and goes back in if you run off
+      if (r.f.boss >= 0 && st.boss !== 2 && !this.bosses.length && this.wdNearest(r.x0 + 104, r.y0 + 104) < 40) this.wdBossStart(r, tier);
+      const b = this.bosses.find(q => q.wdRuin === r.key && q.alive);
+      if (b && !this.bossDefeated && this.wdNearest(b.x + b.w / 2, b.y + b.h / 2) > Math.max(VIEW_W, VIEW_H) * 1.6) { this.wdBossAway(); this.wdNote('THE GUARDIAN RETURNS TO ITS VAULT', '#F87858'); }
+    }
+    // chests: drive over one to open it
+    for (const c of this.wdChests.slice()) {
+      const t = this.tanks.find(o => o.alive && o.isPlayer && !o.ally && overlap(o.x, o.y, 16, 16, c.x + 2, c.y + 2, 12, 12));
+      if (t) this.wdOpenChest(c, t);
+    }
+  },
+
+  wdOpenChest(c, t) {
+    const W = this.world, r = c.ruin, p = t.player, tier = this.wdTier();
+    r.st.open |= 1 << c.k;
+    this.wdChests = this.wdChests.filter(q => q !== c);
+    const ok = i => Config.get('pu' + i) !== 'OFF';
+    let kind = c.kind;
+    if (kind === 'rare' && !WD_RARE.some(ok)) kind = 'coins';
+    if (kind === 'coins') {
+      const pts = 1000 + 250 * tier;
+      this.addScore(p, pts);
+      this.popups.push({ x: c.x + 8, y: c.y, text: 'TREASURE +' + pts, label: true, color: COL.gold, t: 0, delay: 0, life: 90 });
+    } else if (kind === 'star') this.applyPowerup(t, { type: PU.STAR, x: c.x, y: c.y });
+    else if (kind === 'weapon') this.applyPowerup(t, { type: PU.WEAPON, x: c.x, y: c.y, weapon: this.crateWeapon() });
+    else if (kind === 'rare') { const pool = WD_RARE.filter(ok); this.applyPowerup(t, { type: pool[rnd(pool.length)], x: c.x, y: c.y }); }
+    else if (kind === 'big') {
+      for (const q of this.players) if (!q.out && !Config.infiniteLives()) q.lives++;
+      const pts = 5000 + 1000 * tier;
+      this.addScore(p, pts);
+      this.applyPowerup(t, { type: PU.GUN, x: c.x, y: c.y });
+      this.popups.push({ x: c.x + 8, y: c.y - 8, text: 'BIG TREASURE! +' + pts, label: true, color: COL.gold, t: 0, delay: 0, life: 150 });
+      this.wdNote('BIG TREASURE!', COL.gold, 'A TANK FOR EVERYONE');
+    }
+    for (let k = 0; k < 6; k++) this.fx.push({ x: c.x + 8 + rnd(17) - 8, y: c.y + 8 + rnd(17) - 8, frames: [Sprites.sparkle[3], Sprites.sparkle[2], Sprites.sparkle[1], Sprites.sparkle[0]], per: 4, tick: -k * 4 });
+    Sound.play('wdChest');
+    // the last chest of a ruin: looted
+    if (!r.st.done && r.f.chests.every((q, k) => r.st.open & (1 << k))) { r.st.done = 1; W.looted++; }
+  },
+
+  // the guardian: one of the bosses, out of its vault (the walls blown open)
+  wdBossStart(r, tier) {
+    const st = r.st, kind = WD_BOSSES[r.f.boss % WD_BOSSES.length], idx = BOSSES.findIndex(b => b.kind === kind);
+    if (idx < 0) { st.boss = 2; this.wdSync(); return; }
+    st.boss = 1;
+    const max = this.maxEnemies;
+    this.initBoss({ idx, loop: Math.min(3, Math.floor(tier / 6)) });
+    this.queue = [WD_SENTINEL]; this.total = 0; this.maxEnemies = max;
+    const b = this.bosses[0];
+    b.x = r.x0 + 88; b.y = r.y0 + 88;
+    b.wdRuin = r.key;
+    for (let by = 10; by <= 15; by++) for (let bx = 10; bx <= 15; bx++) {
+      if (bx > 10 && bx < 15 && by > 10 && by < 15) continue;
+      for (let k = 0; k < 4; k++) this.set((r.x0 >> 2) + bx * 2 + (k & 1), (r.y0 >> 2) + by * 2 + (k >> 1), T_EMPTY);
+      if ((bx + by) % 2) this.fx.push({ x: r.x0 + bx * 8 + 4, y: r.y0 + by * 8 + 4, frames: BIG_EXPLOSION(), per: 4, tick: -rnd(30) });
+    }
+    Sound.play('wdVault');
+    this.wdNote('THE GUARDIAN WAKES!', COL.red, BOSSES[idx].name);
+  },
+
+  // the guardian is left behind (the window moves on): back into its vault, to be fought another time
+  wdBossAway() {
+    if (!this.bosses.length || this.bossDefeated) return;
+    const b = this.mainBoss(), r = b && this.wdRuins.find(q => q.key === b.wdRuin);
+    if (r) r.st.boss = 0;
+    this.bosses = []; this.bossIdx = undefined; this.beams = [];
+  },
+
+  // ------------------------------------------------------------ nests
+  wdNestTick() {
+    const tier = this.wdTier(), cap = this.wdCap();
+    for (const f of this.factories) {
+      if (f.hp <= 0) continue;
+      if (f.flash > 0) f.flash--;
+      if (this.freezeE > 0 || this.wdNearest(f.x + 16, f.y + 16) > Math.max(VIEW_W, VIEW_H) * 1.2 || --f.cd > 0) continue;
+      f.cd = Math.round(Math.max(240, 600 - tier * 25) / Config.scale('spawnRate') / Config.skill().spawn);
+      const own = this.tanks.filter(t => t.alive && t.wdNest === f.wd).length;
+      if (own >= 3 || this.wdFoes() >= cap + 2) continue;
+      const x = f.x + 8, y = f.y + 32;
+      if (!this.wdFree16(x, y)) continue;
+      const q = this.wdEnemy(x, y, tier);
+      q.extra.wdNest = f.wd; q.extra.dir = 2;
+      this.spawns.push({ x, y, t: SPARKLE_TIME, enemy: q });
+      this.total++;
+    }
+  },
+
+  // ------------------------------------------------------------ supplies on the ground
+  wdDrop(type, x, y) {
+    if (Config.get('pu' + type) === 'OFF') type = PU.STAR;
+    const [sx, sy] = this.wdFreeNear(x, y, 48);
+    const d = { type, x: sx, y: sy, t: 0 };
+    if (type === PU.WEAPON) d.weapon = this.crateWeapon();
+    this.wdDrops.push(d);
+    Sound.play('puAppear');
+  },
+  wdDropTick() {
+    for (const d of this.wdDrops) {
+      d.t++;
+      const t = this.tanks.find(o => o.alive && o.isPlayer && !o.ally && overlap(o.x, o.y, 16, 16, d.x + 2, d.y + 2, 12, 12));
+      if (t) { d.gone = true; this.applyPowerup(t, d); }
+      else if (d.t >= WD_DROP_LIFE) d.gone = true;
+    }
+    this.wdDrops = this.wdDrops.filter(d => !d.gone);
+  },
+
+  // ------------------------------------------------------------ the enemy
+  wdFoes() { return this.tanks.filter(t => !t.isPlayer && t.alive && !t.mirage).length + this.spawns.filter(s => s.enemy).length; },
+  // how many may be about at once: more further out and with more of you (the night brings none extra)
+  wdCap() {
+    const d = Math.min(240, this.wdDistNow());
+    return Math.max(1, Math.min(14, Config.get('maxOnScreen') - 2 + Math.floor(d / 40) + this.extraPlayers + Config.skill().maxOn));
+  },
+  // one enemy for this far out: the corridor's growing mix (corridor.js), and now and then the land's own
+  wdEnemy(x, y, tier) {
+    const W = this.world, h = (tier - 1) * 18 + (this.wdDistNow() % 26) * 0.7 + W.time / 3600 * 2;
+    const q = corridorEnemy(h), th = WD_THEMES[this.wdBioAt(x + 8, y + 8)], own = SEASON_ENEMY[th];
+    if (own !== undefined && Config.get('e' + own + 'On') !== 'OFF' && Config.get('newEnemies') !== 'OFF' && Math.random() < 0.16 + Math.min(0.1, tier * 0.01)) q.type = own;
+    q.ai = noBasePersonality();
+    q.bonus = Config.on('bonusTanks') && W.spawned++ % 7 === 3;
+    const [px, py] = this.wdCenter();
+    q.extra = { dir: Math.abs(px - x) > Math.abs(py - y) ? (px > x ? 1 : 3) : (py > y ? 2 : 0) };
+    return q;
+  },
+
+  // a spot for an enemy to come in: between r0 and r1 from (x, y), out of sight (or anywhere: offScreen false),
+  // never by a safe village, and somewhere it can get to you from
+  wdSpawnSpot(x, y, r0, r1, offScreen = true) {
+    const [vx, vy] = this.wdView(), safe = this.wdVillages.filter(v => v.st.s === 'saved' || v.st.s === 'friend');
+    const ps = this.tanks.filter(t => t.isPlayer && t.alive && !t.ally);
+    for (let k = 0; k < 30; k++) {
+      const a = Math.random() * Math.PI * 2, d = r0 + Math.random() * (r1 - r0);
+      const sx = Math.round((x + Math.cos(a) * d - 8) / 16) * 16, sy = Math.round((y + Math.sin(a) * d - 8) / 16) * 16;
+      if (offScreen && overlap(sx, sy, 16, 16, vx - 12, vy - 12, VIEW_W + 24, VIEW_H + 24)) continue;
+      if (!this.wdFree16(sx, sy) || safe.some(v => Math.hypot(v.x - sx, v.y - sy) < WD_SAFE_R)) continue;
+      if (ps.some(t => Math.hypot(t.x - sx, t.y - sy) < 64)) continue;
+      if (ps.length && !this.wdReach()[(sy >> 3) * (COLS * 2 - 1) + (sx >> 3)]) continue;
+      return [sx, sy];
+    }
+    return null;
+  },
+
+  // which tank places can get to one of you (a flood over the path finding's costs, made again now and then)
+  wdReach() {
+    const c = this.wdReachC;
+    if (c && c.ver === this.terrainVer && this.frame - c.at < 60) return c.r;
+    const NX = COLS * 2 - 1, NY = ROWS * 2 - 1, cost = this.navCosts(''), r = new Uint8Array(NX * NY), q = [];
+    for (const t of this.tanks) {
+      if (!t.isPlayer || !t.alive || t.ally) continue;
+      const n = Math.min(NY - 1, Math.round(t.y / 8)) * NX + Math.min(NX - 1, Math.round(t.x / 8));
+      if (!r[n]) { r[n] = 1; q.push(n); }
+    }
+    for (let k = 0; k < q.length; k++) {
+      const n = q[k], x = n % NX, y = (n / NX) | 0;
+      for (const [dx, dy] of DXY) {
+        const ux = x + dx, uy = y + dy, u = uy * NX + ux;
+        if (ux < 0 || uy < 0 || ux >= NX || uy >= NY || r[u] || cost[u] < 0) continue;
+        r[u] = 1; q.push(u);
+      }
+    }
+    this.wdReachC = { r, ver: this.terrainVer, at: this.frame };
+    return r;
+  },
+
+  // the wild: tanks come in just out of sight, now and then a patrol along a road
+  wdSpawnTick() {
+    if (this.freezeE > 0 || !this.tanks.some(t => t.isPlayer && t.alive)) return;
+    if (--this.wdSpawnCd > 0) return;
+    const d = this.wdDistNow();
+    this.wdSpawnCd = Math.round(Math.max(50, 260 - d * 0.6) / Config.scale('spawnRate') / Config.skill().spawn);
+    // a little peace at home
+    if (d < 10 || this.wdFoes() >= this.wdCap()) return;
+    const tier = this.wdTier(), [cx, cy] = this.wdCenter(), R = Math.max(VIEW_W, VIEW_H);
+    // NIGHTMARE!'s risen tanks (killEnemy puts them in the queue) come back too
+    const extra = this.queue.length > 1 ? this.queue.splice(1, 1)[0] : null;
+    if (!extra && Math.random() < 0.22 && this.wdPatrol(tier, cx, cy, R)) return;
+    const spot = this.wdSpawnSpot(cx, cy, R * 0.6, R * 0.95);
+    if (!spot) return;
+    const q = this.wdEnemy(spot[0], spot[1], tier);
+    if (extra) { q.type = extra.type; q.rank = extra.rank; }
+    this.spawns.push({ x: spot[0], y: spot[1], t: SPARKLE_TIME, enemy: q });
+    this.total++;
+  },
+
+  // two or three tanks in a line along a road, out of sight
+  wdPatrol(tier, cx, cy, R) {
+    const BW = GW >> 1, [vx, vy] = this.wdView();
+    for (let k = 0; k < 20; k++) {
+      const a = Math.random() * Math.PI * 2, d = R * (0.6 + Math.random() * 0.35);
+      const bx = Math.round((cx + Math.cos(a) * d) / 8), by = Math.round((cy + Math.sin(a) * d) / 8);
+      if (bx < 1 || by < 1 || bx >= BW - 8 || by >= (GH >> 1) - 8 || this.wdGnd[by * BW + bx] !== WG.ROAD) continue;
+      const horiz = this.wdGnd[by * BW + bx + 2] === WG.ROAD, n = 2 + (tier > 3 ? 1 : 0), spots = [];
+      for (let m = 0; m < n; m++) {
+        const sx = (bx + (horiz ? m * 3 : 0)) * 8, sy = (by + (horiz ? 0 : m * 3)) * 8;
+        if (!this.wdFree16(sx, sy) || overlap(sx, sy, 16, 16, vx - 12, vy - 12, VIEW_W + 24, VIEW_H + 24)) break;
+        spots.push([sx, sy]);
+      }
+      if (spots.length < 2) continue;
+      for (const [sx, sy] of spots) {
+        const q = this.wdEnemy(sx, sy, tier);
+        q.ai = AI.HUNT; q.extra.dir = horiz ? (cx > sx ? 1 : 3) : (cy > sy ? 2 : 0); q.extra.wdPatrol = 1;
+        this.spawns.push({ x: sx, y: sy, t: SPARKLE_TIME, enemy: q });
+        this.total++;
+      }
+      return true;
+    }
+    return false;
+  },
+
+  // enemies left far behind wander off (and no longer count); so does one shut in somewhere it can't get out of
+  // (walls rebuilt round it), once it's out of sight
+  wdDespawn() {
+    const R = Math.max(VIEW_W, VIEW_H) * 1.4 + 96, check = this.frame % 60 === 0, [vx, vy] = this.wdView();
+    const reach = check && this.tanks.some(t => t.isPlayer && t.alive) ? this.wdReach() : null, NX = COLS * 2 - 1;
+    for (const t of this.tanks) {
+      if (t.isPlayer || !t.alive || t.mirage) continue;
+      if (reach && !t.hover && !t.slither) {
+        const n = Math.min(ROWS * 2 - 2, Math.round(t.y / 8)) * NX + Math.min(NX - 1, Math.round(t.x / 8));
+        t.wdShut = reach[n] ? 0 : (t.wdShut || 0) + 60;
+        if (t.wdShut >= 600 && !overlap(t.x, t.y, 16, 16, vx, vy, VIEW_W, VIEW_H)) { t.alive = false; continue; }
+      }
+      if (this.wdNearest(t.x + 8, t.y + 8) < R) { t.wdFar = 0; continue; }
+      if (++t.wdFar > 240) t.alive = false;
+    }
+  },
+
+  // ------------------------------------------------------------ the compass
+  // the nearest village or ruin still to visit (looked for twice a second, up to 12 chunks out)
+  wdCompassFind() {
+    const W = this.world, [x, y] = this.wdCenter(), wx = W.ox * WD_PX + x, wy = W.oy * WD_PX + y;
+    const ccx = Math.floor(wx / WD_PX), ccy = Math.floor(wy / WD_PX);
+    let best = null, bd = Infinity;
+    for (let r = 0; r <= 12 && !best; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const cx = ccx + dx, cy = ccy + dy, f = wdFeatureOf(W.seed, cx, cy);
+      if (!f || f.kind === 'nest' || f.kind === 'home') continue;
+      const st = W.feats.get(wdKey(cx, cy));
+      if (f.kind === 'village' && st && st.s !== 'wild' && st.s !== 'siege') continue;
+      if (f.kind === 'ruin' && st && st.done) continue;
+      const tx = cx * WD_PX + 104, ty = cy * WD_PX + 104, d = Math.hypot(tx - wx, ty - wy);
+      if (d < bd) { bd = d; best = { wx: tx, wy: ty, kind: f.kind, siege: !!(st && st.s === 'siege') }; }
+    }
+    this.wdCompass = best;
+  },
+
+  // build the two rings of chunks round the window ahead of time, a chunk a frame (the next ones to come in, and
+  // the ones their ground blends into), so moving on costs little
+  wdPrefetch() {
+    const W = this.world, w = W.NX + 4, h = W.NY + 4, n = w * h;
+    for (let tries = 0; tries < n; tries++) {
+      W.pf = ((W.pf || 0) + 1) % n;
+      const x = W.pf % w - 2, y = ((W.pf / w) | 0) - 2;
+      if (x >= 0 && y >= 0 && x < W.NX && y < W.NY) continue;
+      if (wdGenCache.has(W.seed + ':' + (W.ox + x) + ',' + (W.oy + y))) continue;
+      wdGen(W.seed, W.ox + x, W.oy + y);
+      return;
+    }
+  },
+
+  // ------------------------------------------------------------ saving
+  // the world for a checkpoint: the seed, the safe village to start at, the clock and the records, every
+  // village's, ruin's and nest's state, the land's changes and what you've explored (a siege or a guardian in
+  // progress starts over)
+  wdCheckpoint() {
+    const W = this.world, chunks = [];
+    for (const r of W.chunks.values()) if (!this.wdInWindow(r.cx, r.cy) && r.diff) chunks.push([r.cx, r.cy, r.diff]);
+    for (let j = 0; j < W.NY; j++) for (let i = 0; i < W.NX; i++) { const d = this.wdDiffOf(i, j); if (d) chunks.push([W.ox + i, W.oy + j, d]); }
+    const feats = [];
+    for (const [k, st] of W.feats) {
+      const [a, b] = k.split(',').map(Number), o = Object.assign({}, st);
+      if (o.s === 'siege') o.s = 'wild';
+      if (o.boss === 1) o.boss = 0;
+      if (o.guards && !o.done) o.guards = 0;
+      feats.push([a, b, o]);
+    }
+    const seen = [...W.chunks.values()].filter(r => r.seen).map(r => r.cx + ',' + r.cy).join(';');
+    return { seed: W.seed, at: W.safeAt || W.at, clock: W.clock, day: W.day, dist: W.dist, saved: W.saved, looted: W.looted, time: W.time, feats, chunks, seen };
+  },
+
+  // ------------------------------------------------------------ online
+  // what a guest needs to draw the world (the terrain itself comes as usual)
+  wdNetView() {
+    const W = this.world, cp = this.wdCompass;
+    const v = {
+      s: W.seed, n: [W.NX, W.NY], o: [W.ox, W.oy], c: W.clock, d: W.day, di: W.dist, sv: W.saved, lt: W.looted, b: this.wdBiome,
+      no: W.notes.slice(-1), dr: this.wdDrops.map(d => [d.type, d.x, d.y, d.t, d.weapon || 0]), ch: this.wdChests.map(c => [c.x, c.y, c.kind === 'big' ? 1 : 0]),
+      vl: this.wdVillages.map(q => [q.x, q.y, q.st.s, q.home ? 1 : 0, q.st.wave || 0, q.st.waves || 0, q.cx, q.cy, q.st.ehp || 0]),
+      cp: cp ? [cp.wx, cp.wy, cp.kind === 'ruin' ? 1 : 0, cp.siege ? 1 : 0] : null,
+    };
+    // the states of every place (for the minimap) now and then
+    if (W.time % 60 < 2 || W.featVer !== this.wdSentVer) { this.wdSentVer = W.featVer; v.fs = [...W.feats].map(([k, st]) => [k, st.s || '', st.done ? 1 : 0, st.dead ? 1 : 0]); }
+    return v;
+  },
+
+  // a guest: its own copy of the world's look, kept in step with the host's window
+  applyWdView(v) {
+    let W = this.world;
+    const BN = (GW >> 1) * (GH >> 1);
+    if (!W || W.seed !== v.s || W.NX !== v.n[0] || W.NY !== v.n[1] || !this.wdBio || this.wdBio.length !== BN || this.terrain.length !== GW * GH) {
+      W = this.world = { client: true, seed: v.s, NX: v.n[0], NY: v.n[1], ox: v.o[0], oy: v.o[1], chunks: new Map(), feats: new Map(), notes: [], time: 0, featVer: 0, at: [0, 0] };
+      this.wdDeco = new Uint8Array(GW * GH); this.wdBio = new Uint8Array(BN); this.wdGnd = new Uint8Array(BN);
+      for (let j = 0; j < W.NY; j++) for (let i = 0; i < W.NX; i++) this.wdPut(i, j, true);
+      this.layerOf = null; this.dirty = true; this.wdPending = new Set(); this.wdPart = new Map();
+      this.wdDrops = []; this.wdChests = []; this.wdVillages = [];
+    } else if (v.o[0] !== W.ox || v.o[1] !== W.oy) {
+      const dx = v.o[0] - W.ox, dy = v.o[1] - W.oy;
+      if (Math.abs(dx) + Math.abs(dy) === 1) {
+        this.wdSlide(dx, dy, true);
+        if (this.camX !== undefined) { this.camX -= dx * WD_PX; this.camY -= dy * WD_PX; }
+      } else {
+        W.ox = v.o[0]; W.oy = v.o[1];
+        for (let j = 0; j < W.NY; j++) for (let i = 0; i < W.NX; i++) this.wdPut(i, j, true);
+        this.layerOf = null; this.dirty = true;
+      }
+    }
+    W.time++;
+    Object.assign(W, { clock: v.c, day: v.d, dist: v.di, saved: v.sv, looted: v.lt });
+    for (const n of v.no) if (!W.notes.some(q => q.text === n.text && q.t <= n.t)) W.notes = [n];
+    if (W.notes[0] && W.notes[0].t < (W.notes[0].life || WD_NOTE)) W.notes[0].t++;
+    if (v.b !== undefined) this.wdBiome = v.b;
+    this.wdDrops = v.dr.map(a => ({ type: a[0], x: a[1], y: a[2], t: a[3], weapon: a[4] || undefined }));
+    this.wdChests = v.ch.map(a => ({ x: a[0], y: a[1], kind: a[2] ? 'big' : 'chest' }));
+    this.wdVillages = v.vl.map(a => {
+      const g = wdGen(W.seed, a[6], a[7]);
+      return { x: a[0], y: a[1], st: { s: a[2], wave: a[4], waves: a[5], ehp: a[8] }, home: !!a[3], cx: a[6], cy: a[7], f: g.feat || { houses: [] } };
+    });
+    this.wdCompass = v.cp ? { wx: v.cp[0], wy: v.cp[1], kind: v.cp[2] ? 'ruin' : 'village', siege: !!v.cp[3] } : null;
+    if (v.fs) { W.feats = new Map(v.fs.map(a => [a[0], { s: a[1] || undefined, done: a[2], dead: a[3] }])); W.featVer++; }
+    if (W.time % 15 === 0) this.wdExplore();
+  },
+});
+
+// ------------------------------------------------------------------ the music: WIDE FRONT suits a long way out
+SONGS.world = SONGS.bigmaps;
+ROCK_ALIAS.world = 'bigmaps';
+
+// ------------------------------------------------------------------ hooks into the stage and the game
+(() => {
+  const P = Stage.prototype;
+  const W = st => st.world && !st.world.client;   // the host's world (or a game on its own)
+
+  // the land is laid when the stage is built (before the season: it's the land that says what season it is)
+  const setupSeason = P.setupSeason;
+  P.setupSeason = function (opts) {
+    if (opts.world) this.setupWorld(Game.wdRun || (Game.wdSeed ? { seed: Game.wdSeed } : null));   // wdSeed: a world picked by hand (tests)
+    setupSeason.call(this, opts);
+  };
+
+  const update = P.update;
+  P.update = function () {
+    update.call(this);
+    if (W(this)) this.wdTick();
+  };
+  // its enemies come their own way (wdSpawnTick)
+  const spawning = P.updateSpawning;
+  P.updateSpawning = function () { if (!this.world) spawning.call(this); };
+  const spawnPlayer = P.spawnPlayer;
+  P.spawnPlayer = function (p, delay) {
+    if (!W(this)) return spawnPlayer.call(this, p, delay);
+    const [x, y] = this.wdRespawnSpot(p);
+    this.spawns.push({ x, y, t: SPARKLE_TIME + delay, player: p });
+  };
+  // nests turn out tanks in wdNestTick
+  const bigUpdate = P.updateBigMap;
+  P.updateBigMap = function () { if (!this.world) bigUpdate.call(this); };
+
+  // a village's eagle stands in the way, and stops shells (only the enemy's harm the one under siege)
+  const canStep = P.canStep;
+  P.canStep = function (t, d) {
+    if (!canStep.call(this, t, d)) return false;
+    if (!this.world) return true;
+    const nx = t.x + DXY[d][0], ny = t.y + DXY[d][1];
+    return !this.wdVillages.some(v => v.st.s !== 'lost' && v.st.s !== 'siege' && overlap(nx, ny, 16, 16, v.x, v.y, 16, 16));
+  };
+  const bulletBig = P.bulletBigMap;
+  P.bulletBigMap = function (b) {
+    if (bulletBig.call(this, b)) return true;
+    if (!this.world) return false;
+    const v = this.wdVillages.find(q => q.st.s !== 'lost' && q.st.s !== 'siege' && overlap(b.x, b.y, 4, 4, q.x, q.y, 16, 16));
+    if (!v) return false;
+    this.killBullet(b, true);
+    return true;
+  };
+  const outpostDown = P.outpostDown;
+  P.outpostDown = function (o) {
+    if (!W(this)) return outpostDown.call(this, o);
+    const v = this.wdVillages.find(q => q.key === o.wd);
+    // a village's eagle takes three hits (the villagers patch it up between them)
+    if (v && v.st.ehp > 1) {
+      v.st.ehp--; v.st.hitT = 20;
+      this.addFx(o.x + 8, o.y + 8, [Sprites.smallExp[0], Sprites.smallExp[1]], 4);
+      Sound.play('armor');
+      this.popups.push({ x: o.x + 8, y: o.y - 8, text: 'VILLAGE HIT', label: true, color: COL.red, t: 0, delay: 0, life: 50 });
+      return;
+    }
+    o.alive = false;
+    AutoSkill.event('eagleHit');
+    this.navBaseF = {};
+    this.addFx(o.x + 8, o.y + 8, BIG_EXPLOSION(), 6);
+    Sound.play('baseDie');
+    if (v) this.wdVillageLost(v);
+  };
+  // a nest's damage is remembered; destroyed, it leaves supplies
+  const hitFactory = P.hitFactory;
+  P.hitFactory = function (f, dmg, by) {
+    hitFactory.call(this, f, dmg, by);
+    if (!W(this) || !f.st) return;
+    f.st.hp = Math.max(0, f.hp);
+    if (f.hp <= 0 && !f.st.dead) {
+      f.st.dead = 1;
+      this.wdDrop(WD_SUPPLY[rnd(WD_SUPPLY.length)], f.x + 8, f.y + 36);
+      this.wdNote('NEST DESTROYED', COL.gold);
+    }
+  };
+
+  // the guardian beaten: the vault's treasure shows; the victory tune for a while, then the land's again
+  const killBoss = P.killBoss;
+  P.killBoss = function (bo) {
+    killBoss.call(this, bo);
+    if (!W(this)) return;
+    this.queue = [WD_SENTINEL];
+    const r = this.wdRuins.find(q => q.key === bo.wdRuin) || this.wdRuins.find(q => q.f.boss >= 0 && q.st.boss === 1);
+    if (r) r.st.boss = 2;
+    this.wdSync();
+    this.wdBossEnd = this.frame + 480;
+    this.wdNote('THE GUARDIAN FALLS!', COL.gold, 'ITS TREASURE IS YOURS');
+  };
+  // the guardian's escorts come out of the ground round it, not at the top of the field
+  const summonEscort = P.summonEscort;
+  P.summonEscort = function (type) {
+    if (!W(this)) return summonEscort.call(this, type);
+    const b = this.mainBoss();
+    if (b) this.summonAt(type, b.x + b.w / 2, b.y + b.h + 16);
+  };
+  // no eagle to make for (only a village under attack): wanderers drift towards you instead of the field's bottom
+  const baseTarget = P.baseTarget;
+  P.baseTarget = function (t) {
+    if (!this.world || this.baseGoals().length) return baseTarget.call(this, t);
+    const [x, y] = this.wdCenter();
+    return { x: x - 8, y: y - 8 };
+  };
+  // a power-up turns up near you (not somewhere in a window three screens wide)
+  const spawnPowerup = P.spawnPowerup;
+  P.spawnPowerup = function (only) {
+    spawnPowerup.call(this, only);
+    if (!W(this) || !this.powerup) return;
+    const [vx, vy] = this.wdView();
+    for (let k = 0; k < 40; k++) {
+      const x = vx + 8 + rnd(Math.max(1, (VIEW_W - 32) / 8)) * 8, y = vy + 8 + rnd(Math.max(1, (VIEW_H - 32) / 8)) * 8;
+      if (this.wdFree16(x, y, false)) { this.powerup.x = x; this.powerup.y = y; break; }
+    }
+  };
+  // the camera holds still while everyone's between tanks
+  const camera = P.camera;
+  P.camera = function () {
+    if (this.world && this.camX !== undefined && !this.tanks.some(t => t.isPlayer && !t.ally && t.alive)) return [Math.round(this.camX), Math.round(this.camY)];
+    return camera.call(this);
+  };
+
+  // the path finding over a window this big: the same search, on a heap that doesn't allocate, and only as far as
+  // an enemy that matters could be (further off they drive about as tanks did in the original)
+  const navField = P.navField, HP = { p: new Float64Array(4096), n: new Int32Array(4096) };
+  P.navField = function (seeds, mode = '') {
+    if (!this.world) return navField.call(this, seeds, mode);
+    const NX = COLS * 2 - 1, cost = this.navCosts(mode), N = cost.length, dist = new Float64Array(N).fill(Infinity), LIM = 140;
+    if (HP.p.length < N * 4 + 16) { HP.p = new Float64Array(N * 4 + 16); HP.n = new Int32Array(N * 4 + 16); }
+    const hp = HP.p, hn = HP.n;
+    let size = 0;
+    const push = (p, n) => {
+      let i = size++;
+      while (i > 0) { const j = (i - 1) >> 1; if (hp[j] <= p) break; hp[i] = hp[j]; hn[i] = hn[j]; i = j; }
+      hp[i] = p; hn[i] = n;
+    };
+    for (const n of seeds) if (n >= 0 && n < N) { dist[n] = 0; push(0, n); }
+    while (size) {
+      const d = hp[0], v = hn[0], lp = hp[--size], ln = hn[size];
+      let i = 0;
+      for (;;) {
+        const l = i * 2 + 1, r = l + 1;
+        if (l >= size) break;
+        const m = r < size && hp[r] < hp[l] ? r : l;
+        if (hp[m] >= lp) break;
+        hp[i] = hp[m]; hn[i] = hn[m]; i = m;
+      }
+      if (size) { hp[i] = lp; hn[i] = ln; }
+      if (d > dist[v]) continue;
+      if (d > LIM) break;
+      const vx = v % NX, vy = (v / NX) | 0, step = Math.max(1, cost[v]);
+      for (let k = 0; k < 4; k++) {
+        const ux = vx + DXY[k][0], uy = vy + DXY[k][1];
+        if (ux < 0 || uy < 0 || ux >= NX || uy * NX >= N) continue;
+        const u = uy * NX + ux;
+        if (cost[u] < 0) continue;
+        const nd = d + step;
+        if (nd < dist[u]) { dist[u] = nd; if (size >= hp.length) break; push(nd, u); }
+      }
+    }
+    return dist;
+  };
+
+  // ------------------------------------------------------------ drawing
+  const render = P.render;
+  P.render = function (ctx) {
+    if (!this.world || !this.wdBio) return render.call(this, ctx);
+    if (this.dirty || !this.bgLayer) this.wdLayers();
+    else if (this.dirtyCells && this.dirtyCells.length) this.wdRedraw();
+    this.wdPaintSome(1);
+    const all = this.bioL, cam = this.camX === undefined ? [0, 0] : [Math.round(this.camX), Math.round(this.camY)];
+    this.bioL = this.wdCulled(cam[0], cam[1]);
+    try { render.call(this, ctx); } finally { this.bioL = all; }
+  };
+  const buildLayers = P.buildLayers;
+  P.buildLayers = function () { if (this.world && this.wdBio) this.wdLayers(); else buildLayers.call(this); };
+  const redrawCells = P.redrawCells;
+  P.redrawCells = function () { if (this.world && this.wdBio) this.wdRedraw(); else redrawCells.call(this); };
+  const groundLayer = P.groundLayer;
+  P.groundLayer = function () { return this.world && this.wdGround ? this.wdGround : groundLayer.call(this); };
+  const renderBelts = P.renderBelts;
+  P.renderBelts = function (ctx) { if (this.world) this.wdWater(ctx); renderBelts.call(this, ctx); };
+  const renderSecrets = P.renderSecrets;
+  P.renderSecrets = function (ctx) { renderSecrets.call(this, ctx); if (this.world) this.wdRenderObjects(ctx); };
+  const renderDarkness = P.renderDarkness;
+  P.renderDarkness = function (ctx) {
+    if (!this.world) return renderDarkness.call(this, ctx);
+    this.wdDarkness(ctx, Math.round(this.camX || 0), Math.round(this.camY || 0));
+  };
+  const renderMinimap = P.renderMinimap;
+  P.renderMinimap = function (ctx, camX, camY) { if (this.world) this.wdMinimap(ctx, camX, camY); else renderMinimap.call(this, ctx, camX, camY); };
+  // the side panel as usual (no queue of tanks: it never ends), with the compass, the day and the villages
+  const renderHud = P.renderHud;
+  P.renderHud = function (ctx) {
+    if (!this.world) return renderHud.call(this, ctx);
+    const q = this.queue;
+    this.queue = [];
+    renderHud.call(this, ctx);
+    this.queue = q;
+    this.wdRenderHud(ctx, HUD_X);
+  };
+  const objLine = P.renderObjectiveLine;
+  P.renderObjectiveLine = function (ctx) { if (this.world) this.wdLine(ctx); else objLine.call(this, ctx); };
+  const banner = P.renderModeBanner;
+  P.renderModeBanner = function (ctx) { banner.call(this, ctx); if (this.world) this.wdBanner(ctx); };
+
+  // ------------------------------------------------------------ the game around it
+  const G = Game;
+  // a checkpoint at every safe village (and the run's start)
+  const ckMarkOf = G.ckMarkOf;
+  G.ckMarkOf = function (st) { return st.world && !st.world.client ? 'k' + st.world.ckN : ckMarkOf.call(this, st); };
+  const ckAt = G.ckAt;
+  G.ckAt = function (st) { return st.world && !st.world.client ? { wd: st.wdCheckpoint() } : ckAt.call(this, st); };
+  const ckApply = G.ckApply;
+  G.ckApply = function (at) { if (this.stage && this.stage.world) return; ckApply.call(this, at); };   // setupWorld took it all
+  // RESTART ROUND goes back to the last safe village too
+  const ckPoll = G.ckPoll;
+  G.ckPoll = function () {
+    const before = this.ck;
+    ckPoll.call(this);
+    if (this.mode === 'world' && this.ck && this.ck !== before && this.roundSave) {
+      this.roundSave.players = JSON.parse(JSON.stringify(this.ck.players));
+      this.roundSave.resume = this.ck.at;
+    }
+  };
+  // a new run's first checkpoint (taken before the world was made) gets the world, so a reload brings back the same one
+  const beginStage = G.beginStage;
+  G.beginStage = function () {
+    beginStage.apply(this, arguments);
+    const st = this.stage;
+    if (this.mode !== 'world' || !st || !st.world) return;
+    const at = this.ckAt(st);
+    if (this.roundSave && !(this.roundSave.resume && this.roundSave.resume.wd)) this.roundSave.resume = at;
+    if (this.ck && !(this.ck.at && this.ck.at.wd)) { this.ck.at = at; this.autoSave(); }
+  };
+  // the run's record: how far from home, then villages saved, then the score
+  const toModeResult = G.toModeResult;
+  G.toModeResult = function (done) {
+    if (this.mode !== 'world' || !this.stage || !this.stage.world) return toModeResult.call(this, done);
+    const rec = STORE.get(MODE_KEY, {}), score = this.players.reduce((a, p) => a + p.score, 0), W = this.stage.world;
+    const res = { mode: 'world', done, score, newBest: false, dist: W.dist, villages: W.saved, looted: W.looted, days: W.day };
+    const b = rec.world, better = !b || res.dist > b.dist || (res.dist === b.dist && (res.villages > b.villages || (res.villages === b.villages && score > b.score)));
+    if (better) { rec.world = { dist: res.dist, villages: res.villages, score }; res.newBest = true; }
+    res.best = rec.world;
+    STORE.set(MODE_KEY, rec);
+    this.modeRes = res;
+    Sound.setEngine(0);
+    Sound.play(res.newBest ? 'bonus' : 'gameover');
+    this.setState('modeResult');
+  };
+  const renderModeResult = G.renderModeResult;
+  G.renderModeResult = function (ctx) {
+    const r = this.modeRes;
+    if (!r || r.mode !== 'world') return renderModeResult.call(this, ctx);
+    ctx.fillStyle = COL.black;
+    ctx.fillRect(0, 0, SW, SH);
+    Font.drawCenter(ctx, modeInfo('world').name, SW / 2, 40, COL.red);
+    Font.drawCenter(ctx, 'YOU GOT ' + r.dist + ' M FROM HOME', SW / 2, 74, COL.white);
+    Font.drawCenter(ctx, 'VILLAGES SAVED ' + r.villages + '  RUINS ' + (r.looted || 0), SW / 2, 88, COL.white);
+    Font.drawCenter(ctx, 'DAY ' + r.days + '  SCORE ' + r.score, SW / 2, 102, COL.white);
+    Font.drawCenter(ctx, 'BEST: ' + r.best.dist + ' M  ' + r.best.villages + ' VILLAGES  ' + r.best.score, SW / 2, 124, COL.lgrey);
+    if (r.newBest && (this.t >> 4) & 1) Font.drawCenter(ctx, 'NEW BEST!', SW / 2, 150, COL.gold);
+    if (this.t > 60) Font.drawCenter(ctx, 'PRESS ENTER', SW / 2, 196, COL.lgrey);
+  };
+  // the first curtain: where you start
+  const renderCurtain = G.renderCurtain;
+  G.renderCurtain = function (ctx) {
+    renderCurtain.call(this, ctx);
+    if (this.mode === 'world' && this.curtain && this.curtain.phase === 'show') Font.drawCenter(ctx, 'FIND THE VILLAGES', SCREEN_W / 2, SCREEN_H / 2 + 14, '#A00000');
+  };
+
+  // ------------------------------------------------------------ online
+  const stageView = Net.stageView;
+  Net.stageView = function (st, full) {
+    const v = stageView.call(this, st, full);
+    if (W(st)) v.wdx = st.wdNetView();
+    return v;
+  };
+  const applyStage = Net.applyStage;
+  Net.applyStage = function (sv) {
+    applyStage.call(this, sv);
+    const st = Game.stage;
+    if (!st) return;
+    if (sv.wdx) st.applyWdView(sv.wdx);
+    else if (st.world) { st.world = null; st.wdBio = null; st.dirty = true; }
+  };
+})();
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  WORLD: drawing (world.js runs it)
+//    - the terrain layers are painted a chunk at a time, pixel by pixel, each cell in the textures of its own biome
+//      (a house roof or ruin stone where the land says so); the ground under them too: the biome's colour frayed
+//      into its neighbour's at the border, specks and flowers, sand ripples, glowing cracks, roads, cobbles,
+//      flagstones. When the window moves the layers slide along and only the new chunks are painted (one a frame,
+//      out of sight); a shot brick is redrawn on its own, as elsewhere
+//    - water in each biome's colours, drawn where you can see it; lava and the rest only near the screen
+//    - the day: dusk and dawn tint the land, and at night it's dark round your lights
+//    - villages' eagles, chests, supplies; the minimap of what you've explored; the compass, day and villages in
+//      the side panel; the news low on the screen
+// =====================================================================
+
+// each land's water as a fill (the textures repeat every 8 pixels, from the field's corner, as the blocks do)
+const wdWaterPats = {};
+
+Object.assign(Stage.prototype, {
+  // ------------------------------------------------------------ the layers
+  // (instead of buildLayers) new layers painted whole, or the old ones brought up to date
+  wdLayers() {
+    const W = this.world, NX = W.NX, NY = W.NY;
+    if (!this.bgLayer || this.bgLayer.width !== FW || this.bgLayer.height !== FH || !this.layerOf || this.layerOf.length !== GW * GH || !this.wdGround) {
+      this.bgLayer = makeCanvas(FW, FH); this.forestLayer = makeCanvas(FW, FH); this.wdGround = makeCanvas(FW, FH);
+      this.layerOf = new Uint8Array(GW * GH);
+      this.wdPending = new Set(); this.wdPart = new Map();
+      for (let s = 0; s < NX * NY; s++) this.wdPending.add(s);
+      this.wdPaintSome(Infinity);
+    } else {
+      const C = WD_CC, pend = this.wdPending;
+      this.dirtyCells = [];
+      for (let i = 0; i < GW * GH; i++) {
+        if (this.terrain[i] === this.layerOf[i]) continue;
+        if (pend.size && pend.has(((((i / GW) | 0) / C) | 0) * NX + (((i % GW) / C) | 0))) continue;
+        this.dirtyCells.push(i);
+      }
+      if (this.dirtyCells.length) this.wdRedraw();
+    }
+    this.wdLists();
+    this.dirty = false;
+  },
+
+  // paint the chunks still waiting, a third of one at a time (up to n thirds; but all of any on screen)
+  wdPaintSome(n) {
+    const pend = this.wdPending;
+    if (!pend || !pend.size || !this.bgLayer) return;
+    const NX = this.world.NX, cx = this.camX === undefined ? FW / 2 : this.camX, cy = this.camY === undefined ? FH / 2 : this.camY;
+    const seen = s => overlap((s % NX) * WD_PX, ((s / NX) | 0) * WD_PX, WD_PX, WD_PX, cx - 16, cy - 16, VIEW_W + 32, VIEW_H + 32);
+    const part = this.wdPart || (this.wdPart = new Map());
+    for (const s of [...pend].sort((a, b) => seen(b) - seen(a))) {
+      if (n <= 0 && !seen(s)) break;
+      for (let k = part.get(s) || 0; k < 3 && (n > 0 || seen(s)); k++, n--) { this.wdPaint(s % NX, (s / NX) | 0, k); part.set(s, k + 1); }
+      if ((part.get(s) || 0) >= 3) { pend.delete(s); part.delete(s); }
+    }
+  },
+
+  // one chunk of the window onto the three layers: part 0 and 1 the ground's top and bottom halves, 2 the tiles
+  wdPaint(i, j, part) {
+    if (part === undefined) { for (let k = 0; k < 3; k++) this.wdPaint(i, j, k); return; }
+    const n = WD_PX, C = WD_CC, BW = GW >> 1, x0 = i * n, y0 = j * n;
+    const img = this.wdImgs || (this.wdImgs = [new ImageData(n, n), new ImageData(n, n), new ImageData(n, n)]);
+    if (part < 2) {
+      this.wdPaintGround(i, j, new Uint32Array(img[0].data.buffer), part * (n >> 1), (part + 1) * (n >> 1));
+      this.wdGround.getContext('2d').putImageData(img[0], x0, y0, 0, part * (n >> 1), n, n >> 1);
+      return;
+    }
+    const bg = new Uint32Array(img[1].data.buffer), fo = new Uint32Array(img[2].data.buffer);
+    bg.fill(0); fo.fill(0);
+    for (let cy = 0; cy < C; cy++) for (let cx = 0; cx < C; cx++) {
+      const gx = i * C + cx, gy = j * C + cy, idx = gy * GW + gx, v = this.terrain[idx];
+      this.layerOf[idx] = v;
+      const key = v && wdKeyOf(v, this.wdDeco[idx]);
+      if (!key) continue;
+      const theme = WD_THEMES[this.wdBio[(gy >> 1) * BW + (gx >> 1)]], tx = wdTexOf(theme, key), tw = tx.w, m = tw >> 2;
+      const ox = (gx % m) * 4, oy = (gy % m) * 4, out = wdOnForest(v) ? fo : bg, o0 = cy * 4 * n + cx * 4;
+      for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { const p = tx.d[(oy + y) * tw + ox + x]; if (p >>> 24) out[o0 + y * n + x] = p; }
+      // snow (or ash) on the top edge of walls and trees
+      const caps = THEMES[theme].snowCaps;
+      if (caps && wdCapSolid(v) && !(gy > 0 && wdCapSolid(this.terrain[idx - GW]))) {
+        const c = wdColor(caps);
+        for (let x = 0; x < 4; x++) out[o0 + x] = c;
+        if ((gx + gy) % 3 === 0) { out[o0 + n + 1] = c; out[o0 + n + 2] = c; }
+      }
+    }
+    this.bgLayer.getContext('2d').putImageData(img[1], x0, y0);
+    this.forestLayer.getContext('2d').putImageData(img[2], x0, y0);
+  },
+
+  // the ground of one chunk: the biome's colour (frayed into the next one's at the border), its specks and
+  // details, and the roads, cobbles, flagstones and scorch the land puts there
+  wdPaintGround(i, j, out, r0 = 0, r1 = WD_PX) {
+    const W = this.world, n = WD_PX, B = WD_CB, BW = GW >> 1, gx0 = (W.ox + i) * n, gy0 = (W.oy + j) * n, seed = W.seed;
+    // the chunk's biomes and ground kinds with a block's margin all round (from the next chunks, built already)
+    const P = B + 2, bio = new Uint8Array(P * P), gnd = new Uint8Array(P * P);
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      const g = wdGen(seed, W.ox + i + di, W.oy + j + dj);
+      for (let y = 0; y < B; y++) {
+        const py = y + dj * B + 1;
+        if (py < 0 || py >= P) continue;
+        for (let x = 0; x < B; x++) {
+          const px = x + di * B + 1;
+          if (px < 0 || px >= P) continue;
+          bio[py * P + px] = g.bio[y * B + x]; gnd[py * P + px] = g.gnd[y * B + x];
+        }
+      }
+    }
+    const G = WD_BIOMES_ALL.map(wdGroundOf), ROAD = WG.ROAD;
+    // the volcano's cracks and the swamp's wet patches follow noise: sampled every 4 pixels and blended between
+    const NG = n / 4 + 1, crack = new Float32Array(NG * NG), wet = new Float32Array(NG * NG);
+    const has = b => { for (let k = 0; k < bio.length; k++) if (bio[k] === b) return true; return false; };
+    const g0 = r0 >> 2, g1 = Math.min(NG - 1, (r1 >> 2) + 1);
+    if (has(WDB.VOLCANO)) for (let y = g0; y <= g1; y++) for (let x = 0; x < NG; x++) crack[y * NG + x] = Math.abs(wdNoise(seed + 201, (gx0 + x * 4) / 9, (gy0 + y * 4) / 9) - 0.5);
+    if (has(WDB.SWAMP)) for (let y = g0; y <= g1; y++) for (let x = 0; x < NG; x++) wet[y * NG + x] = wdNoise(seed + 203, (gx0 + x * 4) / 14, (gy0 + y * 4) / 14);
+    const at = (a, px, py) => {
+      const x = px >> 2, y = py >> 2, fx = (px & 3) / 4, fy = (py & 3) / 4, k = y * NG + x;
+      return (a[k] * (1 - fx) + a[k + 1] * fx) * (1 - fy) + (a[k + NG] * (1 - fx) + a[k + NG + 1] * fx) * fy;
+    };
+    for (let py = r0; py < r1; py++) {
+      const wy = gy0 + py, by = (py >> 3) + 1, ly = py & 7;
+      for (let px = 0; px < n; px++) {
+        const wx = gx0 + px, bx = (px >> 3) + 1, b0 = by * P + bx, kind = gnd[b0];
+        let h = Math.imul(wx, 0x27d4eb2d) ^ Math.imul(wy, 0x165667b1);
+        h = Math.imul(h ^ (h >>> 15), 0x85ebca6b); h = (h ^ (h >>> 13)) >>> 0;
+        let c;
+        if (kind === ROAD) {
+          const g = G[bio[b0]], lx = px & 7, horiz = gnd[b0 - 1] === ROAD || gnd[b0 + 1] === ROAD;
+          if ((lx === 0 && gnd[b0 - 1] !== ROAD) || (lx === 7 && gnd[b0 + 1] !== ROAD) || (ly === 0 && gnd[b0 - P] !== ROAD) || (ly === 7 && gnd[b0 + P] !== ROAD)) c = g.roadEdge;
+          else if ((h & 31) === 0) c = g.pebble;
+          else if (g.lane !== g.road) c = (horiz ? (wy & 15) === 8 && (wx % 12) < 5 : (wx & 15) === 8 && (wy % 12) < 5) ? g.lane : g.road;
+          else c = (horiz ? (wy & 7) === 2 || (wy & 7) === 5 : (wx & 7) === 2 || (wx & 7) === 5) && (h & 3) ? g.roadEdge : g.road;
+        } else if (kind === WG.COBBLE) {
+          const g = G[bio[b0]];
+          c = (wy & 3) === 0 || ((wx + ((wy >> 2) & 1) * 2) & 3) === 0 || (h & 15) === 0 ? g.cobLine : g.cobble;
+        } else if (kind === WG.FLAG) {
+          const g = G[bio[b0]];
+          c = (wy & 7) === 0 || ((wx + ((wy >> 3) & 1) * 4) & 7) === 0 ? ((h & 7) === 0 ? g.moss : g.flagLine) : (h & 63) === 0 ? g.moss : g.flag;
+        } else if (kind === WG.SCORCH) {
+          const g = G[bio[b0]];
+          c = (h & 63) < 2 ? g.ember : (h & 15) === 3 ? g.ash : g.scorch;
+        } else {
+          // frayed: each 2x2 pixels look a few pixels off for their biome
+          let h2 = Math.imul(wx >> 1, 0x27d4eb2d) ^ Math.imul(wy >> 1, 0x165667b1);
+          h2 = Math.imul(h2 ^ (h2 >>> 15), 0x85ebca6b) >>> 0;
+          const bb = bio[(((py + ((h2 >>> 3) & 7) - 4) >> 3) + 1) * P + ((px + (h2 & 7) - 4) >> 3) + 1], g = G[bb], d = (h >>> 12) & 1023;
+          c = (h & 63) < 2 ? g.specks[(h >>> 6) % g.specks.length] : g.base;
+          switch (bb) {
+            case WDB.GRASS: if (d < 3) c = g.det[d]; break;
+            case WDB.FOREST: if (d < 12) c = g.det[d & 1]; break;
+            case WDB.AUTUMN: if (d < 9) c = g.det[d % 3]; break;
+            case WDB.SNOW: if (d < 8) c = g.det[d & 1]; break;
+            case WDB.DESERT: if ((wy * 3 + (wx >> 2) + (h2 & 1)) % 13 === 0) c = g.det[(h >>> 22) & 1]; break;
+            case WDB.VOLCANO: if (at(crack, px, py) < 0.018) c = g.det[(h & 7) === 0 ? 1 : 0]; break;
+            case WDB.SWAMP: if (d < 6) c = g.det[1]; else if (at(wet, px, py) > 0.7) c = g.det[0]; break;
+            case WDB.CITY: if (d < 5) c = g.det[d & 1]; break;
+            case WDB.WASTE: if (d < 14) c = g.det[d & 1]; break;
+          }
+        }
+        out[py * n + px] = c;
+      }
+    }
+  },
+
+  // (instead of redrawCells) just the cells that changed, in their own biome's textures
+  wdRedraw() {
+    const bg = this.bgLayer.getContext('2d'), fo = this.forestLayer.getContext('2d'), BW = GW >> 1, C = WD_CC, NX = this.world.NX, pend = this.wdPending;
+    const done = new Set();
+    for (const i0 of this.dirtyCells) for (const i of [i0, i0 + GW]) {
+      if (i >= GW * GH || done.has(i)) continue;
+      done.add(i);
+      const cx = i % GW, cy = (i / GW) | 0;
+      if (pend && pend.size && pend.has(((cy / C) | 0) * NX + ((cx / C) | 0))) continue;   // its chunk gets painted whole
+      const t = this.terrain[i], dx = cx * 4, dy = cy * 4, theme = WD_THEMES[this.wdBio[(cy >> 1) * BW + (cx >> 1)]];
+      bg.clearRect(dx, dy, 4, 4); fo.clearRect(dx, dy, 4, 4);
+      const key = t && wdKeyOf(t, this.wdDeco[i]);
+      if (key) {
+        const im = wdTexCanvas(theme, key), m = im.width >> 2;
+        (wdOnForest(t) ? fo : bg).drawImage(im, (cx % m) * 4, (cy % m) * 4, 4, 4, dx, dy, 4, 4);
+      }
+      const caps = THEMES[theme].snowCaps;
+      if (caps && wdCapSolid(t) && !(cy > 0 && wdCapSolid(this.terrain[i - GW]))) {
+        const ctx = t === T_FOREST ? fo : bg;
+        ctx.fillStyle = caps;
+        ctx.fillRect(dx, dy, 4, 1);
+        if ((cx + cy) % 3 === 0) ctx.fillRect(dx + 1, dy + 1, 2, 1);
+      }
+      this.layerOf[i] = t;
+    }
+    this.dirtyCells = [];
+  },
+
+  // what's drawn every frame: water (by block where it's all water), and the terrain types' moving tiles
+  wdLists() {
+    const BW = GW >> 1, T = this.terrain, wB = [], wC = [], L = { lava: [], vent: [], gas: [], lamp: [], bog: [] };
+    const one = k => {
+      const v = T[k];
+      if (v === T_WATER) wC.push(k);
+      else if (v === T_LAVA) L.lava.push(k);
+      else if (v === T_VENT) L.vent.push(k);
+      else if (v === T_GAS) L.gas.push(k);
+      else if (v === T_LAMP) L.lamp.push(k);
+      else if (v === T_BOG) L.bog.push(k);
+    };
+    for (let by = 0; by < GH >> 1; by++) {
+      let run = null;   // all-water blocks of one biome side by side: one stretch of water, one fill
+      for (let bx = 0; bx < BW; bx++) {
+        const i = by * 2 * GW + bx * 2, a = T[i], b = T[i + 1], c = T[i + GW], d = T[i + GW + 1];
+        if (a === T_WATER && b === T_WATER && c === T_WATER && d === T_WATER) {
+          const th = this.wdBio[by * BW + bx];
+          if (run && run[3] === th && run[0] + run[2] === bx * 8) run[2] += 8;
+          else wB.push(run = [bx * 8, by * 8, 8, th]);
+          continue;
+        }
+        run = null;
+        if (a < T_WATER && b < T_WATER && c < T_WATER && d < T_WATER) continue;   // nothing that moves
+        one(i); one(i + 1); one(i + GW); one(i + GW + 1);
+      }
+    }
+    this.wdWaterB = wB; this.wdWaterC = wC; this.waterCells = []; this.beltCells = [];
+    this.wdBioAll = L; this.bioL = L;
+    this.wdListVer = (this.wdListVer || 0) + 1; this.wdCull = null;
+  },
+
+  // the moving tiles near the screen only (the rest of the window needn't be drawn)
+  wdCulled(camX, camY) {
+    const k = (camX >> 4) + ',' + (camY >> 4) + ',' + this.wdListVer;
+    if (this.wdCull && this.wdCull.k === k) return this.wdCull.L;
+    const x0 = (camX >> 2) - 8, y0 = (camY >> 2) - 8, x1 = ((camX + VIEW_W) >> 2) + 8, y1 = ((camY + VIEW_H) >> 2) + 8, A = this.wdBioAll, L = {};
+    for (const n in A) L[n] = A[n].filter(i => { const x = i % GW, y = (i / GW) | 0; return x >= x0 && y >= y0 && x <= x1 && y <= y1; });
+    this.wdCull = { k, L };
+    return L;
+  },
+
+  // the layers slide with the land (what slides off goes; the gap is painted later)
+  wdScrollLayers(dx, dy) {
+    for (const c of [this.bgLayer, this.forestLayer, this.wdGround]) {
+      if (!c) continue;
+      const x = c.getContext('2d');
+      x.globalCompositeOperation = 'copy';
+      x.drawImage(c, dx, dy);
+      x.globalCompositeOperation = 'source-over';
+    }
+    this.ground = null;
+  },
+
+  // water in each biome's colours, where you can see it
+  wdWater(ctx) {
+    const BW = GW >> 1, cx = Math.round(this.camX || 0), cy = Math.round(this.camY || 0), w = (this.frame >> 5) & 1 ? 'water1' : 'water0';
+    const x0 = cx - 8, y0 = cy - 8, x1 = cx + VIEW_W, y1 = cy + VIEW_H;
+    const pats = wdWaterPats[w] || (wdWaterPats[w] = {});
+    for (const [x, y, rw, th] of this.wdWaterB || []) {
+      if (x + rw < x0 || y < y0 || x > x1 || y > y1) continue;
+      ctx.fillStyle = pats[th] || (pats[th] = ctx.createPattern(themeTex(WD_THEMES[th])[w], 'repeat'));
+      ctx.fillRect(x, y, rw, 8);
+    }
+    for (const i of this.wdWaterC || []) {
+      const gx = i % GW, gy = (i / GW) | 0, x = gx * 4, y = gy * 4;
+      if (x < x0 || y < y0 || x > x1 || y > y1) continue;
+      ctx.drawImage(themeTex(WD_THEMES[this.wdBio[(gy >> 1) * BW + (gx >> 1)]])[w], (gx & 1) * 4, (gy & 1) * 4, 4, 4, x, y, 4, 4);
+    }
+  },
+
+  // ------------------------------------------------------------ on the ground (under the tanks)
+  wdRenderObjects(ctx) {
+    const f = this.frame;
+    for (const v of this.wdVillages || []) {
+      const s = v.st.s;
+      if (s === 'siege') {
+        // an outpost now (bigmap.js draws its eagle): how many hits it can still take; its houses smoke
+        if (v.st.hitT > 0) v.st.hitT--;
+        for (let k = 0; k < 3; k++) { ctx.fillStyle = k < (v.st.ehp || 0) ? (v.st.hitT > 0 && (f >> 1) & 1 ? COL.white : '#58F8F8') : '#3C3C3C'; ctx.fillRect(v.x + 2 + k * 5, v.y - 5, 3, 2); }
+        for (const [tx, ty] of v.f.houses || []) {
+          const hx = v.x - 96 + tx * 16 + 6, hy = v.y - 96 + ty * 16 + 4;
+          if (this.get(hx >> 2, hy >> 2) !== T_BRICK || (tx + ty) % 2) continue;
+          for (let k = 0; k < 4; k++) { const p = ((f + k * 20 + tx * 13) % 80) / 80; ctx.fillStyle = p < 0.2 ? '#F87800' : p < 0.5 ? '#4C4C4C' : '#7C7C7C'; ctx.fillRect(Math.round(hx + Math.sin(p * 5 + k) * 3), Math.round(hy - p * 20), p > 0.4 ? 3 : 2, p > 0.4 ? 3 : 2); }
+        }
+        continue;
+      }
+      if (s === 'lost') { ctx.drawImage(Sprites.eagleDead, v.x, v.y); continue; }
+      const col = v.home ? COL.gold : s === 'saved' || s === 'friend' ? '#58D854' : '#BCBCBC';
+      ctx.drawImage(Sprites.outline(Sprites.eagle, col), v.x - 1, v.y - 1);
+      ctx.drawImage(Sprites.eagle, v.x, v.y);
+      // its flag, and smoke from the chimneys
+      const fx = v.x + 22, fy = v.y - 14;
+      ctx.fillStyle = '#E8E8E8'; ctx.fillRect(fx, fy, 1, 12);
+      ctx.fillStyle = col;
+      for (let k = 0; k < 6; k++) ctx.fillRect(fx + 1 + k, fy + Math.round(Math.sin(f / 7 - k * 0.7)), 1, 4);
+      ctx.fillStyle = 'rgba(200,200,200,0.55)';
+      for (const [tx, ty] of v.f.houses || []) {
+        const hx = v.x - 96 + tx * 16 + 13, hy = v.y - 96 + ty * 16 + 1;
+        if (this.get(hx >> 2, (hy + 2) >> 2) !== T_BRICK) continue;
+        for (let k = 0; k < 3; k++) { const p = ((f + k * 30 + tx * 17) % 90) / 90; ctx.fillRect(Math.round(hx + Math.sin(p * 6 + k) * 2), Math.round(hy - p * 14), p > 0.6 ? 2 : 1, p > 0.6 ? 2 : 1); }
+      }
+    }
+    for (const c of this.wdChests || []) {
+      ctx.drawImage(wdChestSprite(c.kind === 'big'), c.x, c.y);
+      const g = (f + c.x * 3) % 96;
+      if (g < 12) ctx.drawImage(Sprites.sparkle[[0, 1, 2, 3, 2, 1][g >> 1]], c.x + 4, c.y - 4, 8, 8);
+    }
+    for (const d of this.wdDrops || []) {
+      if (d.t > WD_DROP_LIFE - 180 && (d.t >> 3) & 1) continue;
+      drawPowerup(ctx, d, d.x, d.y);
+    }
+  },
+
+  // ------------------------------------------------------------ the day and the dark
+  // (instead of renderDarkness) dusk and dawn tint everything; at night (and in a blizzard or a blackout) only
+  // what's lit shows; drawn over the screen's part of the field only
+  wdDarkness(ctx, camX, camY) {
+    const k = this.wdDark(), wo = this.whiteout ? this.whiteout() : 0, out = this.lightsOut(), p = (this.world.clock % WD_DAY) / WD_DAY;
+    // the warm light of dusk and dawn
+    const dk = WD_DUSK - 0.04, dn = WD_DAWN - 0.02, warm = p > dk && p < WD_NIGHT + 0.02 ? Math.sin((p - dk) / (WD_NIGHT + 0.02 - dk) * Math.PI) : p > dn ? Math.sin((p - dn) / (1 - dn) * Math.PI) : 0;
+    if (warm > 0.05) { ctx.fillStyle = 'rgba(248,96,32,' + (0.2 * warm).toFixed(3) + ')'; ctx.fillRect(camX, camY, VIEW_W, VIEW_H); }
+    let a = 0.93 * k, col = '0,0,14', mul = 1;
+    if (wo > 0) { a = Math.max(a, 0.92 * wo); col = '232,238,250'; mul = 1.15; }
+    else if (out) a = 0.95;
+    if (a < 0.03) return;
+    if (!wo && k > 0.5 && this.nightVision > 0 && !(this.nightVision < 120 && (this.frame >> 2) & 1)) {
+      ctx.fillStyle = 'rgba(40,255,90,0.13)'; ctx.fillRect(camX, camY, VIEW_W, VIEW_H);
+      return;
+    }
+    if (!this.darkLayer || this.darkLayer.width !== VIEW_W || this.darkLayer.height !== VIEW_H) this.darkLayer = makeCanvas(VIEW_W, VIEW_H);
+    const d = this.darkLayer.getContext('2d');
+    d.globalCompositeOperation = 'source-over';
+    d.clearRect(0, 0, VIEW_W, VIEW_H);
+    d.fillStyle = 'rgba(' + col + ',' + a.toFixed(3) + ')';
+    d.fillRect(0, 0, VIEW_W, VIEW_H);
+    d.globalCompositeOperation = 'destination-out';
+    const light = (x, y, r) => {
+      r *= mul; x -= camX; y -= camY;
+      if (x < -r || y < -r || x > VIEW_W + r || y > VIEW_H + r) return;
+      const g = d.createRadialGradient(x, y, r * 0.35, x, y, r);
+      g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      d.fillStyle = g; d.fillRect(x - r, y - r, r * 2, r * 2);
+    };
+    for (const t of this.tanks) {
+      if (!t.alive) continue;
+      if (t.isPlayer) light(t.x + 8, t.y + 8, t.ally ? 40 : 56);
+      else if (t.reveal > 0) light(t.x + 8, t.y + 8, 18);
+    }
+    for (const b of this.bullets) light(b.x + 2, b.y + 2, 12);
+    for (const f of this.fx) if (f.tick >= 0) light(f.x, f.y, 28);
+    for (const f of this.flames) light(f.x + f.w / 2, f.y + f.h / 2, 30);
+    for (const s of this.spawns) light(s.x + 8, s.y + 8, 16);
+    for (const tu of this.turrets) if (!tu.enemy) light(tu.x + 8, tu.y + 8, 24);
+    for (const c of this.claudes) light(c.x + 8, c.y + 8, 36);
+    for (const s of this.strikes) light(s.x + 8, s.y + 8, 22);
+    if (this.powerup && (this.frame >> 4) & 1) light(this.powerup.x + 8, this.powerup.y + 8, 16);
+    // villages keep their lamps lit; treasure glints
+    for (const v of this.wdVillages || []) if (v.st.s !== 'lost') light(v.x + 8, v.y + 8, v.st.s === 'saved' || v.st.s === 'friend' ? 64 : 40);
+    for (const c of this.wdChests || []) if ((this.frame >> 4) & 1) light(c.x + 8, c.y + 8, 14);
+    for (const f of this.factories || []) if (f.hp > 0) light(f.x + 16, f.y + 22, 20);
+    for (const [i, fl] of this.fires || []) if (fl.tree) light((i % GW) * 4 + 2, ((i / GW) | 0) * 4 + 2, 10);
+    this.bioLights(light);
+    d.globalCompositeOperation = 'source-over';
+    ctx.drawImage(this.darkLayer, camX, camY);
+  },
+
+  // ------------------------------------------------------------ the minimap: what you've explored round you
+  wdMinimap(ctx, camX, camY) {
+    if (!Config.on('minimap')) return;
+    const W = this.world, mw = 64, mh = 48, x0 = VIEW_W - mw - 3, y0 = 3;
+    const [cx, cy] = this.wdCenter(), tx = Math.round((W.ox * WD_PX + cx) / 16 - mw / 2), ty = Math.round((W.oy * WD_PX + cy) / 16 - mh / 2);
+    if (!this.wdMini || this.frame - this.wdMiniAt >= 15 || this.wdMiniAt > this.frame || this.wdMiniK !== tx + ',' + ty) {
+      this.wdMini = this.wdMini || makeCanvas(mw, mh);
+      this.wdMiniAt = this.frame; this.wdMiniK = tx + ',' + ty;
+      const c = this.wdMini.getContext('2d'), img = c.createImageData(mw, mh), d = img.data;
+      for (let k = 3; k < d.length; k += 4) d[k] = 170;   // the unknown: dark
+      const c0 = Math.floor(tx / WD_CH), c1 = Math.floor((tx + mw - 1) / WD_CH), r0 = Math.floor(ty / WD_CH), r1 = Math.floor((ty + mh - 1) / WD_CH);
+      for (let ccy = r0; ccy <= r1; ccy++) for (let ccx = c0; ccx <= c1; ccx++) {
+        const r = W.chunks.get(wdKey(ccx, ccy));
+        if (!r || !r.seen || !r.thumb) continue;
+        for (let y = 0; y < WD_CH; y++) {
+          const py = ccy * WD_CH + y - ty;
+          if (py < 0 || py >= mh) continue;
+          for (let x = 0; x < WD_CH; x++) {
+            const px = ccx * WD_CH + x - tx;
+            if (px < 0 || px >= mw) continue;
+            const o = (py * mw + px) * 4, s = (y * WD_CH + x) * 3;
+            d[o] = r.thumb[s]; d[o + 1] = r.thumb[s + 1]; d[o + 2] = r.thumb[s + 2]; d[o + 3] = 235;
+          }
+        }
+      }
+      c.putImageData(img, 0, 0);
+      // places you've found
+      this.wdMiniMarks = [];
+      for (let ccy = r0; ccy <= r1; ccy++) for (let ccx = c0; ccx <= c1; ccx++) {
+        const r = W.chunks.get(wdKey(ccx, ccy)), f = r && r.seen && wdFeatureOf(W.seed, ccx, ccy);
+        if (!f) continue;
+        const st = W.feats.get(wdKey(ccx, ccy)) || {}, mx = ccx * WD_CH + 6 - tx, my = ccy * WD_CH + 6 - ty;
+        let col = null;
+        if (f.kind === 'home') col = COL.gold;
+        else if (f.kind === 'village') col = st.s === 'saved' || st.s === 'friend' ? '#58D854' : st.s === 'lost' ? '#5C5C5C' : st.s === 'siege' ? 'siege' : '#F8F8F8';
+        else if (f.kind === 'ruin') col = st.done ? '#7C6C3C' : '#F8B800';
+        else if (f.kind === 'nest') col = st.dead ? null : '#F83800';
+        if (col) this.wdMiniMarks.push([mx, my, col]);
+      }
+    }
+    const under = this.tanks.some(t => t.isPlayer && t.alive && overlap(t.x - camX, t.y - camY, 16, 16, x0 - 4, y0 - 4, mw + 8, mh + 8));
+    ctx.globalAlpha = under ? 0.3 : 0.9;
+    ctx.fillStyle = '#7C7C7C'; ctx.fillRect(x0 - 1, y0 - 1, mw + 2, mh + 2);
+    ctx.fillStyle = '#000000'; ctx.fillRect(x0, y0, mw, mh);
+    ctx.drawImage(this.wdMini, x0, y0);
+    for (const [mx, my, col] of this.wdMiniMarks || []) {
+      if (mx < 1 || my < 1 || mx > mw - 2 || my > mh - 2) continue;
+      ctx.fillStyle = col === 'siege' ? ((this.frame >> 3) & 1 ? '#F83800' : '#F8F8F8') : col;
+      ctx.fillRect(x0 + mx - 1, y0 + my - 1, 3, 3);
+    }
+    // the screen you see, the enemy you can see, you
+    const s = 1 / 16, ox = W.ox * WD_CH - tx, oy = W.oy * WD_CH - ty;
+    ctx.fillStyle = '#F8F8F8';
+    const vx = Math.round(x0 + ox + camX * s), vy = Math.round(y0 + oy + camY * s), vw = Math.round(VIEW_W * s), vh = Math.round(VIEW_H * s);
+    ctx.fillRect(vx, vy, vw, 1); ctx.fillRect(vx, vy + vh - 1, vw, 1); ctx.fillRect(vx, vy, 1, vh); ctx.fillRect(vx + vw - 1, vy, 1, vh);
+    const dot = (x, y, col) => { const px = Math.round(x0 + ox + x * s), py = Math.round(y0 + oy + y * s); if (px >= x0 && py >= y0 && px < x0 + mw && py < y0 + mh) { ctx.fillStyle = col; ctx.fillRect(px, py, 2, 2); } };
+    for (const t of this.tanks) if (this.enemySeen(t)) dot(t.x + 8, t.y + 8, '#F83800');
+    for (const t of this.tanks) if (t.alive && t.isPlayer) dot(t.x + 8, t.y + 8, t.ally ? '#BCBCBC' : PALS[Config.playerPal(t.player ? t.player.i : 0)][1]);
+    ctx.globalAlpha = 1;
+  },
+
+  // ------------------------------------------------------------ the side panel and the line above the field
+  // the compass, the day and the villages saved, where the queue of tanks would be (the rest is as usual)
+  wdRenderHud(ctx, H) {
+    const W = this.world, cp = this.wdCompass, f = this.frame;
+    if (this.bossIdx !== undefined) return;   // a guardian's fight: its health bar has the panel
+    // the compass: a dial, its needle to the nearest place still to visit, how far in tiles under it
+    const cx = H + 11, cy = 33;
+    ctx.fillStyle = '#000000'; ctx.fillRect(cx - 9, cy - 11, 19, 23); ctx.fillRect(cx - 11, cy - 9, 23, 19);
+    ctx.fillStyle = '#BCBCBC'; ctx.fillRect(cx - 8, cy - 10, 17, 21); ctx.fillRect(cx - 10, cy - 8, 21, 17);
+    ctx.fillStyle = '#E8E8E8'; ctx.fillRect(cx - 7, cy - 9, 15, 19); ctx.fillRect(cx - 9, cy - 7, 19, 15);
+    ctx.fillStyle = '#7C7C7C';
+    for (const [x, y] of [[0, -9], [0, 9], [-9, 0], [9, 0]]) ctx.fillRect(cx + x, cy + y, 1, 1);
+    ctx.fillStyle = '#A80000'; ctx.fillRect(cx, cy - 9, 1, 2);   // north
+    const me = this.tanks.find(t => t.isPlayer && t.alive && t.player && (Net.role !== 'client' || t.player.i === Net.slot)) || null;
+    if (cp) {
+      const [px, py] = me ? [me.x + 8, me.y + 8] : this.wdCenter(), wx = W.ox * WD_PX + px, wy = W.oy * WD_PX + py;
+      const a = Math.atan2(cp.wy - wy, cp.wx - wx), dist = Math.round(Math.hypot(cp.wx - wx, cp.wy - wy) / 16);
+      const tip = cp.siege ? ((f >> 3) & 1 ? '#F83800' : '#F8B800') : cp.kind === 'ruin' ? '#F8B800' : '#D82800';
+      for (let r = -5; r <= 7; r++) { ctx.fillStyle = r > 0 ? tip : '#3C3C3C'; ctx.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), 1, 1); }
+      ctx.fillStyle = '#000000'; ctx.fillRect(cx, cy, 1, 1);
+      Font.drawCenter(ctx, String(Math.min(999, dist)), H + 12, 47, '#000000');
+    } else Font.drawCenter(ctx, '-', H + 12, 47, '#000000');
+    // the day: a sun or a moon, and its number
+    const k = this.wdDark(), y = 60;
+    if (k < 0.5) { ctx.fillStyle = '#F8B800'; ctx.fillRect(H + 1, y + 1, 5, 5); ctx.fillRect(H + 2, y, 3, 7); ctx.fillRect(H, y + 2, 7, 3); ctx.fillStyle = '#F8F878'; ctx.fillRect(H + 2, y + 2, 2, 2); }
+    else { ctx.fillStyle = '#F8F8F8'; ctx.fillRect(H + 2, y, 3, 7); ctx.fillRect(H + 1, y + 1, 2, 5); ctx.fillStyle = '#636363'; ctx.fillRect(H + 3, y + 1, 2, 5); }
+    Font.draw(ctx, String(Math.min(99, W.day)), H + 8, y, '#000000');
+    // villages saved: a little house
+    const hy = 74;
+    ctx.fillStyle = '#A03808'; ctx.fillRect(H + 1, hy + 1, 5, 2); ctx.fillRect(H + 2, hy, 3, 1);
+    ctx.fillStyle = '#F8F8F8'; ctx.fillRect(H + 1, hy + 3, 5, 4); ctx.fillStyle = '#000000'; ctx.fillRect(H + 3, hy + 5, 1, 2);
+    Font.draw(ctx, String(Math.min(99, W.saved)), H + 8, hy, '#000000');
+    // ruins looted: a chest
+    const ry = 88;
+    ctx.fillStyle = '#8C5418'; ctx.fillRect(H + 1, ry + 2, 6, 4); ctx.fillStyle = '#F8B800'; ctx.fillRect(H + 1, ry + 3, 6, 1); ctx.fillRect(H + 3, ry + 3, 2, 2);
+    Font.draw(ctx, String(Math.min(99, W.looted || 0)), H + 8, ry, '#000000');
+  },
+
+  // above the field: how far out you are, and your best; a village to defend comes first
+  wdLine(ctx) {
+    const W = this.world, siege = (this.wdVillages || []).find(v => v.st.s === 'siege' && this.wdNearest(v.x, v.y) < Math.max(VIEW_W, VIEW_H) * 1.5);
+    const text = siege ? 'DEFEND THE VILLAGE  WAVE ' + (siege.st.wave || 1) + '/' + (siege.st.waves || 1)
+      : Math.round(this.wdDistNow()) + ' M OUT  FARTHEST ' + W.dist + ' M';
+    Font.drawCenter(ctx, text, FX + VIEW_W / 2, 0, COL.black);
+  },
+
+  // news low on the screen: the land you're entering, villages, ruins, the night
+  wdBanner(ctx) {
+    const W = this.world, n = W.notes[W.notes.length - 1];
+    if (!n) return;
+    const life = n.life || WD_NOTE, a = Math.min(1, n.t / 8, (life - n.t) / 20);
+    if (a <= 0) return;
+    const y = VIEW_H - (n.sub ? 30 : 20);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, y - 3, VIEW_W, n.sub ? 23 : 13);
+    Font.drawCenter(ctx, n.text, VIEW_W / 2, y, n.color || COL.white);
+    if (n.sub) Font.drawCenter(ctx, n.sub, VIEW_W / 2, y + 10, COL.lgrey);
+    ctx.globalAlpha = 1;
+  },
+});
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  ENDLESS WORLD's title picture (intro.js shows it, introart.js has the helpers): the land streams by as your tank
+//  drives along the road, one land after the next (home's village, autumn woods, snowfields, the desert with its
+//  ruins and a chest glinting, a ruined city, a volcano smoking far off), while a whole day goes by overhead: the sun
+//  crosses the sky, dusk, a night of stars and lit windows and your headlight, and dawn. Enemy tanks come down the
+//  road and you see them off. The day and the distance count up in the corner; the compass swings to the next place.
+//  The land is drawn once in three lights (day, dusk, night) and slid along; the sky in five.
+// =====================================================================
+
+const WA_FAR = 480, WA_MID = 600, WA_NEAR = 480;
+// a whole day goes by in 480 frames: which light, and how far through the day (0 sunrise .. 1 the next)
+function waDay(t) { return (t % 480) / 480; }
+function waLight(u) { return u < 0.5 || u >= 0.96 ? 0 : u < 0.56 ? 1 : u < 0.64 ? 2 : u < 0.88 ? 3 : 4; }   // day, gold, dusk, night, dawn (mostly day)
+
+const WA = {
+  // a smooth wave that comes round to where it started every w pixels (so the land joins up as it loops)
+  wave(x, w, parts) { let h = 0; for (const [k, a, p] of parts) h += a * Math.sin(2 * Math.PI * k * x / w + p); return h; },
+
+  // the sky in each light: a dithered gradient (and the stars, at night)
+  sky(k) {
+    return IA.layer('wa-sky' + k, b => {
+      const cols = [['#2C6CE0', '#3C88E8', '#5CA0F0', '#88BCF8', '#B8D8F8'], ['#3C64C8', '#6C88D0', '#B89C98', '#F0B870', '#F8D898'],
+        ['#1C1450', '#3C1C68', '#7C2470', '#C83C50', '#F0703C'], ['#000010', '#04082C', '#0C1440', '#141C50', '#1C2C60'],
+        ['#1C2C6C', '#4C4C8C', '#9C6C9C', '#F0A070', '#F8D098']][k];
+      IA.grad(b, 0, 0, IPW, 76, cols);
+      if (k === 3) Pix.stars(b, 70, 11, 0, 60, IPW);
+    }, IPW, 76);
+  },
+
+  // far off: snowy mountains, and a volcano with its glow
+  far(light) {
+    return IA.layer('wa-far' + light, b => {
+      const base = IA.layer('wa-far', c => {
+        for (let x = 0; x < WA_FAR; x++) {
+          const h = 22 + WA.wave(x, WA_FAR, [[1, 7, 0.4], [3, 5, 1.7], [7, 3, 0.2], [13, 1.5, 2.2]]), top = Math.round(68 - h), slope = h - (22 + WA.wave(x - 1, WA_FAR, [[1, 7, 0.4], [3, 5, 1.7], [7, 3, 0.2], [13, 1.5, 2.2]]));
+          Pix.rect(c, x, top, 1, 104 - top, '#4C4C7C');
+          const lit = slope > 0;
+          for (let j = 0; j < 4; j++) if (lit || (x + j) & 1) Pix.rect(c, x, top + j, 1, 1, lit ? '#7C7CAC' : '#3C3C64');
+          if (h > 24) { const s = Math.round((h - 24) * 0.7) + 1; for (let j = 0; j < s; j++) if (j < s - 1 || x & 1) Pix.rect(c, x, top + j, 1, 1, lit ? '#F8F8F8' : '#BCBCDC'); }
+        }
+        // the volcano: a cone, its crater glowing
+        for (let x = 300; x < 420; x++) {
+          const d = Math.abs(x - 360), h = Math.max(0, 44 - d * 0.72), top = Math.round(70 - h);
+          if (h <= 0) continue;
+          Pix.rect(c, x, top, 1, 104 - top, x < 360 ? '#5C3C38' : '#3C2420');
+          if (d < 9) Pix.rect(c, x, top, 1, 2, '#F87800');
+          if (d < 20 && (x * 7) % 5 === 0) Pix.rect(c, x, top + 6 + (x % 9), 1, 3 + (x % 5), '#A83008');
+        }
+      }, WA_FAR, 104);
+      if (light === 0) b.drawImage(base, 0, 0);
+      else IA.dimmed(b, base, light === 1 ? 0.75 : 0.4, light === 1 ? 0 : 24);
+    }, WA_FAR, 104);
+  },
+
+  // the hills: home's village, autumn woods, snowfields, the desert and its ruins, a ruined city, and home again
+  mid(light) {
+    return IA.layer('wa-mid' + light, b => {
+      const base = IA.layer('wa-mid', c => {
+        const W = WA_MID, seg = x => (x < 140 ? 0 : x < 260 ? 1 : x < 380 ? 2 : x < 490 ? 3 : 4);
+        const ground = [['#58A838', '#3C8C28', '#2C6C1C'], ['#A86C28', '#7C4C18', '#5C3410'], ['#F8F8F8', '#C8D8E8', '#9CB0C8'], ['#F0C878', '#D8A858', '#B08040'], ['#8C8C8C', '#6C6C6C', '#4C4C4C']];
+        for (let x = 0; x < W; x++) {
+          const h = 12 + WA.wave(x, W, [[2, 4, 0.3], [5, 2.5, 1.1], [11, 1, 0.7]]), top = Math.round(50 - h), g = ground[seg(x)];
+          Pix.rect(c, x, top, 1, 60 - top, g[1]);
+          Pix.rect(c, x, top, 1, 2, g[0]);
+          if ((x * 13) % 7 < 2) Pix.rect(c, x, top + 3 + (x % 5), 1, 1, g[2]);
+        }
+        const yAt = x => Math.round(50 - (12 + WA.wave(x, W, [[2, 4, 0.3], [5, 2.5, 1.1], [11, 1, 0.7]])));
+        // home's village: houses with red roofs, smoke rising (drawn live), the flag on its pole
+        for (const [x, w] of [[22, 14], [44, 12], [64, 16], [92, 12], [112, 14]]) {
+          const y = yAt(x + w / 2);
+          Pix.rect(c, x, y - 8, w, 8, '#E8D8B8'); Pix.rect(c, x + w - 3, y - 8, 3, 8, '#B8A888');
+          for (let j = 0; j < 6; j++) Pix.rect(c, x - 1 + j, y - 9 - j, w + 2 - j * 2, 1, j < 2 ? '#A83010' : '#D84C20');
+          Pix.rect(c, x + 3, y - 5, 2, 2, '#3C2C1C'); Pix.rect(c, x + w - 6, y - 5, 2, 2, '#3C2C1C'); Pix.rect(c, x + (w >> 1) - 1, y - 4, 3, 4, '#5C3C1C');
+        }
+        Pix.rect(c, 82, yAt(82) - 22, 1, 22, '#E8E8E8');
+        // autumn woods
+        for (let k = 0; k < 9; k++) { const x = 150 + k * 12 + (k % 3) * 2; IA.tree(c, x, yAt(x) - 7 - (k % 2) * 2, 6 + (k % 3), 40 + k, ['#F8B800', '#F08000', '#B03000', '#601800'], 5); }
+        // snowfields: snowy firs, a frozen pond
+        for (let x = 300; x < 344; x++) Pix.rect(c, x, yAt(x) + 3, 1, 3, (x & 3) ? '#A8D8F8' : '#F8F8F8');
+        for (let k = 0; k < 7; k++) { const x = 266 + k * 17 - (k > 2 ? 0 : 0); if (x > 296 && x < 348) continue; IA.pine(c, x, yAt(x) + 1, 14 + (k % 3) * 3, ['#E8F0F8', '#8CA8C0', '#4C6C8C']); }
+        // the desert: dunes, cacti, ruins with a chest glinting (drawn live)
+        for (const x of [392, 418, 466]) { const y = yAt(x); Pix.rect(c, x, y - 10, 3, 10, '#3C8C28'); Pix.rect(c, x - 3, y - 7, 2, 2, '#3C8C28'); Pix.rect(c, x - 3, y - 9, 1, 3, '#3C8C28'); Pix.rect(c, x + 4, y - 6, 2, 2, '#3C8C28'); Pix.rect(c, x + 5, y - 9, 1, 4, '#3C8C28'); Pix.rect(c, x, y - 10, 1, 10, '#58B038'); }
+        for (const [x, h] of [[432, 18], [442, 12], [452, 20], [462, 8]]) { const y = yAt(x); IA.paint(c, x, y - h, 6, h, (i, j) => (i === x || (j - (y - h)) % 6 === 0 ? '#E8C890' : i === x + 5 ? '#987048' : '#C8A068')); }
+        Pix.rect(c, 432, yAt(436) - 20, 26, 3, '#C8A068'); Pix.rect(c, 432, yAt(436) - 20, 26, 1, '#E8C890');
+        // a ruined city: broken blocks, dark windows
+        for (const [x, w, h] of [[500, 14, 26], [516, 10, 18], [528, 16, 32], [546, 12, 14], [560, 14, 22], [576, 10, 12]]) {
+          const y = yAt(x + w / 2) + 2;
+          Pix.rect(c, x, y - h, w, h, '#7C7C84'); Pix.rect(c, x + w - 2, y - h, 2, h, '#5C5C64'); Pix.rect(c, x, y - h, w, 1, '#A8A8B0');
+          for (let wy = y - h + 3; wy < y - 3; wy += 4) for (let wx = x + 2; wx < x + w - 3; wx += 4) Pix.rect(c, wx, wy, 2, 2, (wx + wy) % 3 ? '#2C2C34' : '#44444C');
+          for (let k = 0; k < w; k += 3) Pix.rect(c, x + k, y - h - (k * 7 % 4), 2, (k * 7 % 4), '#7C7C84');   // broken tops
+        }
+      }, WA_MID, 60);
+      if (light === 0) b.drawImage(base, 0, 0);
+      else IA.dimmed(b, base, light === 1 ? 0.72 : 0.36, light === 1 ? 0 : 26);
+      // windows lit at night (in the village and a few in the city)
+      if (light === 2) {
+        const yAt = x => Math.round(50 - (12 + WA.wave(x, WA_MID, [[2, 4, 0.3], [5, 2.5, 1.1], [11, 1, 0.7]])));
+        for (const [x, w] of [[22, 14], [44, 12], [64, 16], [92, 12], [112, 14]]) { const y = yAt(x + w / 2); Pix.rect(b, x + 3, y - 5, 2, 2, '#F8D878'); Pix.rect(b, x + w - 6, y - 5, 2, 2, '#F8B800'); }
+        for (const [x, y] of [[504, 6], [532, 10], [564, 8]]) Pix.rect(b, x, yAt(x) + 2 - y - 8, 2, 2, '#F8D878');
+      }
+    }, WA_MID, 60);
+  },
+
+  // up close: the road, its verges, fence posts, stones, a signpost
+  near(light) {
+    return IA.layer('wa-near' + light, b => {
+      const base = IA.layer('wa-near', c => {
+        IA.grad(c, 0, 0, WA_NEAR, 8, ['#3C7C24', '#2C5C1C']);
+        IA.paint(c, 0, 8, WA_NEAR, 14, (x, y) => { const q = IA.hash(x >> 1, y, 5); return (y === 8 || y === 21) ? '#5C4424' : q < 0.08 ? '#9C7C48' : q < 0.2 ? '#6C5430' : '#7C6438'; });
+        for (let x = 0; x < WA_NEAR; x += 3) { Pix.rect(c, x, 11 + ((x >> 3) & 1), 2, 1, '#5C4828'); Pix.rect(c, x + 1, 18 - ((x >> 4) & 1), 2, 1, '#5C4828'); }
+        IA.grad(c, 0, 22, WA_NEAR, 10, ['#2C5C1C', '#1C3C10']);
+        for (let x = 0; x < WA_NEAR; x++) { const h = 1 + Math.round(IA.noise(x / 3, 8) * 4); if (x & 1) Pix.rect(c, x, 8 - h + 1, 1, h, '#58A838'); if ((x & 3) === 1) Pix.rect(c, x, 32 - h, 1, h, '#3C7C24'); }
+        // fence posts, a stone, a signpost
+        for (let x = 6; x < 200; x += 14) { Pix.rect(c, x, -2 + 4, 2, 6, '#7C5C30'); Pix.rect(c, x, 4, 1, 6, '#A87C48'); }
+        Pix.rect(c, 4, 6, 196, 1, '#A87C48');
+        for (const x of [240, 352, 430]) { Pix.disc(c, x, 27, 3, '#7C7C7C'); Pix.rect(c, x - 2, 25, 2, 1, '#B8B8B8'); }
+        Pix.rect(c, 300, 0, 2, 9, '#7C5C30'); Pix.rect(c, 290, -1 + 1, 22, 5, '#C8A060'); Pix.rect(c, 290, 1, 22, 1, '#E8C890');
+      }, WA_NEAR, 32);
+      if (light === 0) b.drawImage(base, 0, 0);
+      else IA.dimmed(b, base, light === 1 ? 0.75 : 0.42, light === 1 ? 0 : 20);
+    }, WA_NEAR, 32);
+  },
+
+  sun() { return IA.layer('wa-sun', b => IA.ball(b, 8, 8, 7, 7, ['#F8F8E0', '#F8F0A8', '#F8D878', '#F8B048', '#F09040']), 17, 17); },
+  moon() { return IA.layer('wa-moon', b => { IA.ball(b, 7, 7, 6, 6, ['#F8F8F8', '#E8E8F0', '#C8C8D8', '#A8A8C0', '#8C8CA8']); Pix.disc(b, 5, 8, 1, '#A8A8C0'); Pix.disc(b, 9, 5, 1, '#B8B8C8'); }, 15, 15); },
+  beam() { return IA.layer('wa-beam', b => IA.paint(b, 0, 0, 60, 20, (x, y) => { const s = Math.abs(y - 10) / (2 + x * 0.14); return s < 1 && bayer(x, y) < (1 - x / 60) * (1 - s) * 0.9 ? '#F8F0B8' : null; }), 60, 20); },
+};
+
+Object.assign(INTRO_SCENES, {
+  // ENDLESS WORLD: see the top
+  world(c, t) {
+    const u = waDay(t), light = waLight(u), land = light === 0 ? 0 : light === 3 ? 2 : 1;
+    // build every layer at once (the first frame), so later frames only copy
+    if (!IA.cache.has('wa-near2')) for (let k = 0; k < 5; k++) { WA.sky(k); if (k < 3) { WA.far(k); WA.mid(k); WA.near(k); } }
+    c.drawImage(WA.sky(light), 0, 0);
+    // the sun by day, the moon by night, along an arc
+    const s = u < 0.64 ? (u + 0.06) / 0.7 : u >= 0.94 ? (u - 0.94) / 0.7 : (u - 0.64) / 0.3;
+    const cx = Math.round(-12 + s * 264), cy = Math.round(62 - Math.sin(s * Math.PI) * 50);
+    c.drawImage(u < 0.64 || u >= 0.94 ? WA.sun() : WA.moon(), cx - 8, cy - 8);
+    const scroll = (img, W, sp, y) => { const o = Math.floor(t * sp) % W; c.drawImage(img, -o, y); if (W - o < IPW) c.drawImage(img, W - o, y); };
+    scroll(WA.far(land), WA_FAR, 0.08, 0);
+    // the volcano's smoke
+    const vo = Math.floor(t * 0.08) % WA_FAR, vx = 360 - vo + (360 - vo < -40 ? WA_FAR : 0);
+    if (vx > -20 && vx < IPW + 20) IA.smoke(c, vx, 24, t, { n: 5, h: 26, size: 4, seed: 3, wind: 14, tone: land === 2 ? 2 : 1 });
+    scroll(WA.mid(land), WA_MID, 0.3, 56);
+    // chimney smoke in the village, the flag, a chest glinting in the ruins
+    const mo = Math.floor(t * 0.3) % WA_MID, at = x => { let p = x - mo; if (p < -40) p += WA_MID; return p; };
+    for (const hx of [32, 72, 120]) { const x = at(hx); if (x > -10 && x < IPW + 10) IA.smoke(c, x, 90, t, { n: 3, h: 12, size: 2, seed: hx, wind: 6, tone: 0 }); }
+    const fx = at(82), fy = 56 + Math.round(50 - (12 + WA.wave(82, WA_MID, [[2, 4, 0.3], [5, 2.5, 1.1], [11, 1, 0.7]]))) - 22;
+    if (fx > -10 && fx < IPW) for (let k = 0; k < 8; k++) { const yy = fy + Math.round(Math.sin(t / 6 - k * 0.7)); Pix.rect(c, fx + 1 + k, yy, 1, 5, k > 5 ? '#A88800' : COL.gold); }
+    const gx = at(446);
+    if (gx > -10 && gx < IPW && (t % 50) < 14) c.drawImage(Sprites.sparkle[[0, 1, 2, 3, 2, 1, 0][Math.min(6, (t % 50) >> 1)]], gx - 4, 56 + Math.round(50 - (12 + WA.wave(446, WA_MID, [[2, 4, 0.3], [5, 2.5, 1.1], [11, 1, 0.7]]))) - 14, 8, 8);
+    scroll(WA.near(land), WA_NEAR, 0.9, 104);
+    // you, on the road; an enemy tank comes down it now and then: it fires (the shell bursts on your armour), you
+    // fire back, and it goes up; its wreck smokes as you leave it behind
+    const P = 230, cyc = t % P, n = Math.floor(t / P), tx = 70, gy = 124, ex = c2 => 270 - Math.min(c2, 80) * 1.2 - Math.max(0, c2 - 80) * 0.9;
+    if (cyc < 80) {
+      const m = IA.sideTank(c, ex(cyc), gy, n & 1 ? 'red' : 'silver', { flip: true, f: t >> 2, L: 34, star: '#D82800', sway: Math.sin(t / 5) * 2 });
+      const q = cyc - 40;
+      if (q >= 0 && q < 4) IA.flash(c, m.x, m.y, -1, 0, q);
+      if (q >= 0 && m.x - q * 3 > tx + 22) IA.shell(c, m.x - q * 3, m.y, -1, 0);
+      else if (q > 0 && q < 46) IA.sparks(c, tx + 20, gy - 12, Math.min(1, (q - 20) / 12), 8, n);
+    } else if (cyc < 120) {
+      IA.boom(c, ex(cyc), gy - 10, cyc - 80, 14, n);
+      IA.debris(c, ex(cyc), gy - 8, (cyc - 80) / 30, 8, ['#3C3C3C', '#C0C0C0', '#F8F8F8'], n);
+    }
+    if (cyc >= 86 && cyc < 200) IA.smoke(c, ex(cyc), gy - 4, t, { n: 5, h: 30, size: 4, seed: n });
+    const fire = cyc - 62, rc = fire >= 0 && fire < 6 ? 2 - (fire >> 1) : 0;
+    const me = IA.sideTank(c, tx, gy, Config.playerPal(0), { f: t >> 1, L: 36, recoil: Math.max(0, rc), star: '#F8F8F8', sway: -2 - ((t >> 2) & 1) });
+    if (fire >= 0 && fire < 4) IA.flash(c, me.x, me.y, 1, 0, fire);
+    if (fire >= 0 && me.x + fire * 4.2 < ex(cyc) - 16) IA.shell(c, me.x + fire * 4.2, me.y, 1, 0);
+    // at night: your headlight down the road, fireflies in the verge
+    if (land === 2) {
+      c.globalAlpha = 0.5; c.drawImage(WA.beam(), me.x + 2, me.y - 9); c.globalAlpha = 1;
+      for (let k = 0; k < 6; k++) { const x = (k * 53 + t * 0.4) % IPW, y = 104 + ((k * 29) % 8) + Math.round(Math.sin(t / 20 + k) * 2); if ((t + k * 13) % 40 < 24) Pix.rect(c, Math.round(x), y, 1, 1, '#E8F858'); }
+    }
+    // the day, how far you've come, the compass swinging to the next place
+    const day = 3 + Math.floor(t / 480), dist = 214 + Math.floor(t * 0.25);
+    Pix.rect(c, 3, 3, 72, 22, '#000000'); Pix.rect(c, 4, 4, 70, 20, '#0C1C2C');
+    if (u < 0.64 || u >= 0.94) { Pix.disc(c, 10, 9, 3, '#F8B800'); Pix.rect(c, 9, 8, 2, 2, '#F8F878'); } else { Pix.disc(c, 10, 9, 3, '#F8F8F8'); Pix.disc(c, 12, 8, 2, '#0C1C2C'); }
+    Font.draw(c, 'DAY ' + day, 17, 6, COL.gold);
+    Font.draw(c, dist + ' M', 8, 15, '#BCC8E8');
+    const CX = IPW - 18, CY = 18;
+    Pix.disc(c, CX + 1, CY + 1, 14, '#000000'); Pix.disc(c, CX, CY, 14, '#BC9C5C'); Pix.disc(c, CX, CY, 12, '#F8F0D0');
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; Pix.rect(c, Math.round(CX + Math.cos(a) * 10), Math.round(CY + Math.sin(a) * 10), 1, 1, '#7C6440'); }
+    Font.draw(c, 'N', CX - 3, CY - 11, '#A01800');
+    const a = -0.6 + Math.sin(t / 40) * 0.35 + Math.sin(t / 7) * 0.05;
+    for (let j = -6; j <= 9; j++) Pix.rect(c, Math.round(CX + Math.cos(a) * j), Math.round(CY + Math.sin(a) * j), 1, 1, j > 0 ? '#D82800' : '#3C3C3C');
+    Pix.rect(c, CX, CY, 1, 1, '#F8F8F8');
+  },
+});
 
 </script>
   <script>
