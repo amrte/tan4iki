@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.54</title>
+  <title>tanb4iki_v0.54.1</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.54';
+const APP_VERSION = '0.54.1';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -7910,11 +7910,11 @@ function stageWeather(num, boss) {
   if (mode === 'OFF' || boss) return null;
   if (mode === 'ALWAYS NIGHT') return 'night';
   if (mode === 'ALWAYS FOG') return 'fog';
-  // MANY: a dark stage every third stage (as it used to be); SOME: one in nine, night on stages 9, 27, 45 ... (city
-  // ruins, where the lamps are), fog on 13, 31, 49 ...
+  // MANY: a dark stage every third stage (as it used to be); SOME: one in eighteen: night on stages 9, 45, 81 ... (city
+  // ruins, where the lamps are), fog on 27, 63, 99 ...
   if (mode === 'MANY') return num >= 6 && num % 6 === 0 ? 'night' : num >= 9 && num % 6 === 3 ? 'fog' : null;
-  if (num % 18 === 9) return 'night';
-  if (num % 18 === 13) return 'fog';
+  if (num % 36 === 9) return 'night';
+  if (num % 36 === 27) return 'fog';
   return null;
 }
 
@@ -8877,7 +8877,7 @@ Object.assign(Stage.prototype, {
 const BOG_SLOW = 0.4, RUBBLE_SLOW = 0.8, SINK_MAX = 180;
 const VENT_PERIOD = 300, VENT_WARN = 60, VENT_FIRE = 54;
 const GAS_FUSE = 24, DRUM_FUSE = 8, DRUM_R = 15, GAS_R = 12;
-const BOMB_TIME = 110, BOMB_R = 11, BLACKOUT_TIME = 720;
+const BOMB_TIME = 110, BOMB_R = 11, BLACKOUT_TIME = 540;
 const SALVO_TIME = 80, SALVO_R = 11, TRUCK_SIGHT = 176, LUNGE_RANGE = 64, LUNGE_TIME = 22;
 const MANHOLE_CARD = 40;   // manholes are pads, not tiles: their card key
 
@@ -9600,7 +9600,9 @@ Object.assign(Stage.prototype, {
   bioEvent(s) {
     if (s === 'volcanic') { this.lavaBombs(); this.seaT = 900 + rnd(700); return true; }
     if (s === 'swamp') { this.marshGas(); this.seaT = 700 + rnd(600); return true; }
-    if (s === 'city') { this.blackout = BLACKOUT_TIME; this.seaT = BLACKOUT_TIME + 1500 + rnd(1200); this.seasonNote('BLACKOUT!', '#F8D878'); Sound.play('blackout'); return true; }
+    // a blackout now and then, not every half minute: half the time the lights just hold
+    if (s === 'city' && Math.random() < 0.5) { this.seaT = 1800 + rnd(1800); return true; }
+    if (s === 'city') { this.blackout = BLACKOUT_TIME; this.seaT = BLACKOUT_TIME + 3600 + rnd(2400); this.seasonNote('BLACKOUT!', '#F8D878'); Sound.play('blackout'); return true; }
     return false;
   },
 
@@ -10567,7 +10569,7 @@ const WEAPONS = {
   mg: { name: 'MACHINE GUN', letter: 'M', color: '#F8B800', desc: 'HOLD FIRE: A STREAM OF BULLETS',
     lv: [{ cd: 8, dmg: 0.5, max: 4 }, { cd: 6, dmg: 0.5, max: 5 }, { cd: 7, dmg: 0.4, max: 6, twin: true }, { cd: 6, dmg: 0.45, max: 8, twin: true }] },
   laser: { name: 'LASER', letter: 'L', color: '#F83800', desc: 'A BEAM THROUGH TANKS IN LINE',
-    lv: [{ cd: 30, dmg: 1, len: 96 }, { cd: 28, dmg: 1, len: 128, cut: true }, { cd: 30, dmg: 1.5, len: 160, cut: true }, { cd: 22, dmg: 2, len: 999, cut: true, wide: true }] },
+    lv: [{ cd: 30, dmg: 1, len: 96, cut: true }, { cd: 28, dmg: 1, len: 128, cut: true }, { cd: 30, dmg: 1.5, len: 160, cut: true }, { cd: 22, dmg: 2, len: 999, cut: true, wide: true }] },
   flame: { name: 'FLAMETHROWER', letter: 'F', color: '#F87830', desc: 'HOLD FIRE: A BURNING CONE',
     lv: [{ len: 24, dmg: 0.25 }, { len: 30, dmg: 0.3 }, { len: 36, dmg: 0.38 }, { len: 44, dmg: 0.48 }] },
   mortar: { name: 'MORTAR', letter: 'G', color: '#BCBCBC', desc: 'SHELLS OVER WALLS, A BLAST',
@@ -10685,8 +10687,8 @@ Object.assign(Stage.prototype, {
 
   laserFire(t, s, lv) {
     const [dx, dy] = DXY[t.dir], w = s.wide ? 8 : 4, cx = t.x + 8, cy = t.y + 8;
-    let x = cx + dx * 8, y = cy + dy * 8, dist = 0;
-    // run along until steel, the eagle, a block or the edge; brick is cut (MK II+) or stops it
+    let x = cx + dx * 8, y = cy + dy * 8, dist = 0, cut = 0;
+    // run along until steel, the eagle, a block or the edge; brick is cut
     while (dist < s.len) {
       const nx = x + dx * 4, ny = y + dy * 4;
       if (nx < 0 || ny < 0 || nx > FW || ny > FH) break;
@@ -10694,8 +10696,17 @@ Object.assign(Stage.prototype, {
       for (let k = -w / 2; k < w / 2 && !stop; k += 4) {
         const qx = Math.floor((nx + (dy ? k : 0)) / 4), qy = Math.floor((ny + (dx ? k : 0)) / 4), v = this.get(qx, qy);
         if (v === T_STEEL) stop = true;
-        else if (v === T_BRICK) { if (s.cut) this.set(qx, qy, T_EMPTY); else stop = true; }
+        else if (v === T_BRICK) { if (!s.cut) stop = true; }
         else if (v >= T_LAVA && this.bioBeam(qx, qy, v, t, s.cut)) stop = true;   // concrete, barrels, crates (biomes.js)
+      }
+      // brick in the way: it cuts a gap a tank can drive through (MK I only a block deep per shot)
+      if (!stop && s.cut) {
+        let any = false;
+        for (let a = -8; a < 8; a += 4) {
+          const qx = Math.floor((nx + (dy ? a : 0)) / 4), qy = Math.floor((ny + (dx ? a : 0)) / 4);
+          if (this.get(qx, qy) === T_BRICK) { this.set(qx, qy, T_EMPTY); any = true; }
+        }
+        if (any && (cut += 4) >= 8 && lv === 1) { x = nx; y = ny; dist += 4; break; }
       }
       if (!stop && !this.noBase && overlap(nx - 2, ny - 2, 4, 4, BASE_X, BASE_Y, 16, 16)) stop = true;
       if (!stop && this.qblocks && this.qblocks.length && this.qblockAt(nx - 2, ny - 2, 4, 4)) { this.bulletQBlock({ x: nx - 2, y: ny - 2, isPlayer: true, owner: t, alive: true, free: true }); stop = true; }
@@ -10727,6 +10738,8 @@ Object.assign(Stage.prototype, {
     for (let cy = Math.max(0, y >> 2); cy <= (y + fh - 1) >> 2; cy++) for (let cx = Math.max(0, x >> 2); cx <= (x + fw - 1) >> 2; cx++) {
       const v = this.get(cx, cy);
       if (v === T_REEDS || v === T_GAS || v === T_DRUM) { this.bioFlame(cx, cy, v, t, true); continue; }
+      // bricks crumble in the heat (slowly: a cell now and then), so the flamethrower can open a way too
+      if (v === T_BRICK) { if (Math.random() < 0.12 + 0.04 * (WEAPONS.flame.lv.indexOf(s))) { this.set(cx, cy, T_EMPTY); this.lastBrickSound = this.frame; } continue; }
       if (v !== T_FOREST) continue;
       if (this.seasonFx === 'summer' && this.fires) this.ignite(cy * GW + cx, false, true); else this.set(cx, cy, T_EMPTY);
     }
@@ -10742,6 +10755,8 @@ Object.assign(Stage.prototype, {
       const fx = foe.x + 8 - cx, fy = foe.y + 8 - cy, ahead = fx * dx + fy * dy, side = Math.abs(dx ? fy : fx);
       if (ahead > 12 && ahead < d && side < 10) d = ahead;
     }
+    // nobody lined up: the first brick wall ahead (so it breaks a way through, not something far behind it)
+    if (d === s.dist) for (let k = 12; k < s.dist; k += 4) { const v = this.get((cx + dx * k) >> 2, (cy + dy * k) >> 2); if (v === T_BRICK || (v >= T_LAVA && bioSolid(v))) { d = k + 4; break; } }
     const tx = Math.max(4, Math.min(FW - 4, cx + dx * d)), ty = Math.max(4, Math.min(FH - 4, cy + dy * d));
     this.wshots.push({ kind: 'mortar', owner: t, x0: cx, y0: cy, x: cx, y: cy, tx, ty, p: 0, dp: 1 / Math.round(12 + Math.hypot(tx - cx, ty - cy) / 5), s });
     t.wcool = s.cd;
@@ -10755,7 +10770,7 @@ Object.assign(Stage.prototype, {
     if (!first) {
       const bo = this.bosses.find(b => this.bossTangible(b) && Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < s.range + b.w / 2);
       if (bo) { this.weaponBosses(t, bo.x, bo.y, bo.w, bo.h, s.dmg); this.wfx.push({ kind: 'beam', pts: [[cx, cy], [bo.x + bo.w / 2, bo.y + bo.h / 2]], t: 10, color: WEAPONS.tesla.color, w: 1, zig: true }); t.wcool = s.cd; Sound.play('zap'); }
-      else t.wcool = 10;
+      else if (!this.teslaWall(t, s)) t.wcool = 10;
       return;
     }
     const hit = [first], pts = [[cx, cy], [first.x + 8, first.y + 8]];
@@ -10770,6 +10785,24 @@ Object.assign(Stage.prototype, {
     this.wfx.push({ kind: 'beam', pts, t: 10, color: WEAPONS.tesla.color, w: 1, zig: true });
     t.wcool = s.cd;
     Sound.play('zap');
+  },
+
+  // nobody in reach: the bolt strikes the first wall ahead and bursts the bricks there (so it can open a way)
+  teslaWall(t, s) {
+    const [dx, dy] = DXY[t.dir], cx = t.x + 8, cy = t.y + 8;
+    for (let d = 10; d <= s.range; d += 4) {
+      const x = cx + dx * d, y = cy + dy * d;
+      if (x < 0 || y < 0 || x >= FW || y >= FH) return false;
+      const v = this.get(x >> 2, y >> 2);
+      if (v === T_STEEL) return false;
+      if (v !== T_BRICK && !(v >= T_LAVA && bioSolid(v))) continue;
+      this.blast(x, y, 11, true, t, false);   // a hole a tank fits through
+      this.wfx.push({ kind: 'beam', pts: [[cx, cy], [x, y]], t: 10, color: WEAPONS.tesla.color, w: 1, zig: true });
+      t.wcool = s.cd;
+      Sound.play('zap');
+      return true;
+    }
+    return false;
   },
 
   missileFire(t, s) {
@@ -10816,11 +10849,14 @@ Object.assign(Stage.prototype, {
       m.vx *= k; m.vy *= k;
       m.x += m.vx; m.y += m.vy;
       if (this.frame % 2 === 0) this.wfx.push({ kind: 'smoke', x: m.x, y: m.y, t: 10 });
+      // no target: it goes off on the first wall it meets (one fired at a wall opens it)
+      const tw = this.get(Math.floor(m.x) >> 2, Math.floor(m.y) >> 2), wall = !m.target && m.life < 146 && (tw === T_BRICK || tw === T_STEEL || (tw >= T_LAVA && bioSolid(tw)));
+      if (wall) { m.life = 0; m.wallHit = true; }
       const hit = m.target && Math.hypot(m.target.x + 8 - m.x, m.target.y + 8 - m.y) < 7;
       if (hit || --m.life <= 0 || m.x < 0 || m.y < 0 || m.x > FW || m.y > FH) {
         m.done = true;
         const tgt = hit ? m.target : null;
-        this.blast(Math.max(2, Math.min(FW - 2, m.x)), Math.max(2, Math.min(FH - 2, m.y)), 8, true, att, false);
+        this.blast(Math.max(2, Math.min(FW - 2, m.x)), Math.max(2, Math.min(FH - 2, m.y)), m.wallHit ? 12 : 8, true, att, false);   // into a wall: a hole a tank fits through
         if (tgt) this.weaponHit(att, tgt, m.s.dmg - 1, { blast: true });
       }
     }
@@ -11699,7 +11735,10 @@ function crPlanOf(seed, k) {
   if (k % 3 === 2) {
     const order = CR_PIECES.slice(), r = crRng(seed, 0, 1);
     for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
-    return { kind: order[Math.floor(k / 3) % order.length] };
+    let kind = order[Math.floor(k / 3) % order.length];
+    // the dark tunnel once in the first round of pieces, then only one time in three (a lighter piece instead)
+    if (kind === 'tunnel' && Math.floor(k / 3) >= order.length && crRng(seed, k, 3)() < 0.67) kind = order[(Math.floor(k / 3) + 1) % order.length];
+    return { kind };
   }
   if (k % 5 === 4) return { kind: 'branch', fast: crRng(seed, k, 2)() < 0.5 ? 0 : 1 };
   return { kind: 'map' };
@@ -22028,9 +22067,11 @@ const Game = {
       blocks = maze.blocks;
       theme = maze.themeKey;
     } else if (corridor) {
-      // the usual width, at least three sections high (one more than the screen needs above and below)
-      const [vc, vr] = this.desiredField(), rows = Math.max(3, Math.ceil((vr + 26) / CORRIDOR_SECTION)) * CORRIDOR_SECTION;
-      setFieldSize(vc, rows, vc, vr);
+      // as wide as the team needs (13 tiles alone, 17 for two, 21 for three or four; a narrower screen scrolls
+      // sideways), at least three sections high (one more than the screen needs above and below)
+      const [vc, vr] = this.desiredField(), cols = [13, 17, 21, 21][Math.min(4, this.players.length) - 1];
+      const rows = Math.max(3, Math.ceil((vr + 26) / CORRIDOR_SECTION)) * CORRIDOR_SECTION;
+      setFieldSize(cols, rows, Math.min(vc, cols), vr);
       blocks = corridorBlocks(rows / CORRIDOR_SECTION);
     } else if (big) {
       const [vc, vr] = this.desiredField(), [SX, SY] = bigWorldSize(vc, vr);
@@ -33996,7 +34037,8 @@ Object.assign(Stage.prototype, {
         const ok = Object.keys(SV_TWISTS).filter(k => k !== 'final' && k !== last && SV_TWISTS[k].from <= v
           && (SV_TWISTS[k].type === undefined || Config.get('e' + SV_TWISTS[k].type + 'On') !== 'OFF'));
         if (!ok.length) continue;
-        const wt = ok.map(k => 1 / (1 + (used[k] || 0) * 2)), sum = wt.reduce((a, b) => a + b, 0);
+        // the dark twists (night, fog) come up half as often as the others
+        const wt = ok.map(k => (SV_TWISTS[k].weather ? 0.5 : 1) / (1 + (used[k] || 0) * 2)), sum = wt.reduce((a, b) => a + b, 0);
         let x = r() * sum, k = 0;
         while (k < ok.length - 1 && x >= wt[k]) { x -= wt[k]; k++; }
         plan[v] = last = ok[k];

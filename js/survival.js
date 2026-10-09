@@ -104,7 +104,8 @@ Object.assign(Stage.prototype, {
         const ok = Object.keys(SV_TWISTS).filter(k => k !== 'final' && k !== last && SV_TWISTS[k].from <= v
           && (SV_TWISTS[k].type === undefined || Config.get('e' + SV_TWISTS[k].type + 'On') !== 'OFF'));
         if (!ok.length) continue;
-        const wt = ok.map(k => 1 / (1 + (used[k] || 0) * 2)), sum = wt.reduce((a, b) => a + b, 0);
+        // the dark twists (night, fog) come up half as often as the others
+        const wt = ok.map(k => (SV_TWISTS[k].weather ? 0.5 : 1) / (1 + (used[k] || 0) * 2)), sum = wt.reduce((a, b) => a + b, 0);
         let x = r() * sum, k = 0;
         while (k < ok.length - 1 && x >= wt[k]) { x -= wt[k]; k++; }
         plan[v] = last = ok[k];

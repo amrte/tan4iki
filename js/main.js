@@ -862,9 +862,11 @@ const Game = {
       blocks = maze.blocks;
       theme = maze.themeKey;
     } else if (corridor) {
-      // the usual width, at least three sections high (one more than the screen needs above and below)
-      const [vc, vr] = this.desiredField(), rows = Math.max(3, Math.ceil((vr + 26) / CORRIDOR_SECTION)) * CORRIDOR_SECTION;
-      setFieldSize(vc, rows, vc, vr);
+      // as wide as the team needs (13 tiles alone, 17 for two, 21 for three or four; a narrower screen scrolls
+      // sideways), at least three sections high (one more than the screen needs above and below)
+      const [vc, vr] = this.desiredField(), cols = [13, 17, 21, 21][Math.min(4, this.players.length) - 1];
+      const rows = Math.max(3, Math.ceil((vr + 26) / CORRIDOR_SECTION)) * CORRIDOR_SECTION;
+      setFieldSize(cols, rows, Math.min(vc, cols), vr);
       blocks = corridorBlocks(rows / CORRIDOR_SECTION);
     } else if (big) {
       const [vc, vr] = this.desiredField(), [SX, SY] = bigWorldSize(vc, vr);

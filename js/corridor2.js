@@ -71,7 +71,10 @@ function crPlanOf(seed, k) {
   if (k % 3 === 2) {
     const order = CR_PIECES.slice(), r = crRng(seed, 0, 1);
     for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
-    return { kind: order[Math.floor(k / 3) % order.length] };
+    let kind = order[Math.floor(k / 3) % order.length];
+    // the dark tunnel once in the first round of pieces, then only one time in three (a lighter piece instead)
+    if (kind === 'tunnel' && Math.floor(k / 3) >= order.length && crRng(seed, k, 3)() < 0.67) kind = order[(Math.floor(k / 3) + 1) % order.length];
+    return { kind };
   }
   if (k % 5 === 4) return { kind: 'branch', fast: crRng(seed, k, 2)() < 0.5 ? 0 : 1 };
   return { kind: 'map' };

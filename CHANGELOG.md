@@ -3,6 +3,18 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.54.1
+
+- **Every weapon breaks brick now**, so none leaves you stuck behind a wall (in the corridor above all): the laser
+  cuts a tank-wide gap from MK I (a block deep per shot at MK I), bricks crumble in the flamethrower's heat, the mortar
+  aims at the first brick wall ahead when nobody's lined up, and the tesla and missiles, with nothing to hit, blow a
+  hole a tank fits through in the wall ahead.
+- **The corridor is as wide as the team:** 13 tiles alone, 17 for two, 21 for three or four (a narrower screen
+  scrolls sideways).
+- **Darkness, rarer still:** night and fog stages one in eighteen (night on 9, 45, 81 ..., fog on 27, 63 ...); city
+  blackouts half as often and shorter; the corridor's dark tunnel once in the first round of set pieces, then one
+  time in three; survival's night and fog twists half as likely.
+
 ## 0.54
 
 - **Corridor, reworked** (corridor2.js):

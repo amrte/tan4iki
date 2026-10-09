@@ -35,11 +35,11 @@ function stageWeather(num, boss) {
   if (mode === 'OFF' || boss) return null;
   if (mode === 'ALWAYS NIGHT') return 'night';
   if (mode === 'ALWAYS FOG') return 'fog';
-  // MANY: a dark stage every third stage (as it used to be); SOME: one in nine, night on stages 9, 27, 45 ... (city
-  // ruins, where the lamps are), fog on 13, 31, 49 ...
+  // MANY: a dark stage every third stage (as it used to be); SOME: one in eighteen: night on stages 9, 45, 81 ... (city
+  // ruins, where the lamps are), fog on 27, 63, 99 ...
   if (mode === 'MANY') return num >= 6 && num % 6 === 0 ? 'night' : num >= 9 && num % 6 === 3 ? 'fog' : null;
-  if (num % 18 === 9) return 'night';
-  if (num % 18 === 13) return 'fog';
+  if (num % 36 === 9) return 'night';
+  if (num % 36 === 27) return 'fog';
   return null;
 }
 

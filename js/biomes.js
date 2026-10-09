@@ -30,7 +30,7 @@
 const BOG_SLOW = 0.4, RUBBLE_SLOW = 0.8, SINK_MAX = 180;
 const VENT_PERIOD = 300, VENT_WARN = 60, VENT_FIRE = 54;
 const GAS_FUSE = 24, DRUM_FUSE = 8, DRUM_R = 15, GAS_R = 12;
-const BOMB_TIME = 110, BOMB_R = 11, BLACKOUT_TIME = 720;
+const BOMB_TIME = 110, BOMB_R = 11, BLACKOUT_TIME = 540;
 const SALVO_TIME = 80, SALVO_R = 11, TRUCK_SIGHT = 176, LUNGE_RANGE = 64, LUNGE_TIME = 22;
 const MANHOLE_CARD = 40;   // manholes are pads, not tiles: their card key
 
@@ -753,7 +753,9 @@ Object.assign(Stage.prototype, {
   bioEvent(s) {
     if (s === 'volcanic') { this.lavaBombs(); this.seaT = 900 + rnd(700); return true; }
     if (s === 'swamp') { this.marshGas(); this.seaT = 700 + rnd(600); return true; }
-    if (s === 'city') { this.blackout = BLACKOUT_TIME; this.seaT = BLACKOUT_TIME + 1500 + rnd(1200); this.seasonNote('BLACKOUT!', '#F8D878'); Sound.play('blackout'); return true; }
+    // a blackout now and then, not every half minute: half the time the lights just hold
+    if (s === 'city' && Math.random() < 0.5) { this.seaT = 1800 + rnd(1800); return true; }
+    if (s === 'city') { this.blackout = BLACKOUT_TIME; this.seaT = BLACKOUT_TIME + 3600 + rnd(2400); this.seasonNote('BLACKOUT!', '#F8D878'); Sound.play('blackout'); return true; }
     return false;
   },
 

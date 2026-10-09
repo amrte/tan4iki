@@ -23,7 +23,7 @@ const WEAPONS = {
   mg: { name: 'MACHINE GUN', letter: 'M', color: '#F8B800', desc: 'HOLD FIRE: A STREAM OF BULLETS',
     lv: [{ cd: 8, dmg: 0.5, max: 4 }, { cd: 6, dmg: 0.5, max: 5 }, { cd: 7, dmg: 0.4, max: 6, twin: true }, { cd: 6, dmg: 0.45, max: 8, twin: true }] },
   laser: { name: 'LASER', letter: 'L', color: '#F83800', desc: 'A BEAM THROUGH TANKS IN LINE',
-    lv: [{ cd: 30, dmg: 1, len: 96 }, { cd: 28, dmg: 1, len: 128, cut: true }, { cd: 30, dmg: 1.5, len: 160, cut: true }, { cd: 22, dmg: 2, len: 999, cut: true, wide: true }] },
+    lv: [{ cd: 30, dmg: 1, len: 96, cut: true }, { cd: 28, dmg: 1, len: 128, cut: true }, { cd: 30, dmg: 1.5, len: 160, cut: true }, { cd: 22, dmg: 2, len: 999, cut: true, wide: true }] },
   flame: { name: 'FLAMETHROWER', letter: 'F', color: '#F87830', desc: 'HOLD FIRE: A BURNING CONE',
     lv: [{ len: 24, dmg: 0.25 }, { len: 30, dmg: 0.3 }, { len: 36, dmg: 0.38 }, { len: 44, dmg: 0.48 }] },
   mortar: { name: 'MORTAR', letter: 'G', color: '#BCBCBC', desc: 'SHELLS OVER WALLS, A BLAST',
@@ -141,8 +141,8 @@ Object.assign(Stage.prototype, {
 
   laserFire(t, s, lv) {
     const [dx, dy] = DXY[t.dir], w = s.wide ? 8 : 4, cx = t.x + 8, cy = t.y + 8;
-    let x = cx + dx * 8, y = cy + dy * 8, dist = 0;
-    // run along until steel, the eagle, a block or the edge; brick is cut (MK II+) or stops it
+    let x = cx + dx * 8, y = cy + dy * 8, dist = 0, cut = 0;
+    // run along until steel, the eagle, a block or the edge; brick is cut
     while (dist < s.len) {
       const nx = x + dx * 4, ny = y + dy * 4;
       if (nx < 0 || ny < 0 || nx > FW || ny > FH) break;
@@ -150,8 +150,17 @@ Object.assign(Stage.prototype, {
       for (let k = -w / 2; k < w / 2 && !stop; k += 4) {
         const qx = Math.floor((nx + (dy ? k : 0)) / 4), qy = Math.floor((ny + (dx ? k : 0)) / 4), v = this.get(qx, qy);
         if (v === T_STEEL) stop = true;
-        else if (v === T_BRICK) { if (s.cut) this.set(qx, qy, T_EMPTY); else stop = true; }
+        else if (v === T_BRICK) { if (!s.cut) stop = true; }
         else if (v >= T_LAVA && this.bioBeam(qx, qy, v, t, s.cut)) stop = true;   // concrete, barrels, crates (biomes.js)
+      }
+      // brick in the way: it cuts a gap a tank can drive through (MK I only a block deep per shot)
+      if (!stop && s.cut) {
+        let any = false;
+        for (let a = -8; a < 8; a += 4) {
+          const qx = Math.floor((nx + (dy ? a : 0)) / 4), qy = Math.floor((ny + (dx ? a : 0)) / 4);
+          if (this.get(qx, qy) === T_BRICK) { this.set(qx, qy, T_EMPTY); any = true; }
+        }
+        if (any && (cut += 4) >= 8 && lv === 1) { x = nx; y = ny; dist += 4; break; }
       }
       if (!stop && !this.noBase && overlap(nx - 2, ny - 2, 4, 4, BASE_X, BASE_Y, 16, 16)) stop = true;
       if (!stop && this.qblocks && this.qblocks.length && this.qblockAt(nx - 2, ny - 2, 4, 4)) { this.bulletQBlock({ x: nx - 2, y: ny - 2, isPlayer: true, owner: t, alive: true, free: true }); stop = true; }
@@ -183,6 +192,8 @@ Object.assign(Stage.prototype, {
     for (let cy = Math.max(0, y >> 2); cy <= (y + fh - 1) >> 2; cy++) for (let cx = Math.max(0, x >> 2); cx <= (x + fw - 1) >> 2; cx++) {
       const v = this.get(cx, cy);
       if (v === T_REEDS || v === T_GAS || v === T_DRUM) { this.bioFlame(cx, cy, v, t, true); continue; }
+      // bricks crumble in the heat (slowly: a cell now and then), so the flamethrower can open a way too
+      if (v === T_BRICK) { if (Math.random() < 0.12 + 0.04 * (WEAPONS.flame.lv.indexOf(s))) { this.set(cx, cy, T_EMPTY); this.lastBrickSound = this.frame; } continue; }
       if (v !== T_FOREST) continue;
       if (this.seasonFx === 'summer' && this.fires) this.ignite(cy * GW + cx, false, true); else this.set(cx, cy, T_EMPTY);
     }
@@ -198,6 +209,8 @@ Object.assign(Stage.prototype, {
       const fx = foe.x + 8 - cx, fy = foe.y + 8 - cy, ahead = fx * dx + fy * dy, side = Math.abs(dx ? fy : fx);
       if (ahead > 12 && ahead < d && side < 10) d = ahead;
     }
+    // nobody lined up: the first brick wall ahead (so it breaks a way through, not something far behind it)
+    if (d === s.dist) for (let k = 12; k < s.dist; k += 4) { const v = this.get((cx + dx * k) >> 2, (cy + dy * k) >> 2); if (v === T_BRICK || (v >= T_LAVA && bioSolid(v))) { d = k + 4; break; } }
     const tx = Math.max(4, Math.min(FW - 4, cx + dx * d)), ty = Math.max(4, Math.min(FH - 4, cy + dy * d));
     this.wshots.push({ kind: 'mortar', owner: t, x0: cx, y0: cy, x: cx, y: cy, tx, ty, p: 0, dp: 1 / Math.round(12 + Math.hypot(tx - cx, ty - cy) / 5), s });
     t.wcool = s.cd;
@@ -211,7 +224,7 @@ Object.assign(Stage.prototype, {
     if (!first) {
       const bo = this.bosses.find(b => this.bossTangible(b) && Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < s.range + b.w / 2);
       if (bo) { this.weaponBosses(t, bo.x, bo.y, bo.w, bo.h, s.dmg); this.wfx.push({ kind: 'beam', pts: [[cx, cy], [bo.x + bo.w / 2, bo.y + bo.h / 2]], t: 10, color: WEAPONS.tesla.color, w: 1, zig: true }); t.wcool = s.cd; Sound.play('zap'); }
-      else t.wcool = 10;
+      else if (!this.teslaWall(t, s)) t.wcool = 10;
       return;
     }
     const hit = [first], pts = [[cx, cy], [first.x + 8, first.y + 8]];
@@ -226,6 +239,24 @@ Object.assign(Stage.prototype, {
     this.wfx.push({ kind: 'beam', pts, t: 10, color: WEAPONS.tesla.color, w: 1, zig: true });
     t.wcool = s.cd;
     Sound.play('zap');
+  },
+
+  // nobody in reach: the bolt strikes the first wall ahead and bursts the bricks there (so it can open a way)
+  teslaWall(t, s) {
+    const [dx, dy] = DXY[t.dir], cx = t.x + 8, cy = t.y + 8;
+    for (let d = 10; d <= s.range; d += 4) {
+      const x = cx + dx * d, y = cy + dy * d;
+      if (x < 0 || y < 0 || x >= FW || y >= FH) return false;
+      const v = this.get(x >> 2, y >> 2);
+      if (v === T_STEEL) return false;
+      if (v !== T_BRICK && !(v >= T_LAVA && bioSolid(v))) continue;
+      this.blast(x, y, 11, true, t, false);   // a hole a tank fits through
+      this.wfx.push({ kind: 'beam', pts: [[cx, cy], [x, y]], t: 10, color: WEAPONS.tesla.color, w: 1, zig: true });
+      t.wcool = s.cd;
+      Sound.play('zap');
+      return true;
+    }
+    return false;
   },
 
   missileFire(t, s) {
@@ -272,11 +303,14 @@ Object.assign(Stage.prototype, {
       m.vx *= k; m.vy *= k;
       m.x += m.vx; m.y += m.vy;
       if (this.frame % 2 === 0) this.wfx.push({ kind: 'smoke', x: m.x, y: m.y, t: 10 });
+      // no target: it goes off on the first wall it meets (one fired at a wall opens it)
+      const tw = this.get(Math.floor(m.x) >> 2, Math.floor(m.y) >> 2), wall = !m.target && m.life < 146 && (tw === T_BRICK || tw === T_STEEL || (tw >= T_LAVA && bioSolid(tw)));
+      if (wall) { m.life = 0; m.wallHit = true; }
       const hit = m.target && Math.hypot(m.target.x + 8 - m.x, m.target.y + 8 - m.y) < 7;
       if (hit || --m.life <= 0 || m.x < 0 || m.y < 0 || m.x > FW || m.y > FH) {
         m.done = true;
         const tgt = hit ? m.target : null;
-        this.blast(Math.max(2, Math.min(FW - 2, m.x)), Math.max(2, Math.min(FH - 2, m.y)), 8, true, att, false);
+        this.blast(Math.max(2, Math.min(FW - 2, m.x)), Math.max(2, Math.min(FH - 2, m.y)), m.wallHit ? 12 : 8, true, att, false);   // into a wall: a hole a tank fits through
         if (tgt) this.weaponHit(att, tgt, m.s.dmg - 1, { blast: true });
       }
     }
