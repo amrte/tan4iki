@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.45</title>
+  <title>tanb4iki_v0.46</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.45';
+const APP_VERSION = '0.46';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2663,6 +2663,8 @@ const SETTINGS_DEF = [
     fmt: v => modeInfo(v).name },
   { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4, 5], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!', 'AUTO'][v] },
   { key: 'raceTarget', label: 'RACE: FIRST TO', values: [1, 2, 3, 5, 7, 10], def: 3, fmt: v => v + ' PTS' },
+  // galaxy_modes.js: the kind of GALAXY run (also picked on its title screen and first curtain)
+  { key: 'galaxyRun', label: 'GALAXY RUN', values: ['CAMPAIGN', 'BOSS RUSH', 'ENDLESS', 'DAILY'], def: 'CAMPAIGN' },
   { key: 'terrainExtras', label: 'MUD, BELTS, PADS', values: ONOFF, def: 'ON' },
   // seasons.js: a new season every stage, or one at random, or always the same (OFF: the classic black)
   { key: 'seasons', label: 'SEASONS', values: ['CYCLE', 'RANDOM', 'OFF', 'SPRING', 'SUMMER', 'AUTUMN', 'WINTER', 'NUCLEAR', 'DESERT'], def: 'CYCLE' },
@@ -3120,11 +3122,69 @@ const Sound = {
       case 'ray': // a martian ray gun
         this.note(2000, t, 0.1, { vol: 0.05, slideTo: 3200, wave: 'p12' });
         break;
+      // GALAXY, how it feels (galaxy_feel.js)
+      case 'gxSwap': // weapons swap: a quick two-step blip
+        this.seq([79, 86], 0.035, t, { vol: 0.09, wave: 'p25', decayTo: 0.5 });
+        break;
+      case 'gxEmpty': // nothing to swap to, no bombs: a dry click
+        this.note(220, t, 0.03, { vol: 0.07, wave: 'p12', flat: true });
+        break;
+      case 'gxHiss': // overheated: steam
+        this.noise(12000, t, [[0, 0.16], [0.18, 0.08], [0.3, 0]], 6000);
+        break;
+      case 'gxCharged': // the charge is full: a bright ping
+        this.note(2637, t, 0.18, { vol: 0.07, wave: 'p50', decayTo: 0.3 });
+        this.note(3520, t + 0.05, 0.14, { vol: 0.04, wave: 'p25', decayTo: 0.3 });
+        break;
+      case 'gxBlast': // the charge blast: a deep whoosh
+        this.note(600, t, 0.35, { vol: 0.18, slideTo: 70, wave: 'p50', decayTo: 0.4 });
+        this.noise(3000, t, [[0, 0.4], [0.3, 0.15], [0.45, 0]], 400);
+        break;
+      case 'gxGraze': // a shot brushes past: a tiny tick
+        this.note(3200, t, 0.02, { vol: 0.04, wave: 'p12', flat: true });
+        break;
+      case 'gxComboLost': // the chain breaks: a falling blip
+        this.seq([76, 71, 64], 0.05, t, { vol: 0.08, wave: 'p25', decayTo: 0.5 });
+        break;
       case 'burrow':
         this.noise(500, t, [[0, 0.45], [0.4, 0.3], [0.55, 0]], 300);
         break;
+      case 'gxPerkIn': // GALAXY: perk capsules drift in
+        this.seq([79, 0, 84, 0, 91], 0.06, t, { vol: 0.07, wave: 'p12', decayTo: 0.4 });
+        break;
+      case 'gxPerk': // a perk taken: a bright run up
+        this.seq([72, 76, 79, 84, 88], 0.045, t, { vol: 0.12, wave: 'p25', decayTo: 0.5 });
+        this.note(96, t + 0.23, 0.18, { vol: 0.06, wave: 'p12', decayTo: 0.3 });
+        break;
+      case 'gxSos': // an escape pod's distress call
+        this.seq([88, 0, 88, 0, 88, 0, 0, 84, 84, 84], 0.05, t, { vol: 0.06, wave: 'p50', flat: true });
+        break;
+      case 'gxSosTick': // holding on to a pod
+        this.note(76, t, 0.05, { vol: 0.06, wave: 'tri', flat: true });
+        break;
       case 'teleport':
         this.seq([72, 79, 84, 91, 96], 0.035, t, { vol: 0.12, decayTo: 0.4, wave: 'p25' });
+        break;
+      case 'gxTractor': // the captor's tractor beam: a wobbling hum
+        this.note(330, t, 0.45, { vol: 0.07, slideTo: 440, wave: 'p25', flat: true });
+        this.note(349, t + 0.05, 0.4, { vol: 0.05, slideTo: 262, wave: 'tri', flat: true });
+        break;
+      case 'gxCaptured': // your ship is taken
+        this.seq([76, 72, 69, 64, 60, 57], 0.1, t, { vol: 0.13, wave: 'p25', decayTo: 0.5 });
+        break;
+      case 'gxRescue': // your ship is free
+        this.seq([67, 72, 76, 79, 84], 0.06, t, { vol: 0.13, decayTo: 0.5 });
+        break;
+      case 'gxChallenge': // the challenge stage's jingle
+        this.seq([72, 76, 79, 72, 76, 79, 84, 0, 83, 84], 0.08, t, { vol: 0.12, wave: 'p25', decayTo: 0.45 });
+        this.seq([48, 0, 55, 0, 48, 0, 55, 0, 60], 0.08, t, { vol: 0.16, wave: 'tri' });
+        break;
+      case 'gxPerfect': // 40 out of 40
+        this.seq([72, 76, 79, 84, 79, 84, 88, 91, 96], 0.07, t, { vol: 0.14, decayTo: 0.5 });
+        this.seq([60, 64, 67, 72, 67, 72, 76, 79, 84], 0.07, t, { vol: 0.08, wave: 'p25', decayTo: 0.5 });
+        break;
+      case 'gxMedal': // a wave medal
+        this.seq([84, 88, 91, 96], 0.05, t, { vol: 0.1, wave: 'p12', decayTo: 0.5 });
         break;
       case 'bossDie':
         this.noise(2000, t, [[0, 0.7], [0.5, 0.6], [1.6, 0]], 120);
@@ -17597,7 +17657,7 @@ BOSS_SONGS.galya = 'galya';
 //  Co-op for 1-4 players, here or online.
 // =====================================================================
 
-const GX_WAVES = 6;
+const GX_WAVES = 7;   // waves in a usual sector (galaxy_waves.js adds a 4th: a mini-boss or a challenge stage); a sector plays its plan's length
 const GX_SECTORS = [
   { name: 'MOON ORBIT', sky: '#000010', dust: '#28284C', planet: ['#BCBCBC', '#7C7C7C', '#4C4C4C'] },
   { name: 'RED PLANET', sky: '#100004', dust: '#4C1810', planet: ['#F87858', '#C83C14', '#7C1C00'] },
@@ -17768,10 +17828,11 @@ Object.assign(Stage.prototype, {
     const g = this.galaxy;
     g.wave++;
     g.phase = 'wave'; g.t = 0; g.spawnQ = []; g.diveT = 160;
-    if (g.wave > GX_WAVES) { this.gxBossStart(); return; }
-    const kind = (g.plan || GX_PLAN[g.sec])[g.wave - 1];
+    const plan = g.plan || GX_PLAN[g.sec];
+    if (g.wave > plan.length) { this.gxBossStart(); return; }
+    const kind = plan[g.wave - 1];
     g.kind = kind;
-    g.banner = { text: 'WAVE ' + g.wave + '/' + GX_WAVES + ': ' + (GX_WAVE_NAMES[kind] || kind.toUpperCase()), t: 110 };
+    g.banner = { text: 'WAVE ' + g.wave + '/' + plan.length + ': ' + (GX_WAVE_NAMES[kind] || kind.toUpperCase()), t: 110 };
     const types = Object.keys(GX_TYPES).filter(k => !k.startsWith('rock') && !GX_TYPES[k].special && GX_TYPES[k].from <= g.sec + g.loop * GX_SECTORS.length);
     const more = Math.min(1.6, 1 + 0.08 * (g.d ?? g.sec) + 0.2 * g.loop) * (1 + 0.25 * (this.players.length - 1));
     const add = (type, o) => g.spawnQ.push(Object.assign({ type }, o));
@@ -17902,7 +17963,7 @@ Object.assign(Stage.prototype, {
     } else t.moving = false;
     if (t.gcool > 0) t.gcool--;
     if (inp.fire || inp.firePressed) this.gxFire(t, p, gp);
-    if (inp.altPressed && gp.bombs > 0) this.gxBomb(t, p);
+    this.gxButtonB(t, p, gp, inp);   // B: tap swaps, hold focuses, double-tap bombs (galaxy_feel.js)
     // wingman drones: little guns either side
     const nd = gxUp(p, 'drones');
     if (nd && (this.frame + p.i * 4) % 14 === 0 && (inp.fire || this.galaxy.list.length)) {
@@ -18671,7 +18732,7 @@ Object.assign(Stage.prototype, {
   renderGalaxyHud(ctx) {
     const g = this.galaxy, H = HUD_X;
     this.renderSkillTag(ctx, H);
-    const top = 'SECTOR ' + g.level + '  ' + (g.phase === 'boss' || g.phase === 'clear' ? 'BOSS' : 'WAVE ' + Math.max(1, g.wave) + '/' + GX_WAVES);
+    const top = 'SECTOR ' + g.level + '  ' + (g.phase === 'boss' || g.phase === 'clear' ? 'BOSS' : 'WAVE ' + Math.max(1, g.wave) + '/' + (g.plan ? g.plan.length : GX_WAVES));
     Font.drawCenter(ctx, top, FX + VIEW_W / 2, 0, COL.black);
     this.players.forEach((p, i) => {
       const y = 20 + i * 34, gp = gxPlayer(p), W = GX_WEAPONS[gp.weapon];
@@ -19772,6 +19833,1896 @@ SONGS.galaxy2 = { name: 'HYPERSPACE', root: 62, bpm: 158, groove: 'starfield', p
   mel: '0.2.4.7.4.2.0.2.' + '3.5.7.A.7.5.3.5.' + '5.7.9.C.9.7.5.4.' + '4-2-4-5-7---z---' };
 SONGS.galaxyBoss2 = { name: 'ALL YOUR BASE', root: 55, bpm: 146, groove: 'aggro', prog: [0, 5, 6, 4],
   mel: '0-0-3-0-5-0-6-5-' + '0-0-3-0-7-6-5-3-' + '5-5-6-7-8-7-6-5-' + '4-3-2-1-0---z---' };
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  GALAXY, how it feels: focus mode, B-button gestures, weapon slots and swapping, overheat and the charge blast, the team combo, grazing, screen shake and hit-stop.
+//    B       tap (let go within 12 frames): swap to your other weapon; hold (12+ frames): FOCUS, half speed and
+//            your hitbox shown; double-tap (2nd press within 14 frames of letting go): a bomb (the tap's swap undone)
+//    slots   two weapons: p.gx.weapons = [in hand, other]; p.gx.weapon is the one in hand (the rest reads that)
+//    heat    every volley heats the gun (blaster nonstop: ~5 s to 100); at 100 it OVERHEATS: no fire for 1.5 s
+//    charge  half a second without firing charges it up over a second; the next press lets go a CHARGE BLAST
+//    combo   kills chain within 2 s (3 s in co-op): x1 + 1 for every 8, up to x8; anyone hit breaks it
+//    graze   an enemy shot passing close by without hitting: points and the bomb meter (25 grazes: a bomb)
+//    juice   screen shake, a tiny hit-stop on big kills and boss phases, slow motion when a ship goes down
+// =====================================================================
+
+const GXF = {
+  tap: 12, dbl: 14,               // B: a tap is shorter than this; the 2nd press of a double-tap within this
+  heatTime: 480,                  // frames of nonstop fire to overheat (every gun, by its cooldown)
+  coolDelay: 20, cool: 1.6,       // after this long not firing it cools this much a frame
+  overT: 70, overTo: 40,          // overheated: no fire this long, then the heat is back down to this
+  chargeWait: 30, chargeTime: 60, // not firing this long starts the charge, full after this long
+  blastDmg: 20,                   // the charge blast: x the ship's damage
+  comboT: 120, comboMax: 8,       // the combo's window (x1.5 in co-op), its top multiplier
+  graze: 10, grazePts: 20, grazeMeter: 4,
+};
+
+// the two weapon slots, kept in step with p.gx.weapon (which other code may set directly)
+function gxSlots(gp) {
+  let w = gp.weapons;
+  if (!Array.isArray(w)) w = gp.weapons = [gp.weapon, null];
+  if (w[0] !== gp.weapon) { if (w[1] === gp.weapon) w[1] = w[0]; w[0] = gp.weapon; }
+  if (w[1] === w[0]) w[1] = null;
+  return w;
+}
+const gxMult = g => (g && g.combo ? Math.min(GXF.comboMax, 1 + Math.floor(g.combo.n / 8)) : 1);
+function gxShake(g, frames, i) {
+  if (!g) return;
+  g.shakeI = g.shake > 0 ? Math.max(g.shakeI || 1, i) : i;
+  g.shake = Math.max(g.shake || 0, frames);
+}
+
+// ------------------------------------------------------------------ set-up
+{
+  const _setup = Stage.prototype.setupGalaxy;
+  Stage.prototype.setupGalaxy = function (level) {
+    const r = _setup.call(this, level), g = this.galaxy;
+    Object.assign(g, { combo: { n: 0, t: 0, max: GXF.comboT }, shake: 0, shakeI: 0, stop: 0, slow: 0, blasts: [], sparks: [], hint: level === 1 ? 420 : 0 });
+    for (const p of this.players) gxSlots(gxPlayer(p));
+    return r;
+  };
+}
+
+// ------------------------------------------------------------------ every frame: hit-stop, slow motion, then the rest
+{
+  const _update = Stage.prototype.updateGalaxy;
+  Stage.prototype.updateGalaxy = function () {
+    const g = this.galaxy;
+    if (!g.combo) g.combo = { n: 0, t: 0, max: GXF.comboT };
+    g.blasts = g.blasts || []; g.sparks = g.sparks || [];
+    if (g.shake > 0) g.shake--;
+    if (g.hint > 0) g.hint--;
+    // a frozen moment (always counting down): B still listens, so a tap isn't lost
+    let skip = false;
+    if (g.stop > 0) { g.stop--; skip = true; } else if (g.slow > 0 && (--g.slow & 1)) skip = true;
+    if (skip) {
+      if (!this.over) for (const t of this.tanks) if (t.alive && t.isPlayer && t.player) this.gxButtonB(t, t.player, gxPlayer(t.player), Input.player(t.player.i));
+      return;
+    }
+    const r = _update.call(this);
+    if (!this.galaxy) return r;
+    this.gxUpdateBlasts();
+    this.gxUpdateGraze();
+    for (const s of g.sparks) s.t--;
+    g.sparks = g.sparks.filter(s => s.t > 0);
+    // the combo runs out (it waits while there's no one to shoot)
+    const c = g.combo;
+    if (c.n && (g.list.length || g.boss) && --c.t <= 0) {
+      if (c.n >= 8) this.popups.push({ x: FW - 34, y: 34, text: 'COMBO ' + c.n, label: true, color: COL.gold, t: 0, delay: 0, life: 60 });
+      c.n = 0; c.t = 0;
+    }
+    return r;
+  };
+}
+
+// ------------------------------------------------------------------ your ship: focus speed, heat and charge
+{
+  const _player = Stage.prototype.gxUpdatePlayer;
+  Stage.prototype.gxUpdatePlayer = function (t) {
+    const p = t.player, gp = gxPlayer(p);
+    gxSlots(gp);
+    if (!t.gxInit) Object.assign(gp, { focus: false, heat: 0, overT: 0, charge: 0 });   // a new ship: a cool gun, no charge
+    const inp = this.over ? null : Input.player(p.i);
+    // focus: half speed (the core adds a step's worth to t.acc; half of it is taken back first)
+    if (gp.focus && inp && inp.dir >= 0 && !(t.frozen > 1)) t.acc = (t.acc || 0) - (1.4 + 0.3 * gxUp(p, 'engine')) / 2;
+    const r = _player.call(this, t);
+    if (!inp || !t.alive) return r;
+    if (gp.overT > 0) {
+      // overheated: it cools off visibly, then it's usable again
+      gp.overT--; gp.heat = GXF.overTo + (100 - GXF.overTo) * gp.overT / GXF.overT; gp.charge = 0; t.gxIdle = 0;
+      if (this.frame % 6 === 0) Sound.play('gxHiss');
+      return r;
+    }
+    if (t.gxFireF === this.frame) t.gxIdle = 0;
+    else {
+      t.gxIdle = (t.gxIdle || 0) + 1;
+      if (t.gxIdle > GXF.coolDelay) gp.heat = Math.max(0, (gp.heat || 0) - GXF.cool);
+      if (t.gxIdle >= GXF.chargeWait && (gp.charge || 0) < 100) {
+        gp.charge = Math.min(100, (gp.charge || 0) + 100 / GXF.chargeTime);
+        if (gp.charge >= 100) Sound.play('gxCharged');
+      }
+    }
+    if (gp.bombMeter >= 100 && gp.bombs < 5) this.gxBombUp(t);
+    return r;
+  };
+}
+
+// B: tap, hold, double-tap (called by gxUpdatePlayer, and on frozen frames too); once a frame per ship
+Stage.prototype.gxButtonB = function (t, p, gp, inp) {
+  if (t.gxBF === this.frame) return;
+  t.gxBF = this.frame;
+  const s = t.gxB || (t.gxB = { down: false, at: 0, rel: -99, tap: false, swapped: false, bomb: false, pop: null }), f = this.frame;
+  const down = !!(inp.alt || inp.altPressed), press = !!inp.altPressed || (down && !s.down);
+  // let go: short means a tap (swap)
+  if (s.down && (!down || inp.altPressed)) {
+    if (!s.bomb && f - s.at < GXF.tap) { s.swapped = this.gxSwap(t, p, gp); s.pop = s.swapped ? this.popups[this.popups.length - 1] : null; s.tap = true; s.rel = f; }
+    else s.tap = false;
+    s.bomb = false;
+  }
+  if (press) {
+    s.at = f; s.bomb = false;
+    if (s.tap && f - s.rel <= GXF.dbl) {
+      // the second tap: a bomb, and the first tap's swap is undone
+      s.tap = false; s.bomb = true;
+      if (s.swapped) { this.gxSwap(t, p, gp, true); if (s.pop) s.pop.t = 1e4; }
+      s.swapped = false;
+      if (gp.bombs > 0) this.gxBomb(t, p);
+      else { this.gxSayShip(t, 'NO BOMBS', '#BCBCBC', 40); Sound.play('gxEmpty'); }
+    } else s.tap = false;
+  }
+  s.down = down;
+  gp.focus = down && !s.bomb && f - s.at >= GXF.tap;
+};
+
+// swap the two weapons; false if there's no second one
+Stage.prototype.gxSwap = function (t, p, gp, quiet) {
+  const w = gxSlots(gp);
+  if (!w[1]) { if (!quiet) Sound.play('gxEmpty'); return false; }
+  [w[0], w[1]] = [w[1], w[0]]; gp.weapon = w[0];
+  t.gcool = Math.max(t.gcool || 0, 4);
+  if (!quiet) { const W = GX_WEAPONS[w[0]] || GX_WEAPONS.blaster; this.gxSayShip(t, W.name, W.color, 36); Sound.play('gxSwap'); }
+  return true;
+};
+
+// a word over a ship
+Stage.prototype.gxSayShip = function (t, text, color = COL.white, life = 50) { this.popups.push({ x: t.x + 8, y: t.y - 4, text, label: true, color, t: 0, delay: 0, life }); };
+
+// the bomb meter is full: one more bomb
+Stage.prototype.gxBombUp = function (t) {
+  const gp = gxPlayer(t.player);
+  gp.bombMeter = 0; gp.bombs = Math.min(5, gp.bombs + 1);
+  this.gxSayShip(t, 'BOMB +1', '#F8B800', 50); Sound.play('pickup');
+};
+
+// ------------------------------------------------------------------ firing: overheat, the charge blast
+{
+  const _fire = Stage.prototype.gxFire;
+  Stage.prototype.gxFire = function (t, p, gp) {
+    const g = this.galaxy;
+    t.gxFireF = this.frame;
+    if (gp.overT > 0) return;
+    if (gp.charge >= 100) { this.gxChargeBlast(t, p, gp); return; }
+    gp.charge = 0;
+    const cool0 = t.gcool || 0, nb = g.beams.length;
+    const r = _fire.call(this, t, p, gp);
+    // heat: by the gun's cooldown, so every gun overheats after the same time of nonstop fire; rapid fire runs cooler
+    const cool = 1 - 0.08 * gxUp(p, 'rapid');
+    let add = 0;
+    if (g.beams.length > nb) add = 100 / GXF.heatTime;   // the laser, every frame it's on
+    else if ((t.gcool || 0) > cool0) add = t.gcool / Math.max(0.3, 1 - 0.1 * gxUp(p, 'rapid')) * 100 / GXF.heatTime;
+    gp.heat = Math.min(100, (gp.heat || 0) + add * cool);
+    if (gp.heat >= 100) {
+      gp.heat = 100; gp.overT = GXF.overT; gp.charge = 0;
+      this.gxSayShip(t, 'OVERHEAT!', '#F83800', 60);
+      Sound.play('gxHiss');
+    }
+    return r;
+  };
+}
+
+Stage.prototype.gxChargeBlast = function (t, p, gp) {
+  const g = this.galaxy, W = GX_WEAPONS[gp.weapon] || GX_WEAPONS.blaster;
+  g.blasts.push({ x: t.x + 8, y: t.y - 6, c: W.color, o: p.i, dmg: GXF.blastDmg * this.gxDmg(p), hit: [], boss: false });
+  gp.charge = 0; t.gcool = 14;
+  gxShake(g, 10, 2);
+  Sound.play('gxBlast');
+};
+
+// the charge blasts fly up through everything (their shots too), the boss takes it once
+Stage.prototype.gxUpdateBlasts = function () {
+  const g = this.galaxy;
+  for (const s of g.blasts) {
+    s.y -= 5;
+    if (s.y < -20) { s.dead = true; continue; }
+    const p = this.players[s.o] || this.players[0], x = s.x - 5, y = s.y - 8;
+    for (const e of g.list.slice()) {
+      if (e.dead || e.warnT > 0 || s.hit.includes(e)) continue;
+      const T = GX_TYPES[e.type] || {}, w = e.w || T.w || 10, h = e.h || T.h || 10;
+      if (!overlap(x, y, 10, 16, e.x - w / 2, e.y - h / 2, w, h)) continue;
+      s.hit.push(e); this.gxHit(e, s.dmg, p);
+    }
+    g.bullets = g.bullets.filter(b => !(Math.abs(b.x - s.x) < 8 && Math.abs(b.y - s.y) < 10));
+    if (!s.boss && g.boss && this.gxBossHitRect(x, y, 10, 16, s.dmg, p)) s.boss = true;
+  }
+  g.blasts = g.blasts.filter(s => !s.dead);
+};
+
+// ------------------------------------------------------------------ grazing: their shots passing close by
+Stage.prototype.gxUpdateGraze = function () {
+  const g = this.galaxy, pl = this.gxPlayers();
+  for (const b of g.bullets) {
+    if (b.gz < 0) continue;
+    const t = pl.find(q => Math.hypot(q.x + 8 - b.x, q.y + 9 - b.y) < GXF.graze);
+    if (t) { b.gz = t.player.i + 1; continue; }
+    // it was close and it's gone past without a hit
+    if (b.gz > 0) { const q = pl.find(o => o.player.i === b.gz - 1); b.gz = -1; if (q) this.gxGraze(q, b); }
+  }
+};
+
+Stage.prototype.gxGraze = function (t, b) {
+  const g = this.galaxy, p = t.player, gp = gxPlayer(p);
+  this.addScore(p, GXF.grazePts * gxMult(g));
+  gp.graze = (gp.graze || 0) + 1;
+  gp.bombMeter = Math.min(100, (gp.bombMeter || 0) + GXF.grazeMeter);
+  if (gp.bombMeter >= 100 && gp.bombs < 5) this.gxBombUp(t);
+  g.sparks.push({ x: Math.round((b.x + t.x + 8) / 2), y: Math.round((b.y + t.y + 9) / 2), t: 8 });
+  Sound.play('gxGraze');
+};
+
+// ------------------------------------------------------------------ kills: the combo, hit-stop on the big ones
+{
+  const _kill = Stage.prototype.gxKill;
+  Stage.prototype.gxKill = function (e, p) {
+    const g = this.galaxy, T = GX_TYPES[e.type] || {};
+    let extra = 0;
+    if (p && g && !e.dead) {
+      const c = g.combo || (g.combo = { n: 0, t: 0, max: GXF.comboT });
+      c.n++; c.max = Math.round(GXF.comboT * (this.players.length > 1 ? 1.5 : 1)); c.t = c.max;
+      extra = (T.pts || 0) * (1 + g.loop) * (gxMult(g) - 1);
+    }
+    const r = _kill.call(this, e, p);
+    if (extra > 0) this.addScore(p, extra);
+    if (p && g && (e.w || T.w || 0) >= 16) { g.stop = Math.max(g.stop || 0, 2); gxShake(g, 6, 1); }
+    return r;
+  };
+}
+
+// a bomb shakes the screen
+{
+  const _bomb = Stage.prototype.gxBomb;
+  Stage.prototype.gxBomb = function (t, p) { const r = _bomb.call(this, t, p); gxShake(this.galaxy, 22, 2); return r; };
+}
+
+// the boss: a phase change stops the world for a moment; its death shakes it
+{
+  const _bdmg = Stage.prototype.gxBossDamage;
+  Stage.prototype.gxBossDamage = function (dmg, p, bomb) {
+    const g = this.galaxy, b = g && g.boss, ph = b ? b.ph : 0;
+    const r = _bdmg.call(this, dmg, p, bomb);
+    if (b && b.dead) gxShake(g, 40, 3);
+    else if (b && b.ph > ph) { g.stop = Math.max(g.stop || 0, 4); gxShake(g, 20, 3); }
+    return r;
+  };
+}
+
+// a ship is hit: the combo breaks; a ship lost: a bigger blast and slow motion
+{
+  const _hit = Stage.prototype.hitPlayer;
+  Stage.prototype.hitPlayer = function (t, by) {
+    const g = this.galaxy;
+    if (!g || !t || !t.isPlayer || t.ally || !t.alive) return _hit.call(this, t, by);
+    const shielded = t.shield > 0, r = _hit.call(this, t, by), c = g.combo;
+    if (c && c.n && !shielded) {   // a hit the shield takes costs nothing
+      if (c.n >= 8) { this.popups.push({ x: FW - 34, y: 34, text: 'COMBO LOST', label: true, color: '#F83800', t: 0, delay: 0, life: 60 }); Sound.play('gxComboLost'); }
+      c.n = 0; c.t = 0;
+    }
+    if (!t.alive) {
+      const gp = t.player && gxPlayer(t.player);
+      if (gp) Object.assign(gp, { focus: false, charge: 0, heat: 0, overT: 0 });
+      g.slow = 40; gxShake(g, 26, 3);
+      for (let k = 0; k < 4; k++) this.fx.push({ x: t.x + 8 + rnd(25) - 12, y: t.y + 8 + rnd(25) - 12, frames: BIG_EXPLOSION(), per: 4, tick: -3 - k * 4 });
+      for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; this.fx.push({ x: t.x + 8 + Math.cos(a) * 14, y: t.y + 8 + Math.sin(a) * 14, frames: Sprites.smallExp, per: 3, tick: -6 }); }
+    }
+    return r;
+  };
+}
+
+// ------------------------------------------------------------------ weapon boxes and the hangar: two slots
+{
+  const _collect = Stage.prototype.gxCollect;
+  Stage.prototype.gxCollect = function (t, u) {
+    if (u.k !== 'box' || GX_PICKUPS.box || !GX_WEAPONS[u.w]) return _collect.call(this, t, u);
+    const p = t.player, gp = gxPlayer(p), w = gxSlots(gp), W = GX_WEAPONS[u.w];
+    const up = () => { gp.power = Math.min(GX_POWER_MAX, gp.power + 1); this.gxSayShip(t, W.name + ' ' + gp.power, W.color, 50); };
+    if (w[0] === u.w) up();   // the one in hand: +1 power
+    else if (w[1] === u.w) { w[1] = w[0]; w[0] = u.w; up(); }   // the other one: in hand, +1 power
+    else { if (!w[1]) w[1] = w[0]; w[0] = u.w; this.gxSayShip(t, W.name, W.color, 50); }   // a new one: in hand (the old one to slot 2 if it's free)
+    gp.weapon = w[0];
+    Sound.play('bonus');
+  };
+}
+{
+  const _apply = gxShopApply, _status = gxShopStatus;
+  gxShopApply = function (item, p) {
+    if (item.gxShop !== 'weapon') return _apply(item, p);
+    const gp = gxPlayer(p), w = gxSlots(gp);
+    if (w[0] === item.weapon_) return;
+    w[1] = w[0]; w[0] = item.weapon_; gp.weapon = w[0];
+  };
+  gxShopStatus = function (item, p) {
+    if (item.gxShop === 'weapon' && !p.out) { const w = gxSlots(gxPlayer(p)); if (w[1] === item.weapon_) return { text: 'CARRIED', max: true }; }
+    return _status(item, p);
+  };
+  for (const it of GX_SHOP) if (it && it.gxShop === 'weapon') it.desc = 'IN HAND, THE OLD ONE KEPT';
+}
+
+// ------------------------------------------------------------------ drawing
+{
+  const _render = Stage.prototype.renderGalaxy, noHud = () => {};
+  Stage.prototype.renderGalaxy = function (ctx) {
+    const g = this.galaxy;
+    let dx = 0, dy = 0;
+    if (g && g.shake > 0) { const i = Math.min(g.shakeI || 1, Math.ceil(g.shake / 4)); dx = Math.round((Math.random() * 2 - 1) * i); dy = Math.round((Math.random() * 2 - 1) * i); }
+    if (dx || dy) { ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, SCREEN_W, SCREEN_H); }
+    // the field shakes, the side panel doesn't
+    this.renderGalaxyHud = noHud;
+    ctx.save(); ctx.translate(dx, dy);
+    try {
+      _render.call(this, ctx);
+      if (g) { ctx.save(); ctx.translate(FX, FY); ctx.beginPath(); ctx.rect(0, 0, VIEW_W, VIEW_H); ctx.clip(); this.gxDrawFeel(ctx); ctx.restore(); }
+    } finally { delete this.renderGalaxyHud; ctx.restore(); }
+    this.renderGalaxyHud(ctx);
+  };
+}
+
+Stage.prototype.gxDrawFeel = function (ctx) {
+  const g = this.galaxy, f = this.frame;
+  // the charge blasts: a fat bolt in the weapon's colour, a white-hot core, a fading tail
+  for (const s of g.blasts || []) {
+    const x = Math.round(s.x), y = Math.round(s.y);
+    ctx.globalAlpha = 0.35; ctx.fillStyle = s.c; ctx.fillRect(x - 7, y - 6, 14, 26); ctx.globalAlpha = 1;
+    ctx.fillStyle = s.c; ctx.fillRect(x - 5, y - 8, 10, 18); ctx.fillRect(x - 3, y - 10, 6, 2);
+    ctx.fillStyle = (f >> 1) & 1 ? '#F8F8F8' : '#F8F8B8'; ctx.fillRect(x - 2, y - 7, 4, 14);
+    ctx.fillStyle = s.c; for (let k = 0; k < 4; k++) ctx.fillRect(x - 1 + ((f + k) % 3) - 1, y + 12 + k * 4, 2, 2);
+  }
+  for (const s of g.sparks || []) {
+    const r = 9 - s.t;
+    ctx.fillStyle = '#F8F8F8'; ctx.fillRect(s.x, s.y - 1 - (r >> 1), 1, 3 + (r >> 1) * 2 - 2); ctx.fillRect(s.x - 1 - (r >> 1), s.y, 3 + (r >> 1) * 2 - 2, 1);
+    ctx.fillStyle = '#58F8F8'; ctx.fillRect(s.x, s.y, 1, 1);
+  }
+  // per ship: the charge's glow, the focus ring and hitbox, steam when overheated
+  for (const t of this.tanks) {
+    if (!t.alive || !t.isPlayer || !t.player || !t.player.gx) continue;
+    const gp = t.player.gx, cx = t.x + 8, cy = t.y + 9, W = GX_WEAPONS[gp.weapon] || GX_WEAPONS.blaster;
+    if (gp.charge > 0) {
+      const full = gp.charge >= 100, r = full ? 12 + Math.sin(f / 3) * 1.5 : 4 + gp.charge * 0.08;
+      ctx.globalAlpha = full ? 0.22 : 0.05 + gp.charge * 0.0012; ctx.fillStyle = W.color; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = full ? 0.9 : 0.5; ctx.strokeStyle = full && (f >> 2) & 1 ? '#F8F8F8' : W.color; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 1;
+      if (full) { ctx.fillStyle = '#F8F8F8'; for (let k = 0; k < 4; k++) { const a = f / 8 + k * Math.PI / 2; ctx.fillRect(Math.round(cx + Math.cos(a) * (r + 2)), Math.round(cy + Math.sin(a) * (r + 2)), 1, 1); } }
+    }
+    if (gp.focus) {
+      ctx.globalAlpha = 0.3; ctx.strokeStyle = '#A8E8F8'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, 13, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 0.55; ctx.fillStyle = '#A8E8F8'; for (let k = 0; k < 4; k++) { const a = -f / 20 + k * Math.PI / 2; ctx.fillRect(Math.round(cx + Math.cos(a) * 13) - 1, Math.round(cy + Math.sin(a) * 13) - 1, 2, 2); }
+      ctx.globalAlpha = 1;
+      // the hitbox: a red ring with a white dot (the ship's only part that counts)
+      ctx.fillStyle = '#F83800'; ctx.fillRect(cx - 2, cy - 4, 4, 1); ctx.fillRect(cx - 2, cy + 3, 4, 1); ctx.fillRect(cx - 4, cy - 2, 1, 4); ctx.fillRect(cx + 3, cy - 2, 1, 4);
+      ctx.fillRect(cx - 3, cy - 3, 1, 1); ctx.fillRect(cx + 2, cy - 3, 1, 1); ctx.fillRect(cx - 3, cy + 2, 1, 1); ctx.fillRect(cx + 2, cy + 2, 1, 1);
+      ctx.fillStyle = '#100808'; ctx.fillRect(cx - 2, cy - 2, 4, 4);
+      ctx.fillStyle = '#F8F8F8'; ctx.fillRect(cx - 1, cy - 1, 2, 2);
+    }
+    // overheated: steam puffs off both sides
+    if (gp.overT > 0) for (let k = 0; k < 6; k++) {
+      const a = (f * 0.7 + k * 3.4) % 20, side = k & 1 ? 1 : -1, z = a < 7 ? 3 : 2;
+      ctx.fillStyle = a < 12 ? '#F8F8F8' : '#A0A0A0'; ctx.fillRect(Math.round(cx + side * (7 + a * 0.4)) - 1, Math.round(cy + 2 - a), z, z);
+    }
+  }
+  // the team combo, top right: the multiplier, the count, the time left
+  const c = g.combo;
+  if (c && c.n >= 2) {
+    const m = gxMult(g), y = g.boss && g.boss.y > -g.boss.h / 2 ? 18 : 3, x1 = VIEW_W - 3, label = c.n + ' HITS', w = Math.max(label.length * 8, 34);
+    // no box behind it (it would hide what flies up there): a shadow under the letters, see-through
+    const mt = 'X' + m, sh = (t, x, yy, col) => { Font.draw(ctx, t, x + 1, yy + 1, '#000000'); Font.draw(ctx, t, x, yy, col); };
+    ctx.globalAlpha = 0.85;
+    sh(mt, x1 - mt.length * 8, y + 1, m >= GXF.comboMax ? ((f >> 2) & 1 ? '#F8F8F8' : COL.gold) : m > 1 ? COL.gold : '#BCBCBC');
+    sh(label, x1 - label.length * 8, y + 10, '#F8F8F8');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#3C3C3C'; ctx.fillRect(x1 - w, y + 19, w, 2);
+    ctx.fillStyle = c.t < 40 && (f >> 2) & 1 ? '#F8F8F8' : '#58D854'; ctx.fillRect(x1 - w, y + 19, Math.round(w * Math.max(0, c.t) / (c.max || GXF.comboT)), 2);
+  }
+  // the first sector's hint: what B does
+  if (g.hint > 0 && !g.perk) {   // (not over a perk offer)
+    const lines = ['TAP B: SWAP WEAPON', 'HOLD B: FOCUS', 'B B: BOMB'], y = Math.round(VIEW_H / 2) - 2;
+    ctx.globalAlpha = Math.min(1, g.hint / 30);
+    ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(VIEW_W / 2 - 80, y - 4, 160, lines.length * 10 + 6);
+    lines.forEach((s, i) => Font.drawCenter(ctx, s, VIEW_W / 2, y + i * 10, i === 0 ? '#58F8F8' : i === 1 ? '#F8F8F8' : '#F8B800'));
+    ctx.globalAlpha = 1;
+  }
+};
+
+// the side panel: the 2nd weapon small beside the first, a heat bar under them, the bomb meter under the bombs
+{
+  const _hud = Stage.prototype.renderGalaxyHud;
+  // tiny digits (3x5) for the power beside the weapons
+  const DIG = ['111101101101111', '010110010010111', '111001111100111', '111001111001111', '101101111001001', '111100111001111', '111100111101111', '111001010010010', '111101111101111', '111101111001111'];
+  const digit = (ctx, n, x, y, c) => { ctx.fillStyle = c; const d = DIG[n] || DIG[0]; for (let i = 0; i < 15; i++) if (d[i] === '1') ctx.fillRect(x + i % 3, y + Math.floor(i / 3), 1, 1); };
+  Stage.prototype.renderGalaxyHud = function (ctx) {
+    const r = _hud.call(this, ctx), H = HUD_X, f = this.frame;
+    this.players.forEach((p, i) => {
+      const y = 20 + i * 34, gp = gxPlayer(p), w = gxSlots(gp);
+      // over the core's big power number: the power small, the other weapon as a little crate
+      ctx.fillStyle = COL.bg; ctx.fillRect(H + 11, y + 11, SCREEN_W - H - 11, 11);
+      ctx.fillStyle = '#100808'; ctx.fillRect(H + 11, y + 11, 5, 10);
+      digit(ctx, Math.min(9, gp.power), H + 12, y + 13, gp.power >= GX_POWER_MAX ? '#F8D800' : '#F8F8F8');
+      const x2 = H + 17, y2 = y + 13;
+      if (w[1] && GX_WEAPONS[w[1]]) {
+        const W2 = GX_WEAPONS[w[1]];
+        ctx.fillStyle = '#100808'; ctx.fillRect(x2, y2, 7, 7); ctx.fillStyle = '#2038EC'; ctx.fillRect(x2 + 1, y2 + 1, 5, 5);
+        ctx.fillStyle = W2.color; ctx.fillRect(x2 + 3, y2 + 1, 1, 5); ctx.fillRect(x2 + 1, y2 + 3, 5, 1);
+        ctx.fillRect(x2 + 2, y2 - 2, 3, 2);   // its colour on top, so it reads even this small
+      } else { ctx.fillStyle = '#4C4C4C'; for (let k = 0; k < 7; k += 2) { ctx.fillRect(x2 + k, y2, 1, 1); ctx.fillRect(x2 + k, y2 + 6, 1, 1); ctx.fillRect(x2, y2 + k, 1, 1); ctx.fillRect(x2 + 6, y2 + k, 1, 1); } }
+      // heat: green, yellow, red; flashing when hot
+      const heat = Math.max(0, Math.min(100, gp.heat || 0)), hw = 23, hot = gp.overT > 0 || heat >= 80;
+      ctx.fillStyle = '#3C3C3C'; ctx.fillRect(H + 1, y + 22, hw, 2);
+      ctx.fillStyle = gp.overT > 0 ? ((f >> 2) & 1 ? '#F83800' : '#F8F8F8') : heat >= 80 ? ((f >> 3) & 1 ? '#F83800' : '#F87830') : heat >= 50 ? '#F8D800' : '#58D854';
+      if (!hot || (f >> 2) & 1 || gp.overT > 0) ctx.fillRect(H + 1, y + 22, Math.round(hw * heat / 100), 2);
+      // the bomb meter: grazes fill it
+      const bm = Math.max(0, Math.min(100, gp.bombMeter || 0));
+      ctx.fillStyle = '#3C3C3C'; ctx.fillRect(H, y + 30, 24, 1);
+      ctx.fillStyle = bm >= 100 ? COL.gold : '#F8B800'; ctx.fillRect(H, y + 30, Math.round(24 * bm / 100), 1);
+    });
+    return r;
+  };
+}
+
+// ------------------------------------------------------------------ online: the combo, shake, blasts, sparks, hint
+{
+  const _view = Stage.prototype.galaxyView, _apply = Stage.prototype.applyGalaxyView;
+  Stage.prototype.galaxyView = function () {
+    const v = _view.call(this), g = this.galaxy, c = g.combo || { n: 0, t: 0, max: GXF.comboT };
+    v.fe = { c: [c.n, c.t, c.max], sh: [g.shake || 0, g.shakeI || 0], hi: g.hint || 0,
+      bl: (g.blasts || []).map(s => [Math.round(s.x), Math.round(s.y), s.c]), sp: (g.sparks || []).map(s => [s.x, s.y, s.t]) };
+    return v;
+  };
+  Stage.prototype.applyGalaxyView = function (v) {
+    const r = _apply.call(this, v), g = this.galaxy, fe = v.fe;
+    if (!fe) return r;
+    g.combo = { n: fe.c[0], t: fe.c[1], max: fe.c[2] };
+    g.shake = fe.sh[0]; g.shakeI = fe.sh[1]; g.hint = fe.hi;
+    g.blasts = fe.bl.map(a => ({ x: a[0], y: a[1], c: a[2] }));
+    g.sparks = fe.sp.map(a => ({ x: a[0], y: a[1], t: a[2] }));
+    return r;
+  };
+}
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  GALAXY, progression: the softer death penalty, perks between waves, fair loot, reviving a teammate from their wreck.
+//    death   losing a ship still costs 2 power levels, but they spill out of the wreck as power cells that float up
+//            and drift slowly down (about 10 s on screen); only you can grab them for the first 6 s, then anyone
+//    loot    in co-op, what an enemy drops is the killer's for 3 s (a little mark in their colour under it): nobody
+//            else can take it or pull it in with a magnet; the boss's loot is everyone's
+//    perks   after waves 2 and 4 of every sector three perk capsules drift in; fly into one to take it (one each per
+//            offer); the next wave waits until everyone has picked, or 10 s. FIREPOWER, RAPID, ENGINE, MAGNET (past
+//            the hangar's caps), DRONE, ARMOR, BOMBS, POWER, CRIT (10% of your hits do double), LUCK (+50% drops),
+//            SHIELD START (a shield at every wave start), LIFE (rarer). Kept in p.gx.perks {key: count}
+//    rescue  in co-op, losing your last ship leaves an escape pod blinking SOS in the lower half for 25 s; a
+//            teammate who holds their ship over it for 1.5 s brings you back right there (one ship, a 2 s shield)
+// =====================================================================
+
+const GX_PERK_EVERY = [2, 4];              // waves after which perks are offered
+const GX_PERK_WAIT = 600;                  // 10 s to pick, then the capsules fly off
+const GX_LOOT_OWN = 180, GX_CELL_OWN = 360; // 3 s: the killer's loot; 6 s: your own power cells back
+const GX_SOS_LIFE = 1500, GX_SOS_HOLD = 90; // the pod lasts 25 s; 1.5 s over it to revive
+const GX_NOBODY = { alive: true };         // a pickup nobody may take just now (its owner's ship is down)
+
+// a player's colour (their tank's main shade)
+const gxCol = i => (PALS[Config.playerPal(i)] || PALS.p1)[2];
+const gxPerkN = (p, k) => ((gxPlayer(p).perks || {})[k] || 0);
+
+// ------------------------------------------------------------------ a tiny 3x5 font (names under the capsules)
+// a glyph is five rows of three bits, one octal digit a row
+const GX_TINY = {
+  A: '25755', B: '65656', C: '34443', D: '65556', E: '74647', F: '74644', G: '34553', H: '55755', I: '72227', J: '11152',
+  K: '55655', L: '44447', M: '57755', N: '65555', O: '25552', P: '65644', Q: '25563', R: '65655', S: '34216', T: '72222',
+  U: '55557', V: '55552', W: '55775', X: '55255', Y: '55222', Z: '71247', 0: '75557', 1: '26227', 2: '61247', 3: '61216',
+  4: '55711', 5: '74616', 6: '34757', 7: '71222', 8: '75757', 9: '75716', '+': '02720', '%': '51245', '!': '22202', '-': '00700',
+};
+function gxTiny(ctx, text, cx, y, color, shadow = '#100808') {
+  text = String(text).toUpperCase();
+  const x0 = Math.round(cx - (text.length * 4 - 1) / 2);
+  for (const [col, d] of shadow ? [[shadow, 1], [color, 0]] : [[color, 0]]) {
+    ctx.fillStyle = col;
+    for (let i = 0; i < text.length; i++) {
+      const gl = GX_TINY[text[i]];
+      if (gl) for (let r = 0; r < 5; r++) for (let b = 0; b < 3; b++) if (+gl[r] & (4 >> b)) ctx.fillRect(x0 + i * 4 + b + d, y + r + d, 1, 1);
+    }
+  }
+}
+
+// ------------------------------------------------------------------ the perks
+// can(p): is it any use to p; take: what it does
+const gxBump = (k, top) => ({ can: p => gxUp(p, k) < top, take(p, t, gp) { gp.up[k] = gxUp(p, k) + 1; } });
+const GX_PERKS = {
+  fire: Object.assign({ name: 'FIREPOWER', icon: 'F', col: '#F87830' }, gxBump('fire', 7)),
+  rapid: Object.assign({ name: 'RAPID', icon: 'R', col: '#F8D800' }, gxBump('rapid', 7)),
+  engine: Object.assign({ name: 'ENGINE', icon: 'E', col: '#3CBCFC' }, gxBump('engine', 5)),
+  magnet: Object.assign({ name: 'MAGNET', icon: 'M', col: '#C060E0' }, gxBump('magnet', 5)),
+  drone: Object.assign({ name: 'DRONE', icon: 'D', col: '#A8A8C8' }, gxBump('drones', 2)),
+  armor: { name: 'ARMOR', icon: 'A', col: '#58B8B0', can: p => gxUp(p, 'armor') < 3, take(p, t, gp) { gp.up.armor = gxUp(p, 'armor') + 1; if (t) t.plates = (t.plates || 0) + 1; } },
+  bombs: { name: 'BOMBS', icon: 'B', col: '#F8A8C8', can: p => gxPlayer(p).bombs < 5, take(p, t, gp) { gp.bombs = Math.min(5, gp.bombs + 2); } },
+  power: { name: 'POWER', icon: 'P', col: '#58D854', can: p => gxPlayer(p).power < GX_POWER_MAX, take(p, t, gp) { gp.power = Math.min(GX_POWER_MAX, gp.power + 2); } },
+  crit: { name: 'CRIT', icon: '!', col: '#58F8F8', can: p => gxPerkN(p, 'crit') < 3 },
+  luck: { name: 'LUCK', icon: '*', col: '#B8F818', can: p => gxPerkN(p, 'luck') < 2 },
+  shield: { name: 'SHIELD START', icon: 'S', col: '#6888FC', can: p => gxPerkN(p, 'shield') < 3 },
+  life: { name: 'LIFE', icon: '+', col: '#F8B800', w: 0.3, ok: () => !Config.infiniteLives(), can: () => true, take(p) { p.lives++; } },
+};
+// a lighter / darker shade of a colour (f > 0 towards white, < 0 towards black)
+function gxShade(col, f) {
+  const n = parseInt(col.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.round(f > 0 ? v + (255 - v) * f : v * (1 + f)));
+  return '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+Object.assign(Stage.prototype, {
+  // three different perks drift in (at least one of you must have a use for each)
+  gxPerkOffer(g) {
+    const live = this.players.filter(p => !p.out);
+    const pool = Object.keys(GX_PERKS).filter(k => { const P = GX_PERKS[k]; return (!P.ok || P.ok()) && live.some(p => P.can(p)); }), pick = [];
+    while (pick.length < 3 && pool.length) {
+      let r = Math.random() * pool.reduce((a, k) => a + (GX_PERKS[k].w || 1), 0), i = 0;
+      while (i < pool.length - 1 && (r -= GX_PERKS[pool[i]].w || 1) > 0) i++;
+      pick.push(pool.splice(i, 1)[0]);
+    }
+    g.perkWave = g.wave;
+    if (!pick.length) return;   // nothing left that anyone could use
+    g.perk = { t: 0, leave: 0, took: {}, caps: pick.map((k, i) => ({ k, x: Math.round(FW * (i + 1) / 4), y: -14 - 12 * i, by: [] })) };
+    Sound.play('gxPerkIn');
+  },
+
+  gxPerkUpdate(g) {
+    if (g.phase === 'between' && GX_PERK_EVERY.includes(g.wave) && g.perkWave !== g.wave && this.players.some(p => !p.out)) this.gxPerkOffer(g);
+    const o = g.perk;
+    if (!o) return;
+    o.t++;
+    const ty = Math.round(FH * 0.45);
+    for (const c of o.caps) {
+      if (c.flash > 0) c.flash--;
+      if (o.leave) { c.vy = (c.vy || -0.5) - 0.1; c.y += c.vy; continue; }   // off the top, faster and faster
+      if (c.y < ty) c.y = Math.min(ty, c.y + Math.max(0.6, (ty - c.y) * 0.06));
+    }
+    if (o.leave) { if (o.caps.every(c => c.y < -24)) g.perk = null; return; }
+    // fly into one to take it: one each
+    for (const t of this.gxPlayers()) {
+      if (o.took[t.player.i] !== undefined) continue;
+      const c = o.caps.find(c => Math.abs(t.x + 8 - c.x) < 15 && Math.abs(t.y + 8 - c.y) < 11);
+      if (c) this.gxPerkTake(t, c, o);
+    }
+    const live = this.players.filter(p => !p.out);
+    if (!live.length || live.every(p => o.took[p.i] !== undefined) || o.t > GX_PERK_WAIT || g.phase !== 'between') o.leave = 1;
+  },
+
+  gxPerkTake(t, c, o) {
+    const p = t.player, gp = gxPlayer(p), P = GX_PERKS[c.k];
+    o.took[p.i] = c.k; c.by.push(p.i);
+    const say = (text, color) => this.popups.push({ x: t.x + 8, y: t.y - 4, text, label: true, color, t: 0, delay: 0, life: 70 });
+    if (P.can(p)) {
+      if (P.take) P.take.call(this, p, t, gp);
+      gp.perks = gp.perks || {};
+      gp.perks[c.k] = (gp.perks[c.k] || 0) + 1;
+      say(P.name + '!', P.col);
+    } else { this.addScore(p, 1000); say('MAX! 1000', COL.gold); }
+    c.flash = 12;
+    Sound.play('gxPerk');
+  },
+
+  // whose eyes are on this screen (a capsule greys out once they've all picked)
+  gxViewers() {
+    if (typeof Net !== 'undefined' && Net.role === 'client') return [Net.slot];
+    if (typeof Net !== 'undefined' && Net.role === 'host' && Net.inGame) return this.players.filter(p => (Net.slots[p.i] || 'local') === 'local').map(p => p.i);
+    return this.players.map(p => p.i);
+  },
+
+  // ------------------------------------------------------------ the escape pod (your last ship lost, in co-op)
+  gxSosUpdate(g) {
+    for (const p of this.players) if (p.gxSosShield && p.tank && p.tank.alive) { p.tank.shield = 120; p.gxSosShield = false; }   // back, shielded
+    if (!g.sos || !g.sos.length) return;
+    const pl = this.gxPlayers(), lo = Math.round(FH * 0.5) + 6, hi = FH - 10;
+    for (const w of g.sos) {
+      const p = this.players.find(q => q.i === w.i);
+      if (!p || !p.out) { w.done = true; continue; }   // brought back some other way
+      w.t++;
+      const by = pl.find(t => t.player !== p && Math.abs(t.x + 8 - w.x) < 11 && Math.abs(t.y + 8 - w.y) < 11);
+      if (by) {
+        w.prog++; w.by = by.player.i;
+        if (w.prog % 18 === 1) Sound.play('gxSosTick');
+        if (w.prog >= GX_SOS_HOLD) { this.gxSosRevive(p, w, by.player); w.done = true; }
+        continue;   // it holds still while you're on it
+      }
+      w.prog = Math.max(0, w.prog - 2);
+      // drifting about the lower half, bouncing off the edges
+      w.x += w.vx; w.y += w.vy + Math.sin(w.t / 30) * 0.12;
+      if (w.x < 10 || w.x > FW - 10) { w.vx = -w.vx; w.x = Math.max(10, Math.min(FW - 10, w.x)); }
+      if (w.y < lo || w.y > hi) { w.vy = -w.vy; w.y = Math.max(lo, Math.min(hi, w.y)); }
+      if (w.t >= GX_SOS_LIFE) { w.done = true; this.addFx(w.x, w.y, Sprites.smallExp, 3); }
+    }
+    g.sos = g.sos.filter(w => !w.done);
+  },
+
+  gxSosRevive(p, w, by) {
+    p.out = false; p.lives = 0; this.reviveWait = 0;
+    const x = Math.max(0, Math.min(FW - 16, Math.round(w.x - 8))), y = Math.max(Math.round(FH * 0.35), Math.min(FH - 16, Math.round(w.y - 8)));
+    this.spawns.push({ x, y, t: 16, player: p });
+    p.gxSosShield = true;
+    if (by) this.addScore(by, 1000);
+    this.popups.push({ x: w.x, y: w.y - 10, text: 'REVIVED!', label: true, color: COL.gold, t: 0, delay: 0, life: 90 });
+    Sound.play('life');
+  },
+
+  // a crit's little star
+  gxCritFx(x, y) { const g = this.galaxy; (g.crits = g.crits || []).push({ x: Math.round(x), y: Math.round(y), t: 10 }); if (g.crits.length > 12) g.crits.shift(); },
+});
+
+GX_FRAME.push(function (g) {
+  this.gxPerkUpdate(g);
+  this.gxSosUpdate(g);
+  if (g.crits) { for (const c of g.crits) c.t--; g.crits = g.crits.filter(c => c.t > 0); }
+});
+
+// ------------------------------------------------------------------ wrappers
+// losing a ship: the 2 power levels spill out as cells you can win back
+const _gxpOnDeath = Stage.prototype.gxOnDeath;
+Stage.prototype.gxOnDeath = function (p) {
+  const gp = gxPlayer(p), was = gp.power, t = p.tank || this.tanks.find(o => o.player === p && o.isPlayer);
+  const r = _gxpOnDeath.call(this, p);
+  const g = this.galaxy, lost = was - gp.power;
+  if (g && t && lost > 0) {
+    // they float up, then drift down slowly: about 10 s before they're gone off the bottom
+    const ty = Math.max(Math.round(FH * 0.35) + 6, Math.min(t.y + 8, FH + 10 - 0.25 * 600));
+    for (let k = 0; k < lost; k++) {
+      const n = g.pickups.length;
+      this.gxDrop(Math.max(8, Math.min(FW - 8, t.x + 8 + (lost > 1 ? (k ? 7 : -7) : 0))), t.y + 8, 'cell');
+      for (const u of g.pickups.slice(n)) Object.assign(u, { owner: p.i, ownT: GX_CELL_OWN, ty: ty - 4 * k, vy: -1 });
+    }
+  }
+  return r;
+};
+
+// an enemy shot down by p: its loot is p's for a moment; LUCK: another roll at the drop table
+const _gxpKill = Stage.prototype.gxKill;
+Stage.prototype.gxKill = function (e, p) {
+  const prev = this.gxLootOwner;
+  this.gxLootOwner = p && p.i !== undefined && this.players.length > 1 ? p : null;
+  try {
+    const r = _gxpKill.call(this, e, p), n = p && p.i !== undefined ? gxPerkN(p, 'luck') : 0, T = GX_TYPES[e.type];
+    if (n && T && this.galaxy) {
+      const big = T.pts >= 200, q = Math.random() / (0.5 * n);
+      if (q < (big ? 0.5 : 0.22)) this.gxDrop(e.x, e.y, big && Math.random() < 0.6 ? 'gem' : 'coin');
+      else if (q < (big ? 0.58 : 0.25)) this.gxDrop(e.x, e.y, 'cell');
+      else if (q < (big ? 0.62 : 0.262)) this.gxDrop(e.x, e.y, 'box');
+      else if (q < (big ? 0.64 : 0.268)) this.gxDrop(e.x, e.y, Math.random() < 0.5 ? 'shield' : 'bomb');
+    }
+    return r;
+  } finally { this.gxLootOwner = prev; }
+};
+
+const _gxpDrop = Stage.prototype.gxDrop;
+Stage.prototype.gxDrop = function (x, y, k) {
+  const g = this.galaxy, n = g.pickups.length, r = _gxpDrop.call(this, x, y, k), p = this.gxLootOwner;
+  if (p) for (const u of g.pickups.slice(n)) if (u.owner === undefined) { u.owner = p.i; u.ownT = GX_LOOT_OWN; }
+  return r;
+};
+
+// owned pickups: only the owner's ship may take or pull them (through the core's "on its way to" check)
+const _gxpPickups = Stage.prototype.gxUpdatePickups;
+Stage.prototype.gxUpdatePickups = function () {
+  const g = this.galaxy, held = [];
+  for (const u of g.pickups) {
+    if (u.ty !== undefined) { if (u.y > u.ty + 1) u.vy = -Math.max(0.5, (u.y - u.ty) * 0.06); else { u.vy = 0.25; delete u.ty; } }   // a cell from a wreck floats up, then drifts
+    if (!(u.ownT > 0)) continue;
+    if (g.phase === 'clear') { u.ownT = 0; continue; }   // the sector's over: all the loot flies to you
+    const t = this.gxPlayers().find(o => o.player.i === u.owner);
+    held.push([u, u.to]); u.to = t || GX_NOBODY;
+  }
+  const r = _gxpPickups.call(this);
+  for (const [u, to] of held) { u.to = to; u.ownT--; }
+  return r;
+};
+
+// CRIT: some of your hits deal double
+const _gxpHit = Stage.prototype.gxHit;
+Stage.prototype.gxHit = function (e, dmg, p, quiet) {
+  const n = p && !e.dead ? gxPerkN(p, 'crit') : 0;
+  if (n && Math.random() < 0.1 * n) { dmg *= 2; if (!quiet) this.gxCritFx(e.x, e.y); }
+  return _gxpHit.call(this, e, dmg, p, quiet);
+};
+const _gxpBossDamage = Stage.prototype.gxBossDamage;
+Stage.prototype.gxBossDamage = function (dmg, p, bomb) {
+  const n = p && !bomb ? gxPerkN(p, 'crit') : 0;
+  if (n && Math.random() < 0.1 * n) dmg *= 2;
+  return _gxpBossDamage.call(this, dmg, p, bomb);
+};
+
+// the next wave waits while perks are on offer; SHIELD START at every wave (and the boss)
+const _gxpNextWave = Stage.prototype.gxNextWave;
+Stage.prototype.gxNextWave = function () {
+  const g = this.galaxy;
+  if (g && g.phase === 'between' && g.perk && !g.perk.leave) return;
+  const r = _gxpNextWave.apply(this, arguments);
+  for (const t of this.gxPlayers()) { const n = gxPerkN(t.player, 'shield'); if (n) t.shield = Math.max(t.shield || 0, 180 * n); }
+  return r;
+};
+
+// your last ship lost in co-op: an escape pod
+const _gxpHitPlayer = Stage.prototype.hitPlayer;
+Stage.prototype.hitPlayer = function (t, by) {
+  const p = t && !t.ally ? t.player : null, was = p ? p.out : true, x = t && t.x, y = t && t.y;
+  const r = _gxpHitPlayer.call(this, t, by);
+  const g = this.galaxy;
+  if (g && p && !was && p.out && this.players.length > 1 && this.players.some(q => !q.out)) {
+    g.sos = g.sos || [];
+    g.sos.push({ i: p.i, x: Math.max(10, Math.min(FW - 10, x + 8)), y: Math.max(Math.round(FH * 0.5) + 6, Math.min(FH - 10, y + 8)), t: 0, prog: 0,
+      vx: (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.15), vy: Math.random() < 0.5 ? -0.2 : 0.2 });
+    Sound.play('gxSos');
+  }
+  return r;
+};
+
+// ------------------------------------------------------------------ drawing
+// pods, capsules and owner marks go under everything that moves (the sector's backdrop hook draws them, so the
+// ships, pickups and enemy shots stay on top); crit stars and the PICK A PERK! banner go over the field
+const _gxpRender = Stage.prototype.renderGalaxy;
+Stage.prototype.renderGalaxy = function (ctx) {
+  const g = this.galaxy, sec = g && GX_SECTORS[g.sec];
+  if (!sec) return _gxpRender.call(this, ctx);
+  const had = Object.prototype.hasOwnProperty.call(sec, 'bg'), bg = sec.bg, self = this;
+  sec.bg = function (c, f, gg) { if (bg) bg.call(this, c, f, gg); self.gxRenderUnder(c, g); };
+  let r;
+  try { r = _gxpRender.call(this, ctx); } finally { if (had) sec.bg = bg; else delete sec.bg; }
+  ctx.save();
+  ctx.translate(FX, FY);
+  ctx.beginPath(); ctx.rect(0, 0, VIEW_W, VIEW_H); ctx.clip();
+  this.gxRenderOver(ctx, g);
+  ctx.restore();
+  return r;
+};
+
+Object.assign(Stage.prototype, {
+  gxRenderUnder(ctx, g) {
+    const f = this.frame;
+    // whose loot it is: a little mark in their colour under it (co-op only)
+    if (this.players.length > 1) for (const u of g.pickups) {
+      if (!(u.ownT > 0) || u.owner === undefined || (u.ownT < 50 && (u.ownT >> 2) & 1)) continue;
+      const x = Math.round(u.x), y = Math.round(u.y) + 8;
+      ctx.fillStyle = '#100808'; ctx.fillRect(x - 3, y - 1, 6, 3);
+      ctx.fillStyle = gxCol(u.owner); ctx.fillRect(x - 2, y, 4, 1);
+    }
+    for (const w of g.sos || []) this.gxDrawPod(ctx, w, f);
+    if (g.perk) this.gxDrawPerks(ctx, g.perk, f);
+  },
+
+  gxRenderOver(ctx, g) {
+    const f = this.frame, o = g.perk;
+    // crits: a white star
+    for (const c of g.crits || []) {
+      const s = c.t > 5 ? 3 : 2;
+      ctx.fillStyle = c.t > 5 ? '#F8F8F8' : '#F8F878'; ctx.fillRect(c.x - s, c.y, s * 2 + 1, 1); ctx.fillRect(c.x, c.y - s, 1, s * 2 + 1);
+    }
+    // a pod being held on to: a ring fills round it (over the ship)
+    for (const w of g.sos || []) {
+      if (!(w.prog > 0)) continue;
+      const x = Math.round(w.x), y = Math.round(w.y + Math.sin(w.t / 12));
+      ctx.strokeStyle = '#100808'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, 13, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = (f >> 2) & 1 ? '#F8D800' : '#F8F8F8'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, 13, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, w.prog / GX_SOS_HOLD)); ctx.stroke();
+    }
+    // the banner above the capsules, and the time left, until all of you here have picked
+    if (o && !o.leave && !this.gxPerkDone(o)) {
+      const y = Math.round(FH * 0.45) - 34, left = Math.max(0, 1 - o.t / GX_PERK_WAIT);
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, y - 3, VIEW_W, 16);
+      Font.drawCenter(ctx, 'PICK A PERK!', VIEW_W / 2, y, (f >> 3) & 1 ? COL.gold : '#F8F8F8');
+      ctx.fillStyle = '#F8D800'; ctx.fillRect(Math.round(VIEW_W / 2 - 40 * left), y + 10, Math.round(80 * left), 1);
+    }
+  },
+
+  // have all the (living) players on this screen picked?
+  gxPerkDone(o) {
+    const view = this.gxViewers().filter(i => { const p = this.players.find(q => q.i === i); return p && !p.out; });
+    return view.length > 0 && view.every(i => o.took[i] !== undefined);
+  },
+
+  // an escape pod: a capsule in its pilot's colour, a beacon and SOS blinking; a ring fills as a teammate holds on
+  gxDrawPod(ctx, w, f) {
+    const x = Math.round(w.x), y = Math.round(w.y + Math.sin(w.t / 12)), col = gxCol(w.i), left = GX_SOS_LIFE - w.t;
+    if (left < 300 && (w.t >> (left < 120 ? 1 : 2)) & 1) return;   // running out: it flickers
+    const R = (dx, dy, ww, hh, c) => { ctx.fillStyle = c; ctx.fillRect(x + dx, y + dy, ww, hh); }, light = gxShade(col, 0.5), dark = gxShade(col, -0.45);
+    // a distress ring going out from it, in the pilot's colour
+    if (!w.prog) { const k = (w.t % 50) / 50; ctx.globalAlpha = 0.7 * (1 - k); ctx.strokeStyle = light; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, 6 + 16 * k, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
+    // the pod: a rounded hull, little fins, a window, a beacon on top
+    R(-12, -2, 24, 5, '#100808'); R(-11, -1, 3, 3, dark); R(8, -1, 3, 3, dark);
+    R(-9, -3, 18, 7, '#100808'); R(-8, -4, 16, 9, '#100808'); R(-6, -5, 12, 11, '#100808');
+    R(-8, -2, 16, 5, col); R(-7, -3, 14, 7, col); R(-5, -4, 10, 9, col);
+    R(-5, -4, 6, 1, light); R(-7, -2, 1, 2, light); R(-4, 4, 9, 1, dark); R(6, -1, 1, 3, dark);
+    R(-3, -2, 6, 4, '#100808'); R(-2, -1, 4, 2, '#3CBCFC'); R(-2, -1, 1, 1, '#F8F8F8');   // its window
+    R(-1, -8, 2, 3, '#100808'); R(-1, -7, 2, 2, '#7C7C7C');
+    if ((f >> 3) & 1) { R(-1, -8, 2, 2, '#F8F8F8'); R(-3, -7, 6, 1, '#58F8F8'); R(-1, -10, 2, 1, '#58F8F8'); }   // the beacon blinks
+    // SOS and the pilot's number
+    if ((f >> 4) & 1) gxTiny(ctx, 'SOS', x, y - 17, '#F8F8F8'); else gxTiny(ctx, ROMAN[w.i] || '', x, y - 17, light);
+    // the time it has left
+    if (!w.prog) { R(-8, 7, 16, 3, '#100808'); R(-7, 8, Math.max(1, Math.round(14 * left / GX_SOS_LIFE)), 1, light); }
+  },
+
+  // the perk capsules: a rounded pill in the perk's colour, its letter, a gold sparkle; the name under it
+  gxDrawPerks(ctx, o, f) {
+    const view = this.gxViewers(), done = this.gxPerkDone(o);
+    o.caps.forEach((c, n) => {
+      const P = GX_PERKS[c.k] || GX_PERKS.power, x = Math.round(c.x), y = Math.round(c.y + (o.leave ? 0 : Math.sin((f + n * 20) / 14) * 1.5));
+      const grey = done && !o.leave, base = grey ? '#5C5C5C' : P.col, light = gxShade(base, 0.55), dark = gxShade(base, -0.45);
+      const R = (dx, dy, ww, hh, col) => { ctx.fillStyle = col; ctx.fillRect(x + dx, y + dy, ww, hh); };
+      if (!grey) { ctx.globalAlpha = 0.18 + 0.1 * Math.sin(f / 6 + n); ctx.fillStyle = P.col; ctx.beginPath(); ctx.arc(x, y, 17, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }   // a soft glow
+      // the pill: a medicine capsule, its colour on the left, a paler right half; a shine on top, a shadow below
+      R(-12, -6, 24, 13, '#100808'); R(-13, -5, 26, 11, '#100808'); R(-14, -3, 28, 7, '#100808');
+      R(-11, -5, 22, 11, base); R(-12, -4, 24, 9, base); R(-13, -2, 26, 5, base);
+      R(0, -5, 11, 11, light); R(0, -4, 12, 9, light); R(0, -2, 13, 5, light);
+      R(-10, -5, 8, 1, gxShade(base, 0.75)); R(-12, -3, 1, 3, gxShade(base, 0.75)); R(-10, 5, 20, 1, dark); R(11, -2, 1, 4, gxShade(light, -0.3)); R(-10, -4, 2, 1, '#F8F8F8');
+      // its letter on a dark window (LIFE: a little tank)
+      R(-5, -4, 10, 9, '#100808');
+      if (c.k === 'life' && !grey) ctx.drawImage(Sprites.playerIcon(Config.playerPal(view.length ? view[0] : 0)), x - 4, y - 4);
+      else Font.draw(ctx, P.icon, x - 3, y - 3, grey ? '#9C9C9C' : gxShade(base, 0.3));
+      if (c.flash > 0) { ctx.globalAlpha = c.flash / 16; R(-13, -5, 26, 11, '#F8F8F8'); ctx.globalAlpha = 1; }
+      // who took this one: a pip each, in their colour
+      c.by.forEach((i, k) => { R(-c.by.length * 3 + k * 6, 19, 5, 3, '#100808'); R(-c.by.length * 3 + k * 6 + 1, 20, 3, 1, gxCol(i)); });
+      // a gold sparkle hopping round it
+      if (!grey) {
+        const tw = ((f + n * 8) >> 3) & 3, sx = x + [-14, 13, 13, -14][tw], sy = y + [-7, -7, 7, 7][tw];
+        if ((((f + n * 8) >> 2) & 1) === 0) { ctx.fillStyle = '#F8D800'; ctx.fillRect(sx, sy - 2, 1, 5); ctx.fillRect(sx - 2, sy, 5, 1); ctx.fillStyle = '#F8F8F8'; ctx.fillRect(sx, sy, 1, 1); }
+      }
+      if (!o.leave) gxTiny(ctx, P.name, x, y + 12, grey ? '#7C7C7C' : '#F8F8F8');
+    });
+  },
+});
+
+// ------------------------------------------------------------------ online: the guest sees the capsules, pods and owners
+const _gxpView = Stage.prototype.galaxyView;
+Stage.prototype.galaxyView = function () {
+  const v = _gxpView.call(this), g = this.galaxy, r = n => Math.round(n * 10) / 10;
+  v.pk = g.perk ? { t: g.perk.t, lv: g.perk.leave, tk: g.perk.took, c: g.perk.caps.map(c => [c.k, r(c.x), r(c.y), c.by.slice(), c.flash || 0]) } : null;
+  v.so = (g.sos || []).map(w => [w.i, r(w.x), r(w.y), w.t, w.prog]);
+  v.uo = g.pickups.map(u => (u.ownT > 0 ? [u.owner, u.ownT] : 0));
+  v.cr = g.crits && g.crits.length ? g.crits.map(c => [c.x, c.y, c.t]) : null;
+  return v;
+};
+const _gxpApply = Stage.prototype.applyGalaxyView;
+Stage.prototype.applyGalaxyView = function (v) {
+  const r = _gxpApply.call(this, v), g = this.galaxy;
+  g.perk = v.pk ? { t: v.pk.t, leave: v.pk.lv, took: v.pk.tk || {}, caps: v.pk.c.map(a => ({ k: a[0], x: a[1], y: a[2], by: a[3] || [], flash: a[4] || 0 })) } : null;
+  g.sos = (v.so || []).map(a => ({ i: a[0], x: a[1], y: a[2], t: a[3], prog: a[4] }));
+  (v.uo || []).forEach((a, i) => { if (a && g.pickups[i]) { g.pickups[i].owner = a[0]; g.pickups[i].ownT = a[1]; } });
+  g.crits = (v.cr || []).map(a => ({ x: a[0], y: a[1], t: a[2] }));
+  return r;
+};
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  GALAXY, structure: mini-bosses, challenge stages, the captor and the twin fighter, wave medals.
+//    wave 4  every sector gets one more wave after the 3rd (seven in all): in sectors 3, 6, 9, 12 a CHALLENGE STAGE
+//            (40 harmless bugs fly through in five groups of 8; 100 a hit, 40/40 PERFECT! 10000), elsewhere a
+//            MINI-BOSS: GUNSHIP (sweeps, bursts, fans, wing guns), CARRIER (launches drones from its bays), TURRET
+//            RING (four guns round a core, spraying a spiral), WARDEN (dashes over you, drops a curtain with a gap)
+//    captor  from sector 2 a big two-hit bug sits in the formation's top row; now and then it stops halfway down and
+//            projects a tractor beam: a ship caught in it is taken (lost, as if shot) and carried, red, on top of
+//            the captor. Shoot the captor and the ship comes back to its owner and docks: a TWIN with its own guns,
+//            which takes a hit for you
+//    medals  after a wave: NO HIT (nobody got hit) 1000, SPEED (cleared under par) 500, PERFECT (challenge 40/40)
+// =====================================================================
+
+// ------------------------------------------------------------------ the plan: a 4th wave after the 3rd
+GX_WAVE_NAMES.miniboss = 'MINI-BOSS';
+GX_WAVE_NAMES.challenge = 'CHALLENGE STAGE';
+{
+  const plan0 = gxPlan;
+  gxPlan = function (sec, loop, level) {
+    const plan = plan0(sec, loop, level);
+    if (plan.length >= 6) plan.splice(3, 0, sec % 3 === 2 ? 'challenge' : 'miniboss');
+    return plan;
+  };
+}
+
+// ------------------------------------------------------------------ the new kinds
+Object.assign(GX_TYPES, {
+  mbGunship: { w: 40, h: 22, hp: 70, pts: 3000, from: 99, special: true, mini: 'GUNSHIP' },
+  mbCarrier: { w: 44, h: 28, hp: 90, pts: 3500, from: 99, special: true, mini: 'CARRIER' },
+  mbRing: { w: 22, h: 22, hp: 60, pts: 4000, from: 99, special: true, mini: 'TURRET RING' },
+  mbPod: { w: 12, h: 12, hp: 10, pts: 300, from: 99, special: true },
+  mbWarden: { w: 32, h: 26, hp: 75, pts: 3500, from: 99, special: true, mini: 'WARDEN' },
+  captor: { w: 16, h: 14, hp: 2, pts: 400, from: 99, special: true },
+  chA: { w: 12, h: 10, hp: 1, pts: 100, from: 99, special: true, chal: true },
+  chB: { w: 12, h: 12, hp: 1, pts: 100, from: 99, special: true, chal: true },
+  chC: { w: 14, h: 10, hp: 1, pts: 100, from: 99, special: true, chal: true },
+  chD: { w: 12, h: 10, hp: 1, pts: 100, from: 99, special: true, chal: true },
+  chE: { w: 12, h: 12, hp: 1, pts: 100, from: 99, special: true, chal: true },
+});
+const GX_MINI_KEYS = ['mbGunship', 'mbCarrier', 'mbRing', 'mbWarden'];
+const GX_CH_TYPES = ['chA', 'chB', 'chC', 'chD', 'chE'];
+
+Object.assign(GX_PALS, {
+  mbGunship: [null, '#B8D8F8', '#5888C8', '#283C6C', '#F8F8F8', '#F8D800', '#58F8F8', '#080C18'],
+  mbCarrier: [null, '#D8D0A0', '#9C9460', '#4C482C', '#F8F8F8', '#F8B800', '#58D854', '#100C04'],
+  mbRing: [null, '#F8C8F8', '#B058D8', '#582878', '#F8F8F8', '#58F8F8', '#F8F878', '#100418'],
+  mbPod: [null, '#E0E0F0', '#8C8CA8', '#3C3C54', '#F8F8F8', '#58F8F8', '#B058D8', '#08080C'],
+  mbWarden: [null, '#F8E8A8', '#D0A040', '#6C4C10', '#F8F8F8', '#58F8F8', '#A8F8F8', '#140C00'],
+  captor: [null, '#B8F8B8', '#38B838', '#106010', '#F8F8F8', '#F8D800', '#3C7CF8', '#041004'],
+  captor2: [null, '#E8B8F8', '#A050E0', '#501878', '#F8F8F8', '#F8D800', '#58C8F8', '#100418'],
+  chA: [null, '#F8F878', '#F8D800', '#8C6C00', '#F8F8F8', '#3C5CF8', '#C8F0F8', '#141000'],
+  chB: [null, '#F8C8F8', '#F878F8', '#A0209C', '#F8F8F8', '#F8F878', '#58F8F8', '#180418'],
+  chC: [null, '#B8F8B8', '#58D854', '#1C7C1C', '#F8F8F8', '#3CBCFC', '#A8F8F8', '#041004'],
+  chD: [null, '#A8E8F8', '#3CBCFC', '#1C5C9C', '#F8F8F8', '#F8F8F8', '#F8F878', '#040C18'],
+  chE: [null, '#B8F8F8', '#58C8F8', '#2C6CA0', '#F8F8F8', '#F878F8', '#F8D800', '#041018'],
+});
+
+// recolour everything drawn so far
+const gxPaint = (P, c) => { for (const r of P.g) for (let x = 0; x < r.length; x++) if (r[x]) r[x] = c; };
+const gxChBee = f => {
+  const P = bossPainter(12, 10);
+  P.ellipse(3, 3 + f, 3, 2.2); P.ellipse(9, 3 + f, 3, 2.2); gxPaint(P, 6);   // wings
+  P.ellipse(6, 5.5, 3, 4.2);
+  for (const y of [5, 7]) P.rect(3, y, 9, y, 5);
+  P.px(5, 2, 4); P.px(7, 2, 4); P.line(5, 1, 4, 0, 3); P.line(7, 1, 8, 0, 3);
+  P.outline(); return P.g;
+};
+// a picture from rows of digits (the palette's colours, . for none)
+const gxRows = (P, rows) => rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== '.') P.px(x, y, +ch); }));
+const GX_FLY = [
+  ['....3..3....', '.112.33.211.', '1252.33.2521', '2222.33.2222', '.222.33.222.', '..22.33.22..', '.166.33.661.', '6656.33.6566', '.666.33.666.', '..6..33..6..', '.....33.....'],
+  ['....3..3....', '..12.33.21..', '.152.33.251.', '.222.33.222.', '..22.33.22..', '...2.33.2...', '..16.33.61..', '.656.33.656.', '..66.33.66..', '...6.33.6...', '.....33.....'],
+];
+const gxChFly = f => { const P = bossPainter(12, 12); gxRows(P, GX_FLY[f]); P.px(5, 1, 4); P.px(6, 1, 4); P.outline(); return P.g; };
+const gxChDragon = f => {
+  const P = bossPainter(14, 10);
+  for (const y of f ? [2, 6] : [3, 5]) { P.rect(0, y, 5, y, 6); P.rect(8, y, 13, y, 6); }   // two pairs of long wings
+  P.rect(6, 1, 7, 9, 2); P.rect(6, 1, 7, 2, 1); P.px(6, 1, 4); P.px(7, 1, 5); P.px(6, 9, 3); P.px(7, 9, 3);
+  P.outline(); return P.g;
+};
+
+Object.assign(GX_DRAW, {
+  chA: gxChBee, chD: gxChBee, chB: gxChFly, chE: gxChFly, chC: gxChDragon,
+  // the captor: a big two-winged bug, a crest on its head
+  captor(f) {
+    const P = bossPainter(16, 14);
+    P.ellipse(3.5, 6 + f, 3.5, 4.5); P.ellipse(12.5, 6 + f, 3.5, 4.5); gxPaint(P, 6);
+    for (const x of [2, 13]) P.line(x, 4 + f, x, 8 + f, 1);
+    P.ellipse(8, 7, 4, 6.5);
+    P.rect(6, 1, 9, 2, 5); P.px(7, 0, 5); P.px(8, 0, 5);
+    P.px(6, 6, 4); P.px(9, 6, 4); P.px(6, 7, 7); P.px(9, 7, 7);
+    P.rect(7, 9, 8, 10, 5);
+    P.line(6, 12, 5, 13, 3); P.line(9, 12, 10, 13, 3);
+    P.outline(); return P.g;
+  },
+  // a gunship, nose down at you: swept wings, engine pods at the back, cannons at the wingtips
+  mbGunship(f) {
+    const P = bossPainter(40, 22);
+    for (let y = 4; y < 14; y++) {   // swept wings: a lit leading edge, a dark trailing one
+      const hw = 6 + (y - 4) * 1.4, x0 = Math.round(20 - hw), x1 = Math.round(19 + hw);
+      P.rect(x0, y, x1, y, y < 6 ? 1 : y > 11 ? 3 : 2); P.rect(x0, y, x0 + 1, y, 1); P.rect(x1 - 1, y, x1, y, 3);
+    }
+    for (const x of [13, 26]) P.line(x, 6, x + (x < 20 ? -6 : 6), 12, 3);   // panel lines
+    for (const x of [10, 29]) { P.rect(x - 3, 0, x + 2, 9, 2); P.rect(x - 3, 0, x - 3, 9, 1); P.rect(x + 2, 0, x + 2, 9, 3); P.rect(x - 2, 0, x + 1, 1, f ? 5 : 4); }
+    for (const x of [3, 36]) { P.rect(x - 1, 10, x + 1, 17, 3); P.rect(x, 11, x, 16, 2); P.rect(x - 1, 18, x + 1, 18, 4); }
+    P.ellipse(20, 11, 6, 10.5);
+    P.rect(19, 18, 20, 21, 3); P.px(19, 21, 4);
+    P.disc(20, 9, 2.8, 6); P.px(19, 8, 4); P.px(20, 7, 4);
+    P.line(8, 11, 13, 11, 5); P.line(26, 11, 31, 11, 5);
+    for (const x of [6, 15, 24, 33]) P.px(x, 9, 3);
+    P.rect(17, 14, 22, 15, 3); P.px(19, 14, f ? 6 : 5); P.px(20, 14, f ? 5 : 6);
+    P.outline(); return P.g;
+  },
+  // a carrier: a long hull, a bridge tower, two hangar bays (f: open, lit)
+  mbCarrier(f) {
+    const P = bossPainter(44, 28);
+    for (let y = 3; y < 26; y++) { const hw = 21 - Math.max(0, Math.abs(y - 14) - 8) * 1.6; P.rect(Math.round(22 - hw), y, Math.round(21 + hw), y, y < 5 ? 1 : y > 23 ? 3 : 2); }
+    P.rect(2, 5, 2, 22, 1); P.rect(41, 5, 41, 22, 3);
+    P.rect(17, 0, 26, 7, 2); P.rect(17, 0, 26, 0, 1); P.rect(26, 1, 26, 7, 3); P.rect(18, 2, 25, 3, 6); P.px(19, 2, 4);
+    P.line(21, 0, 21, -2, 3);
+    for (const x0 of [6, 26]) {
+      P.rect(x0, 11, x0 + 11, 22, 3);
+      if (f) { P.rect(x0 + 1, 12, x0 + 10, 21, 7); for (const y of [13, 16, 19]) { P.px(x0 + 1, y, 5); P.px(x0 + 10, y, 5); } P.rect(x0 + 4, 20, x0 + 7, 21, 6); }
+      else { P.rect(x0 + 1, 12, x0 + 10, 21, 2); P.line(x0 + 5, 12, x0 + 5, 21, 3); P.line(x0 + 6, 12, x0 + 6, 21, 1); for (const y of [14, 18]) { P.px(x0 + 2, y, 4); P.px(x0 + 9, y, 4); } }
+    }
+    for (let x = 5; x < 40; x += 4) P.px(x, 8, 5);
+    P.rect(19, 24, 24, 26, 3); P.px(21, 26, 4); P.px(22, 26, 4);
+    P.outline(); return P.g;
+  },
+  // the turret ring's core: armoured plates round a glowing eye
+  mbRing(f) {
+    const P = bossPainter(22, 22);
+    P.ellipse(11, 11, 10.5, 10.5);
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4; P.line(11 + Math.cos(a) * 5, 11 + Math.sin(a) * 5, 11 + Math.cos(a) * 10, 11 + Math.sin(a) * 10, 3); }
+    P.disc(11, 11, 6, 7); P.disc(11, 11, 4.6, f ? 5 : 6); P.disc(11, 11, 2.2, f ? 4 : 5); P.px(9, 9, 4);
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; P.px(11 + Math.cos(a) * 8.5, 11 + Math.sin(a) * 8.5, k % 2 ? 6 : 4); }
+    P.outline(); return P.g;
+  },
+  mbPod(f) {
+    const P = bossPainter(12, 12);
+    P.ellipse(6, 6, 5.5, 5.5); P.disc(6, 6, 3, 3); P.disc(6, 6, 1.8, f ? 5 : 6); P.px(5, 5, 4);
+    P.outline(); return P.g;
+  },
+  // the warden: a horned shield of a ship, a burning visor
+  mbWarden(f) {
+    const P = bossPainter(32, 26);
+    P.line(5, 7, 1, 0, 1); P.line(6, 7, 2, 0, 1); P.line(26, 7, 30, 0, 3); P.line(25, 7, 29, 0, 3);   // horns
+    for (let y = 4; y < 26; y++) {   // a shield, pointed at the bottom, lit from the left
+      const hw = y < 15 ? 12 : 12 - (y - 15) * 1.15;
+      for (let x = Math.round(16 - hw); x <= Math.round(15 + hw); x++) P.px(x, y, y < 6 ? 1 : x < 16 - hw * 0.55 ? 1 : x > 15 + hw * 0.55 ? 3 : 2);
+    }
+    P.ellipse(4.5, 9, 4.5, 5); P.ellipse(27.5, 9, 4.5, 5);   // shoulders
+    P.rect(8, 10, 23, 12, 7); P.rect(9, 11, 22, 11, f ? 5 : 6); P.px(10 + ((f * 7) % 12), 11, 4);   // the visor
+    P.line(16, 4, 16, 9, 1); P.disc(16, 18, 3.2, 5); P.disc(16, 18, 1.5, 4);
+    for (const x of [8, 23]) P.line(x, 14, x + (x < 16 ? 3 : -3), 21, 3);
+    P.outline(); return P.g;
+  },
+});
+GX_DRAW.captor2 = GX_DRAW.captor;
+
+// ------------------------------------------------------------------ a few helpers
+const gxShoot = (g, x, y, ang, spd, k = 'shot') => { if (g.bullets.length < 70) g.bullets.push({ x, y, vx: Math.cos(ang) * spd * g.shotSpd, vy: Math.sin(ang) * spd * g.shotSpd, k }); };
+const gxToward = (e, x, y, t) => (t ? Math.atan2(t.y + 8 - y, t.x + 8 - x) : Math.PI / 2);
+// where the twin flies: to your right, or your left near the edge
+const gxTwinX = t => (t.x + 30 > FW ? t.x - 14 : t.x + 14);
+const gxSlotXY = (st, e) => [e.slot[0] + Math.sin(st.frame / 70) * Math.min(12, (FW - 180) / 2 + 10), e.slot[1] + Math.sin(st.frame / 45) * (e.slot[1] - 20) * 0.08];
+const gxNearest = (pl, x, y) => pl.reduce((a, t) => (!a || Math.hypot(t.x + 8 - x, t.y + 8 - y) < Math.hypot(a.x + 8 - x, a.y + 8 - y) ? t : a), null);
+const gxSay2 = (st, x, y, text, color, life = 60) => st.popups.push({ x, y, text, label: true, color, t: 0, delay: 0, life });
+
+// ------------------------------------------------------------------ mini-bosses
+// each: where it hovers (y0) and how it moves and attacks (update), an act at a time from its list
+const GX_MINI = {
+  // sweeps side to side: aimed bursts, double fans, its wing guns
+  mbGunship: { y0: 30, acts: ['burst', 'fan', 'guns', 'burst', 'fan'],
+    move(e) { e.x = FW / 2 + Math.sin(e.mt / 80) * (FW / 2 - 24); e.y = 30 + Math.sin(e.mt / 37) * 4; },
+    act(e, a, g, near) {
+      const nx = e.x, ny = e.y + 10;
+      if (a.k === 'burst') { if (a.t % 6 === 1) gxShoot(g, nx, ny, gxToward(e, nx, ny, near), 2); if (a.t >= 6 * (5 + Math.min(3, g.loop))) return 50; }
+      else if (a.k === 'fan') { if (a.t === 1 || a.t === 22) { const c = gxToward(e, nx, ny, near) + (a.t > 1 ? 0.09 : 0); for (let i = 0; i < 7; i++) gxShoot(g, nx, ny, c + (i - 3) * 0.18, 1.4); Sound.play('mortar'); } if (a.t >= 22) return 60; }
+      else if (a.k === 'guns') { if (a.t % 9 === 1) for (const dx of [-17, 17]) { gxShoot(g, e.x + dx, e.y + 8, Math.PI / 2, 1.8); gxShoot(g, e.x + dx, e.y + 8, Math.PI / 2 + Math.sign(dx) * 0.25, 1.6); } if (a.t >= 36) return 45; }
+      return 0;
+    } },
+  // slow; opens its bays and lets drones out, flak and rings between
+  mbCarrier: { y0: 32, acts: ['launch', 'flak', 'launch', 'ring'],
+    move(e) { e.x = FW / 2 + Math.sin(e.mt / 150) * (FW / 2 - 30); e.y = 32 + Math.sin(e.mt / 60) * 2; },
+    act(e, a, g, near) {
+      if (a.k === 'launch') {
+        e.bay = a.t < 56 ? 1 : 0;
+        if ((a.t === 20 || a.t === 40) && g.list.length < 18) for (const dx of [-11, 11]) {
+          const d = this.gxSpawn({ type: g.sec >= 2 && dx > 0 ? 'bug' : 'drone', st: 'dive' });
+          d.x = e.x + dx; d.y = e.y + 12; d.sx = d.x; d.sy = d.y; d.t = 0; d.tx = near ? near.x + 8 + rnd(41) - 20 : FW / 2; d.shot = false; d.hp = d.max = d.max * 0.6;
+        }
+        if (a.t === 20) Sound.play('teleport');
+        if (a.t >= 60) return 50;
+      } else if (a.k === 'flak') { if (a.t % 10 === 1) for (const dx of [-18, 18]) gxShoot(g, e.x + dx, e.y + 8, gxToward(e, e.x + dx, e.y + 8, near), 1.6); if (a.t >= 40) return 50; }
+      else if (a.k === 'ring') { if (a.t === 1 || a.t === 26) { for (let i = 0; i < 12; i++) gxShoot(g, e.x, e.y + 4, i * Math.PI / 6 + a.t * 0.13, 1.05); Sound.play('mortar'); } if (a.t >= 26) return 70; }
+      return 0;
+    } },
+  // four guns turn round the core spraying a spiral; with fewer guns it turns faster and aims at you
+  mbRing: { y0: 48, acts: ['spiral', 'aim', 'spiral', 'spiral'],
+    move(e, g) {
+      e.x = FW / 2 + Math.sin(e.mt / 120) * (FW / 2 - 40); e.y = 48 + Math.sin(e.mt / 50) * 3;
+      const pods = g.list.filter(o => o.type === 'mbPod' && o.parent === e.id).length;
+      e.ang = (e.ang || 0) + 0.018 + 0.008 * (4 - pods);
+    },
+    act(e, a, g, near) {
+      const pods = g.list.filter(o => o.type === 'mbPod' && o.parent === e.id);
+      if (a.k === 'spiral') {
+        if (a.t % 11 === 1) { for (const o of pods) { const an = e.ang + o.k * Math.PI / 2; gxShoot(g, o.x + Math.cos(an) * 6, o.y + Math.sin(an) * 6, an, 1.0); } if (pods.length) Sound.play('gxPop'); }
+        if (!pods.length && a.t % 8 === 1) gxShoot(g, e.x, e.y + 8, gxToward(e, e.x, e.y, near) + (a.t % 16 ? 0.2 : -0.2), 1.6);
+        if (a.t >= 77) return 60;
+      } else if (a.k === 'aim') { if (a.t % 7 === 1) for (const sp of [-0.22, 0, 0.22]) gxShoot(g, e.x, e.y + 8, gxToward(e, e.x, e.y, near) + sp, 1.5); if (a.t >= 22) return 50; }
+      return 0;
+    } },
+  // dashes over you, then drops a curtain of shots with a gap in it
+  mbWarden: { y0: 28, acts: ['dash', 'aim', 'dash', 'dash', 'aim'],
+    move(e) { if (!e.dashing) { e.x += Math.sin(e.mt / 45) * 0.5; e.y = 28 + Math.sin(e.mt / 30) * 3; } e.x = Math.max(18, Math.min(FW - 18, e.x)); },
+    act(e, a, g, near) {
+      if (a.k === 'dash') {
+        if (a.t === 1) { e.dx = Math.max(18, Math.min(FW - 18, near ? near.x + 8 : FW / 2)); e.dashing = 1; Sound.play('charge'); }
+        if (a.t < 30) e.x += (e.dx - e.x) * 0.14;
+        if (a.t === 30 || (a.t === 56 && g.loop + g.sec >= 4)) {
+          // a row across the field; the gap is somewhere you can reach
+          const n = Math.floor((FW - 8) / 12), w = 3 + (g.loop ? 0 : 1), gap = rnd(n - w + 1);
+          for (let i = 0; i < n; i++) if (i < gap || i >= gap + w) gxShoot(g, 6 + i * 12 + (a.t > 30 ? 6 : 0), e.y + 14, Math.PI / 2, 0.95);
+          Sound.play('mortar');
+        }
+        if (a.t >= 60) { e.dashing = 0; return 40; }
+      } else if (a.k === 'aim') { if (a.t % 10 === 1) for (const sp of [-0.3, 0, 0.3]) gxShoot(g, e.x, e.y + 12, gxToward(e, e.x, e.y, near) + sp, 1.6); if (a.t >= 30) return 50; }
+      return 0;
+    } },
+};
+
+// the first two sectors' mini-bosses go easier on a ship that has hardly been upgraded yet
+const gxMiniEase = (g, s1, s2) => (g.loop ? 1 : g.sec === 0 ? s1 : g.sec === 1 ? s2 : 1);
+Object.assign(GX_MOVES, {
+  mini: Object.assign(function (e, g, near) {
+    const M = GX_MINI[e.type], tg = near(e.x, e.y);
+    e.mt = (e.mt || 0) + 1;
+    if (!e.in) { e.y += 0.7; if (e.y >= M.y0) { e.in = true; e.mt = 0; } }
+    else {
+      M.move.call(this, e, g);
+      if (e.act) { e.act.t++; const gap = M.act.call(this, e, e.act, g, tg); if (gap) { e.act = null; e.cd = Math.round(gap * gxMiniEase(g, 1.7, 1.35) / Math.max(0.6, g.fireMul)); } }
+      else if (--e.cd <= 0) e.act = { k: M.acts[e.step++ % M.acts.length], t: 0 };
+    }
+    e.v = { h: Math.round(Math.max(0, e.hp) / e.max * 100) / 100, b: e.bay || 0, d: e.dashing || 0, a: Math.round((e.ang || 0) * 100) / 100 };
+  }, { init(e, g) {
+    e.x = FW / 2; e.y = -e.h; e.cd = 60; e.step = 0; e.fireT = 1e9;
+    e.hp = e.max = e.max * (1 + 0.35 * (this.players.length - 1)) * gxMiniEase(g, 0.6, 0.8);
+    e.v = { h: 1 };
+    g.banner = { text: 'WARNING! ' + GX_TYPES[e.type].mini, t: 110, warn: true };
+    Sound.play('bossWarn');
+  } }),
+  // the ring's guns: round the core
+  pod: function (e, g) {
+    const par = g.list.find(o => o.id === e.parent);
+    if (!par) { e.st = 'kami'; e.vy = 0.6; return; }
+    const an = (par.ang || 0) + e.k * Math.PI / 2;
+    e.x = par.x + Math.cos(an) * 24; e.y = par.y + Math.sin(an) * 20;
+    e.v = { a: Math.round(an * 100) / 100 };
+  },
+});
+for (const k of [...GX_MINI_KEYS, 'mbPod', ...GX_CH_TYPES]) GX_FIRE[k] = () => 1e9;   // they fire on their own (or never)
+
+GX_WAVE_KINDS.miniboss = function (g, add, types) {
+  const sec = g.sec, kind = g.miniKind || GX_MINI_KEYS[(sec - Math.floor((sec + 1) / 3) + g.loop) % GX_MINI_KEYS.length], id = 'mini' + g.wave;
+  add(kind, { st: 'mini', id, delay: 70 });
+  const esc = types.includes('wasp') ? 'wasp' : 'drone';
+  if (kind === 'mbRing') for (let k = 0; k < 4; k++) add('mbPod', { st: 'pod', parent: id, k, delay: 70 });
+  if (kind === 'mbWarden') for (let j = 0; j < 4; j++) add(esc, { st: 'orbit', parent: id, ang: j * Math.PI / 2, delay: 150 + j * 6 });
+  else {
+    const n = kind === 'mbGunship' ? 6 : 4, y = kind === 'mbRing' ? 88 : 66;
+    for (let k = 0; k < n; k++) add(k % 2 && types.includes('bug') ? 'bug' : esc, { st: 'enter', slot: [FW / 2 + (k - (n - 1) / 2) * 22, y], from: k < n / 2 ? -1 : 1, delay: 10 + k * 8 });
+  }
+};
+
+// ------------------------------------------------------------------ the challenge stage: five groups of eight fly through
+// a path: where it starts (x as a part of the width), its heading, then [frames, turn a frame] pieces; mirrored for the right
+const GX_CH_PATHS = {
+  swoop: { x: 0.3, y: -8, a: Math.PI / 2, segs: [[36, 0], [90, -Math.PI * 2 / 90], [20, 0], [40, -Math.PI * 0.75 / 40]] },
+  side: { x: -0.04, y: 78, a: -0.15, segs: [[40, 0], [100, -Math.PI * 2 / 100], [25, 0], [30, 0.5 / 30]] },
+  dive: { x: 0.42, y: -8, a: Math.PI / 2, segs: [[55, 0], [55, Math.PI / 55], [25, 0], [40, -Math.PI / 2 / 40]] },
+};
+const GX_CH_GROUPS = [['swoop', 1], ['swoop', -1], ['side', 1], ['side', -1], ['dive', 0]];   // 0: the group splits, every other one mirrored
+GX_WAVE_KINDS.challenge = function (g, add) {
+  g.chal = { hits: 0, n: 40, grp: [0, 0, 0, 0, 0] };
+  GX_CH_GROUPS.forEach(([path, side], k) => {
+    for (let j = 0; j < 8; j++) add(GX_CH_TYPES[k], { st: 'chal', grp: k, path, side: side || (j % 2 ? -1 : 1), delay: 70 + k * 150 + (side ? j : j >> 1) * 9 });
+  });
+  Sound.play('gxChallenge');
+};
+GX_MOVES.chal = Object.assign(function (e, g) {
+  const P = GX_CH_PATHS[e.path], seg = P.segs[e.seg], v = 1.7 + 0.15 * Math.min(2, g.loop);
+  if (seg) { e.a += seg[1] * e.side; if (++e.segT >= seg[0]) { e.seg++; e.segT = 0; } }
+  e.x += Math.cos(e.a) * v; e.y += Math.sin(e.a) * v;
+  if ((e.t > 40 && (e.x < -18 || e.x > FW + 18 || e.y < -18 || e.y > FH + 18)) || e.t > 1200) e.st = 'gone';
+}, { init(e) {
+  const P = GX_CH_PATHS[e.path];
+  e.x = e.side > 0 ? P.x * FW : FW - P.x * FW; e.y = P.y; e.a = e.side > 0 ? P.a : Math.PI - P.a; e.seg = 0; e.segT = 0; e.fireT = 1e9;
+} });
+for (const k of GX_CH_TYPES) {
+  GX_COLLIDE[k] = () => false;   // harmless to touch
+  GX_ON_KILL[k] = function (e, p, g) {
+    this.addFx(e.x, e.y, Sprites.smallExp, 3);
+    if (this.frame % 2 === 0) Sound.play('gxPop');
+    const c = g.chal;
+    if (!c || !p) return false;
+    c.hits++;
+    // a whole group of eight shot down: a group bonus
+    if (++c.grp[e.grp] === 8) { const pts = 1000 * (1 + g.loop); this.addScore(p, pts); this.popups.push({ x: e.x, y: e.y, text: String(pts), t: 0, delay: 0 }); Sound.play('bonus'); }
+    return false;
+  };
+}
+
+// ------------------------------------------------------------------ the captor and its tractor beam
+const GX_BEAM_WARN = 36, GX_BEAM_ON = 130;
+// the cone under a captor at (x, y): its top, how far down it reaches now, its half width d pixels down
+const gxCone = (e, k, t) => ({ y0: e.y + 7, len: k ? Math.min(1, t / 20) * (FH - e.y - 7) : FH - e.y - 7, hw: d => 4 + d * 0.28 });
+GX_MOVES.tract = function (e, g) {
+  e.fireT = 999;
+  const ty = Math.round(FH * 0.45);
+  if (e.tk === 'go') {
+    const dx = e.tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy), sp = 1.8;
+    if (d <= sp) { e.x = e.tx; e.y = ty; e.tk = 'warn'; e.bt = 0; Sound.play('gxTractor'); } else { e.x += dx / d * sp; e.y += dy / d * sp; }
+  } else if (e.tk === 'warn') { if (++e.bt >= GX_BEAM_WARN) { e.tk = 'beam'; e.bt = 0; e.cone = {}; } }
+  else if (e.tk === 'beam') {
+    e.bt++;
+    if (e.bt % 32 === 1) Sound.play('gxTractor');
+    const c = gxCone(e, 1, e.bt);
+    for (const t of this.gxPlayers()) {
+      const px = t.x + 8, py = t.y + 9, d = py - c.y0, k = t.player.i;
+      const inside = !(t.shield > 0) && d > 0 && d < c.len && Math.abs(px - e.x) < c.hw(d) - 2;
+      e.cone[k] = inside ? (e.cone[k] || 0) + 1 : 0;
+      if (e.cone[k] >= 6 && this.gxCapture(t, e)) { e.tk = 'hold'; e.bt = 0; break; }
+    }
+    if (e.tk === 'beam' && e.bt >= GX_BEAM_ON) e.tk = 'up';
+  } else if (e.tk === 'hold') { if (++e.bt > 200) e.tk = 'up'; }   // waits while the ship comes up to it
+  else {
+    const [sx, sy] = e.slot ? gxSlotXY(this, e) : [e.x, 30], dx = sx - e.x, dy = sy - e.y, d = Math.hypot(dx, dy);
+    if (d < 2) { e.x = sx; e.y = sy; e.st = e.slot ? 'form' : 'kami'; e.tk = null; e.capT = 500 + rnd(400); e.fireT = 120 + rnd(200); }
+    else { e.x += dx / d * Math.min(d, 1.6); e.y += dy / d * Math.min(d, 1.6); }
+  }
+};
+
+Object.assign(Stage.prototype, {
+  // caught in the beam: a twin goes first; otherwise the ship is lost the usual way (lives, respawn) and carried off
+  gxCapture(t, e) {
+    const g = this.galaxy, p = t.player, gp = gxPlayer(p), lv = p.level || 0;
+    if (g.wS) g.wS.hit = true;
+    if (gp.twin) {
+      gp.twin = false;
+      g.tows.push({ x: gxTwinX(t) + 8, y: t.y + 8, cid: e.id, o: p.i, lv, t: 0 });
+      t.shield = Math.max(t.shield || 0, 60);
+      gxSay2(this, t.x + 8, t.y - 4, 'TWIN CAPTURED', '#F83800');
+      Sound.play('gxCaptured');
+      return true;
+    }
+    const n = this.fx.length, x = t.x, y = t.y;
+    t.plates = 0; t.ship = false; t.shield = 0;
+    this.gxCapturing = true;
+    try { this.hitPlayer(t); } finally { this.gxCapturing = false; }
+    if (t.alive) return false;
+    // taken, not blown up: no explosion
+    for (let k = this.fx.length - 1; k >= n; k--) if (this.fx[k].x === x + 8 && this.fx[k].y === y + 8) this.fx.splice(k, 1);
+    g.tows.push({ x: x + 8, y: y + 8, cid: e.id, o: p.i, lv, t: 0 });
+    gxSay2(this, x + 8, y - 4, 'FIGHTER CAPTURED', '#F83800', 80);
+    Sound.play('gxCaptured');
+    return true;
+  },
+
+  // a captor carrying a ship is shot: the ship comes back to its owner (flies off if they're not there)
+  gxFreeShip(e) { const c = e.cap; e.cap = null; this.gxFreeAt(e.x, e.y - 14, c); },
+  gxFreeAt(x, y, c) {
+    const g = this.galaxy, t = this.tanks.find(o => o.isPlayer && o.alive && !o.ally && o.player.i === c.o), ok = t && !gxPlayer(t.player).twin;
+    g.frees.push({ x, y, o: c.o, lv: c.lv, t: 0, st: ok ? 'dock' : 'off' });
+    gxSay2(this, x, y - 4, ok ? 'RESCUED!' : 'FIGHTER RESCUED', '#58F8F8', 70);
+    if (!ok) { const p = this.players.find(q => q.i === c.o); if (p && !p.out) this.addScore(p, 1000 * (1 + g.loop)); }
+    Sound.play('gxRescue');
+  },
+
+  // the captured and freed ships in flight, the medals' timer
+  gxWavesTick(g) {
+    for (const w of g.tows) {
+      w.t++;
+      const e = g.list.find(o => o.id === w.cid);
+      if (!e) { w.dead = true; this.gxFreeAt(w.x, w.y, w); continue; }
+      const tx = e.x, ty = e.y - 14, dx = tx - w.x, dy = ty - w.y, d = Math.hypot(dx, dy), sp = Math.min(d, 0.6 + w.t * 0.03);
+      if (d < 1.5) { w.dead = true; e.cap = { o: w.o, lv: w.lv }; e.tk = 'up'; continue; }
+      w.x += dx / d * sp; w.y += dy / d * sp;
+    }
+    g.tows = g.tows.filter(w => !w.dead);
+    for (const f of g.frees) {
+      f.t++;
+      const t = this.tanks.find(o => o.isPlayer && o.alive && !o.ally && o.player.i === f.o);
+      if (f.st === 'dock' && (!t || gxPlayer(t.player).twin)) f.st = 'off';
+      if (f.st === 'off') { f.y -= 2; f.x += Math.sin(f.t / 8); if (f.y < -20) f.dead = true; continue; }
+      const tx = gxTwinX(t) + 8, ty = t.y + 8, dx = tx - f.x, dy = ty - f.y, d = Math.hypot(dx, dy), sp = Math.min(d, 2.2);
+      if (d < 2.5) {
+        f.dead = true; gxPlayer(t.player).twin = true;
+        gxSay2(this, t.x + 8, t.y - 4, 'TWIN FIGHTER!', COL.gold, 70);
+        Sound.play('bonus');
+        continue;
+      }
+      f.x += dx / d * sp; f.y += dy / d * sp;
+    }
+    g.frees = g.frees.filter(f => !f.dead);
+    if (g.medalShow && --g.medalShow.t <= 0) g.medalShow = null;
+    g.chalShow = g.kind === 'challenge' && g.phase === 'wave' && g.chal ? g.chal.hits : -1;
+    // a wave's just over: its medals (and a challenge stage's result)
+    if (g.phase === 'between' && g.wS && g.wS.w === g.wave && !g.wS.done) { g.wS.done = true; this.gxWaveDone(g); }
+  },
+
+  gxWaveDone(g) {
+    const live = this.players.filter(q => !q.out), m = 1 + g.loop, list = [];
+    const give = (k, text, pts, medal = true) => {
+      list.push([k, text]);
+      for (const q of live) { if (pts) this.addScore(q, pts); if (medal) gxPlayer(q).medals = (gxPlayer(q).medals || 0) + 1; }
+    };
+    if (g.kind === 'challenge' && g.chal) {
+      const c = g.chal;
+      if (c.hits >= c.n) {
+        g.banner = { text: 'PERFECT! ' + c.hits + '/' + c.n, t: 160 };
+        give('perfect', 'PERFECT ' + 10000 * m, 10000 * m);
+        for (let k = 0; k < 14; k++) { this.gxDrop(12 + rnd(FW - 24), -8 - rnd(60), 'gem'); g.pickups[g.pickups.length - 1].vy = 0.7 + Math.random() * 0.3; }
+        Sound.play('gxPerfect');
+      } else {
+        g.banner = { text: 'CHALLENGE ' + c.hits + '/' + c.n, t: 160 };
+        if (c.hits) give('bonus', 'BONUS ' + 100 * c.hits * m, 100 * c.hits * m, false);
+        Sound.play('gxMedal');
+      }
+      g.t = -50;   // a longer look at the result
+    } else {
+      if (!g.wS.hit) give('nohit', 'NO HIT ' + 1000 * m, 1000 * m);
+      if (this.frame - g.wS.t0 <= g.wS.par) give('speed', 'SPEED 500', 500);
+      if (list.length) Sound.play('gxMedal');
+    }
+    if (list.length) g.medalShow = { list, t: 100 };
+  },
+});
+
+// ------------------------------------------------------------------ wrappers
+{
+  const setup0 = Stage.prototype.setupGalaxy;
+  Stage.prototype.setupGalaxy = function (level) {
+    setup0.call(this, level);
+    Object.assign(this.galaxy, { tows: [], frees: [], medalShow: null, chalShow: -1, wS: null, capN: 0 });
+  };
+
+  // a new wave: captors in a formation's top row (from sector 2), the wave's stats for the medals
+  const next0 = Stage.prototype.gxNextWave;
+  Stage.prototype.gxNextWave = function () {
+    next0.call(this);
+    const g = this.galaxy;
+    if (g.phase !== 'wave') return;
+    if (g.kind === 'formation' && g.sec + g.loop * GX_SECTORS.length >= 1 && Math.random() < 0.75) {
+      const row = g.spawnQ.filter(q => q.st === 'enter' && q.slot), top = Math.min(...row.map(q => q.slot[1])), first = row.filter(q => q.slot[1] === top);
+      const n = g.sec >= 4 || g.loop ? 2 : 1, mid = first.length >> 1;
+      for (const q of n === 2 ? [first[mid - 1], first[mid]] : [first[mid - (g.wave % 2)]]) if (q) q.type = 'captor';
+    }
+    const n = g.spawnQ.reduce((a, q) => a + (GX_TYPES[q.type] && GX_TYPES[q.type].mini ? 25 : 1), 0), last = Math.max(0, ...g.spawnQ.map(q => q.delay));
+    g.wS = { w: g.wave, t0: this.frame, par: last + 120 + 12 * n, last, n, hit: false, done: false };
+  };
+
+  const spawn0 = Stage.prototype.gxSpawn;
+  Stage.prototype.gxSpawn = function (o) {
+    const e = spawn0.call(this, o), g = this.galaxy;
+    if (e.type === 'captor') { e.hp = e.max = 2 * Math.max(1, g.hpMul * 0.7); e.id = 'cap' + (g.capN = (g.capN || 0) + 1); e.capT = 400 + rnd(300); e.v = { c: 0, cap: 0 }; }
+    if (GX_TYPES[e.type] && GX_TYPES[e.type].chal) e.hp = e.max = 0.5;   // one hit, whatever the gun
+    return e;
+  };
+
+  const update0 = Stage.prototype.updateGalaxy;
+  Stage.prototype.updateGalaxy = function () {
+    update0.call(this);
+    if (this.galaxy) this.gxWavesTick(this.galaxy);
+  };
+
+  // hit: it counts against the wave's NO HIT; a twin takes it for you
+  const hit0 = Stage.prototype.hitPlayer;
+  Stage.prototype.hitPlayer = function (t, by) {
+    const g = this.galaxy;
+    if (!g || !t || !t.isPlayer || t.ally || !t.alive || t.shield > 0) return hit0.call(this, t, by);
+    if (g.wS && g.phase === 'wave') g.wS.hit = true;
+    const gp = gxPlayer(t.player);
+    if (gp.twin && !this.gxCapturing) {
+      gp.twin = false;
+      const x = gxTwinX(t) + 8;
+      this.fx.push({ x, y: t.y + 8, frames: BIG_EXPLOSION(), per: 4, tick: 0 });
+      t.shield = Math.max(t.shield || 0, 70);
+      gxSay2(this, x, t.y - 4, 'TWIN LOST', '#F83800');
+      Sound.play('explode');
+      Input.rumble(t.player.i, 0.5, 150);
+      return;
+    }
+    return hit0.call(this, t, by);
+  };
+
+  const death0 = Stage.prototype.gxOnDeath;
+  Stage.prototype.gxOnDeath = function (p) { gxPlayer(p).twin = false; return death0.call(this, p); };
+
+  // the twin fires its own straight volleys while you hold fire
+  const ship0 = Stage.prototype.gxUpdatePlayer;
+  Stage.prototype.gxUpdatePlayer = function (t) {
+    const r = ship0.call(this, t), p = t.player, gp = gxPlayer(p);
+    if (!gp.twin || this.over || !t.alive) return r;
+    if (t.gxTwinCd > 0) { t.gxTwinCd--; return r; }
+    if (!Input.player(p.i).fire || t.frozen > 0) return r;
+    const pw = gp.power, n = pw >= 6 ? 3 : pw >= 3 ? 2 : 1, x = gxTwinX(t) + 8, dmg = this.gxDmg(p) * (0.9 + 0.08 * pw);
+    for (let k = 0; k < n; k++) this.galaxy.shots.push({ x: x + (k - (n - 1) / 2) * 4, y: t.y + 1, vx: 0, vy: -5, dmg, k: 'b', o: p.i, life: 70 });
+    t.gxTwinCd = Math.max(4, Math.round(10 * (1 - 0.1 * gxUp(p, 'rapid'))));
+    return r;
+  };
+
+  // online: what a guest needs for all this
+  const view0 = Stage.prototype.galaxyView;
+  Stage.prototype.galaxyView = function () {
+    const v = view0.call(this), g = this.galaxy, r = n => Math.round(n * 10) / 10;
+    v.wc = { pl: g.plan, ch: g.chalShow, md: g.medalShow, tw: g.tows.map(w => [r(w.x), r(w.y), w.o, w.lv, w.t]), fr: g.frees.map(f => [r(f.x), r(f.y), f.o, f.lv, f.t]) };
+    return v;
+  };
+  const apply0 = Stage.prototype.applyGalaxyView;
+  Stage.prototype.applyGalaxyView = function (v) {
+    apply0.call(this, v);
+    const g = this.galaxy, c = v.wc;
+    if (!c) return;
+    if (c.pl) g.plan = c.pl;
+    g.chalShow = c.ch; g.medalShow = c.md;
+    g.tows = (c.tw || []).map(a => ({ x: a[0], y: a[1], o: a[2], lv: a[3], t: a[4] }));
+    g.frees = (c.fr || []).map(a => ({ x: a[0], y: a[1], o: a[2], lv: a[3], t: a[4] }));
+  };
+}
+
+// captors: now and then one leaves the formation to beam; their looks for the guest
+GX_FRAME.push(function (g) {
+  const pl = this.gxPlayers();
+  const busy = g.list.some(e => e.st === 'tract' && (e.tk === 'go' || e.tk === 'warn' || e.tk === 'beam' || e.tk === 'hold')) || g.tows.length;
+  for (const e of g.list) {
+    if (e.type !== 'captor') continue;
+    if (e.st === 'form' && !e.cap && !busy && pl.length && this.freezeE <= 0 && --e.capT <= 0) {
+      const tg = gxNearest(pl, e.x, e.y);
+      e.st = 'tract'; e.tk = 'go'; e.tx = Math.max(20, Math.min(FW - 20, tg.x + 8 + rnd(21) - 10)); e.t = 0;
+    }
+    if (e.st === 'dive' && !e.cap && !busy && e.t <= 1 && pl.length && Math.random() < 0.5) {   // picked to dive: sometimes it beams instead
+      const tg = gxNearest(pl, e.x, e.y);
+      e.st = 'tract'; e.tk = 'go'; e.tx = Math.max(20, Math.min(FW - 20, tg.x + 8)); e.t = 0;
+    }
+    e.v = { c: e.hp <= e.max / 2 ? 1 : 0, cap: e.cap ? e.cap.lv + 1 : 0, bk: e.st === 'tract' && e.tk === 'warn' ? 1 : e.st === 'tract' && e.tk === 'beam' ? 2 : 0, bt: e.bt || 0 };
+  }
+});
+
+Object.assign(GX_ON_KILL, {
+  captor(e) { if (e.cap) this.gxFreeShip(e); },
+  // a mini-boss goes down in a string of blasts, loot all round
+  ...Object.fromEntries(GX_MINI_KEYS.map(k => [k, function (e, p, g) {
+    for (let i = 0; i < 6; i++) this.fx.push({ x: e.x - e.w / 2 + rnd(e.w), y: e.y - e.h / 2 + rnd(e.h), frames: i % 2 ? Sprites.bigExp : BIG_EXPLOSION(), per: 4, tick: -i * 5 });
+    Sound.play('bossDie');
+    g.flash = 8;
+    const pts = GX_TYPES[e.type].pts * (1 + g.loop);
+    this.popups.push({ x: e.x, y: e.y, text: String(pts), t: 0, delay: 30 });
+    for (const o of g.list.slice()) if (o.type === 'mbPod' && o.parent === e.id) this.gxKill(o, p);
+    for (let k = 0; k < 6; k++) this.gxDrop(e.x - 16 + rnd(32), e.y, k < 2 ? 'gem' : 'coin');
+    this.gxDrop(e.x, e.y, 'cell');
+    if (Math.random() < 0.5) this.gxDrop(e.x, e.y, Math.random() < 0.5 ? 'box' : 'bomb');
+    return false;
+  }])),
+});
+
+// ------------------------------------------------------------------ drawing
+const gxHpBar = (ctx, x, y, w, fr) => {
+  ctx.fillStyle = '#100808'; ctx.fillRect(x - 1, y - 1, w + 2, 4);
+  ctx.fillStyle = '#383838'; ctx.fillRect(x, y, w, 2);
+  ctx.fillStyle = fr > 0.5 ? '#58D854' : fr > 0.25 ? '#F8D800' : '#F87830'; ctx.fillRect(x, y, Math.max(0, Math.round(w * fr)), 2);
+};
+const gxMiniDraw = function (ctx, e, f) {
+  const T = GX_TYPES[e.type], v = e.v || {}, fr = e.type === 'mbCarrier' ? v.b || 0 : (f >> 3) & 1;
+  const img = GxGfx.get(e.type, fr, e.flash > 0 && (f >> 1) & 1 ? 'f' : 'n'), x = Math.round(e.x - T.w / 2), y = Math.round(e.y - T.h / 2);
+  if (e.type === 'mbRing') {   // the ring: a turning band to its guns
+    ctx.strokeStyle = '#582878'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(Math.round(e.x), Math.round(e.y), 24, 20, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#B058D8';
+    for (let k = 0; k < 12; k++) { const a = (v.a || 0) + k * Math.PI / 6; ctx.fillRect(Math.round(e.x + Math.cos(a) * 24), Math.round(e.y + Math.sin(a) * 20), 1, 1); }
+  }
+  if (e.type === 'mbWarden' && v.d && (f >> 2) & 1) {   // the dash: where the curtain falls from
+    ctx.fillStyle = '#F83800';
+    for (let yy = Math.round(e.y + T.h / 2 + 2); yy < VIEW_H; yy += 6) ctx.fillRect(Math.round(e.x), yy, 1, 3);
+  }
+  if (e.type === 'mbGunship' || e.type === 'mbCarrier') {   // exhaust flames at the back
+    ctx.fillStyle = (f >> 1) & 1 ? '#F8B800' : '#F87830';
+    for (const dx of e.type === 'mbGunship' ? [-10, 9] : [-14, 13]) ctx.fillRect(Math.round(e.x + dx) - 1, y - 2 - ((f >> 1) & 1), 2, 2 + ((f >> 1) & 1));
+  }
+  ctx.drawImage(img, x, y);
+  if (v.h !== undefined) gxHpBar(ctx, Math.round(e.x - T.w / 2), y + T.h + 3, T.w, v.h);
+};
+for (const k of GX_MINI_KEYS) GX_RENDER[k] = gxMiniDraw;
+GX_RENDER.mbPod = function (ctx, e, f) {
+  const a = (e.v && e.v.a) || 0, x = Math.round(e.x), y = Math.round(e.y);
+  ctx.fillStyle = '#100808'; for (let k = 4; k <= 9; k++) ctx.fillRect(Math.round(x + Math.cos(a) * k) - 1, Math.round(y + Math.sin(a) * k) - 1, 3, 3);
+  ctx.fillStyle = '#8C8CA8'; for (let k = 4; k <= 8; k++) ctx.fillRect(Math.round(x + Math.cos(a) * k), Math.round(y + Math.sin(a) * k), 1, 1);
+  ctx.drawImage(GxGfx.get('mbPod', (f >> 3) & 1, e.flash > 0 ? 'f' : 'n'), x - 6, y - 6);
+};
+
+// the captor: its beam under it, the ship it carries above it
+GX_RENDER.captor = function (ctx, e, f) {
+  const v = e.v || {}, x = Math.round(e.x), y = Math.round(e.y);
+  if (v.bk) {
+    const c = gxCone(e, v.bk === 2, v.bt), y1 = Math.min(VIEW_H, c.y0 + c.len);
+    if (v.bk === 1) {   // the warning: its edges, dotted, flashing
+      if ((v.bt >> 2) & 1) { ctx.fillStyle = '#3CBCFC'; for (let d = 0; c.y0 + d < VIEW_H; d += 4) { const hw = c.hw(d) * Math.min(1, v.bt / 24); ctx.fillRect(Math.round(x - hw), Math.round(c.y0 + d), 1, 2); ctx.fillRect(Math.round(x + hw), Math.round(c.y0 + d), 1, 2); } }
+    } else {
+      // a widening blue cone, bands of light running down it
+      for (let yy = Math.round(c.y0); yy < y1; yy++) {
+        const d = yy - c.y0, hw = c.hw(d) * (0.92 + 0.08 * Math.sin(f / 3 + d / 9)), band = ((d - f * 2) % 12 + 12) % 12 < 3;
+        ctx.fillStyle = band ? 'rgba(168,232,248,0.6)' : 'rgba(60,188,252,0.36)'; ctx.fillRect(Math.round(x - hw), yy, Math.round(hw * 2), 1);
+        ctx.fillStyle = 'rgba(200,240,255,0.7)'; ctx.fillRect(Math.round(x - hw), yy, 1, 1); ctx.fillRect(Math.round(x + hw) - 1, yy, 1, 1);
+      }
+    }
+  }
+  if (v.cap) {
+    const img = Sprites.tank('p' + (v.cap - 1), (f >> 3) & 1, 2, 'red');
+    ctx.drawImage(img, x - 8, y - 22);
+  }
+  ctx.drawImage(GxGfx.get(v.c ? 'captor2' : 'captor', (f >> 3) & 1, e.flash > 0 ? 'f' : 'n'), x - 8, y - 7);
+};
+
+// a medal: a ribbon and a disc
+function gxDrawMedal(ctx, k, x, y, f) {
+  const col = { nohit: ['#3CBCFC', '#E0E0F0', '#8C8CA8'], speed: ['#58D854', '#F8D800', '#AC7C00'], perfect: ['#F878F8', '#F8F8F8', '#58F8F8'], bonus: ['#F8B800', '#F8D800', '#7C5000'] }[k] || ['#F8D800', '#F8D800', '#7C5000'];
+  if (k === 'bonus') { gxDrawPickup(ctx, 'coin', x + 4, y + 5, f); return; }
+  ctx.fillStyle = col[0]; ctx.fillRect(x + 1, y, 3, 4); ctx.fillStyle = '#F8F8F8'; ctx.fillRect(x + 4, y, 3, 4);
+  ctx.fillStyle = '#100808'; ctx.fillRect(x, y + 3, 9, 8); ctx.fillRect(x + 1, y + 2, 7, 10);
+  ctx.fillStyle = col[2]; ctx.fillRect(x + 1, y + 4, 7, 6); ctx.fillRect(x + 2, y + 3, 5, 8);
+  ctx.fillStyle = col[1]; ctx.fillRect(x + 2, y + 4, 5, 6); ctx.fillRect(x + 3, y + 3, 3, 8);
+  if (((f >> 3) & 3) === 0) { ctx.fillStyle = '#F8F8F8'; ctx.fillRect(x + 3, y + 5, 1, 2); }
+}
+
+{
+  const render0 = Stage.prototype.renderGalaxy;
+  Stage.prototype.renderGalaxy = function (ctx) {
+    render0.call(this, ctx);
+    const g = this.galaxy, f = this.frame;
+    if (!g) return;
+    ctx.save(); ctx.translate(FX, FY); ctx.beginPath(); ctx.rect(0, 0, VIEW_W, VIEW_H); ctx.clip();
+    // twins beside their ships
+    for (const t of this.tanks) {
+      if (!t.alive || !t.isPlayer || t.ally || !t.player || !(t.player.gx && t.player.gx.twin)) continue;
+      const x = gxTwinX(t), y = t.y + Math.round(Math.sin(f / 12) * 1);
+      ctx.fillStyle = (f >> 1) & 1 ? '#F8B800' : '#F83800'; ctx.fillRect(x + 5, y + 16, 2, 2 + ((f >> 1) & 1)); ctx.fillRect(x + 9, y + 16, 2, 2 + ((f >> 2) & 1));
+      ctx.drawImage(Sprites.tank('p' + (t.player.level || 0), t.anim || 0, 0, Config.playerPal(t.player.i)), x, y);
+    }
+    // a ship being carried up (red, spinning), a freed one flying home
+    for (const w of g.tows) ctx.drawImage(Sprites.tank('p' + (w.lv || 0), 0, (w.t >> 3) & 3, 'red'), Math.round(w.x - 8), Math.round(w.y - 8));
+    for (const fr of g.frees) if ((fr.t >> 1) & 1 || fr.t > 30) ctx.drawImage(Sprites.tank('p' + (fr.lv || 0), (fr.t >> 2) & 1, 0, Config.playerPal(fr.o)), Math.round(fr.x - 8), Math.round(fr.y - 8));
+    // the challenge stage's count
+    if (g.chalShow >= 0) { const s = 'HITS ' + g.chalShow; ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(VIEW_W / 2 - s.length * 4 - 2, 1, s.length * 8 + 4, 10); Font.drawCenter(ctx, s, VIEW_W / 2, 2, '#58F8F8'); }
+    // the medals under the banner
+    if (g.medalShow) {
+      const list = g.medalShow.list, y0 = VIEW_H / 2 - 4;
+      list.forEach(([k, text], i) => {
+        if (100 - g.medalShow.t < i * 12) return;   // they pop up one after another
+        const w = 12 + text.length * 8, x = Math.round(VIEW_W / 2 - w / 2), y = y0 + i * 14;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - 3, y - 1, w + 6, 14);
+        gxDrawMedal(ctx, k, x, y, f);
+        Font.draw(ctx, text, x + 12, y + 3, k === 'nohit' ? '#A8E8F8' : k === 'speed' ? '#B8F8B8' : k === 'perfect' ? '#F8B8F8' : COL.gold);
+      });
+    }
+    ctx.restore();
+  };
+}
+
+// endless runs and the shuffled later loops can throw these in too
+GX_ALL_WAVES.push('miniboss', 'challenge');
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  GALAXY, run types: campaign, boss rush, endless, daily. Picked with the GALAXY RUN setting, which left/right
+//  also changes on the mode's title screen and on the first curtain (as KILL RACE picks its target there).
+//    CAMPAIGN   the twelve sectors, then round again (galaxy.js), as it always was
+//    BOSS RUSH  the 12 bosses back to back, no waves; power 4 and 3 bombs to start, the hangar after every 3rd
+//               boss; the record: bosses beaten (all 12: the fastest time), then the score
+//    ENDLESS    one long run: random waves of every kind, tougher wave by wave; a boss every 6 waves (all 12 in
+//               a random order, then round again, tougher), the sky changes with it; the hangar every 12 waves
+//    DAILY      the campaign with today's waves: the plans shuffled by the date, the same for everyone today
+//  Records in the modes store: galaxy (campaign), galaxyRush, galaxyEndless, galaxyDaily (today's only).
+// =====================================================================
+
+const GXD_RUNS = { CAMPAIGN: 'campaign', 'BOSS RUSH': 'rush', ENDLESS: 'endless', DAILY: 'daily' };
+const GXD_NAMES = { campaign: 'CAMPAIGN', rush: 'BOSS RUSH', endless: 'ENDLESS', daily: 'DAILY' };
+const GXD_BLURB = { campaign: 'TWELVE SECTORS, THEN ROUND AGAIN', rush: 'ALL 12 BOSSES, BACK TO BACK', endless: 'WAVES WITHOUT END', daily: "TODAY'S WAVES, THE SAME FOR ALL" };
+const GXD_RUSH_SHOP = 3, GXD_BLOCK = 6;   // boss rush: the hangar after every 3rd boss; endless: a boss every 6 waves (2 a stage)
+const gxdRun = () => GXD_RUNS[Config.get('galaxyRun')] || 'campaign';
+const gxdToday = () => dailyToday().date;
+const gxdRunOf = () => (Game.mode === 'galaxy' && Game.gxRun) || 'campaign';
+
+function gxdStepRun(dir) {
+  Config.step('galaxyRun', dir);
+  Game.gxRun = gxdRun();
+  if (Game.curtain) Game.curtain.gxRun = Game.gxRun;
+  Sound.play('select');
+}
+
+// a run type's record, short: '7 BOSSES  120400', 'WAVE 23  45000'... ('' if none)
+function gxdBest(run, rec = STORE.get(MODE_KEY, {})) {
+  if (run === 'rush') { const b = rec.galaxyRush; return !b ? '' : b.bosses >= GX_BOSSES.length ? 'ALL ' + b.bosses + ' IN ' + fmtTime(b.frames) : b.bosses + (b.bosses === 1 ? ' BOSS  ' : ' BOSSES  ') + b.score; }
+  if (run === 'endless') { const b = rec.galaxyEndless; return b ? 'WAVE ' + b.wave + '  ' + b.score : ''; }
+  if (run === 'daily') { const b = rec.galaxyDaily; return b && b.date === gxdToday() ? 'SECTOR ' + b.level + '  ' + b.score : ''; }
+  const b = rec.galaxy; return b ? 'SECTOR ' + b.level + '  ' + b.score : '';
+}
+
+// DAILY: a sector's waves shuffled by the date (YYYYMMDD), one swapped for a surprise
+function gxdDailyPlan(plan, level, date) {
+  const r = seeded(+String(date).replace(/-/g, '') * 31 + level * 7919), p = plan.slice();
+  for (let i = p.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
+  if (p.length) p[Math.floor(r() * p.length)] = GX_ALL_WAVES[Math.floor(r() * GX_ALL_WAVES.length)];
+  return p;
+}
+const gxdPlanBase = gxPlan;
+gxPlan = function (sec, loop, level) {
+  const run = gxdRunOf();
+  if (run === 'rush') return [];   // no waves: the boss comes straight on
+  const plan = gxdPlanBase(sec, loop, level);
+  return run === 'daily' ? gxdDailyPlan(plan, level, Game.gxDate || gxdToday()) : plan;
+};
+
+// ENDLESS: which sector's look and boss block b (0, 1, 2... six waves each) has: the first time round sectors
+// 1-6 in a random order, then 7-12; after that all twelve shuffled, every time round
+function gxdEndlessSec(b) {
+  const E = Game.gxEndless || (Game.gxEndless = { order: [] }), n = GX_SECTORS.length;
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  while (E.order.length <= b) {
+    const all = [...Array(n).keys()], half = n >> 1;
+    const next = E.order.length ? shuffle(all) : shuffle(all.slice(0, half)).concat(shuffle(all.slice(half)));
+    if (next[0] === E.order[E.order.length - 1]) [next[0], next[n - 1]] = [next[n - 1], next[0]];   // never the same boss twice in a row
+    E.order.push(...next);
+  }
+  return E.order[b];
+}
+// ENDLESS: how hard wave w is: more hit points, faster and more shooting, wave by wave
+function gxdEndlessDiff(g, w) {
+  const k = Math.max(0, w - 1), s = Config.skill();
+  g.d = Math.min(12, k / 6);
+  g.hpMul = 1 + 0.04 * k + 0.0003 * k * k;
+  g.fireMul = Math.min(3.2, 1 + 0.025 * k) * s.fire;
+  g.shotSpd = Math.min(1.9, 1 + 0.01 * k) * s.shell;
+}
+
+// ------------------------------------------------------------------ the stage
+const gxdSetup = Stage.prototype.setupGalaxy, gxdNextWave = Stage.prototype.gxNextWave, gxdBossKill = Stage.prototype.gxBossKill;
+const gxdUpdate = Stage.prototype.updateGalaxy, gxdHud = Stage.prototype.renderGalaxyHud;
+const gxdView = Stage.prototype.galaxyView, gxdApplyView = Stage.prototype.applyGalaxyView;
+
+Object.assign(Stage.prototype, {
+  setupGalaxy(level) {
+    gxdSetup.call(this, level);
+    const g = this.galaxy, run = g.run = gxdRunOf();
+    if (run === 'rush') {
+      g.plan = []; g.t = 50;   // a short intro, then the boss
+      g.banner = { text: 'BOSS ' + level + '/' + GX_BOSSES.length + ': ' + GX_BOSSES[g.sec].name, t: 110 };
+    } else if (run === 'endless') {
+      // a stage is two blocks of six waves, each with its boss; the hangar comes between stages
+      g.blk = g.blk0 = 2 * (level - 1); g.ew = g.blk * GXD_BLOCK;
+      this.gxdBlock(g);
+      g.banner = { text: (level === 1 ? 'ENDLESS: ' : 'WAVE ' + (g.ew + 1) + ': ') + GX_SECTORS[g.sec].name, t: 150 };
+    } else if (run === 'daily' && level === 1) g.banner = { text: 'DAILY ' + (Game.gxDate || gxdToday()), t: 150 };
+  },
+
+  // ENDLESS: the next six waves: a sector's sky and boss, random waves
+  gxdBlock(g) {
+    g.sec = gxdEndlessSec(g.blk); g.loop = Math.floor(g.blk / GX_SECTORS.length); g.wave = 0;
+    const plan = [];
+    while (plan.length < GXD_BLOCK) { const k = GX_ALL_WAVES[rnd(GX_ALL_WAVES.length)]; if (k !== plan[plan.length - 1]) plan.push(k); }
+    g.plan = plan;
+    gxdEndlessDiff(g, g.ew + 1);
+  },
+
+  gxNextWave() {
+    const g = this.galaxy;
+    // BOSS RUSH: no waves, the boss
+    if (g.run === 'rush') { g.wave = 1; g.phase = 'wave'; g.t = 0; g.spawnQ = []; this.gxBossStart(); return; }
+    if (g.run !== 'endless') return gxdNextWave.call(this);
+    const boss = g.wave >= g.plan.length, w0 = g.wave;
+    const r = gxdNextWave.call(this);
+    if (boss || g.wave === w0) return r;   // the boss, or held back (perks on offer)
+    g.ew++; gxdEndlessDiff(g, g.ew);
+    if (g.phase === 'wave') g.banner = { text: 'WAVE ' + g.ew + ': ' + (GX_WAVE_NAMES[g.kind] || String(g.kind).toUpperCase()), t: 110 };
+    return r;
+  },
+
+  gxBossKill(p) {
+    const g = this.galaxy, name = GX_BOSSES[g.sec].name;
+    const r = gxdBossKill.call(this, p);
+    if (g.run && g.run !== 'campaign' && g.run !== 'daily' && g.banner && g.banner.text.startsWith('SECTOR ')) g.banner = { text: (g.run === 'rush' ? 'BOSS ' + g.level + '/' + GX_BOSSES.length + ': ' : '') + name + ' DOWN!', t: 200 };
+    return r;
+  },
+
+  updateGalaxy() {
+    const r = gxdUpdate.call(this), g = this.galaxy;
+    // ENDLESS: the first boss of the stage is down: on to the next sector (the second one ends the stage: the hangar)
+    if (g && g.run === 'endless' && this.result === 'clear' && g.blk === g.blk0) {
+      this.result = null; this.bossDefeated = false;
+      g.blk++; this.gxdBlock(g);
+      g.phase = 'between'; g.t = 0; g.flash = 16;
+      g.banner = { text: 'ON TO ' + GX_SECTORS[g.sec].name, t: 150 };
+    }
+    return r;
+  },
+
+  // the line above the field: the run's own count
+  renderGalaxyHud(ctx) {
+    gxdHud.call(this, ctx);
+    const g = this.galaxy;
+    if (!g.run || g.run === 'campaign') return;
+    const boss = g.phase === 'boss' || g.phase === 'clear';
+    const top = g.run === 'rush' ? 'BOSS ' + g.level + '/' + GX_BOSSES.length + '  ' + fmtTime(Game.gxClock || 0)
+      : g.run === 'endless' ? 'ENDLESS WAVE ' + Math.max(1, g.ew || 0) + (boss ? '  BOSS' : '')
+      : 'DAILY SECTOR ' + g.level + '  ' + (boss ? 'BOSS' : 'WAVE ' + Math.max(1, g.wave) + '/' + (g.plan ? g.plan.length : GX_WAVES));
+    ctx.fillStyle = COL.bg; ctx.fillRect(FX, 0, VIEW_W, FY);
+    Font.drawCenter(ctx, top, FX + VIEW_W / 2, 0, COL.black);
+  },
+
+  // online: guests need the run, the sector (endless changes it mid-stage) and the endless wave
+  galaxyView() {
+    const v = gxdView.call(this), g = this.galaxy;
+    v.run = g.run || 'campaign'; v.sec = g.sec; v.ew = g.ew || 0;
+    return v;
+  },
+
+  applyGalaxyView(v) {
+    gxdApplyView.call(this, v);
+    const g = this.galaxy;
+    g.run = v.run || 'campaign'; g.ew = v.ew || 0;
+    if (v.sec !== undefined) g.sec = v.sec;
+  },
+});
+
+// ------------------------------------------------------------------ the game: picking a run, its flow, records
+const gxdNewGame = Game.newGame, gxdBeginStage = Game.beginStage, gxdUpdatePlay = Game.updatePlay, gxdToShop = Game.toShop, gxdToCurtain = Game.toCurtain;
+const gxdUpdateCurtain = Game.updateCurtain, gxdRenderCurtain = Game.renderCurtain, gxdUpdateModeIntro = Game.updateModeIntro, gxdRenderModeIntro = Game.renderModeIntro;
+const gxdRenderTitle = Game.renderTitle, gxdToModeResult = Game.toModeResult, gxdRenderModeResult = Game.renderModeResult;
+
+Object.assign(Game, {
+  newGame(n, custom, online) {
+    const r = gxdNewGame.call(this, n, custom, online);
+    if (this.mode === 'galaxy') {
+      this.gxRun = gxdRun(); this.gxFresh = true; this.gxClock = 0;
+      // the first curtain picks the run (left/right), like KILL RACE's target
+      if (this.curtain) Object.assign(this.curtain, { gxSel: true, gxRun: this.gxRun });
+    }
+    return r;
+  },
+
+  beginStage() {
+    if (this.mode === 'galaxy' && this.gxFresh) {
+      // the run starts: its date (DAILY), the endless order, BOSS RUSH's starting kit
+      this.gxFresh = false; this.gxRun = this.gxRun || gxdRun(); this.gxClock = 0;
+      this.gxDate = gxdToday(); this.gxEndless = { order: [] };
+      if (this.gxRun === 'rush') for (const p of this.players) Object.assign(gxPlayer(p), { power: 4, bombs: 3 });
+    }
+    return gxdBeginStage.call(this);
+  },
+
+  // BOSS RUSH: the clock runs while you fly
+  updatePlay() {
+    if (this.mode === 'galaxy' && this.gxRun === 'rush' && !this.paused && this.stage && !this.stage.over) this.gxClock = (this.gxClock || 0) + 1;
+    return gxdUpdatePlay.call(this);
+  },
+
+  // after a stage cleared: BOSS RUSH is won after the 12th boss, and has the hangar after every 3rd only
+  gxdRushOver() { return this.mode === 'galaxy' && this.state === 'play' && this.gxRun === 'rush' && this.stageNum > GX_BOSSES.length; },
+  toShop() {
+    if (this.gxdRushOver()) { this.toModeResult(true); return; }
+    if (this.mode === 'galaxy' && this.state === 'play' && this.gxRun === 'rush' && (this.stageNum - 1) % GXD_RUSH_SHOP) { this.toCurtain(false); return; }
+    return gxdToShop.call(this);
+  },
+  toCurtain(selectable) {
+    if (this.gxdRushOver()) { this.toModeResult(true); return; }
+    return gxdToCurtain.call(this, selectable);
+  },
+
+  updateCurtain() {
+    const c = this.curtain;
+    if (c && c.gxSel && c.phase === 'show') {
+      const m = Input.menu(), dir = m.up || m.right ? 1 : m.down || m.left ? -1 : 0;
+      if (dir) gxdStepRun(dir);
+      if (m.ok && this.t > 10) { c.gxSel = false; this.beginStage(); }
+      else if (m.back) this.toTitle();
+      return;
+    }
+    return gxdUpdateCurtain.call(this);
+  },
+
+  // GALAXY's curtain: the sector (BOSS RUSH: the next boss; ENDLESS: the wave), and on the first one the run
+  renderCurtain(ctx) {
+    gxdRenderCurtain.call(this, ctx);
+    const c = this.curtain;
+    if (this.mode !== 'galaxy' || !c || c.phase !== 'show') return;
+    const cx = SCREEN_W / 2, cy = SCREEN_H / 2, run = c.gxRun || this.gxRun || 'campaign', n = this.stageNum, blink = (this.t >> 4) & 1;
+    ctx.fillStyle = COL.bg; ctx.fillRect(0, cy - 10, SCREEN_W, 64); ctx.fillRect(0, cy - 38, SCREEN_W, 11);   // (no seasons in space)
+    const [top, sub] = run === 'rush' ? ['BOSS ' + n + '/' + GX_BOSSES.length, 'NEXT: ' + GX_BOSSES[(n - 1) % GX_BOSSES.length].name]
+      : run === 'endless' ? ['WAVE ' + ((n - 1) * 2 * GXD_BLOCK + 1), 'A BOSS EVERY ' + GXD_BLOCK + ' WAVES']
+      : ['SECTOR ' + n, GX_SECTORS[(n - 1) % GX_SECTORS.length].name];
+    Font.drawCenter(ctx, top, cx, cy - 8, COL.black);
+    Font.drawCenter(ctx, sub, cx, cy + 4, '#A00000');
+    if (run === 'daily') Font.drawCenter(ctx, 'DAILY ' + (this.gxDate || gxdToday()), cx, cy + 16, '#3C3C3C');
+    if (c.gxSel) {
+      Font.drawCenter(ctx, (blink ? '< ' : '  ') + GXD_NAMES[run] + (blink ? ' >' : '  '), cx, cy + 30, COL.black);
+      Font.drawCenter(ctx, gxdBest(run) ? 'BEST ' + gxdBest(run) : GXD_BLURB[run], cx, cy + 42, '#3C3C3C');
+    }
+  },
+
+  // the mode's title screen: left/right picks the run
+  updateModeIntro() {
+    if (this.mode === 'galaxy') {
+      const m = Input.menu();
+      if (m.left || m.right) { gxdStepRun(m.right ? 1 : -1); this.t = Math.min(this.t, 60); }
+    }
+    return gxdUpdateModeIntro.call(this);
+  },
+
+  renderModeIntro(ctx) {
+    gxdRenderModeIntro.call(this, ctx);
+    if (this.mode !== 'galaxy') return;
+    // the lines under the picture again, a little tighter, with the run and its record
+    const y = INTRO_Y + INTRO_H * 2 + 8, t = this.t, run = this.gxRun || gxdRun(), best = gxdBest(run);
+    ctx.fillStyle = COL.black; ctx.fillRect(0, y - 2, SW, SH - y + 2);
+    Font.drawCenter(ctx, modeInfo('galaxy').desc, SW / 2, y, '#F8F8F8');
+    Font.drawCenter(ctx, 'MUSIC: ' + (SONGS.galaxy || SONGS.classic).name, SW / 2, y + 10, SKILL_TAGS[Music.skillLevel()][1]);
+    Font.drawCenter(ctx, '< ' + GXD_NAMES[run] + ' >', SW / 2, y + 21, COL.gold);
+    Font.drawCenter(ctx, best && (t >> 7) & 1 ? 'BEST ' + best : GXD_BLURB[run], SW / 2, y + 31, COL.lgrey);
+    if ((t >> 4) & 1 || t < 20) Font.drawCenter(ctx, 'PRESS ENTER', SW / 2, y + 41, COL.red);
+  },
+
+  // the title's record line for GALAXY: the chosen run's best
+  renderTitle(ctx) {
+    gxdRenderTitle.call(this, ctx);
+    const cur = this.titleMenu()[this.menuIdx];
+    if (!cur || !cur.mode || this.titleY !== 0 || Config.get('gameMode') !== 'galaxy') return;
+    const run = gxdRun();
+    ctx.fillStyle = COL.black; ctx.fillRect(0, 212, SW, 10);
+    Font.drawCenter(ctx, GXD_NAMES[run] + ': ' + (gxdBest(run) || '1-4 PLAYERS'), SW / 2, 213, COL.lgrey);
+  },
+
+  toModeResult(done) {
+    const run = this.gxRun || 'campaign';
+    if (this.mode !== 'galaxy' || run === 'campaign') {
+      const r = gxdToModeResult.call(this, done);
+      if (this.mode === 'galaxy' && this.modeRes) this.modeRes.run = 'campaign';
+      return r;
+    }
+    const rec = STORE.get(MODE_KEY, {}), score = this.players.reduce((a, p) => a + p.score, 0), g = this.stage && this.stage.galaxy;
+    const res = { mode: 'galaxy', run, done, score, newBest: false };
+    if (run === 'rush') {
+      res.bosses = done ? GX_BOSSES.length : this.stageNum - 1; res.frames = this.gxClock || 0;
+      const b = rec.galaxyRush, all = res.bosses >= GX_BOSSES.length;
+      if (!b || res.bosses > b.bosses || (res.bosses === b.bosses && (all ? res.frames < b.frames : score > b.score))) { rec.galaxyRush = { bosses: res.bosses, frames: res.frames, score }; res.newBest = true; }
+      res.best = rec.galaxyRush;
+    } else if (run === 'endless') {
+      res.wave = g ? g.ew || 0 : 0;
+      const b = rec.galaxyEndless;
+      if (!b || res.wave > b.wave || (res.wave === b.wave && score > b.score)) { rec.galaxyEndless = { wave: res.wave, score }; res.newBest = true; }
+      res.best = rec.galaxyEndless;
+    } else {
+      // DAILY: today's best only; a new day starts it again
+      res.date = this.gxDate || gxdToday(); res.level = this.stageNum; res.wave = g ? g.wave : 0; res.boss = !!g && (g.phase === 'boss' || g.phase === 'clear');
+      const b = rec.galaxyDaily && rec.galaxyDaily.date === res.date ? rec.galaxyDaily : null;
+      if (!b || score > b.score) { rec.galaxyDaily = { date: res.date, score, level: res.level, wave: res.wave }; res.newBest = true; }
+      res.best = rec.galaxyDaily;
+    }
+    STORE.set(MODE_KEY, rec);
+    this.modeRes = res;
+    Sound.setEngine(0);
+    Sound.play(res.newBest ? 'bonus' : 'gameover');
+    this.setState('modeResult');
+  },
+
+  renderModeResult(ctx) {
+    const r = this.modeRes;
+    if (!r || r.mode !== 'galaxy' || !r.run || r.run === 'campaign') {
+      gxdRenderModeResult.call(this, ctx);
+      if (r && r.mode === 'galaxy') Font.drawCenter(ctx, 'CAMPAIGN', SW / 2, 54, COL.gold);
+      return;
+    }
+    ctx.fillStyle = COL.black; ctx.fillRect(0, 0, SW, SH);
+    Font.drawCenter(ctx, modeInfo('galaxy').name, SW / 2, 40, COL.red);
+    Font.drawCenter(ctx, GXD_NAMES[r.run] + (r.run === 'daily' ? ' ' + r.date : ''), SW / 2, 54, COL.gold);
+    const N = GX_BOSSES.length;
+    const what = r.run === 'rush' ? (r.done ? 'ALL ' + N + ' BOSSES IN ' + fmtTime(r.frames) : 'BOSSES BEATEN: ' + r.bosses + '/' + N)
+      : r.run === 'endless' ? 'YOU REACHED WAVE ' + Math.max(1, r.wave)
+      : 'SECTOR ' + r.level + ', ' + (r.boss ? 'THE BOSS' : 'WAVE ' + Math.max(1, r.wave));
+    Font.drawCenter(ctx, what, SW / 2, 80, r.done ? COL.gold : COL.white);
+    Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
+    const b = r.best;
+    if (b) Font.drawCenter(ctx, 'BEST: ' + (r.run === 'rush' ? (b.bosses >= N ? 'ALL ' + N + ' IN ' + fmtTime(b.frames) : b.bosses + '/' + N + ' BOSSES') + '  ' + b.score
+      : r.run === 'endless' ? 'WAVE ' + b.wave + '  ' + b.score : 'TODAY SECTOR ' + b.level + '  ' + b.score), SW / 2, 124, COL.lgrey);
+    if (r.newBest && (this.t >> 4) & 1) Font.drawCenter(ctx, 'NEW BEST!', SW / 2, 150, COL.gold);
+    if (this.t > 60) Font.drawCenter(ctx, 'PRESS ENTER', SW / 2, 196, COL.lgrey);
+  },
+});
+
+// ------------------------------------------------------------------ online: the host's run reaches the guests
+const gxdBuildView = Net.buildView, gxdApplyNetView = Net.applyView;
+Object.assign(Net, {
+  buildView(full) {
+    const v = gxdBuildView.call(this, full);
+    v.gxr = Game.gxRun || null; v.gxc = Game.gxClock || 0; v.gxdt = Game.gxDate || null;
+    return v;
+  },
+  applyView(v) {
+    // first, so a stage set up from this view knows the run
+    if (v.gxr !== undefined) { Game.gxRun = v.gxr; Game.gxClock = v.gxc; Game.gxDate = v.gxdt; }
+    return gxdApplyNetView.call(this, v);
+  },
+});
 
 </script>
 </body>

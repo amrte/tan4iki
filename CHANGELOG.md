@@ -3,6 +3,27 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.46
+
+- **Galaxy: a gameplay overhaul.**
+  - *Controls:* tap B to swap between your two weapons, hold B for FOCUS (half speed, your hitbox shown), double-tap
+    B for a bomb. A hint shows in sector 1.
+  - *Two weapons* carried at once; gift boxes fill the second slot first.
+  - *Heat:* about 8 s of nonstop fire overheats the gun; *charge blast:* stop firing for half a second and the gun
+    charges a big piercing blast for your next shot.
+  - *Team combo* up to x8, *grazing* (points and a bomb meter), screen shake, hit-stop, slow motion when you're hit.
+  - *Softer losses:* the two power levels you lose drop as cells you can grab back.
+  - *Perks* after waves 2 and 4: pick 1 of 3 capsules (12 kinds: firepower, rapid, engine, magnet, drone, armour,
+    bombs, power, crit, luck, start shield, life).
+  - *Wave 4* of every sector is a *mini-boss* (gunship, carrier, turret ring, warden) or, in sectors 3/6/9/12, a
+    Galaga-style *challenge stage* (40 harmless enemies, PERFECT bonus).
+  - *The captor* can steal your ship with a tractor beam; shoot it to get it back as a *twin fighter* that takes a
+    hit for you.
+  - *Medals* after each wave: NO HIT, SPEED, PERFECT.
+  - *Co-op:* your kills' loot is yours for 3 s; a player out of ships leaves an escape pod a teammate can rescue.
+  - *New runs:* boss rush, endless and daily, each with its own record (pick them with left/right on the galaxy title
+    screen or the first curtain).
+
 ## 0.45
 
 - **Galaxy: twelve sectors** (was six): Earth Orbit, Time Vortex, Saturn Rings, Cyberspace, Dark Star and The Last

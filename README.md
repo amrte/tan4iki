@@ -459,7 +459,41 @@ keep the look but not the twist.
 ## Galaxy (a shoot-'em-up)
 
 Your tanks fly at the bottom of a starfield (left/right/up/down within the lower part of the screen) and fire straight
-up; **B** drops a bomb. 1-4 players together, here or online.
+up. 1-4 players together, here or online.
+
+- **Controls:** hold FIRE to fire. **Tap B** to swap to your other weapon, **hold B** for FOCUS (half speed, your tiny
+  hitbox shown as a dot), **double-tap B** for a bomb (damage to everything on screen, their shots gone).
+- **Runs** (GALAXY RUN, picked with left/right on the galaxy title screen or the first curtain, or in Settings → GAME):
+  - *Campaign*: the twelve sectors, then round again.
+  - *Boss rush*: the twelve bosses back to back, from power 4 and 3 bombs; the hangar after bosses 3, 6 and 9; the
+    clock runs. Best: most bosses, then the fastest full clear.
+  - *Endless*: random waves forever, getting harder every wave; a boss every 6 waves, the hangar every 12, a new sky
+    each boss. Best: the furthest wave.
+  - *Daily*: the campaign with today's shuffled waves, the same for everyone that day; its own record for the day.
+- **Heat and the charge blast:** firing heats the gun (about 8 s of nonstop fire overheats it: no fire for a moment).
+  Stop firing for half a second and it charges instead (a glow round your ship); the next press of FIRE lets go a big
+  charge blast that goes through everything. Rapid fire upgrades run cooler.
+- **Two weapons:** you carry two. A gift box of a new weapon goes in hand (the old one to the other slot, or replacing
+  the one in hand when both are full); the weapon in hand again: +1 power; the other one: switch to it, +1 power.
+  Both are in the side panel, with the heat bar under them.
+- **Team combo:** kills in a row (each within 2 s, 3 s in co-op) build a multiplier up to x8 (every 8 hits), shown top
+  right. Any hit that costs something (a plate, a ship) breaks it.
+- **Grazing:** an enemy shot that passes close to your ship without hitting it gives points and fills a bomb meter
+  (a bomb every 25 grazes).
+- **Losing a ship** costs two power levels, but they drop as two power cells you can grab back (only you for 6 s).
+- **Perks:** after waves 2 and 4, three perk capsules float in: fly into one (one each in co-op; the wave waits up to
+  10 s): firepower, rapid fire, engine, magnet, a drone, armour, bombs, power, crit (10% double damage a level),
+  luck (more drops), a shield at every wave start, or (rarely) a life.
+- **Wave 4** of every sector is a **mini-boss** (gunship, carrier, turret ring or warden, each with its own
+  attacks and an HP bar) or, in sectors 3, 6, 9 and 12, a **challenge stage**: 40 harmless enemies looping through in
+  five groups; points for each hit and each whole group, and 10000 for a PERFECT.
+- **Medals** after each wave: NO HIT, SPEED, PERFECT, with points for everyone.
+- **The captor** (in formations from sector 2) sometimes stops and beams a tractor cone down: a ship caught in it is
+  captured (a ship lost) and carried off. Shoot that captor and your ship comes back as a **twin fighter** beside
+  you, firing with you and taking the next hit for you.
+- **Co-op:** loot from your kills is yours for 3 s (a small mark in your colour); when a player loses their last
+  ship an escape pod drifts about for 25 s: hover over it for 1.5 s to bring them back.
+- Big kills shake the screen and freeze it for a moment; losing a ship slows time down.
 
 - **Sectors:** twelve, each with six waves and a boss: Moon Orbit, Red Planet, Asteroid Belt, Ice Giant, Nebula,
   The Core, Earth Orbit, Time Vortex (a swirling tunnel), Saturn Rings, Cyberspace (a green grid and falling code),
@@ -778,6 +812,10 @@ js/maze.js        maze mode: the maze generator, patrols, reinforcements, the ex
 js/fortress.js    fortress mode (tower defense): towers, upgrades and specialisations, waves, gold, the build menu, maps
 js/galaxy.js      galaxy mode (a shoot-'em-up): sectors, waves, weapons, pickups, the hangar, its bosses
 js/galaxy2.js     galaxy sectors 7-12: their bosses, the newer enemies and waves, skies and music
+js/galaxy_feel.js galaxy controls and feel: B gestures, focus, two weapons, heat and the charge blast, combo, grazing, shake
+js/galaxy_prog.js galaxy progression and co-op: power cells back after a loss, perks, fair loot, escape pods
+js/galaxy_waves.js galaxy structure: mini-bosses, challenge stages, the captor and the twin fighter, medals
+js/galaxy_modes.js galaxy runs: campaign, boss rush, endless, daily
 js/cards.js       first-meet cards for new enemies, bosses and power-ups
 js/cpuvs.js       VS EAGLES against the computer: the enemy HQ and its upgrades round by round
 js/bots.js        deathmatch and kill-race bots: computer-driven players

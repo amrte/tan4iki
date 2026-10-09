@@ -232,6 +232,8 @@ const GX_MINI = {
     } },
 };
 
+// the first two sectors' mini-bosses go easier on a ship that has hardly been upgraded yet
+const gxMiniEase = (g, s1, s2) => (g.loop ? 1 : g.sec === 0 ? s1 : g.sec === 1 ? s2 : 1);
 Object.assign(GX_MOVES, {
   mini: Object.assign(function (e, g, near) {
     const M = GX_MINI[e.type], tg = near(e.x, e.y);
@@ -239,13 +241,13 @@ Object.assign(GX_MOVES, {
     if (!e.in) { e.y += 0.7; if (e.y >= M.y0) { e.in = true; e.mt = 0; } }
     else {
       M.move.call(this, e, g);
-      if (e.act) { e.act.t++; const gap = M.act.call(this, e, e.act, g, tg); if (gap) { e.act = null; e.cd = Math.round(gap / Math.max(0.6, g.fireMul)); } }
+      if (e.act) { e.act.t++; const gap = M.act.call(this, e, e.act, g, tg); if (gap) { e.act = null; e.cd = Math.round(gap * gxMiniEase(g, 1.7, 1.35) / Math.max(0.6, g.fireMul)); } }
       else if (--e.cd <= 0) e.act = { k: M.acts[e.step++ % M.acts.length], t: 0 };
     }
     e.v = { h: Math.round(Math.max(0, e.hp) / e.max * 100) / 100, b: e.bay || 0, d: e.dashing || 0, a: Math.round((e.ang || 0) * 100) / 100 };
   }, { init(e, g) {
     e.x = FW / 2; e.y = -e.h; e.cd = 60; e.step = 0; e.fireT = 1e9;
-    e.hp = e.max = e.max * (1 + 0.35 * (this.players.length - 1));
+    e.hp = e.max = e.max * (1 + 0.35 * (this.players.length - 1)) * gxMiniEase(g, 0.6, 0.8);
     e.v = { h: 1 };
     g.banner = { text: 'WARNING! ' + GX_TYPES[e.type].mini, t: 110, warn: true };
     Sound.play('bossWarn');
@@ -665,3 +667,6 @@ function gxDrawMedal(ctx, k, x, y, f) {
     ctx.restore();
   };
 }
+
+// endless runs and the shuffled later loops can throw these in too
+GX_ALL_WAVES.push('miniboss', 'challenge');

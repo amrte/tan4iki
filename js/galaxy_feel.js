@@ -13,9 +13,9 @@
 
 const GXF = {
   tap: 12, dbl: 14,               // B: a tap is shorter than this; the 2nd press of a double-tap within this
-  heatTime: 300,                  // frames of nonstop fire to overheat (every gun, by its cooldown)
-  coolDelay: 20, cool: 1.2,       // after this long not firing it cools this much a frame
-  overT: 90, overTo: 40,          // overheated: no fire this long, then the heat is back down to this
+  heatTime: 480,                  // frames of nonstop fire to overheat (every gun, by its cooldown)
+  coolDelay: 20, cool: 1.6,       // after this long not firing it cools this much a frame
+  overT: 70, overTo: 40,          // overheated: no fire this long, then the heat is back down to this
   chargeWait: 30, chargeTime: 60, // not firing this long starts the charge, full after this long
   blastDmg: 20,                   // the charge blast: x the ship's damage
   comboT: 120, comboMax: 8,       // the combo's window (x1.5 in co-op), its top multiplier
@@ -276,8 +276,8 @@ Stage.prototype.gxGraze = function (t, b) {
   Stage.prototype.hitPlayer = function (t, by) {
     const g = this.galaxy;
     if (!g || !t || !t.isPlayer || t.ally || !t.alive) return _hit.call(this, t, by);
-    const r = _hit.call(this, t, by), c = g.combo;
-    if (c && c.n) {
+    const shielded = t.shield > 0, r = _hit.call(this, t, by), c = g.combo;
+    if (c && c.n && !shielded) {   // a hit the shield takes costs nothing
       if (c.n >= 8) { this.popups.push({ x: FW - 34, y: 34, text: 'COMBO LOST', label: true, color: '#F83800', t: 0, delay: 0, life: 60 }); Sound.play('gxComboLost'); }
       c.n = 0; c.t = 0;
     }
@@ -386,15 +386,17 @@ Stage.prototype.gxDrawFeel = function (ctx) {
   const c = g.combo;
   if (c && c.n >= 2) {
     const m = gxMult(g), y = g.boss && g.boss.y > -g.boss.h / 2 ? 18 : 3, x1 = VIEW_W - 3, label = c.n + ' HITS', w = Math.max(label.length * 8, 34);
-    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x1 - w - 3, y - 1, w + 4, 23);
-    const mt = 'X' + m;
-    Font.draw(ctx, mt, x1 - mt.length * 8, y + 1, m >= GXF.comboMax ? ((f >> 2) & 1 ? '#F8F8F8' : COL.gold) : m > 1 ? COL.gold : '#BCBCBC');
-    Font.draw(ctx, label, x1 - label.length * 8, y + 10, '#F8F8F8');
+    // no box behind it (it would hide what flies up there): a shadow under the letters, see-through
+    const mt = 'X' + m, sh = (t, x, yy, col) => { Font.draw(ctx, t, x + 1, yy + 1, '#000000'); Font.draw(ctx, t, x, yy, col); };
+    ctx.globalAlpha = 0.85;
+    sh(mt, x1 - mt.length * 8, y + 1, m >= GXF.comboMax ? ((f >> 2) & 1 ? '#F8F8F8' : COL.gold) : m > 1 ? COL.gold : '#BCBCBC');
+    sh(label, x1 - label.length * 8, y + 10, '#F8F8F8');
+    ctx.globalAlpha = 1;
     ctx.fillStyle = '#3C3C3C'; ctx.fillRect(x1 - w, y + 19, w, 2);
     ctx.fillStyle = c.t < 40 && (f >> 2) & 1 ? '#F8F8F8' : '#58D854'; ctx.fillRect(x1 - w, y + 19, Math.round(w * Math.max(0, c.t) / (c.max || GXF.comboT)), 2);
   }
   // the first sector's hint: what B does
-  if (g.hint > 0) {
+  if (g.hint > 0 && !g.perk) {   // (not over a perk offer)
     const lines = ['TAP B: SWAP WEAPON', 'HOLD B: FOCUS', 'B B: BOMB'], y = Math.round(VIEW_H / 2) - 2;
     ctx.globalAlpha = Math.min(1, g.hint / 30);
     ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(VIEW_W / 2 - 80, y - 4, 160, lines.length * 10 + 6);
