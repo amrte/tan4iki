@@ -3,6 +3,15 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.50.1
+
+- **Fix: enemies walled in at their entry point.** Some maps (wider fields mirrored from a classic one, lava, water,
+  steel and basalt, in any mode) shut an entry point in completely: a tank that came in there could never get out,
+  and without a weapon to break the wall the stage could not be won. Now when a stage is built, every walled-in entry
+  point gets a way through to the players (the shortest one through as little wall as possible: steel cleared, water
+  bridged). And an enemy that still ends up somewhere with no way to anyone (rebuilt walls, a jump, a teleporter)
+  comes in again at an open entry point after 10 seconds.
+
 ## 0.50
 
 - **Survival, reworked: hold out for 100 waves.** No eagle any more: you start in the middle of one map, 4 tiles

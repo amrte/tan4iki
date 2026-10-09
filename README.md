@@ -228,6 +228,11 @@ HURT ME PLENTY, and the host's skill applies to online games. It works on top of
 **Personalities.** In the original every enemy drives at random. Here each tank gets a personality when it
 appears. Tanks find their way with a path map that knows they can shoot through bricks but not steel or water.
 
+**No dead ends.** Every entry point has a way to the players: if a map walls one in (steel, water, lava, basalt —
+it happens on wider fields mirrored from a classic map), a way through is opened when the stage is built, through
+as little wall as possible (steel cleared, water bridged). An enemy that still ends up with no way to anyone or the
+eagle for 10 seconds comes in again at an open entry point.
+
 | Personality | What it does |
 |---|---|
 | Wander | the classic random drive (with the original's pull towards the eagle) |
@@ -932,6 +937,7 @@ js/bossart.js     boss screens: a picture before each boss and one after it
 js/galya.js       a secret (no spoilers)
 js/modes.js       game modes: time attack, versus eagles, deathmatch, capture the flag
 js/survival.js    SURVIVAL: 100 waves, entry points all round, twists, perks, drops, terrain rebuilds
+js/reach.js       no dead ends: a way opened from every walled-in entry point; stuck enemies come in again
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go
 js/maze.js        maze mode: the maze generator, patrols, reinforcements, the exit
