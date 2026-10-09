@@ -3,6 +3,16 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.61
+
+- **New mode: TANK RALLY** — a tribute to Rock n' Roll Racing with tanks (rallytracks.js, rally.js, rallycareer.js,
+  rallymusic.js, rallyart.js). Four-tank races on twenty circuits across five alien worlds: driving with momentum and
+  sliding corners, jumps over chasms and lava, ice, mud, boost pads; a forward weapon, a rear drop and boost, charges
+  filled up every lap; wrecks and respawns; three computer rivals with their own faces, styles and taunts. Between
+  races a career: money for places and kills, a shop (engine, tracks, armour, suspension, charges, four tanks to buy),
+  divisions to climb, a final against the champion. 1-2 players. Original tracks, rivals and music in all three styles
+  (no songs from the real game: its soundtrack is licensed music).
+
 ## 0.60.1
 
 - **Fixed: BIG MAPS factories you couldn't destroy** with some weapons, so the stage couldn't be finished. Missiles only

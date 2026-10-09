@@ -141,6 +141,7 @@ Maze and VS CPU, and no saving outside Classic and Big maps.
 | **Deathmatch** | 1-4 | no eagles; players start in the corners and respawn; first to 10 kills, or the most kills after 3 minutes (the clock is in the side panel). Alone, you play against 3 computer bots (BOT II-IV): they hunt the nearest rival (each other too), take a moment to aim (quicker on harder skills), grab nearby power-ups and shoot through bricks. Bots never set the high score |
 | **Flags** | 2-4 | each player has a flag at home (marked by a square). Drive over another player's flag to grab it and bring it to your own home flag (yours must be at home) to score. Destroying a carrier drops the flag where it fell; touching your own dropped flag sends it home. First to 3 captures |
 | **Counter-Strike** | 1-4 | two teams of five tanks on DE_DUST2, DE_AZTEC, DE_TRAIN or DE_MIRAGE, bots filling them up: the terrorists plant the bomb on site A or B, the counter-terrorists stop them or defuse it. Rounds with a buy time and money, no respawns, sides switched at half time, first to 8; a fog of war shows only what your team can see (see *Counter-Strike* below) |
+| **Tank Rally** | 1-2 | a tribute to Rock n' Roll Racing with tanks: four-tank races on twenty circuits across five alien worlds, laps, weapons, mines and boost, money for places and kills, a shop between races, divisions to climb and a champion to beat (see *Tank Rally* below) |
 
 In versus, power-ups drop every 15 seconds (only ones that make sense between players), there are no enemy tanks, and
 the side panel shows each player's wins, kills or captures. Round and match results show who won.
@@ -268,6 +269,43 @@ facing the way in; they rotate when the enemy is seen or heard at a site, and on
 for it while the rest come round. In a fight a bot takes the enemy it can hit (in line, no wall or teammate between),
 lines up with one that's close, and takes a moment to aim: longer on the move, shorter holding its post, quicker on
 harder skills.
+
+## Tank Rally
+
+A tribute to the SNES classic Rock n' Roll Racing, with tanks: top-down track racing, four tanks a race (you and three
+computer rivals, or two players and two rivals), money, upgrades and a career. Everything in it is original: the
+worlds, tracks, rivals, tanks and music (no names, characters or songs from the real game).
+
+- **Driving:** the tank moves in four directions but with momentum: it speeds up to its top speed, coasts and brakes,
+  and a 90° turn at speed keeps it sliding sideways for a moment (a little on road, a long way on ice), so corners take
+  skill. Walls stop you (clip a corner and you slide past it); racers that meet push each other and both slow down.
+  Rough ground and mud slow you (less with suspension upgrades), ice slides, lava burns armour; ramps launch you over
+  the chasm, creek or lava gap after them (bigger, with a shadow, over pits, mines and shells); drive into a pit and
+  you're wrecked. Boost pads give a burst of speed.
+- **Keys:** FIRE the forward weapon (cannon, homing missiles or laser), **B** the rear drop (mines, an oil slick that
+  spins whoever hits it, or smoke), **FIRE and B together** BOOST. Each has a few charges a lap, filled up again when you
+  cross the line. Hits take armour; at none you're WRECKED (whoever did it gets a kill and money) and back on the
+  racing line two seconds later. `$` pickups pay, `+` pickups repair and refill.
+- **The race:** a countdown, 3-4 laps, live positions, a minimap, the race clock and best lap, WRONG WAY if you turn
+  round, laps only counted the right way round (no shortcuts), commentary for the lead changes, wrecks and the last
+  lap. Two players share the screen: the camera follows the leader and the one left behind catches up on the leader's
+  track. Each track has one of three race tunes.
+- **The worlds:** DUST BOWL (desert mesas), GLOOMWATER (a toxic jungle with acid creeks and mud), CRYOSPIRE (an ice
+  planet), CINDERFALL (volcanic, with lava rivers to jump) and NEON WRECK (a ruined city at night), four tracks each,
+  harder and longer as you go: ovals, figure-8s with jumps at the crossing, hairpins, chicanes, split sections, jumps
+  over chasms.
+- **The career:** each world has division B then A (four races each) — points 4 / 2 / 1 for 1st / 2nd / 3rd, enough of
+  them to move up, too few in A and you drop back to B; the last world ends with a one-race final against the champion,
+  BARON KRAGG, which you must win. Money for your place and your kills (and what you pick up) goes on the **shop**:
+  ENGINE (top speed and pick-up), TRACKS (grip), ARMOUR, SUSPENSION (rough ground), more weapon, drop and boost
+  charges, and new tanks — SCOUT (fast, light), BRAWLER (missiles and mines), BULWARK (heavy, $30000) and HOVER
+  (a laser, from the third world, $75000); a new tank starts without upgrades. The rivals (VEX ORRIN, DUKE RUSTOV, MIRA
+  FLINT, GRUNDLE, ZEP-9, KAT VOLTA, SKITTER), each with a face, a style (aggressive, clean or dirty) and taunts, get
+  better and buy better tanks as the career goes on. The career is saved after every race (CONTINUE on the mode's
+  screen).
+- **Music** (in all three MUSIC STYLES): HOT TREAD BOOGIE, PISTONS AND THUNDER and RED DUST HIGHWAY for the races,
+  BACKROOM DEALS in the shop, CHAMPION'S STOMP for the final, CHECKERED GLORY on the podium (the rock names; chiptune
+  and synthwave versions have names of their own).
 
 ## Big scrolling maps
 
@@ -1472,6 +1510,11 @@ js/controls.js    the CONTROLS page (pause menu and Settings): the keys in use, 
 js/csmap_aztec.js  COUNTER-STRIKE's DE_AZTEC (jungle stone, the river, the rope bridge, temples)
 js/csmap_train.js  COUNTER-STRIKE's DE_TRAIN (train cars on rails, concrete halls)
 js/csmap_mirage.js COUNTER-STRIKE's DE_MIRAGE (plaster, terracotta, mosaics, the market)
+js/rallytracks.js TANK RALLY's worlds and tracks (built from racing lines) and their ground art
+js/rally.js       TANK RALLY's race: driving with momentum, laps and positions, weapons, rivals, HUD, camera
+js/rallycareer.js TANK RALLY's career: tanks and upgrades, rivals, divisions and worlds, shop and race screens
+js/rallymusic.js  TANK RALLY's songs in all three music styles (a race tune per track)
+js/rallyart.js    TANK RALLY's title picture
 js/csart.js       COUNTER-STRIKE's title picture
 js/reach.js       no dead ends: a way opened from every walled-in entry point; stuck enemies come in again
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories

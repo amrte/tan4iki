@@ -628,7 +628,12 @@ Object.assign(Game, {
     if (R.phase === 'setup' && (m.left || m.right)) {
       const it = this.rallyMenuItems()[R.idx];
       if (it.what !== 'start') this.rallyMenuAct(m.left ? -1 : 1);
-    } else if (m.ok) this.rallyMenuAct(1);
+    } else if (m.ok) {
+      // A on a choice (colour, tank) moves on to the next row; on START it starts
+      const it = this.rallyMenuItems()[R.idx];
+      if (R.phase === 'setup' && it && it.what !== 'start') { R.idx = Math.min(this.rallyMenuItems().length - 1, R.idx + 1); Sound.play('select'); }
+      else this.rallyMenuAct(1);
+    }
   },
 
   renderRallyMenu(ctx) {
