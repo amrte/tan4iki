@@ -314,6 +314,52 @@ const Sound = {
       case 'moo':
         this.note(52, t, 0.45, { vol: 0.16, slideTo: 130, wave: 'p25', decayTo: 0.5 });
         break;
+      // GALAXY's sectors 12-13 (galaxy3.js)
+      case 'gx3Line': // a line clears: a bright ring up
+        this.seq([72, 79, 84, 88], 0.04, t, { vol: 0.11, wave: 'p25', decayTo: 0.5 }); this.noise(9000, t, [[0, 0.12], [0.25, 0]]);
+        break;
+      case 'gx3Tetris': // four lines at once
+        this.seq([72, 76, 79, 84, 79, 84, 88, 91], 0.045, t, { vol: 0.12, wave: 'p25', decayTo: 0.5 }); this.noise(6000, t, [[0, 0.25], [0.4, 0]]);
+        break;
+      case 'gx3Drop': // a hard drop: a thud
+        this.note(55, t, 0.12, { vol: 0.2, slideTo: 40, wave: 'tri' }); this.noise(1200, t, [[0, 0.3], [0.08, 0]]);
+        break;
+      case 'gx3Turn': // a piece turns: a click
+        this.note(1760, t, 0.025, { vol: 0.05, wave: 'p12', flat: true });
+        break;
+      case 'gx3Rise': // garbage coming up
+        this.note(43, t, 0.3, { vol: 0.14, slideTo: 120, wave: 'p50' });
+        break;
+      case 'gx3Aim': // an I piece takes aim
+        this.note(1200, t, 0.15, { vol: 0.04, slideTo: 2400, wave: 'p12' });
+        break;
+      case 'gx3Level': // level up
+        this.seq([67, 72, 76, 79, 84], 0.06, t, { vol: 0.13, decayTo: 0.5 });
+        break;
+      case 'gx3Type': // typing
+        this.noise(14000, t, [[0, 0.1], [0.02, 0]]); this.noise(14000, t + 0.06, [[0, 0.08], [0.02, 0]]); this.noise(14000, t + 0.1, [[0, 0.1], [0.02, 0]]);
+        break;
+      case 'gx3Burst': // a chat bubble pops
+        this.note(1600, t, 0.08, { vol: 0.08, slideTo: 400, wave: 'p25' }); this.noise(5000, t, [[0, 0.15], [0.06, 0]]);
+        break;
+      case 'gx3Ding': // a notification
+        this.seq([88, 84], 0.07, t, { vol: 0.08, wave: 'p50', decayTo: 0.4 });
+        break;
+      case 'gx3Grab': // fingers flexing
+        this.note(300, t, 0.2, { vol: 0.07, slideTo: 150, wave: 'p25' }); this.noise(3000, t, [[0, 0.06], [0.15, 0]]);
+        break;
+      case 'gx3Glitch': // a glitch: stuttering noise and a broken blip
+        this.noise(20000, t, [[0, 0.2], [0.03, 0], [0.05, 0.2], [0.08, 0], [0.12, 0.15], [0.16, 0]]); this.seq([96, 0, 91, 98], 0.03, t, { vol: 0.05, wave: 'p12', flat: true });
+        break;
+      case 'gx3Slap': // the big hand lands
+        this.noise(900, t, [[0, 0.5], [0.2, 0.15], [0.35, 0]], 300); this.note(60, t, 0.2, { vol: 0.15, slideTo: 35, wave: 'tri' });
+        break;
+      case 'gx3Regen': // regenerating: a rising hum
+        this.note(220, t, 0.5, { vol: 0.06, slideTo: 880, wave: 'p25', flat: true });
+        break;
+      case 'gx3Chat': // a chatbot's cheerful blips
+        this.seq([79 + rnd(5), 84, 81 + rnd(4)], 0.04, t, { vol: 0.06, wave: 'p50', flat: true });
+        break;
       case 'march0': case 'march1': case 'march2': case 'march3': // the invaders' four-note footsteps
         this.note([45, 43, 41, 40][+name[5]], t, 0.07, { vol: 0.22, wave: 'tri', flat: true });
         break;

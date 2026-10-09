@@ -2,10 +2,10 @@
 // =====================================================================
 //  GALAXY, run types: campaign, boss rush, endless, daily. Picked with the GALAXY RUN setting, which left/right
 //  also changes on the mode's title screen and on the first curtain (as KILL RACE picks its target there).
-//    CAMPAIGN   the twelve sectors, then round again (galaxy.js), as it always was
-//    BOSS RUSH  the 12 bosses back to back, no waves; power 4 and 3 bombs to start, the hangar after every 3rd
+//    CAMPAIGN   the fourteen sectors, then round again (galaxy.js), as it always was
+//    BOSS RUSH  the 14 bosses back to back, no waves; power 4 and 3 bombs to start, the hangar after every 3rd
 //               boss; the record: bosses beaten (all 12: the fastest time), then the score
-//    ENDLESS    one long run: random waves of every kind, tougher wave by wave; a boss every 6 waves (all 12 in
+//    ENDLESS    one long run: random waves of every kind, tougher wave by wave; a boss every 6 waves (all 14 in
 //               a random order, then round again, tougher), the sky changes with it; the hangar every 12 waves
 //    DAILY      the campaign with today's waves: the plans shuffled by the date, the same for everyone today
 //  Records in the modes store: galaxy (campaign), galaxyRush, galaxyEndless, galaxyDaily (today's only).
@@ -13,7 +13,7 @@
 
 const GXD_RUNS = { CAMPAIGN: 'campaign', 'BOSS RUSH': 'rush', ENDLESS: 'endless', DAILY: 'daily' };
 const GXD_NAMES = { campaign: 'CAMPAIGN', rush: 'BOSS RUSH', endless: 'ENDLESS', daily: 'DAILY' };
-const GXD_BLURB = { campaign: 'TWELVE SECTORS, THEN ROUND AGAIN', rush: 'ALL 12 BOSSES, BACK TO BACK', endless: 'WAVES WITHOUT END', daily: "TODAY'S WAVES, THE SAME FOR ALL" };
+const GXD_BLURB = { campaign: GX_SECTORS.length + ' SECTORS, THEN ROUND AGAIN', rush: 'ALL ' + GX_BOSSES.length + ' BOSSES, BACK TO BACK', endless: 'WAVES WITHOUT END', daily: "TODAY'S WAVES, THE SAME FOR ALL" };
 const GXD_RUSH_SHOP = 3, GXD_BLOCK = 6;   // boss rush: the hangar after every 3rd boss; endless: a boss every 6 waves (2 a stage)
 const gxdRun = () => GXD_RUNS[Config.get('galaxyRun')] || 'campaign';
 const gxdToday = () => dailyToday().date;
@@ -49,8 +49,8 @@ gxPlan = function (sec, loop, level) {
   return run === 'daily' ? gxdDailyPlan(plan, level, Game.gxDate || gxdToday()) : plan;
 };
 
-// ENDLESS: which sector's look and boss block b (0, 1, 2... six waves each) has: the first time round sectors
-// 1-6 in a random order, then 7-12; after that all twelve shuffled, every time round
+// ENDLESS: which sector's look and boss block b (0, 1, 2... six waves each) has: the first time round the first
+// half of the sectors in a random order, then the second half; after that all of them shuffled, every time round
 function gxdEndlessSec(b) {
   const E = Game.gxEndless || (Game.gxEndless = { order: [] }), n = GX_SECTORS.length;
   const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
