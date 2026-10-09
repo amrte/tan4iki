@@ -529,9 +529,9 @@ Object.assign(Game, {
       // a boss stage: the boss's own theme, faster in its last phase
       const b = st.bossIdx !== undefined && st.mainBoss && st.mainBoss();
       if (b && BOSS_SONGS[b.kind]) mode = BOSS_SONGS[b.kind] + (b.phase === 3 ? '+' : '');
-      if (st.galaxy) {   // galaxy.js: sectors 7-12 have their own tunes
-        const later = st.galaxy.sec >= 6 ? '2' : '';
-        mode = st.galaxy.boss ? 'galaxyBoss' + later + (st.galaxy.boss.ph === 3 ? '+' : '') : 'galaxy' + later;
+      if (st.galaxy) {   // galaxy.js: sectors 7 on have their own tunes; a sector may name its own (galaxy3.js)
+        const sec = GX_SECTORS[st.galaxy.sec] || {}, later = st.galaxy.sec >= 6 ? '2' : '';
+        mode = st.galaxy.boss ? (sec.bossSong || 'galaxyBoss' + later) + (st.galaxy.boss.ph === 3 ? '+' : '') : sec.song || 'galaxy' + later;
       }
     }
     // paused: the music pauses too, except while you're setting its volume in the pause menu (so you can hear it)

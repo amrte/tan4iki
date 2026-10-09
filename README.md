@@ -473,8 +473,8 @@ up. 1-4 players together, here or online.
 - **Controls:** hold FIRE to fire. **Tap B** to swap to your other weapon, **hold B** for FOCUS (half speed, your tiny
   hitbox shown as a dot), **double-tap B** for a bomb (damage to everything on screen, their shots gone).
 - **Runs** (GALAXY RUN, picked with left/right on the galaxy title screen or the first curtain, or in Settings → GAME):
-  - *Campaign*: the twelve sectors, then round again.
-  - *Boss rush*: the twelve bosses back to back, from power 4 and 3 bombs; the hangar after bosses 3, 6 and 9; the
+  - *Campaign*: the fourteen sectors, then round again.
+  - *Boss rush*: the fourteen bosses back to back, from power 4 and 3 bombs; the hangar after every third boss; the
     clock runs. Best: most bosses, then the fastest full clear.
   - *Endless*: random waves forever, getting harder every wave; a boss every 6 waves, the hangar every 12, a new sky
     each boss. Best: the furthest wave.
@@ -510,9 +510,11 @@ up. 1-4 players together, here or online.
 - **The bosses** are bigger and more detailed, show their damage phase by phase (cracks, sparks, holes, broken
   parts), and have about a third more hit points and one more attack in their last phase.
 
-- **Sectors:** twelve, each with six waves and a boss: Moon Orbit, Red Planet, Asteroid Belt, Ice Giant, Nebula,
+- **Sectors:** fourteen, each with six waves and a boss: Moon Orbit, Red Planet, Asteroid Belt, Ice Giant, Nebula,
   The Core, Earth Orbit, Time Vortex (a swirling tunnel), Saturn Rings, Cyberspace (a green grid and falling code),
-  Dark Star and The Last Base. Then round again, tougher, with each sector's waves shuffled and a couple of surprises.
+  Dark Star, The Well (a Tetris well: a faint grid, brick walls, tetrominoes falling in the dark, lines flashing as
+  they clear), The Slop Feed (an uncanny pastel haze, melting stars, garbled watermarks drifting by, sparkles and
+  glitches) and The Last Base. Then round again, tougher, with each sector's waves shuffled and a couple of surprises.
 - **Waves:**
   - *formation*: they fly in to a grid, sway, and break off to dive at you
   - *swarm*: streams weaving across the screen
@@ -531,9 +533,21 @@ up. 1-4 players together, here or online.
   - *invaders*: a marching block that steps across, drops a row at each edge and speeds up as it thins out; only the
     bottom of each column shoots; a mystery ship crosses the top for 300-1500
   - *falling blocks*: tetrominoes coming down a step at a time, turning as they go, losing a block with each hit
+  - *garbage*: grey rows rising from below through your part of the screen, each with a gap: fly through it (red
+    arrows along the bottom show where a row comes up, and where its gap is)
+  - *line clear*: blocks drop into a row across your zone; once it's full it flashes and fires a laser along it. Shoot
+    a block out of it to keep it from filling (run it out of blocks: BLOCKED!), or get off that line
+  - *T-spin*: T pieces turning a quarter at a time and spraying shots out of their three arms
+  - *lances*: I pieces follow you along the top, stop and take aim (a red line down their column), then drop
+  - *six fingers*: a waving swarm of six-fingered hands; now and then one turns red, a dotted line shows where it's
+    reaching, and it grabs
+  - *chat bubbles*: they float in typing "..." and burst into a spray of letters (red !!! just before): shoot them first
+  - *glitch clones*: jittering, wrong-coloured copies of the enemies you've met, split into colours
+  - *engagement bait*: likes and hearts with a notification badge that home in on you
 - **Enemies:** drones, bugs, wasps, brutes (aimed shots), splitters, egg-laying bombers, mines that burst into a ring
   of shots, and armoured tankers. Later sectors have their own: alien fighters in Earth Orbit, martian saucers with
-  ray guns at Saturn, sentinels in Cyberspace.
+  ray guns at Saturn, sentinels in Cyberspace, little blocks with angry faces in The Well, melting smileys in The Slop
+  Feed.
 - **Weapons**, each with 8 power levels:
   - **Blaster**: more streams with more power
   - **Spread**: a fan of 3 to 9
@@ -560,7 +574,7 @@ up. 1-4 players together, here or online.
   - **Frost Queen**: shards, a freezing beam that stops you, an ice storm
   - **Elder Eye**: hit it only while it's open; it stares a beam at you
   - **Overmind**: four orbiting orbs shield it until they're shot down; spirals
-  - The bosses of sectors 7-12 are after flying things from 90s films and games:
+  - The bosses of sectors 7-11 and 14 are after flying things from 90s films and games:
     - **City Killer** (sector 7): a saucer the size of a city behind a shield that soaks up nearly all damage. Catch
       the floppy disk it drops to upload a virus (9 s without a shield, and it takes extra damage), or hit it while
       its dish is open charging the beam that levels cities. Also fighters and rim turrets.
@@ -573,8 +587,21 @@ up. 1-4 players together, here or online.
       it hasn't adapted to. Tractor beam then a cutting beam, a cage of shots, little cubes that hunt you.
     - **Giant Head** (sector 11): two hands slam down where you are (a red mark shows where) and shield the head
       while they're alive. It breathes you in and spits tiles. In its last phase, its brain shows.
-    - **CATS** (sector 12): "HOW ARE YOU GENTLEMEN !!" "ALL YOUR BASE ARE BELONG TO US." Time bombs counting down
+    - **CATS** (sector 14, the last): "HOW ARE YOU GENTLEMEN !!" "ALL YOUR BASE ARE BELONG TO US." Time bombs counting down
       from 3 (shoot them to defuse), "MAIN SCREEN TURN ON." and its beam, fighters. FOR GREAT JUSTICE.
+  - Sectors 12 and 13 have bosses of their own:
+    - **The Stack** (sector 12): a living Tetris playfield, a scowling face in its blocks, a NEXT box showing the piece
+      it'll drop on you next. Big pieces hard-dropped at you (their columns dotted red first), line-clear lasers
+      across your zone (on your line: move off it), TETRIS! (four at once, each with a gap), garbage pushed up from
+      below, T-spin barrages. Each phase is a speed level (LEVEL 5!, LEVEL 9!): its stack grows and it all comes
+      faster. "READY?" "NEXT!" "GAME OVER?" Its tune is Korobeiniki.
+    - **The Slop Machine** (sector 13): a beaming chatbot on an old monitor, sunk in a melting heap of pastel goo
+      with far too many eyes and six-fingered hands. It HALLUCINATES blurry little copies of earlier bosses that
+      fire the plainest patterns, writes WALLS OF TEXT (rows of letters, a gap in each), SIX-FINGER SLAPS (a hand
+      hovers over you, a target under it, then it slams) and REGENERATES its response: a loading bar appears on
+      it; shoot the bar (or bomb it) within 4 s or it heals some of its health back. In its last phase, MODEL
+      COLLAPSE: it jitters, glitches into the wrong colours, scrambles its words and sprays letters every way.
+      "CERTAINLY! HERE IS YOUR BOSS FIGHT." "YOU'RE ABSOLUTELY RIGHT!"
 - **The hangar** between sectors (the shop), per player, paid in credits (CR), not points — combos, medals and
   grazing raise your score but don't buy anything. A full set of upgrades costs about 18500 credits, around sector 10:
   - firepower (+15% damage a level, 7 levels), rapid fire (7), engine (3)
@@ -664,7 +691,7 @@ pulse leads, a triangle bass and noise drums, and every skill plays it different
 | Deathmatch | No Mercy | aggressive |
 | Flags | Bring It Home | a fanfare |
 | VS CPU | Machine War | robotic octaves |
-| Galaxy | Starfighter (bosses: Alien Overlord); sectors 7-12: Hyperspace (bosses: All Your Base) | racing arpeggios |
+| Galaxy | Starfighter (bosses: Alien Overlord); sectors 7-11 and 14: Hyperspace (bosses: All Your Base); The Well: Korobeiniki (the Stack: Korobeiniki: Level 9); The Slop Feed: Upbeat Corporate 4 (the Slop Machine: Stock Music.exe) | racing arpeggios |
 
 | Skill | Scale | Tempo | Band |
 |---|---|---|---|
@@ -828,7 +855,8 @@ js/corridor.js    corridor mode: the endless climb, sections added on top as you
 js/maze.js        maze mode: the maze generator, patrols, reinforcements, the exit
 js/fortress.js    fortress mode (tower defense): towers, upgrades and specialisations, waves, gold, the build menu, maps
 js/galaxy.js      galaxy mode (a shoot-'em-up): sectors, waves, weapons, pickups, the hangar, its bosses
-js/galaxy2.js     galaxy sectors 7-12: their bosses, the newer enemies and waves, skies and music
+js/galaxy2.js     galaxy sectors 7-11 and 14: their bosses, the newer enemies and waves, skies and music
+js/galaxy3.js     galaxy sectors The Well and The Slop Feed (12 and 13): their enemies, waves, bosses, skies and music
 js/galaxy_feel.js galaxy controls and feel: B gestures, focus, two weapons, heat and the charge blast, combo, grazing, shake
 js/galaxy_prog.js galaxy progression and co-op: power cells back after a loss, perks, fair loot, escape pods
 js/galaxy_waves.js galaxy structure: mini-bosses, challenge stages, the captor and the twin fighter, medals
