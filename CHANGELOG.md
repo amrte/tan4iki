@@ -3,6 +3,15 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.51.5
+
+- **Block look** (Settings → SCREEN → LOOK: CLASSIC / BLOCKS, also in the pause menu): a texture pack in a chunky
+  voxel-block style for all terrain, in every season and terrain type — cobblestone instead of brick (mossy in spring,
+  snowy-pale in winter, sandstone in the desert ...), obsidian plates instead of steel, leaf blocks for trees, blocky
+  water and lava, packed ice, plank bridges, chests for crates, portal blocks for pads, block floors for the ground.
+  Walls stay easy to tell apart; tanks, shells and power-ups keep their classic look; galaxy is untouched. Switch it
+  any time; online it's each player's own choice.
+
 ## 0.51.4
 
 - **Boss gallery** (Settings → ART → BOSS GALLERY): the picture of every boss you've met, tank bosses and galaxy
