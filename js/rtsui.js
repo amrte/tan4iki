@@ -159,7 +159,9 @@ Object.assign(RtsGame.prototype, {
     this.uiLayout();
     if (kind === 'move') {
       if (e && e.pointerType === 'touch') this.touchMove(x, y, e);
-      ui.mx = x; ui.my = y; ui.mIn = x >= 0 && y >= 0 && x < this.L.W && y < this.L.H; ui.kbd = false;
+      ui.rx = x; ui.ry = y; ui.inWin = !e || e.pointerType === 'mouse';
+      ui.mIn = x >= 0 && y >= 0 && x < this.L.W && y < this.L.H; ui.kbd = false;
+      ui.mx = Math.max(0, Math.min(this.L.W - 1, x)); ui.my = Math.max(0, Math.min(this.L.H - 1, y));
       if (ui.mmDrag) this.minimapJump(x, y);
       return;
     }
@@ -544,10 +546,11 @@ Object.assign(RtsGame.prototype, {
     } else {
       // mouse: the arrow keys and WASD scroll, so does the screen's edge
       this.cam.x += dx * 6; this.cam.y += dy * 6;
-      if (ui.mIn && !ui.drag && Game.state === 'play') {
-        const e = 3;
-        if (ui.mx < e) this.cam.x -= 6; else if (ui.mx > L.W - 1 - e) this.cam.x += 6;
-        if (ui.my < e) this.cam.y -= 6; else if (ui.my > L.H - 1 - e) this.cam.y += 6;
+      // the screen's edge (or past it, where the canvas doesn't fill the window) scrolls
+      if (ui.inWin && !ui.drag && ui.rx !== undefined) {
+        const e = 1.5;
+        if (ui.rx < e) this.cam.x -= 6; else if (ui.rx > L.W - e) this.cam.x += 6;
+        if (ui.ry < e) this.cam.y -= 6; else if (ui.ry > L.H - e) this.cam.y += 6;
       }
       if (cancelJ) this.cancel();
     }
@@ -889,6 +892,9 @@ function rtsInstallInput() {
   window.addEventListener('pointerup', e => { if (live()) send('up', e); });
   window.addEventListener('pointercancel', e => { if (live()) send('cancel', e); });
   cv.addEventListener('pointerleave', e => { if (live() && e.pointerType === 'mouse' && Game.stage.ui) Game.stage.ui.mIn = false; });
+  // the pointer leaving the window stops the edge scrolling
+  document.addEventListener('mouseout', e => { if (!e.relatedTarget && Game.stage && Game.stage.ui) Game.stage.ui.inWin = false; });
+  window.addEventListener('blur', () => { if (Game.stage && Game.stage.ui) Game.stage.ui.inWin = false; });
   cv.addEventListener('contextmenu', e => { if (Game.mode === 'rts') e.preventDefault(); });
   cv.addEventListener('wheel', e => { if (!live()) return; e.preventDefault(); send('wheel', e); }, { passive: false });
   // a double click selects all of a kind (not fullscreen, here)

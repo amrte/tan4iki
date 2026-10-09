@@ -3,7 +3,7 @@
 //  DESERT DOMINION: units (the simulation's half that moves).
 //    - tiles: a vehicle holds one tile (and the next while it rolls into it), infantry share a tile three to a tile
 //      (each in its own slot), buildings block both, aircraft hold none. Vehicles turn in eight steps before they
-//      roll; turrets turn on their own. Tracked vehicles run over enemy infantry.
+//      roll; turrets turn on their own. Vehicles run over enemy infantry.
 //    - paths: A* over the tiles (8 ways, no cutting corners past blocked tiles), the cost of each tile by how fast
 //      the unit crosses it, standing units a little dearer to pass; a unit waiting behind a friend asks it to step
 //      aside, waits, then looks for a way round the units near it. Paths are worked out a few each frame (a budget
@@ -83,9 +83,10 @@ Object.assign(RtsGame.prototype, {
     const d = RTS_UNITS[key];
     if (!d || !this.inMap(tx, ty)) return null;
     const i = ty * this.W + tx;
-    if (!this.tileFreeFor(d, i, null)) return null;
+    if (!this.tileFreeFor(d, i, { h: Hs.id })) return null;
     const u = this.newUnit(Hs, key, tx, ty);
     u.slot = this.occupy(u, i);
+    if (u.slot < 0) return null;
     if (d.cls === 'inf') { u.x += RTS_SLOT[u.slot][0]; u.y += RTS_SLOT[u.slot][1]; }
     if (d.cls === 'air') u.alt = 1;
     this.units.push(u); Hs.units.push(u); this.byId.set(u.id, u);
@@ -93,14 +94,14 @@ Object.assign(RtsGame.prototype, {
     return u;
   },
   // the nearest free tile to (cx, cy) for def d, rings out to maxR
-  findFree(d, cx, cy, maxR, avoid) {
+  findFree(d, cx, cy, maxR, avoid, probe) {
     for (let r = 0; r <= maxR; r++) {
       let best = null, bd = 1e9;
       for (let y = cy - r; y <= cy + r; y++) for (let x = cx - r; x <= cx + r; x++) {
         if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) !== r || !this.inMap(x, y)) continue;
         const i = y * this.W + x;
         if (avoid && avoid.has(i)) continue;
-        if (!this.tileFreeFor(d, i, null)) continue;
+        if (!this.tileFreeFor(d, i, probe || null)) continue;
         const dd = (x - cx) * (x - cx) + (y - cy) * (y - cy);
         if (dd < bd) { bd = dd; best = { x, y }; }
       }
@@ -113,7 +114,7 @@ Object.assign(RtsGame.prototype, {
     const d = RTS_UNITS[key];
     if (!d || !Hs) return null;
     cx = Math.max(0, Math.min(this.W - 1, cx | 0)); cy = Math.max(0, Math.min(this.H - 1, cy | 0));
-    const p = this.findFree(d, cx, cy, maxR || 8);
+    const p = this.findFree(d, cx, cy, maxR || 8, null, { h: Hs.id });
     return p ? this.spawnUnit(Hs, key, p.x, p.y) : null;
   },
   // next to a building, from its door (the middle of its bottom edge) round
@@ -126,7 +127,7 @@ Object.assign(RtsGame.prototype, {
       for (let y = b.y - r; y < b.y + b.hh + r; y++) for (let x = b.x - r; x < b.x + b.w + r; x++) {
         if (x > b.x - r && x < b.x + b.w + r - 1 && y > b.y - r && y < b.y + b.hh + r - 1) continue;
         if (!this.inMap(x, y)) continue;
-        if (!this.tileFreeFor(d, y * this.W + x, null)) continue;
+        if (!this.tileFreeFor(d, y * this.W + x, { h: Hs.id })) continue;
         const dd = (x - dx) * (x - dx) + (y - dy) * (y - dy) * 0.8;
         if (dd < bd) { bd = dd; best = { x, y }; }
       }
@@ -245,7 +246,7 @@ Object.assign(RtsGame.prototype, {
     G[s] = 0; seen[s] = gen; from[s] = -1;
     push(s, hOf(sx, sy));
     let nodes = 0, best = s, bestH = hOf(sx, sy);
-    const maxNodes = 1500 + 60 * (Math.abs(goal.x - sx) + Math.abs(goal.y - sy));
+    const maxNodes = Math.min(5000, 1500 + 60 * (Math.abs(goal.x - sx) + Math.abs(goal.y - sy)));
     const isInf = u.d.cls === 'inf';
     while (hn > 0) {
       const c = pop();
@@ -488,7 +489,11 @@ Object.assign(RtsGame.prototype, {
         // turrets fire on the way at whatever comes in range
         if (w && u.d.turret && (this.frame + u.scanT) % 12 === 0) u.tgt = this.scan(u, w.range, false);
         if (w && u.d.turret && u.tgt && this.validTarget(u, u.tgt) && this.dist(u, u.tgt) <= w.range * 16) this.aimFire(u, u.tgt, w);
-        if (!u.path && !u.mv && !u.wantPath) { u.order = { k: o.k === 'retreat' ? 'guard' : 'idle' }; u.tgt = null; }
+        if (!u.path && !u.mv && !u.wantPath) {
+          // a long way (a partial path), or pushed off it: on again, a few times
+          if (Math.max(Math.abs(u.tx - o.x), Math.abs(u.ty - o.y)) > 2 && (o.tries = (o.tries || 0) + 1) <= 4) { this.requestPath(u, o.x, o.y); return; }
+          u.order = { k: o.k === 'retreat' ? 'guard' : 'idle' }; u.tgt = null;
+        }
         return;
       }
       case 'attack': {
@@ -1162,7 +1167,7 @@ Object.assign(RtsGame.prototype, {
     const L = this.flyTo(u, dx, dy, 3);
     v.x = u.x; v.y = u.y; v.dir = u.dir;
     if (L < 6) {
-      const p = this.findFree(v.d, j.dest.x, j.dest.y, 5);
+      const p = this.findFree(v.d, j.dest.x, j.dest.y, 5, null, v);
       if (!p) return;   // hover until there's room
       v.carried = null; v.lift = null; u.job = null;
       v.tx = p.x; v.ty = p.y; v.x = p.x * 16 + 8; v.y = p.y * 16 + 8; v.mv = null;

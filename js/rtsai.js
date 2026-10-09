@@ -1,101 +1,13 @@
 'use strict';
 // =====================================================================
-//  DESERT DOMINION: the placeholder computer player (RTS_AI) and the stand-in skirmish map generator.
+//  DESERT DOMINION: the placeholder computer player (RTS_AI). A better one replaces this file (or RTS_AI.make).
 //    RTS_AI.make(R, house, level) -> { tick(R) }, called every 15 frames for each computer House. It plays only
 //    through the command API (R.startBuild, R.place, R.cmdAttackMove, ...), so a better one can take its place:
 //    unfolds the MCV, builds power first when short, then refinery, barracks, factories, radar, turrets, ...
 //    (a plan, in order), keeps a harvester or two per refinery, trains a mixed army by what its factories make,
 //    upgrades them, repairs what's hit, defends its base, uses its palace and the starport, and sends attack
 //    waves that grow and come sooner at higher levels (0 easy .. 4 brutal).
-//    rtsGenMap(opts) builds a skirmish map when js/rtsmaps.js (rtsMapGen) isn't there: value noise for rock
-//    plateaus, cliffs and dunes, a rock base at each start, glimmer fields near every start and out in the open,
-//    a few blooms.
 // =====================================================================
-
-// ------------------------------------------------------------------ the map generator (stand-in)
-function rtsGenMap(o) {
-  o = o || {};
-  const w = Math.max(32, Math.min(128, o.w | 0 || 64)), h = Math.max(32, Math.min(128, o.h | 0 || 64));
-  const n = Math.max(1, Math.min(4, o.players | 0 || 2)), rnd = rtsRng((o.seed | 0) || 12345), style = o.style || 'open';
-  const t = new Uint8Array(w * h), g = new Uint16Array(w * h);
-  // smooth value noise at a scale (tiles a lattice cell)
-  const noise = sc => {
-    const lw = Math.ceil(w / sc) + 2, lh = Math.ceil(h / sc) + 2, L = new Float32Array(lw * lh);
-    for (let i = 0; i < L.length; i++) L[i] = rnd();
-    return (x, y) => {
-      const fx = x / sc, fy = y / sc, ix = fx | 0, iy = fy | 0, ax = fx - ix, ay = fy - iy;
-      const sx = ax * ax * (3 - 2 * ax), sy = ay * ay * (3 - 2 * ay);
-      const a = L[iy * lw + ix], b = L[iy * lw + ix + 1], c = L[(iy + 1) * lw + ix], d = L[(iy + 1) * lw + ix + 1];
-      return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
-    };
-  };
-  const big = noise(11), small = noise(4), dn = noise(6), cl = noise(5);
-  // the starts: corners first (two players: opposite), inset from the edge
-  const inset = Math.max(7, Math.round(Math.min(w, h) * 0.15));
-  const corners = [[inset, inset], [w - 1 - inset, h - 1 - inset], [w - 1 - inset, inset], [inset, h - 1 - inset]];
-  if (rnd() < 0.5) { corners[0][0] = w - 1 - inset; corners[1][0] = inset; corners[2][0] = inset; corners[3][0] = w - 1 - inset; }
-  const starts = corners.slice(0, Math.max(n, 2)).map(([x, y]) => ({ x: x + ((rnd() * 5) | 0) - 2, y: y + ((rnd() * 5) | 0) - 2 }));
-  const thr = { open: 0.62, canyons: 0.47, islands: 0.69, basin: 0.6 }[style] || 0.62;
-  const nearStart = (x, y, r) => starts.some(s => (s.x - x) ** 2 + (s.y - y) ** 2 < r * r);
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    let v = big(x, y) * 0.72 + small(x, y) * 0.28;
-    if (style === 'basin') { const ex = Math.min(x, w - 1 - x, y, h - 1 - y) / (Math.min(w, h) / 2); v += (1 - ex) * 0.35 - 0.12; }
-    if (style === 'canyons') v += 0.08 * Math.sin((x + y) / 7);
-    const i = y * w + x;
-    if (v > thr) t[i] = v > thr + 0.17 && cl(x, y) > 0.45 && !nearStart(x, y, 10) ? 3 : 2;
-    else t[i] = dn(x, y) > 0.64 ? 1 : 0;
-  }
-  // a rock plateau at every start
-  for (const s of starts) {
-    for (let y = s.y - 9; y <= s.y + 9; y++) for (let x = s.x - 9; x <= s.x + 9; x++) {
-      if (x < 0 || y < 0 || x >= w || y >= h) continue;
-      const d = Math.hypot(x - s.x, y - s.y) + (rnd() - 0.5) * 1.6;
-      if (d < 6.5) t[y * w + x] = 2;
-      else if (d < 8.5 && t[y * w + x] === 3) t[y * w + x] = 2;
-    }
-  }
-  // glimmer fields: a blob of light glimmer with thick at its heart, only on sand
-  const blob = (cx, cy, r) => {
-    let put = 0;
-    for (let y = cy - r - 1; y <= cy + r + 1; y++) for (let x = cx - r - 1; x <= cx + r + 1; x++) {
-      if (x < 0 || y < 0 || x >= w || y >= h) continue;
-      const d = Math.hypot(x - cx, y - cy) + (rnd() - 0.5) * 1.5;
-      if (d > r) continue;
-      const i = y * w + x;
-      if (t[i] !== 0 && t[i] !== 1) continue;
-      const thick = d < r * 0.45;
-      g[i] = thick ? 200 : 100; t[i] = thick ? 5 : 4; put++;
-    }
-    return put;
-  };
-  const sandAt = (x, y) => x >= 2 && y >= 2 && x < w - 2 && y < h - 2 && (t[y * w + x] === 0 || t[y * w + x] === 1);
-  const cxm = w / 2, cym = h / 2;
-  for (const s of starts) {
-    // one near each base, toward the middle
-    const a0 = Math.atan2(cym - s.y, cxm - s.x);
-    for (let k = 0; k < 40; k++) {
-      const a = a0 + (rnd() - 0.5) * 1.6, d = 10 + rnd() * 5;
-      const x = Math.round(s.x + Math.cos(a) * d), y = Math.round(s.y + Math.sin(a) * d);
-      if (!sandAt(x, y)) continue;
-      if (blob(x, y, 4 + ((rnd() * 2) | 0)) > 12) break;
-    }
-  }
-  const fields = Math.round(w * h / 800);
-  for (let k = 0, made = 0; k < fields * 20 && made < fields; k++) {
-    const x = 3 + ((rnd() * (w - 6)) | 0), y = 3 + ((rnd() * (h - 6)) | 0);
-    if (!sandAt(x, y) || nearStart(x, y, 10)) continue;
-    if (blob(x, y, 3 + ((rnd() * 3) | 0)) > 8) made++;
-  }
-  // blooms
-  const blooms = [];
-  const nb = 2 + Math.round(w * h / 2000);
-  for (let k = 0; k < nb * 30 && blooms.length < nb; k++) {
-    const x = 2 + ((rnd() * (w - 4)) | 0), y = 2 + ((rnd() * (h - 4)) | 0), i = y * w + x;
-    if (t[i] !== 0 || nearStart(x, y, 9)) continue;
-    t[i] = 6; blooms.push([x, y]);
-  }
-  return { w, h, t, g, starts: starts.slice(0, n), blooms, name: 'KHARRA ' + style.toUpperCase() };
-}
 
 // ------------------------------------------------------------------ the computer player (placeholder)
 const RTS_AI_PLAN = [['vapor', 1], ['refinery', 1], ['barracks', 1], ['vapor', 2], ['light', 1], ['radar', 1], ['refinery', 2], ['heavy', 1],

@@ -104,8 +104,9 @@ Object.assign(RtsGame.prototype, {
       let tx = s.tx, ty = s.ty;
       const u = this.newUnit(H, s.key, tx, ty);
       if (def.cls !== 'air') {
-        if (!this.tileFreeFor(def, ty * W + tx, u)) { const p = this.findFree(def, tx, ty, 8); if (!p) continue; tx = p.x; ty = p.y; u.tx = tx; u.ty = ty; }
+        if (!this.tileFreeFor(def, ty * W + tx, u)) { const p = this.findFree(def, tx, ty, 8, null, u); if (!p) continue; tx = p.x; ty = p.y; u.tx = tx; u.ty = ty; }
         u.slot = this.occupy(u, ty * W + tx);
+        if (u.slot < 0) continue;
         u.x = tx * 16 + 8 + (def.cls === 'inf' ? RTS_SLOT[u.slot][0] : 0); u.y = ty * 16 + 8 + (def.cls === 'inf' ? RTS_SLOT[u.slot][1] : 0);
       } else { u.x = s.x; u.y = s.y; u.alt = s.alt || 1; u.ang = s.ang || 0; }
       Object.assign(u, { hp: s.hp, dir: s.dir | 0, tdir: s.tdir | 0, cargo: s.cargo | 0, hs: s.hs || null, harvTile: s.harvTile === undefined ? -1 : s.harvTile, conv: s.conv || null,

@@ -103,11 +103,11 @@ const RTS_UNITS = {
     fac: 'barracks', houses: ['regent'], tech: 3, capture: true, desc: 'THE REGENT\'S ELITE HEAVY TROOPER' },
   // ------- light vehicles
   trike: { name: 'TRIKE', cls: 'veh', move: 'wheel', armor: 'light', hp: 100, speed: 1.0, turn: 3, wpn: 'mg', sight: 5, cost: 150, time: 360,
-    fac: 'light', houses: ['aquila', 'regent'], tech: 1, desc: 'FAST THREE-WHEELED SCOUT' },
+    fac: 'light', houses: ['aquila', 'regent'], tech: 1, crush: true, desc: 'FAST THREE-WHEELED SCOUT' },
   raider: { name: 'RAIDER', cls: 'veh', move: 'wheel', armor: 'light', hp: 80, speed: 1.2, turn: 2, wpn: 'mg', sight: 5, cost: 150, time: 330,
-    fac: 'light', houses: ['serpens'], tech: 1, desc: 'THE FASTEST THING ON KHARRA' },
+    fac: 'light', houses: ['serpens'], tech: 1, crush: true, desc: 'THE FASTEST THING ON KHARRA' },
   quad: { name: 'QUAD', cls: 'veh', move: 'wheel', armor: 'light', hp: 130, speed: 0.82, turn: 4, wpn: 'twinmg', sight: 4, cost: 200, time: 480,
-    fac: 'light', tech: 2, upg: 1, upgBy: { drakon: 0 }, desc: 'FOUR WHEELS AND TWIN GUNS' },
+    fac: 'light', tech: 2, upg: 1, upgBy: { drakon: 0 }, crush: true, desc: 'FOUR WHEELS AND TWIN GUNS' },
   // ------- heavy vehicles
   tank: { name: 'COMBAT TANK', cls: 'veh', move: 'track', armor: 'heavy', hp: 200, speed: 0.55, turn: 5, wpn: 'cannon', sight: 4, cost: 300, time: 660,
     fac: 'heavy', tech: 3, turret: true, crush: true, desc: 'TURRETED CANNON, THE LINE TANK' },
