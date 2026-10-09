@@ -255,7 +255,7 @@ Object.assign(GX_MOVES, {
   wing: function (e, g) {
     const b = g.boss;
     if (!b) { e.st = 'kami'; e.vy = 0.6; return; }
-    const tx = b.x + [-34, 34, -22, 22][e.slot % 4], ty = b.y + [8, 8, 28, 28][e.slot % 4] + Math.sin((this.frame + e.slot * 20) / 20) * 3;
+    const tx = b.x + [-42, 42, -26, 26][e.slot % 4], ty = b.y + [12, 12, 38, 38][e.slot % 4] + Math.sin((this.frame + e.slot * 20) / 20) * 3;
     e.x += (tx - e.x) * 0.1; e.y += (ty - e.y) * 0.1;
   },
   // a time bomb: floats to its spot and counts down
@@ -483,8 +483,8 @@ const gxDive = (st, type, b, n, near, gap = 16) => {
 };
 GX_BOSSES.push(
   // a city-sized saucer: shielded until a floppy disk uploads a virus, or while its dish is open to fire
-  { key: 'city', name: 'CITY KILLER', w: 88, h: 30, hp: 360, pts: 30000, move: 'sway',
-    phases: [['fighters', 'turrets', 'cityBeam', 'fan5'], ['turrets', 'fighters', 'cityBeam', 'ring12', 'aimed5'], ['cityBeam', 'spiral', 'fighters', 'turrets', 'cityBeam']],
+  { key: 'city', name: 'CITY KILLER', w: 100, h: 40, hp: 486, pts: 36000, move: 'sway',
+    phases: [['fighters', 'turrets', 'cityBeam', 'fan5'], ['turrets', 'fighters', 'cityBeam', 'ring12', 'aimed5'], ['cityBeam', 'spiral', 'fighters', 'turrets', 'cityBeam', 'ring16']],
     init(b) { b.virusT = 0; b.diskT = 240; b.dish = 0; },
     update(b, g) {
       if (b.virusT > 0) b.virusT--;
@@ -501,7 +501,7 @@ GX_BOSSES.push(
       b.noFlash = true;
       return dmg * 0.12;   // the shield takes nearly all of it
     },
-    frame: b => (b.dish ? 1 : 0),
+    frame: (b, fr) => (b.dish ? 1 : 0) + 2 * ((fr >> 3) & 1),
     drawOver(ctx, b) {
       const f = this.frame;
       if (b.virusT > 0) {   // the virus at work: glitches
@@ -513,8 +513,8 @@ GX_BOSSES.push(
     },
   },
   // the time car: 88 mph, two trails of fire, gone in a flash
-  { key: 'delorean', name: 'TIME CAR', w: 36, h: 22, hp: 300, pts: 32000, move: 'swayFast',
-    phases: [['timeJump', 'flux', 'fan5'], ['timeJump', 'flux', 'bolt', 'aimed5'], ['timeJump', 'bolt', 'flux', 'timeJump', 'spiral']],
+  { key: 'delorean', name: 'TIME CAR', w: 46, h: 30, hp: 405, pts: 38400, move: 'swayFast',
+    phases: [['timeJump', 'flux', 'fan5'], ['timeJump', 'flux', 'bolt', 'aimed5'], ['timeJump', 'bolt', 'flux', 'timeJump', 'spiral', 'fan7']],
     init(b) { b.dash = 0; },
     update(b) {
       if (!b.dash) return false;
@@ -530,12 +530,12 @@ GX_BOSSES.push(
     frame: (b, fr) => (fr >> 2) & 1,
     drawUnder(ctx, b) {
       if (!b.dash) return;
-      for (const dx of [-7, 7]) for (let y = Math.max(0, Math.round(b.y) - 40); y < b.y + 4; y += 2) { ctx.fillStyle = (y + this.frame) % 4 ? '#F8B800' : '#F83800'; ctx.fillRect(Math.round(b.x + dx) - 1, y, 3, 2); }
+      for (const dx of [-11, 11]) for (let y = Math.max(0, Math.round(b.y) - 40); y < b.y + 4; y += 2) { ctx.fillStyle = (y + this.frame) % 4 ? '#F8B800' : '#F83800'; ctx.fillRect(Math.round(b.x + dx) - 1, y, 3, 2); }
     },
   },
   // the martian saucer: a big brain in a dome and four wingmen; a bomb (the yodel) hurts it three times as much
-  { key: 'martian', name: 'MARTIAN SAUCER', w: 44, h: 26, hp: 280, pts: 34000, move: 'sway',
-    phases: [['rays', 'wingFire', 'fan5'], ['rays', 'abduct', 'wingFire', 'ring12'], ['rays', 'spiral', 'abduct', 'wingFire', 'fan9']],
+  { key: 'martian', name: 'MARTIAN SAUCER', w: 58, h: 36, hp: 378, pts: 40800, move: 'sway',
+    phases: [['rays', 'wingFire', 'fan5'], ['rays', 'abduct', 'wingFire', 'ring12'], ['rays', 'spiral', 'abduct', 'wingFire', 'fan9', 'aimed5']],
     init(b) { this.gxWingmen(b); this.gxSay(b, 'ACK ACK!', 90); b.ackT = 220; },
     update(b) {
       if (--b.ackT <= 0) { this.gxSay(b, ['ACK ACK!', 'ACK! ACK ACK!', 'ACK?', 'ACK ACK ACK!'][rnd(4)], 70); Sound.play('ack'); b.ackT = 220 + rnd(200); }
@@ -550,8 +550,8 @@ GX_BOSSES.push(
     onPhase(b) { this.gxWingmen(b); this.gxDrop(b.x, b.y + b.h, 'bomb'); },
   },
   // the cube: it adapts to the weapon that hurts it most (switch guns!)
-  { key: 'cube', name: 'THE CUBE', w: 48, h: 46, hp: 400, pts: 36000, move: 'slow',
-    phases: [['grid', 'cutter', 'assimilate'], ['tractorCut', 'grid', 'assimilate', 'aimed5'], ['tractorCut', 'grid', 'spiral2', 'assimilate', 'cutter']],
+  { key: 'cube', name: 'THE CUBE', w: 60, h: 58, hp: 540, pts: 43200, move: 'slow',
+    phases: [['grid', 'cutter', 'assimilate'], ['tractorCut', 'grid', 'assimilate', 'aimed5'], ['tractorCut', 'grid', 'spiral2', 'assimilate', 'cutter', 'ring12']],
     init(b) { b.adapt = {}; b.immune = []; b.boxT = 480; this.gxSay(b, 'RESISTANCE IS FUTILE.', 160); },
     update(b, g) {
       if (--b.boxT <= 0) {   // a weapon it hasn't adapted to drifts down now and then
@@ -589,10 +589,10 @@ GX_BOSSES.push(
     },
   },
   // the giant head: two hands that slam down at you; it breathes you in and spits tiles
-  { key: 'head', name: 'GIANT HEAD', w: 52, h: 44, hp: 480, pts: 38000, move: 'hover',
-    phases: [['slam', 'tiles', 'fan5'], ['slam', 'inhale', 'tiles', 'slam'], ['slam', 'inhale', 'spiral', 'tiles', 'slam']],
+  { key: 'head', name: 'GIANT HEAD', w: 66, h: 56, hp: 648, pts: 45600, move: 'hover',
+    phases: [['slam', 'tiles', 'fan5'], ['slam', 'inhale', 'tiles', 'slam'], ['slam', 'inhale', 'spiral', 'tiles', 'slam', 'fan7']],
     init(b, g) {
-      b.hands = [-1, 1].map(s => ({ s, hp: 40 * g.hpMul, max: 40 * g.hpMul, st: 'idle', t: 0, x: b.x + s * 38, y: b.y + 30, tx: 0, flash: 0 }));
+      b.hands = [-1, 1].map(s => ({ s, hp: 50 * g.hpMul, max: 50 * g.hpMul, st: 'idle', t: 0, x: b.x + s * 46, y: b.y + 40, tx: 0, flash: 0 }));
       b.mouth = 0; b.slamK = 0;
       this.gxSay(b, 'COME CLOSER, LITTLE TANKS!', 140);
     },
@@ -600,20 +600,20 @@ GX_BOSSES.push(
       for (const hd of b.hands) {
         if (hd.hp <= 0) continue;
         if (hd.flash > 0) hd.flash--;
-        const homeX = b.x + hd.s * 38, homeY = b.y + b.h - 12 + Math.sin((b.t + hd.s * 30) / 25) * 3;
+        const homeX = b.x + hd.s * 46, homeY = b.y + b.h - 14 + Math.sin((b.t + hd.s * 30) / 25) * 3;
         hd.t++;
         if (hd.st === 'idle') { hd.x += (homeX - hd.x) * 0.15; hd.y += (homeY - hd.y) * 0.15; }
         else if (hd.st === 'aim') { hd.x += (hd.tx - hd.x) * 0.12; hd.y += (b.y + b.h - hd.y) * 0.12; if (hd.t >= 40) { hd.st = 'down'; hd.t = 0; } }
-        else if (hd.st === 'down') { hd.y += 6; if (hd.y >= FH - 12) { hd.y = FH - 12; hd.st = 'stay'; hd.t = 0; Sound.play('bump'); this.fx.push({ x: hd.x, y: hd.y + 6, frames: Sprites.smallExp, per: 3, tick: 0 }); } }
+        else if (hd.st === 'down') { hd.y += 6; if (hd.y >= FH - 11) { hd.y = FH - 11; hd.st = 'stay'; hd.t = 0; Sound.play('bump'); this.fx.push({ x: hd.x, y: hd.y + 6, frames: Sprites.smallExp, per: 3, tick: 0 }); } }
         else if (hd.st === 'stay') { if (hd.t >= 24) { hd.st = 'up'; hd.t = 0; } }
         else if (hd.st === 'up') { hd.y -= 3; if (hd.y <= homeY) { hd.st = 'idle'; hd.t = 0; } }
-        for (const t of pl) if (overlap(t.x + 3, t.y + 3, 10, 10, hd.x - 10, hd.y - 8, 20, 16)) this.hitPlayer(t);
+        for (const t of pl) if (overlap(t.x + 3, t.y + 3, 10, 10, hd.x - 12, hd.y - 10, 24, 20)) this.hitPlayer(t);
       }
       return false;
     },
     hitParts(b, x, y, w, h, dmg, p) {
       for (const hd of b.hands) {
-        if (hd.hp <= 0 || !overlap(x, y, w, h, hd.x - 10, hd.y - 8, 20, 16)) continue;
+        if (hd.hp <= 0 || !overlap(x, y, w, h, hd.x - 13, hd.y - 10, 26, 20)) continue;
         hd.hp -= dmg; hd.flash = 3;
         if (hd.hp <= 0) { this.fx.push({ x: hd.x, y: hd.y, frames: BIG_EXPLOSION(), per: 4, tick: 0 }); Sound.play('explode'); if (p) this.addScore(p, 1500); this.gxSay(b, 'MY HAND!', 80); }
         return true;
@@ -623,30 +623,30 @@ GX_BOSSES.push(
     damage(b, dmg) { return b.hands.some(hd => hd.hp > 0) ? dmg * 0.4 : dmg; },
     onPhase(b, g, ph) {
       const dead = b.hands.find(hd => hd.hp <= 0);
-      if (dead) { dead.hp = dead.max * 0.6; dead.st = 'idle'; dead.x = b.x + dead.s * 38; dead.y = b.y + b.h; }
+      if (dead) { dead.hp = dead.max * 0.6; dead.st = 'idle'; dead.x = b.x + dead.s * 46; dead.y = b.y + b.h; }
       b.mouth = 0;
       this.gxSay(b, ph === 3 ? 'NOW YOU SEE MY TRUE FORM!' : 'YOU BRAT!', 120);
     },
-    frame: b => (b.mouth ? 1 : 0),
+    frame: (b, fr) => (b.mouth ? 1 : 0) + 2 * ((fr >> 4) & 1),
     drawOver(ctx, b) {
       const f = this.frame;
       if (b.mouth) for (let k = 0; k < 10; k++) {   // air rushing into its mouth
-        const a = k * 0.63, d = 70 - ((f * 3 + k * 17) % 70), mx = b.x, my = b.y + 34;
+        const a = k * 0.63, d = 70 - ((f * 3 + k * 17) % 70), mx = b.x, my = b.y + 44;
         ctx.fillStyle = '#A8E8F8'; ctx.fillRect(Math.round(mx + Math.cos(a) * d), Math.round(my + Math.sin(a) * d * 0.8 + 10), 3, 1);
       }
       for (const hd of b.hands) {
         if (hd.hp <= 0) continue;
         if (hd.st === 'aim' && (f >> 2) & 1) {   // where it'll land
           ctx.fillStyle = '#F83800'; const tx = Math.round(hd.tx);
-          ctx.fillRect(tx - 9, FH - 6, 18, 1); ctx.fillRect(tx, FH - 14, 1, 14); ctx.fillRect(tx - 6, FH - 12, 12, 1);
+          ctx.fillRect(tx - 12, FH - 6, 24, 1); ctx.fillRect(tx, FH - 16, 1, 16); ctx.fillRect(tx - 8, FH - 13, 16, 1);
         }
-        ctx.drawImage(GxGfx.hand(hd.flash > 0), Math.round(hd.x - 10), Math.round(hd.y - 8));
+        ctx.drawImage(GxGfx.hand(hd.flash > 0, hd.s), Math.round(hd.x - 13), Math.round(hd.y - 10));
       }
     },
   },
   // CATS: all your base are belong to us
-  { key: 'cats', name: 'CATS', w: 64, h: 40, hp: 760, pts: 50000, move: 'sway',
-    phases: [['timeBomb', 'launch', 'fan7'], ['mainScreen', 'timeBomb', 'launch', 'ring16'], ['mainScreen', 'timeBomb', 'spiral2', 'launch', 'timeBomb']],
+  { key: 'cats', name: 'CATS', w: 84, h: 52, hp: 1026, pts: 60000, move: 'sway',
+    phases: [['timeBomb', 'launch', 'fan7'], ['mainScreen', 'timeBomb', 'launch', 'ring16'], ['mainScreen', 'timeBomb', 'spiral2', 'launch', 'timeBomb', 'ring16']],
     init(b) { b.talk = ['HOW ARE YOU GENTLEMEN !!', 'ALL YOUR BASE ARE BELONG TO US.']; b.bombSaid = 0; b.screen = 0; },
     update(b) {
       if (!b.say && b.talk.length) { this.gxSay(b, b.talk.shift(), 150); Sound.play('talk'); }
@@ -661,11 +661,11 @@ GX_BOSSES.push(
       }
     },
     onKill(b, g) { g.banner = { text: 'ALL YOUR BASE ARE YOURS!', t: 240 }; },
-    frame: (b, fr) => (b.say ? (fr >> 3) & 1 : 0),
+    frame: (b, fr) => (b.say ? (fr >> 3) & 1 : 0) + 2 * ((fr >> 4) & 1),
     drawOver(ctx, b) {
       if (!b.screen) return;   // MAIN SCREEN TURN ON
       ctx.fillStyle = (this.frame >> 1) & 1 ? 'rgba(248,248,248,0.7)' : 'rgba(88,248,88,0.5)';
-      ctx.fillRect(Math.round(b.x - b.w / 2 + 22), Math.round(b.y + 12), 20, 18);
+      ctx.fillRect(Math.round(b.x - b.w / 2 + 29), Math.round(b.y + 15), 26, 23);
     },
   },
 );
@@ -674,7 +674,7 @@ Object.assign(Stage.prototype, {
   // the martian's four wingmen (back up to four)
   gxWingmen(b) {
     const g = this.galaxy, have = g.list.filter(e => e.st === 'wing').map(e => e.slot);
-    for (let k = 0; k < 4; k++) if (!have.includes(k)) { const e = this.gxSpawn({ type: 'msaucer', st: 'wing', slot: k }); e.x = b.x; e.y = b.y + 10; }
+    for (let k = 0; k < 4; k++) if (!have.includes(k)) { const e = this.gxSpawn({ type: 'msaucer', st: 'wing', slot: k }); e.x = b.x; e.y = b.y + 14; }
   },
 });
 
@@ -682,7 +682,7 @@ Object.assign(GX_BOSS_ACTS, {
   // CITY KILLER
   fighters(b, a, c) { if (c.g.list.length < 14) gxDive(this, 'attacker', b, 4, c.near); Sound.play('teleport'); c.done(60); },
   turrets(b, a, c) {
-    if (a.t % 12 === 1) for (const dx of [-36, -20, 20, 36]) { const x = b.x + dx, y = b.y + b.h - 6; c.shoot(x, y, c.toward(x, y), 1.5); }
+    if (a.t % 12 === 1) for (const dx of [-40, -24, 24, 40]) { const x = b.x + dx, y = b.y + (dx * dx > 900 ? 34 : 37); c.shoot(x, y, c.toward(x, y), 1.5); }
     if (a.t >= 36) c.done(50);
   },
   cityBeam(b, a, c) {
@@ -698,7 +698,7 @@ Object.assign(GX_BOSS_ACTS, {
   timeJump(b, a, c) {
     if (a.t === 1) {
       b.jx = Math.max(b.w / 2 + 2, Math.min(FW - b.w / 2 - 2, c.near ? c.near.x + 8 : b.x)); b.hold = true;
-      for (const dx of [-7, 7]) b.beams.push({ kind: 'fire', x: b.jx + dx, w: 4, top: 0, t: 0, warn: 45, dur: 110, snd: 'flame' });
+      for (const dx of [-11, 11]) b.beams.push({ kind: 'fire', x: b.jx + dx, w: 4, top: 0, t: 0, warn: 45, dur: 110, snd: 'flame' });
       this.gxSay(b, '88 MPH!', 60);
       Sound.play('mph');
     }
@@ -757,17 +757,17 @@ Object.assign(GX_BOSS_ACTS, {
       const alive = b.hands.filter(hd => hd.hp > 0);
       if (!alive.length) { c.done(10); return; }
       const hd = alive[b.slamK++ % alive.length];
-      hd.st = 'aim'; hd.t = 0; hd.tx = Math.max(10, Math.min(FW - 10, c.near ? c.near.x + 8 : FW / 2)); a.hand = b.hands.indexOf(hd);
+      hd.st = 'aim'; hd.t = 0; hd.tx = Math.max(13, Math.min(FW - 13, c.near ? c.near.x + 8 : FW / 2)); a.hand = b.hands.indexOf(hd);
       return;
     }
     const hd = b.hands[a.hand];
     if (!hd || hd.hp <= 0 || (hd.st === 'idle' && a.t > 2) || a.t > 220) c.done(30);
   },
-  tiles(b, a, c) { const t0 = c.toward(b.x, b.y + 34); for (let i = 0; i < 5; i++) c.shoot(b.x, b.y + 34, t0 + (i - 2) * 0.25, 1.3, 'tile'); Sound.play('mortar'); c.done(60); },
+  tiles(b, a, c) { const t0 = c.toward(b.x, b.y + 44); for (let i = 0; i < 5; i++) c.shoot(b.x, b.y + 44, t0 + (i - 2) * 0.25, 1.3, 'tile'); Sound.play('mortar'); c.done(60); },
   inhale(b, a, c) {
     if (a.t === 1) { b.mouth = 1; Sound.play('plane'); }
     if (a.t < 110) for (const t of this.gxPlayers()) { t.y = Math.max(Math.round(FH * 0.35), t.y - 0.45); t.x += Math.sign(b.x - (t.x + 8)) * 0.45; }
-    if (a.t === 110) { for (let i = 0; i < 10; i++) c.shoot(b.x, b.y + 34, i * Math.PI / 5 + 0.3, 1.2, 'tile'); b.mouth = 0; Sound.play('mortar'); c.done(60); }
+    if (a.t === 110) { for (let i = 0; i < 10; i++) c.shoot(b.x, b.y + 44, i * Math.PI / 5 + 0.3, 1.2, 'tile'); b.mouth = 0; Sound.play('mortar'); c.done(60); }
   },
   // CATS
   timeBomb(b, a, c) {
@@ -783,7 +783,7 @@ Object.assign(GX_BOSS_ACTS, {
     if (a.t === 1) { this.gxSay(b, 'MAIN SCREEN TURN ON.', 80); b.hold = true; b.screen = 1; Sound.play('talk'); }
     if (a.t === 30) {
       b.beams.push({ kind: 'city', x: b.x, w: 20, top: b.y + b.h, t: 0, warn: 60, dur: 40, snd: 'cityBlast' });
-      if (b.ph >= 3 && c.near) for (const dx of [-24, 24]) b.beams.push({ x: b.x + dx, y0: b.y + b.h, tx: c.near.x + 8 + dx, ty: c.near.y + 8, t: 0, warn: 60, dur: 24, kind: 'stare' });
+      if (b.ph >= 3 && c.near) for (const dx of [-26.5, 26.5]) b.beams.push({ x: b.x + dx, y0: b.y + b.h, tx: c.near.x + 8 + dx, ty: c.near.y + 8, t: 0, warn: 60, dur: 24, kind: 'stare' });
     }
     if (a.t >= 135) { b.hold = false; b.screen = 0; c.done(50); }
   },
@@ -799,92 +799,176 @@ Object.assign(GX_BOSS_PALS, {
   cats: [null, '#BCBCBC', '#7C7C7C', '#3C3C3C', '#F8D8B8', '#F83800', '#0C2C0C', '#080808'],
 });
 Object.assign(GX_BOSS_DRAW, {
-  // f: 1 while its dish is open
+  // f bit 0: its dish open; bit 1: the lights' chase. A city on its back, rings and spokes under it, four turrets
   city(f, ph) {
-    const P = bossPainter(88, 30);
-    P.ellipse(44, 15, 43.5, 12);
-    P.ellipse(44, 10, 26, 7);
-    P.rect(4, 16, 83, 16, 3);
-    for (let k = 0; k < 14; k++) P.px(6 + k * 6, 19, k % 2 ? 5 : 4);
-    for (const dx of [-30, -18, 18, 30]) P.line(44 + dx * 0.35, 22, 44 + dx, 27, 3);
-    P.disc(44, 22, 7.5, 3); P.disc(44, 22, 5.5, f ? 5 : 6); P.disc(44, 22, 2.5, f ? 4 : 6);
-    P.wear(ph, 31); P.outline(); return P.g;
-  },
-  // seen from above, nose down at you: hover wheels glowing
-  delorean(f, ph) {
-    const P = bossPainter(36, 22);
-    for (const [x, y] of [[4, 4], [31, 4], [4, 17], [31, 17]]) P.disc(x, y, 3.2, f ? 5 : 6);
-    P.rect(6, 1, 29, 20, 2); P.rect(6, 1, 6, 20, 1); P.rect(29, 1, 29, 20, 3);
-    for (let y = 2; y < 6; y++) P.rect(10, y, 25, y, y % 2 ? 3 : 2);   // rear vents
-    P.rect(9, 7, 26, 10, 1); P.rect(16, 8, 19, 9, f ? 5 : 4);   // roof, the flux capacitor's glow
-    P.rect(10, 12, 25, 16, 6); P.px(11, 13, 4);   // windshield
-    P.px(8, 19, 4); P.px(27, 19, 4);
-    P.wear(ph, 33); P.outline(); return P.g;
-  },
-  martian(f, ph) {
-    const P = bossPainter(44, 26);
-    P.ellipse(22, 19, 21.5, 6);
-    for (let k = 0; k < 9; k++) P.px(4 + Math.round(k * 4.5), 20, (k + f) % 2 ? 6 : 4);
-    P.disc(22, 11, 10, 6);   // the glass dome
-    P.disc(22, 8, 7, 5);     // the brain
-    for (const [x0, y0, x1, y1] of [[18, 4, 20, 8], [24, 3, 23, 7], [27, 6, 25, 9], [16, 8, 19, 10]]) P.line(x0, y0, x1, y1, 2);
-    P.rect(19, 12, 25, 16, 4); P.rect(19, 13, 20, 14, 7); P.rect(24, 13, 25, 14, 7); P.px(21, 16, 7); P.px(23, 16, 7);   // the skull face
-    P.wear(ph, 35); P.outline(); return P.g;
-  },
-  cube(f, ph) {
-    const P = bossPainter(48, 46);
-    for (let y = 0; y < 8; y++) P.rect(8 - y, y, 47 - y, y, 1);
-    P.rect(0, 8, 39, 45, 2);
-    for (let x = 40; x < 48; x++) P.rect(x, 8 - (x - 39), x, 45 - (x - 39), 3);
-    const r = seeded(77);
-    for (let k = 0; k < 28; k++) {
-      const x = 2 + Math.floor(r() * 36), y = 10 + Math.floor(r() * 34), len = 3 + Math.floor(r() * 8);
-      if (k % 2) P.line(x, y, Math.min(38, x + len), y, 6); else P.line(x, y, x, Math.min(44, y + len), 6);
-      P.px(x, y, (k + f) % 3 ? 5 : 4);
+    const P = bossPainter(100, 40), dish = f & 1, a = f >> 1;
+    for (const [x0, x1, top] of [[24, 29, 6], [31, 34, 3], [36, 41, 7], [44, 47, 1], [49, 55, 4], [57, 60, 2], [62, 67, 6], [69, 74, 8]]) {   // the city on top
+      P.rect(x0, top, x1, 12, 2); P.rect(x0, top, x0, 12, 1); P.rect(x1, top, x1, 12, 3); P.rect(x0, top, x1, top, 1);
+      for (let y = top + 2; y < 11; y += 2) for (let x = x0 + 1; x < x1; x += 2) if ((x * 3 + y * 5 + a) % 4 === 0) P.px(x, y, (x + y) % 3 ? 5 : 4);
     }
-    for (let k = 0; k < 6; k++) P.line(10 + k * 6, 2, 16 + k * 6, 2, 6);
-    P.wear(ph, 37); P.outline(); return P.g;
-  },
-  // f: 1 with its mouth open; phase 3 shows the brain
-  head(f, ph) {
-    const P = bossPainter(52, 44);
-    P.ellipse(26, 23, 24, 21);
-    if (ph >= 3) { P.disc(26, 8, 12, 6); for (const [x0, y0, x1, y1] of [[18, 4, 22, 9], [26, 1, 26, 8], [32, 4, 29, 10], [20, 11, 25, 12]]) P.line(x0, y0, x1, y1, 3); }
-    P.rect(8, 14, 44, 15, 3);
-    for (const x of [17, 35]) { P.disc(x, 19.5, 4, 5); P.disc(x, 20, 1.6, 7); }
-    P.line(26, 17, 23, 27, 3); P.line(23, 27, 29, 27, 3);
-    P.line(10, 26, 14, 36, 3); P.line(42, 26, 38, 36, 3);
-    if (f) { P.disc(26, 34, 7, 7); P.rect(21, 28, 31, 28, 4); } else P.rect(17, 33, 35, 34, 3);
-    if (ph >= 2) { P.line(12, 9, 19, 16, 7); P.line(40, 30, 46, 22, 7); }
+    P.line(46, 1, 46, 0, 3); P.px(45, 0, a ? 5 : 4);
+    gxBall(P, 50, 21, 49.5, 13, [4, 1, 2, 3, 3]);   // the saucer
+    for (let y = 8; y < 21; y++) for (let x = 0; x < 100; x++) if (P.g[y][x] === 4 && (x + y) % 3) P.g[y][x] = 1;
+    const ring = (rx, ry, c, hi) => { for (let k = 0; k < 360; k++) { const t = k * Math.PI / 180, x = Math.round(50 + Math.cos(t) * rx), y = Math.round(21 + Math.sin(t) * ry); P.px(x, y, c); if (hi && Math.sin(t) > 0.2) P.px(x, y + 1, hi); } };
+    ring(45, 11, 3, 1); ring(33, 8, 3, 2); ring(20, 5, 3, 0);
+    for (let k = 0; k < 20; k++) { const t = k * Math.PI / 10 + 0.15; if (Math.sin(t) < -0.3) continue; P.line(50 + Math.cos(t) * 21, 21 + Math.sin(t) * 5.5, 50 + Math.cos(t) * 32, 21 + Math.sin(t) * 7.8, 3); P.line(50 + Math.cos(t) * 34, 21 + Math.sin(t) * 8.3, 50 + Math.cos(t) * 44, 21 + Math.sin(t) * 10.6, 2); }   // spokes
+    for (let k = 0; k < 26; k++) { const t = k * Math.PI / 13, x = Math.round(50 + Math.cos(t) * 39), y = Math.round(21 + Math.sin(t) * 9.6); if (Math.sin(t) > -0.5) P.px(x, y, (k + a * 2) % 4 < 2 ? 5 : 4); }   // lights
+    for (let x = 3; x < 97; x += 4) { const y = Math.round(21 + 12.6 * Math.sqrt(Math.max(0, 1 - ((x - 50) / 49.5) ** 2))); if (Math.abs(x - 50) > 10) { P.px(x, y - 1, 7); P.px(x, y - 2, 3); } }   // bays round its rim
+    for (const dx of [-40, -24, 24, 40]) { const x = 50 + dx, y = dx * dx > 900 ? 30 : 33; gxBall(P, x, y, 3, 2.5, [4, 1, 2, 3, 7]); P.rect(x - 0.5, y + 2, x + 0.5, y + 4, 3); P.px(x, y + 4, a ? 5 : 6); }   // turrets
+    // the primary weapon: an iris shut over it, or open and blazing
+    P.disc(50, 31, 8.5, 7); P.disc(50, 31, 7.5, 3); P.ring(50, 31, 7, 2);
+    if (dish) { P.disc(50, 31, 6, 5); P.disc(50, 31, 4, a ? 4 : 5); P.disc(50, 31, 2, 4); for (let k = 0; k < 8; k++) { const t = k * Math.PI / 4 + a * 0.4; P.px(50 + Math.cos(t) * 5, 31 + Math.sin(t) * 5, 4); } }
+    else { P.disc(50, 31, 6, 6); for (let k = 0; k < 6; k++) { const t = k * Math.PI / 3; P.line(50 + Math.cos(t) * 6, 31 + Math.sin(t) * 6, 50 + Math.cos(t + 2) * 1.5, 31 + Math.sin(t + 2) * 1.5, 3); } P.px(50, 31, 5); }
+    P.wear(ph, 31); gxScars(P, ph, 31, 5, 5, a, (x, y) => y > 12 && Math.hypot(x - 50, y - 31) > 10);
     P.outline(); return P.g;
   },
-  // f: its mouth on the screen while it talks
+  // seen from above, nose down at you: four hover wheels glowing, gull-wing doors, the louvres, the flux capacitor
+  delorean(f, ph) {
+    const P = bossPainter(46, 30);
+    for (const [x, y] of [[8, 7], [37, 7], [8, 23], [37, 23]]) { gxBall(P, x + 0.5, y + 0.5, 5, 5, [2, 2, 3, 3, 7]); P.disc(x + 0.5, y + 0.5, 3.3, f ? 5 : 6); P.disc(x + 0.5, y + 0.5, 2, f ? 4 : 5); P.disc(x + 0.5, y + 0.5, 1, 3); }   // the wheels, folded flat, glowing
+    for (let y = 1; y <= 29; y++) { const in_ = y > 26 ? y - 26 : y < 3 ? 3 - y : 0; for (let x = 12 + in_; x <= 33 - in_; x++) P.px(x, y, x === 12 + in_ ? 1 : x === 33 - in_ ? 3 : x % 3 === 0 ? 1 : 2); }   // brushed steel
+    P.rect(14, 2, 31, 3, 3); P.rect(20, 1, 25, 3, 1); P.disc(22.5, 2.5, 2, 4); P.px(22, 2, 1);   // the rear: Mr Fusion on the deck
+    for (const x of [14, 30]) { P.rect(x, 1, x + 1, 2, 7); P.px(x, 1, f ? 5 : 6); }   // vents
+    for (let y = 5; y <= 10; y++) P.rect(15, y, 30, y, y % 2 ? 7 : 3);   // the louvres over the back window
+    P.line(13, 4, 13, 11, 5); P.line(32, 4, 32, 11, 5);   // the time circuits' cables
+    P.rect(15, 12, 30, 18, 1); P.rect(15, 18, 30, 18, 2); P.line(22, 12, 22, 18, 3); P.line(23, 12, 23, 18, 2);   // the roof, gull-wing seam
+    for (const [x0, y0, x1, y1] of [[19, 13, 22, 15], [26, 13, 23, 15], [22.5, 15, 22.5, 17]]) P.line(x0, y0, x1, y1, f ? 4 : 5);   // the flux capacitor's Y glowing through
+    for (let y = 19; y <= 23; y++) P.rect(14 + (y - 19) * 0.5, y, 31 - (y - 19) * 0.5, y, 6);   // the windshield
+    P.line(16, 20, 19, 20, 4); P.px(17, 21, 5);
+    P.line(22.5, 24, 22.5, 27, 3);   // the hood's seam
+    for (const x of [15, 28]) { P.rect(x, 27, x + 2, 28, 4); P.px(x + 1, 28, f ? 1 : 4); }   // headlights
+    P.rect(19, 28, 26, 28, 7); for (let x = 19; x <= 26; x += 2) P.px(x, 28, 3);   // the grille
+    P.px(11, 19, 2); P.px(34, 19, 2);   // mirrors
+    P.wear(ph, 33); gxScars(P, ph, 33, 3, 5, f, (x, y) => x > 12 && x < 33);
+    P.outline(); return P.g;
+  },
+  // a silver saucer, ring lights chasing; in the glass dome a martian: a huge brain, a grinning skull face
+  martian(f, ph) {
+    const P = bossPainter(58, 36);
+    gxBall(P, 29, 29, 18, 5, [0, 2, 2, 3, 7]); P.disc(29, 32.5, 3.5, 3); P.disc(29, 32.5, 2, f ? 6 : 4);   // the underside, its ray gun
+    gxBall(P, 29, 25, 28.5, 7, [4, 1, 1, 2, 3]);   // the saucer
+    P.rect(1, 25, 56, 26, 2); P.rect(1, 25, 56, 25, 1); P.rect(2, 27, 55, 27, 3);
+    for (let k = 0; k < 11; k++) { const x = 3 + k * 5; P.rect(x, 25, x + 1, 26, (k + f) % 2 ? 6 : 4); P.px(x + 1, 26, (k + f) % 2 ? 1 : 6); }   // lights
+    for (const x of [10, 47]) { P.line(x, 21, x + (x < 29 ? 3 : -3), 20, 3); }
+    gxBall(P, 29, 13, 14, 13, [4, 6, 6, 6, 1]);   // the glass dome
+    // the martian: brain, skull, eyes, grin
+    gxBall(P, 29, 9, 10, 7.5, [4, 5, 5, 5, 2]);
+    for (const [x0, y0, x1, y1] of [[22, 6, 25, 4], [25, 4, 27, 7], [29, 2, 29, 9], [31, 5, 34, 4], [33, 8, 36, 7], [21, 10, 25, 9], [31, 10, 34, 11], [26, 11, 27, 8]]) P.line(x0, y0, x1, y1, 2);
+    P.disc(29, 16.5, 6.5, 4); P.rect(24, 13, 34, 15, 4); P.ring(29, 16.5, 6.5, 1);
+    for (const s of [-1, 1]) { P.disc(29 + s * 3 + 0.5, 16, 2.2, 7); P.px(29 + s * 3 + (s < 0 ? 0 : 1), 16, f ? 5 : 7); }   // eye sockets, a glint in them
+    P.px(29, 19, 7); P.rect(25, 21, 33, 21, 7); for (let x = 25; x <= 33; x += 2) P.px(x, 21, 4); P.px(24, 20, 7); P.px(34, 20, 7);   // nose hole, the grin
+    P.rect(24, 23, 34, 24, 3); P.px(29, 23, 6);   // its collar
+    P.line(19, 5, 22, 2, 4); P.line(18, 8, 18, 9, 4); P.px(36, 3, 1);   // glints on the glass
+    P.rect(28, 0, 30, 0, f ? 6 : 4);
+    P.wear(ph, 35); gxScars(P, ph, 35, 3, 6, f, (x, y) => y > 22);
+    if (ph >= 3) { P.line(37, 6, 40, 12, 7); P.line(40, 12, 38, 16, 7); P.line(16, 10, 19, 14, 1); }   // the dome cracked
+    P.outline(); return P.g;
+  },
+  // three faces of greebles: panels, pipes, conduits, green lights that blink (f)
+  cube(f, ph) {
+    const P = bossPainter(60, 58), r = seeded(77);
+    for (let y = 0; y < 11; y++) P.rect(11 - y, y, 59 - y, y, 1);   // the top
+    P.rect(0, 11, 48, 57, 2);   // the front
+    for (let x = 49; x < 60; x++) P.rect(x, 11 - (x - 48), x, 57 - (x - 48), 3);   // the side
+    const front = (x, y) => x >= 1 && x <= 47 && y >= 12 && y <= 56;
+    for (let k = 0; k < 34; k++) {   // panels, raised or sunk
+      const x = 1 + Math.floor(r() * 40), y = 12 + Math.floor(r() * 40), w = 3 + Math.floor(r() * 8), h = 2 + Math.floor(r() * 6), up = r() < 0.6;
+      for (let j = y; j <= Math.min(56, y + h); j++) for (let i = x; i <= Math.min(47, x + w); i++) P.px(i, j, j === y || i === x ? (up ? 1 : 3) : j === Math.min(56, y + h) || i === Math.min(47, x + w) ? (up ? 3 : 1) : up ? 2 : 3);
+    }
+    for (let k = 0; k < 9; k++) { const y = 14 + Math.floor(r() * 42); P.line(1, y, 47, y, 3); P.line(1, y - 1, 47, y - 1, 1); }   // pipes across
+    for (let k = 0; k < 16; k++) {   // conduits, a light at each end
+      const x = 2 + Math.floor(r() * 44), y = 13 + Math.floor(r() * 42), len = 3 + Math.floor(r() * 9);
+      if (k % 2) P.line(x, y, Math.min(46, x + len), y, 6); else P.line(x, y, x, Math.min(55, y + len), 6);
+      P.px(x, y, (k + f) % 3 ? 5 : 4);
+    }
+    for (let k = 0; k < 12; k++) { const x = 13 + Math.floor(r() * 44), y = 1 + Math.floor(r() * 9); P.line(x - y, y, x - y + 5, y, 2); if (k % 3 === 0) P.px(x - y, y, 6); }   // top greebles
+    for (let k = 0; k < 14; k++) { const x = 49 + Math.floor(r() * 10), y = 14 + Math.floor(r() * 40) - (x - 48); P.line(x, y, x, y + 4, k % 2 ? 2 : 7); if (k % 4 === 0) P.px(x, y + 2, (k + f) % 2 ? 6 : 5); }   // the side's
+    for (const [x, y] of [[23, 33], [9, 20], [38, 47]]) { P.rect(x - 2, y - 2, x + 2, y + 2, 7); P.rect(x - 1, y - 1, x + 1, y + 1, f ? 5 : 6); P.px(x, y, f ? 4 : 5); }   // vents glowing green
+    P.line(0, 11, 48, 11, 1); P.line(48, 11, 59, 0, 1); P.line(48, 12, 48, 57, 7);   // edges
+    P.wear(ph, 37); gxScars(P, ph, 37, 5, 5, f, front);
+    P.outline(); return P.g;
+  },
+  // f bit 0: its mouth open; bit 1: its eyes' glow. A huge stern face; phase 3 shows the brain
+  head(f, ph) {
+    const P = bossPainter(66, 56), m = f & 1, a = f >> 1;
+    for (const s of [-1, 1]) { gxBall(P, 33 + s * 29, 30, 4, 7, [1, 1, 2, 3, 3]); P.line(33 + s * 29, 26, 33 + s * 29, 33, 3); }   // ears
+    gxBall(P, 33, 29, 29, 27, [4, 1, 2, 3, 3]);
+    for (let y = 0; y < 56; y++) for (let x = 0; x < 66; x++) if (P.g[y][x] === 4) P.g[y][x] = 1;
+    if (ph >= 3) {   // the skull open: the brain
+      for (let x = 10; x < 57; x++) { const top = Math.round(14 + Math.sin(x * 1.3) * 1.5 + ((x * 7) % 3)); for (let y = 0; y < top; y++) if (P.g[y][x]) P.g[y][x] = 0; P.px(x, top, 4); P.px(x, top + 1, 1); }
+      gxBall(P, 33, 10, 20, 10, [4, 6, 6, 6, 3]);
+      for (const [x0, y0, x1, y1] of [[18, 7, 24, 5], [24, 5, 27, 10], [33, 1, 33, 15], [39, 6, 44, 4], [40, 10, 46, 11], [20, 12, 26, 13], [28, 3, 30, 7], [36, 12, 38, 9]]) P.line(x0, y0, x1, y1, 3);
+      for (let x = 13; x < 54; x++) { const top = Math.round(14 + Math.sin(x * 1.3) * 1.5 + ((x * 7) % 3)); if (P.g[top][x] !== 4) continue; if ((x + top) % 4 === 0) P.px(x, top - 1, 4); }
+    } else for (const y of [9, 12]) for (let x = 20; x < 47; x++) P.px(x, y + Math.round(Math.abs(x - 33) * 0.12), x < 33 ? 3 : 2);   // a frowning forehead
+    // brows, the eyes in deep sockets, the nose, cheekbones
+    for (const s of [-1, 1]) {
+      for (let k = 0; k <= 13; k++) { const x = 33 + s * (3 + k), y = 20 - Math.round(k * 0.35); P.px(x, y, 3); P.px(x, y + 1, 3); P.px(x, y - 1, 1); }
+      const ex = 33 + s * 10; P.disc(ex + 0.5, 25, 5, 7); P.disc(ex + 0.5, 25, 3.6, 5); P.disc(ex + 0.5, 25, 1.8, a ? 4 : 5); P.rect(ex, 23, ex, 27, 7); P.px(ex - 2 * s, 24, 4);
+      P.line(33 + s * 18, 30, 33 + s * 14, 40, 3); P.line(33 + s * 17, 30, 33 + s * 13, 39, 1);   // cheekbones
+      P.line(33 + s * 6, 49, 33 + s * 2, 52, 2);   // the jaw
+    }
+    P.line(32, 22, 31, 35, 1); P.line(34, 22, 35, 35, 2); P.line(35, 26, 36, 35, 3); P.rect(29, 36, 37, 37, 2); P.px(30, 37, 7); P.px(36, 37, 7); P.line(31, 38, 35, 38, 3);   // the nose
+    if (m) { P.disc(33, 44.5, 8, 7); P.rect(27, 38, 39, 39, 7); for (let x = 27; x <= 39; x += 2) { P.px(x, 39, 4); P.px(x, 40, 4); } P.disc(33, 49, 4, 6); P.line(30, 48, 36, 48, 4); for (let x = 29; x <= 37; x += 2) P.px(x, 51, 4); }   // open: teeth, tongue
+    else { P.line(23, 45, 26, 43, 3); P.line(26, 43, 40, 43, 7); P.line(40, 43, 43, 45, 3); P.line(26, 44, 40, 44, 2); P.line(27, 46, 39, 46, 1); }   // shut: a grim line
+    P.line(33, 50, 33, 53, 3);   // a cleft chin
+    gxScars(P, ph, 41, 3, 5, a, (x, y) => y > 15 && Math.hypot(x - 33, y - 44) > 9 && Math.abs(y - 25) > 5);
+    if (ph >= 2) { P.line(13, 17, 19, 24, 7); P.line(19, 24, 18, 28, 7); P.line(52, 31, 56, 24, 7); }
+    P.outline(); return P.g;
+  },
+  // f bit 0: its mouth on the screen while it talks; bit 1: lights. A battleship, CATS's face on its main screen
   cats(f, ph) {
-    const P = bossPainter(64, 40);
-    for (let y = 6; y < 34; y++) { const hw = 31 - Math.abs(y - 20) * 0.9; P.rect(Math.round(32 - hw), y, Math.round(31 + hw), y, y < 12 ? 1 : y > 28 ? 3 : 2); }
-    P.rect(16, 2, 47, 7, 1); P.rect(16, 7, 47, 7, 3);
-    P.rect(2, 16, 9, 24, 3); P.rect(54, 16, 61, 24, 3); P.rect(3, 25, 4, 26, 5); P.rect(59, 25, 60, 26, 5);
-    for (const x of [12, 20, 43, 51]) P.rect(x, 30, x + 1, 37, 3);
-    P.rect(21, 11, 42, 30, 7); P.rect(22, 12, 41, 29, 6);   // the screen
-    for (let y = 0; y < 40; y++) for (let x = 0; x < 64; x++) if (Math.hypot(x + 0.5 - 31.5, y + 0.5 - 21) <= 6.5) P.px(x, y, x >= 32 ? 1 : 4);   // half a face, half metal
-    P.px(29, 19, 7); P.rect(34, 19, 35, 19, 5); P.line(26, 15, 29, 14, 3); P.line(35, 13, 38, 16, 3);
-    P.rect(29, 24, 34, f ? 25 : 24, 7);
-    P.wear(ph, 39); P.outline(); return P.g;
+    const P = bossPainter(84, 52), m = f & 1, a = f >> 1;
+    for (const s of [-1, 1]) { P.line(41.5 + s * 16.5, 1, 41.5 + s * 16.5, 9, 3); P.px(41.5 + s * 16.5, 0, (a + (s > 0)) % 2 ? 5 : 3); }   // masts
+    for (const x of [15, 26, 57, 68]) { P.rect(x - 1, 42, x + 1, 50, 3); P.rect(x - 1, 42, x - 1, 50, 2); P.rect(x - 1, 51, x + 1, 51, 7); P.px(x, 51, a ? 5 : 7); }   // cannons
+    for (let y = 6; y <= 45; y++) { const hw = 34 - Math.max(0, Math.abs(y - 25) - 11) * 1.4; P.rect(Math.round(41.5 - hw), y, Math.round(41.5 + hw), y, y < 12 ? 1 : y > 39 ? 3 : 2); }   // the hull
+    P.rect(26, 2, 57, 7, 2); P.rect(26, 2, 57, 2, 1); P.rect(30, 0, 53, 2, 1); P.rect(30, 0, 53, 0, 4);   // the bridge
+    for (let x = 32; x <= 51; x += 3) P.px(x, 4, (x + a * 3) % 6 < 3 ? 5 : 3);
+    for (const y of [12, 40]) { P.line(9, y, 74, y, 3); P.line(9, y + 1, 74, y + 1, 1); }   // armour seams
+    for (const x of [16, 23, 60, 67]) { P.line(x, 12, x, 40, 3); P.line(x + 1, 13, x + 1, 39, 1); }
+    for (let x = 11; x < 74; x += 4) if (x < 26 || x > 57) { P.px(x, 15, 1); P.px(x, 37, 3); }   // rivets
+    for (const s of [-1, 1]) {   // engine pods, burning
+      const x = 41.5 + s * 36; gxBall(P, x, 27, 5.5, 12, [4, 1, 2, 3, 3]);
+      for (let y = 20; y <= 34; y += 3) P.line(x - 3, y, x + 3, y, 3);
+      P.rect(x - 2, 39, x + 2, 41, 7); P.rect(x - 1, 40, x + 1, 41, a ? 5 : 4); P.px(x, 42, 5);
+    }
+    for (const [x0, y0] of [[11, 20], [11, 30], [69, 20], [69, 30]]) { P.rect(x0, y0, x0 + 3, y0 + 4, 3); P.rect(x0 + 1, y0 + 1, x0 + 2, y0 + 3, 5); if (a) P.px(x0 + 1, y0 + 1, 4); }   // red lights
+    // the main screen: scanlines, CATS (half a face, half machine) on it
+    P.rect(27, 13, 56, 39, 7); P.rect(28, 13, 55, 13, 1); P.rect(28, 14, 55, 38, 3);
+    for (let y = 15; y <= 37; y++) P.rect(29, y, 54, y, y % 2 ? 6 : 7);
+    for (let y = 16; y <= 37; y++) for (let x = 30; x <= 53; x++) {
+      const d = Math.hypot((x + 0.5 - 41.5) / 8, (y + 0.5 - 25) / 9.5);
+      if (d <= 1) P.px(x, y, x < 42 ? (d > 0.85 || x < 35 && y > 25 ? 3 : 4) : d > 0.85 ? 3 : (x + y) % 5 ? 1 : 2);
+    }
+    P.line(42, 16, 42, 34, 3); for (let y = 18; y <= 32; y += 4) P.px(44, y, 3);   // the seam, rivets on the metal half
+    P.rect(36, 17, 41, 18, 3); P.line(43, 17, 48, 19, 2);   // brows
+    P.rect(36, 22, 39, 23, 7); P.px(37, 22, 4);   // its eye
+    P.rect(45, 21, 48, 23, 7); P.rect(46, 22, 47, 22, 5); P.px(46, 22, a ? 4 : 5);   // the red eye
+    P.line(41, 24, 40, 28, 3);
+    P.rect(37, 30, 46, m ? 32 : 30, 7); if (m) P.rect(38, 30, 45, 30, 4);   // the mouth
+    for (const x of [33, 50]) P.line(x, 34, x + (x < 42 ? -2 : 2), 37, 2);   // tubes from its neck
+    P.wear(ph, 39); gxScars(P, ph, 39, 4, 5, a, (x, y) => (x < 27 || x > 56 || y < 13 || y > 39) && y > 3);
+    P.outline(); return P.g;
   },
 });
-GxGfx.hand = function (flash) {
-  const k = 'hand' + (flash ? 'f' : 'n');
+// an open hand, palm down, fingers spread at you (s: -1 the left hand, 1 the right one, the thumb inside)
+GxGfx.hand = function (flash, s = -1) {
+  const k = 'hand' + (flash ? 'f' : 'n') + s;
   let c = this.cache.get(k);
   if (!c) {
-    // an open hand, palm down, fingers spread at you
-    const P = bossPainter(20, 16);
-    P.rect(3, 0, 16, 2, 5); P.rect(3, 2, 16, 2, 3);   // a gold cuff
-    P.rect(3, 3, 16, 9, 2); P.rect(3, 3, 16, 3, 1); P.rect(16, 4, 16, 9, 3);   // the back of the hand
-    for (const [x, len] of [[4, 5], [8, 6], [12, 6], [15, 4]]) { P.rect(x, 10, x + 1, 9 + len, 2); P.px(x + 1, 10, 3); P.rect(x, 9 + len, x + 1, 9 + len, 4); }   // fingers, nails
-    P.rect(0, 5, 2, 6, 2); P.rect(0, 7, 1, 9, 2); P.px(0, 9, 4);   // the thumb
-    for (const x of [5, 9, 13]) P.px(x, 8, 3);   // knuckles
+    const P = bossPainter(26, 20);
+    for (let y = 3; y <= 10; y++) { const x0 = 7 - Math.floor((y - 3) / 2), x1 = 20 + Math.floor((y - 3) / 3); for (let x = x0; x <= x1; x++) P.px(x, y, x === x0 || (y < 6 && x < 14) ? 1 : x === x1 || y === 10 ? 3 : 2); }   // the back of the hand
+    for (const [x0, x1] of [[9, 7], [12, 11], [15, 15], [18, 19]]) P.line(x0, 4, x1, 8, x0 < 13 ? 2 : 3);   // tendons
+    for (const [x, len] of [[4, 6], [9, 8], [14, 8], [19, 6]]) {   // fingers: knuckles, joints, nails
+      for (let y = 10; y <= 9 + len; y++) { P.px(x, y, 1); P.px(x + 1, y, 2); P.px(x + 2, y, 3); }
+      const j = 10 + Math.round(len * 0.45); P.px(x, j, 2); P.px(x + 1, j, 3);
+      P.rect(x, 9 + len, x + 1, 9 + len, 4); P.px(x + 2, 9 + len, 1); P.px(x, 9, 4); P.px(x + 1, 9, 1);
+    }
+    for (const [x, y] of [[4, 6], [3, 7], [2, 8], [1, 9], [1, 10], [1, 11]]) { P.px(x, y, 1); P.px(x + 1, y, 2); P.px(x + 2, y, 3); }   // the thumb
+    P.rect(1, 12, 2, 12, 4); P.px(3, 12, 1);
+    P.rect(6, 0, 20, 2, 5); P.rect(6, 0, 20, 0, 4); P.rect(6, 2, 20, 2, 3); P.rect(12, 0, 14, 1, 6); P.px(12, 0, 4);   // a gold cuff, a jewel
     P.outline();
-    c = gridCanvas(P.g, flash ? BOSS_PALS.f : GX_BOSS_PALS.head); this.cache.set(k, c);
+    const g = s < 0 ? P.g.map(r => r.slice().reverse()) : P.g;
+    c = gridCanvas(g, flash ? BOSS_PALS.f : GX_BOSS_PALS.head); this.cache.set(k, c);
   }
   return c;
 };
