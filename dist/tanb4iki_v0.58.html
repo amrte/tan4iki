@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.57</title>
+  <title>tanb4iki_v0.58</title>
   <style>
 :root {
   --bg: #000;
@@ -225,7 +225,7 @@ body.csmode .btns button.radio { display: inline-block; }
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.57';
+const APP_VERSION = '0.58';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2742,7 +2742,7 @@ const SETTINGS_DEF = [
   // music.js: a chiptune for every mode, in a version for every skill
   { key: 'music', label: 'MUSIC', values: ONOFF, def: 'ON' },
   // rock.js: hard rock and heavy metal versions of every tune, or the chiptunes
-  { key: 'musicStyle', label: 'MUSIC STYLE', values: ['ROCK', 'CHIPTUNE'], def: 'ROCK' },
+  { key: 'musicStyle', label: 'MUSIC STYLE', values: ['ROCK', 'SYNTHWAVE', 'CHIPTUNE'], def: 'ROCK' },
   { key: 'musicVol', label: 'MUSIC VOLUME', values: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 50, fmt: fmtPct },
 
   { action: 'reset', label: 'RESET TO DEFAULTS' },
@@ -3614,6 +3614,10 @@ const Sound = {
       case 'csPick': // the bomb picked up
         this.seq([67, 74], 0.05, t, { vol: 0.12, decayTo: 0.4, wave: 'p25' });
         break;
+      case 'csFlash': // a flashbang: a sharp bang, then a high ring in the ears
+        this.noise(2600, t, [[0, 0.55], [0.08, 0.1], [0.25, 0]]);
+        this.note(3520, t + 0.02, 1.4, { wave: 'p25', vol: 0.05, decayTo: 0.1 });
+        break;
       case 'csSmoke': // a smoke grenade pops and hisses
         this.noise(1800, t, [[0, 0.3], [0.04, 0.05]]);
         this.noise(12000, t + 0.04, [[0, 0.12], [0.6, 0.08], [0.9, 0]], 6000);
@@ -4342,6 +4346,597 @@ function musicName(mode) {
   if (Config.get('musicStyle') === 'ROCK' && ROCK_SONGS[k]) return ROCK_SONGS[k].name;
   return (SONGS[mode] || SONGS.classic).name;
 }
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  The SYNTHWAVE soundtrack (Settings → MUSIC STYLE: ROCK, SYNTHWAVE or CHIPTUNE): 80s synthwave, outrun and
+//  darksynth versions of every tune, written for this game — sunset pads for the calm modes, outrun drive for the
+//  racing ones, darksynth for the tense modes and the bosses. Where it fits the lead plays the game's own chiptune
+//  themes (Korobeiniki and Shchedryk too).
+//  Sound: Web Audio, the wiring made once per audio context:
+//    pad    a chord on three detuned saws a note (left, right, middle) with a slow attack, through a low-pass that
+//           opens and closes with the parts, and a stereo chorus (two short delays wobbled by slow LFOs)
+//    arp    the arpeggiator: a thin pulse plucked through a resonant low-pass, into the echo
+//    bass   an analog bass: saw + square through a filter that snaps shut on every note (octave bounces, 16th
+//           pulses); the darksynth songs drive it through a waveshaper
+//    lead   two detuned saws (or squares), gliding between tied notes, vibrato on long ones, a ping-pong echo
+//    bell   an FM bell: a sine modulated by a sine 3.5 times as fast, its brightness dying away
+//    stab   brass stabs: the chord on saws through a filter snapping shut
+//    drums  808/Linn kick, snare and clap through a gated reverb (a convolver whose impulse is a third of a second
+//           of noise cut off dead), closed and open hats, gated toms for the fills, a crash, a noise riser
+//  The pads, bass and arp duck on every kick (sidechain pumping). A hall reverb (one generated impulse) sits behind
+//  the pads, lead and bells. Every voice is a one-shot, started and stopped at once (nothing long-lived feeds it, so
+//  the browser frees it); a cap drops pads, arps and bells when too many oscillators would ring at once.
+//  A song is parts of a few bars (I intro, V verse, C chorus, B breakdown, L lead break) played in its `form`.
+//  Each part: ch (the chord degree of each bar; '4^' makes it major, '3s' a sus4), pad (one bar: P a held chord,
+//  S a brass stab, - hold, . silence; none: the chord held all bar, tied over bars of the same chord), arp (0-6 the
+//  chord's notes upwards from its root, . rest; ao: octaves up), bs (the bass: r root, o octave, f fifth, R O F
+//  accented, - hold, . rest), dr (a drum pattern: K kick, S snare, C clap, X snare + clap, Z all three, h hat,
+//  o open hat, T t toms), lead (the melody, as the chiptune songs write it: scale degrees from the key, 0-9 A B C,
+//  z y below; - hold, . rest), harm (a second lead that many degrees above), bell (a melody on the FM bell),
+//  solo (a lead break over the chords), f (the pad filter: a cutoff, or [from, to] across the part), rise (a riser
+//  over the last bar). lead or bell '@key' borrows a chiptune song's melody (and its chords); from: just its chords.
+//  Patterns shorter than the bar repeat. Song: root (midi), bpm, scale, sev (sevenths on the pads), dirt (driven
+//  bass), pump (how deep the duck), sq (a square lead), lo (the lead an octave down: -12), att (pad attack).
+// =====================================================================
+
+const SYNTH_SCALES = { minor: [0, 2, 3, 5, 7, 8, 10], phryg: [0, 1, 3, 5, 7, 8, 10], harm: [0, 2, 3, 5, 7, 8, 11], dorian: [0, 2, 3, 5, 7, 9, 10],
+  major: [0, 2, 4, 5, 7, 9, 11], mixo: [0, 2, 4, 5, 7, 9, 10], lydian: [0, 2, 4, 6, 7, 9, 11] };
+const SYNTH_DRUMS = {
+  four: 'K.hoZ.hoK.hoZ.ho',   // four on the floor, snare and clap on 2 and 4, open hats between: outrun
+  beat: 'K.h.X.h.K.hKX.h.',   // the 80s backbeat
+  drive: 'K.hhX.hhK.hhX.hh',
+  push: 'K.hKX.hKK.hKX.hK',   // darksynth: kicks pushing the off-beats
+  half: 'K.h.h.h.X.h.h.h.',   // half time: the snare on 3
+  halfd: 'K..hK.h.X..hK.hh',  // a darker half time
+  march: 'K.hhX.hhK.hhX.XX',
+  kicks: 'K...K...K...K...',  // intros: the kick and its pump
+  hats: '..h...h...h...h.',
+  tick: 'h.h.h.h.h.h.h.h.',   // a clock ticking
+  odd14: 'K.hoX.hK.hoX.h', waltz12: 'K.hoX.hoX.ho', glitch15: 'K.hX.hK.KX.hK.X',
+};
+const NL = (...bars) => bars.join('');
+const SYNTH_SONGS = {
+  // ------------------------------------------------------------ the tank game
+  classic: { name: 'NEON EAGLE', root: 45, bpm: 112, scale: 'minor', sev: 1, form: 'IVCVCBLC', parts: {   // classic outrun
+    I: { ch: [0, 5, 2, 6], arp: '0123', f: [500, 2200], dr: 'hats', rise: 1 },
+    V: { lead: '@classic', bs: 'r.o.', arp: '0.1.2.1.', dr: 'beat', f: 1800 },
+    C: { ch: [0, 5, 2, 6], bs: 'ro', arp: '0123', dr: 'four', f: 2600, lead: NL('7---7-9-B-9-7---', '5---5-7-9-7-5-4-', '4---4-6-9-8-6---', '6---8---6-5-4---') },
+    B: { ch: [5, 6, 0, 0], bs: 'r---------------', f: 1000, rise: 1, bell: NL('9-------7-------', '8-------6-------', '7---4---7---9---', 'B-----------9---') },
+    L: { ch: [0, 5, 2, 6], bs: 'ro', arp: '0123', dr: 'four', solo: 1, f: 2400 } } },
+  custom: { name: 'GRID BUILDER', root: 50, bpm: 108, scale: 'dorian', sev: 1, form: 'IVCBVC', parts: {   // bouncy, bright
+    I: { ch: [0, 3, 0, 3], arp: '0213', bs: 'r.r.', dr: 'kicks', f: [700, 2000] },
+    V: { lead: '@custom', pad: 'S..S..S...S..S..', bs: 'r.o.', dr: 'beat' },
+    C: { ch: [2, 3, 0, 6], bs: 'ro', arp: '0123', dr: 'four', f: 2600, lead: NL('7---7-6-4---2-4-', '5---5-4-3---4-5-', '7---9-7-4---2---', '6---4---3-2-1---') },
+    B: { ch: [0, 3, 0, 3], bell: '@custom', bs: 'r---------------', dr: 'hats', f: 1200, rise: 1 } } },
+  survival: { name: 'NIGHT SIEGE', root: 40, bpm: 120, scale: 'phryg', dirt: 1, pump: 0.25, f: 1500, form: 'IVCVCBC', parts: {   // darksynth
+    I: { ch: [0, 0, 1, 0], bs: 'r', dr: 'kicks', f: [400, 1200], rise: 1 },
+    V: { ch: [0, 0, 1, 0], bs: 'rrrrrrrorrrrrrro', dr: 'push', lead: NL('0-0-1-0-3---1-0-', '0-0-1-0-4---3-1-', '1-1-2-1-4---3-1-', '0---------------') },
+    C: { ch: [5, 6, 0, 0], bs: 'rrorrror', arp: '0102', dr: 'four', f: 2000, lead: NL('7---8---7-5-4---', '6---5---4---3-1-', '0---1---3---4---', '7-------8---7---') },
+    B: { ch: [0, 1, 0, 1], pad: 'S...S...S..S.S..', bs: 'r-------r---R---', dr: 'halfd', f: 900, bell: NL('7-------8-------', '7---5---4-------', '7-------8-------', 'A---8---7-------') } } },
+  timeattack: { name: 'OVERDRIVE 88', root: 42, bpm: 132, scale: 'minor', form: 'IVCVCLC', parts: {   // flat-out outrun
+    I: { ch: [0, 5, 2, 6], arp: '0123', ao: 1, bs: 'r.o.', dr: 'kicks', f: [600, 2400], rise: 1 },
+    V: { lead: '@timeattack', ch: [0, 6, 2, 4], bs: 'ro', dr: 'drive' },
+    C: { ch: [5, 6, 0, 0], bs: 'ro', arp: '0123', dr: 'four', f: 2800, lead: NL('7---9---B---9-7-', '8---9---B---C-B-', '9---7---4---7---', '7-----------z---') },
+    L: { ch: [0, 5, 2, 6], bs: 'ro', arp: '0123', dr: 'four', solo: 1 } } },
+  bigmaps: { name: 'HORIZON LINE', root: 41, bpm: 96, scale: 'major', sev: 1, att: 0.6, form: 'IVCBVC', parts: {   // a sunset, wide
+    I: { ch: [0, 3, 5, 4], arp: '0.2.3.2.', bs: 'r-------r-------', f: [500, 1600], rise: 1 },
+    V: { lead: '@bigmaps', arp: '0123', bs: 'r--r--r-r--r--r-', dr: 'half' },
+    C: { ch: [3, 4, 2, 5], bs: 'r.o.', arp: '0123', dr: 'beat', f: 2200, lead: NL('9---A---9---7---', '8---7---6---4---', '6---7---9---B---', '9-------7---5---') },
+    B: { ch: [3, 4, 3, 4], bs: 'r---------------', f: 1100, rise: 1, bell: NL('9---7---4-------', '8---7---4-------', '9---A---B---9---', '8---------------') } } },
+  sides: { name: 'MIRROR CITY', root: 43, bpm: 116, scale: 'minor', steps: 14, form: 'IVCVC', parts: {   // 7/8, restless
+    I: { ch: [0, 0, 5, 4], arp: '01230123012301', bs: 'r.r.r.r.r.r.r.', dr: 'kicks', f: [600, 2000], rise: 1 },
+    V: { lead: '@sides', bs: 'r.o.r.o.r.o.r.', dr: 'odd14' },
+    C: { ch: [5, 6, 0, 0], bs: 'ro', arp: '01230123012301', dr: 'odd14', f: 2500, lead: NL('9---7---5-4-5-', 'A---8---6-5-6-', '9---7---4---7-', '7-------z---0-') } } },
+  corridor: { name: 'SKYLINE ASCENT', root: 38, bpm: 118, scale: 'minor', sev: 1, form: 'IVCVCLC', parts: {   // climbing outrun
+    I: { ch: [0, 5, 6, 0], arp: '0123456543210123', bs: 'r.o.', dr: 'kicks', f: [600, 2400], rise: 1 },
+    V: { lead: '@corridor', bs: 'ro', dr: 'drive' },
+    C: { ch: [5, 6, 0, 0], bs: 'ro', arp: '0123', dr: 'four', f: 2800, lead: NL('7---9---C---B---', '9---8---6---A---', 'B---9---7---9---', 'B-----------C-B-') },
+    L: { ch: [0, 5, 6, 4], bs: 'ro', arp: '0123', dr: 'four', solo: 1 } } },
+  maze: { name: 'VHS LABYRINTH', root: 47, bpm: 90, scale: 'harm', lo: -12, pump: 0.3, f: 1200, form: 'IVCBVC', parts: {   // eerie, half time
+    I: { ch: [0, 0, 5, 4], bs: 'r---------------', f: [400, 900], bell: NL('7-------8-------', '7-------6-------', '9-------7-------', '6-------8-------') },
+    V: { lead: '@maze', arp: '0.2.1.3.', bs: 'r...r...r..rr...', dr: 'halfd' },
+    C: { ch: [5, 3, 4, 0], bs: 'r.r.', arp: '0123', dr: 'half', f: 1500, lead: NL('9---7---5---4---', '7---5---3---2---', '6---8---6---4---', '7---------------') },
+    B: { ch: [0, 5, 0, 4], bell: '@maze', bs: 'r---------------', f: 800, rise: 1 } } },
+  world: { name: 'ENDLESS HIGHWAY', root: 46, bpm: 100, scale: 'mixo', sev: 1, att: 0.5, form: 'IVCVCBC', parts: {   // a road trip at dusk
+    I: { ch: [0, 6, 3, 0], arp: '0.2.3.2.', bs: 'r---------------', f: [600, 1800], rise: 1 },
+    V: { ch: [0, 6, 3, 0], arp: '0123', bs: 'r.o.', dr: 'beat', lead: NL('4---4-5-7---4---', '6---6-5-3---1---', '2---3---4---5---', '4-------2---0---') },
+    C: { ch: [3, 4, 0, 6], bs: 'ro', arp: '0123', dr: 'four', f: 2400, lead: NL('A---9---7---5---', 'B---9---8---B---', '9---7---4---7---', '8-------6-------') },
+    B: { ch: [3, 4, 0, 0], bs: 'r---------------', f: 1000, rise: 1, bell: NL('A---9---7-------', 'B---9---8-------', '9---7---4---7---', '9---------------') } } },
+  fortress: { name: 'LASER WALLS', root: 38, bpm: 114, scale: 'minor', form: 'IVCVCLC', parts: {   // a heroic siege
+    I: { ch: [0, 5, 3, '4^'], pad: 'S.S...S.S.S...S.', bs: 'r.r.', dr: 'march', f: 1800 },
+    V: { lead: '@fortress', bs: 'r.o.', arp: '0123', dr: 'beat' },
+    C: { ch: [5, 6, 0, 0], bs: 'ro', arp: '0123', dr: 'four', f: 2600, lead: NL('7---7-9-C---9-7-', '8---6---4---6---', '7---7-9-B---C-B-', '9-------7-------') },
+    L: { ch: [0, 5, 3, '4^'], bs: 'ro', arp: '0123', dr: 'four', solo: 1 } } },
+  race: { name: 'TURBO SUNSET', root: 40, bpm: 128, scale: 'mixo', sev: 1, form: 'IVCVCLC', parts: {   // bright outrun
+    I: { ch: [0, 6, 3, 0], arp: '0123', ao: 1, bs: 'r.o.', dr: 'kicks', f: [700, 2600], rise: 1 },
+    V: { lead: '@race', bs: 'ro', dr: 'drive' },
+    C: { ch: [3, 6, 0, 0], bs: 'ro', arp: '0123', dr: 'four', f: 3000, lead: NL('A---9---7---9---', 'A---8---6---8---', '9---B---C---B---', '9-------7-------') },
+    L: { ch: [0, 6, 3, 0], bs: 'ro', arp: '0123', dr: 'four', solo: 1 } } },
+  eagles: { name: 'TWIN NEON', root: 38, bpm: 110, scale: 'minor', form: 'IVCVC', parts: {   // a stand-off
+    I: { ch: [0, 0, 5, 4], bell: '@eagles', bs: 'r--r--r-', f: [600, 1500], rise: 1 },
+    V: { lead: '@eagles', bs: 'r..r..r.r.o..o..', dr: 'beat' },
+    C: { ch: [5, 6, 0, 0], bs: 'r.o.', arp: '0123', dr: 'four', f: 2400, lead: NL('9---7---C---9---', 'A---8---6---8---', 'B---9---7---4---', '7-----------z---') } } },
+  dm: { name: 'CHROME AND BLOOD', root: 40, bpm: 126, scale: 'phryg', dirt: 1, pump: 0.25, f: 1400, form: 'IVCVCBC', parts: {   // darksynth
+    I: { ch: [0, 0, 0, 1], pad: 'S.....S.....S...', bs: 'r', dr: 'kicks', f: [400, 1000], rise: 1 },
+    V: { ch: [0, 0, 1, 0], bs: 'rrRrrrRrrrRrrrRr', arp: '0102', dr: 'push' },
+    C: { lead: '@dm', bs: 'rrorrror', dr: 'four', f: 2000 },
+    B: { ch: [0, 0, 0, 0], pad: 'S...S...S..S.S..', bs: 'R-------R---R-R-', dr: 'halfd', f: 900 } } },
+  ctf: { name: 'CAPTURE THE NIGHT', root: 43, bpm: 116, scale: 'major', form: 'IVCVCLC', parts: {   // a heroic run
+    I: { ch: [0, 3, 0, 4], pad: 'S..S..S...S.S...', bs: 'r.r.', dr: 'march', f: 2000 },
+    V: { lead: '@ctf', bs: 'r.o.', arp: '0123', dr: 'beat' },
+    C: { ch: [5, 3, 0, 4], bs: 'ro', arp: '0123', dr: 'four', f: 2800, lead: NL('9---9-A-B---9-7-', 'A---9---7---4---', '7---9---B---C---', 'B-------8-------') },
+    L: { ch: [0, 3, 0, 4], bs: 'ro', arp: '0123', dr: 'four', solo: 1 } } },
+  cpu: { name: 'MACHINE DREAMS', root: 45, bpm: 112, scale: 'minor', sq: 1, form: 'IVCVC', parts: {   // robots in love
+    I: { ch: [0, 0, 5, 4], arp: '03', bs: 'ro', dr: 'kicks', f: [500, 1600], rise: 1 },
+    V: { lead: '@cpu', bs: 'r.rr', dr: 'beat' },
+    C: { ch: [5, 6, 0, 0], bs: 'ro', arp: '0123', dr: 'four', f: 2400, lead: NL('9---7---9---B---', 'A---8---6---8---', 'B---9---7---9---', '7-------4-------') } } },
+  cs: { name: 'DUST AFTER DARK', root: 37, bpm: 104, scale: 'phryg', dirt: 1, pump: 0.3, f: 1200, form: 'IVCBVC', parts: {   // darksynth, the bomb ticking
+    I: { ch: [0, 0, 1, 0], bs: 'r-------r-------', dr: 'tick', f: [350, 900], bell: NL('7-------8-------', '7-------5-------', '8-------A-------', '7---------------') },
+    V: { ch: [0, 0, 1, 0], bs: 'r..r..r.r..r.rr.', dr: 'halfd', lead: NL('7---8---7---4---', '5---4---2---1---', '1---3---5---3---', '2-----1-0-------') },
+    C: { ch: [5, 6, 0, 0], bs: 'rrorrror', arp: '0102', dr: 'push', f: 1800, lead: NL('9---7---5---4---', 'A---8---6---8---', '9---B---C---B---', '9-------7-------') },
+    B: { ch: [0, 1, 0, 1], pad: 'S...........S...', bs: 'r---------------', dr: 'tick', f: 700, rise: 1 } } },
+  victory: { name: 'SUNRISE VICTORY', root: 43, bpm: 120, scale: 'major', sev: 1, form: 'IC', parts: {
+    I: { lead: '@victory', bs: 'r.o.', arp: '0123', dr: 'four', f: 2600 },
+    C: { lead: '@victory', harm: 2, bs: 'ro', arp: '0123', dr: 'four', f: 3000 } } },
+  ending: { name: 'NEW DAWN', root: 40, bpm: 92, scale: 'major', sev: 1, att: 0.7, form: 'IVCVC', parts: {   // the anthem at sunrise
+    I: { ch: [0, 3, 4, 0], bell: '@ending', bs: 'r---------------', f: [500, 1800], rise: 1 },
+    V: { lead: '@ending', arp: '0123', bs: 'r.o.', dr: 'half' },
+    C: { ch: [5, 3, 0, 4], bs: 'ro', arp: '0123', dr: 'four', f: 2400, lead: NL('9---9-A-B---9-7-', 'A---9---7---4---', '7---9---B---C---', 'B-------8-------') } } },
+  // ------------------------------------------------------------ the tank bosses
+  bossWarn: { name: 'RED ALERT', root: 45, bpm: 116, scale: 'minor', dirt: 1, pump: 0.3, form: 'I', parts: {
+    I: { lead: '@bossWarn', bs: 'r', arp: '0303', dr: 'push', f: 1600 } } },
+  bossIron: { name: 'STEEL TERMINATOR', root: 40, bpm: 100, scale: 'minor', dirt: 1, pump: 0.25, f: 1400, form: 'IVCVCB', parts: {   // half-time darksynth
+    I: { ch: [0, 0, 5, '4^'], pad: 'S..S..S.S.......', bs: 'R..R..R.R...R.R.', dr: 'halfd', f: 900 },
+    V: { lead: '@bossIron', bs: 'r', dr: 'half' },
+    C: { ch: [5, 3, 0, '4^'], bs: 'rrorrror', arp: '0102', dr: 'push', f: 2000, lead: NL('7---9---B---9---', 'A---9---7---5---', '7---6---7---9---', '8-------B---8---') },
+    B: { ch: [0, 0, 0, 0], pad: 'S...S...S..S.S..', bs: 'R-------R---R-R-', dr: 'kicks', f: 800, rise: 1, bell: NL('7-------8-------', '7---5---4-------') } } },
+  bossDeep: { name: 'ABYSSAL GRID', root: 38, bpm: 84, scale: 'minor', sev: 1, att: 0.8, pump: 0.35, f: 1100, form: 'IVCV', parts: {   // slow, deep, menacing
+    I: { ch: [0, 1, 0, 4], bs: 'r---------------', f: [300, 900], rise: 1, bell: NL('7-------8-------', '7-------4-------') },
+    V: { lead: '@bossDeep', arp: '0.1.2.1.', bs: 'r...r..r....r...', dr: 'halfd' },
+    C: { ch: [5, 3, 0, 0], bs: 'r.o.', arp: '0123', dr: 'half', f: 1600, lead: NL('9-------7-------', 'A---9---7---5---', '4---5---7---9---', '7---------------') } } },
+  bossWar: { name: 'ARMORED PROTOCOL', root: 43, bpm: 108, scale: 'minor', dirt: 1, pump: 0.3, form: 'IVCVC', parts: {   // a half-time war march
+    I: { ch: [0, 0, 5, 6], pad: 'S...S.S.S...S.S.', bs: 'r...r.r.r...r.r.', dr: 'march', f: 1200 },
+    V: { lead: '@bossWar', bs: 'r.o.', arp: '0123', dr: 'march' },
+    C: { ch: [5, 6, 0, 0], bs: 'rrorrror', arp: '0123', dr: 'push', f: 2200, lead: NL('9---7---5---7---', 'A---8---6---8---', 'B---9---7---9---', 'B-------7-------') } } },
+  bossUfo: { name: 'SIGNAL FROM BEYOND', root: 40, bpm: 100, scale: 'lydian', sev: 1, sq: 1, form: 'IVCV', parts: {   // eerie, spacey
+    I: { ch: [0, 1, 0, 1], bell: '@bossUfo', bs: 'r---------------', f: [500, 1400], rise: 1 },
+    V: { lead: '@bossUfo', bs: 'r.o.', arp: '0123', dr: 'beat' },
+    C: { ch: [0, 1, 5, 4], bs: 'ro', arp: '0123', dr: 'four', f: 2400, lead: NL('7---9---B---9---', '8---A---C---A---', 'C---9---7---9---', 'B-------8-------') } } },
+  galya: { name: 'CAROL OF THE NEON BELLS', root: 43, bpm: 120, scale: 'minor', steps: 12, sev: 1, form: 'IVL', parts: {
+    I: { bell: '@galya', bs: 'r-----------', f: [500, 1800], rise: 1 },
+    V: { lead: '@galya', bs: 'r.....o.o...', arp: '012321', dr: 'waltz12' },
+    L: { from: 'galya', bs: 'r.o.r.o.r.o.', arp: '012321', dr: 'waltz12', solo: 1 } } },
+  // ------------------------------------------------------------ GALAXY
+  galaxy: { name: 'STARFIGHTER 1986', root: 40, bpm: 128, scale: 'minor', sq: 1, form: 'IVVLV', parts: {
+    I: { from: 'galaxy', arp: '0123', ao: 1, bs: 'r.o.', dr: 'kicks', f: [600, 2400], rise: 1 },
+    V: { lead: '@galaxy', bs: 'ro', arp: '0123', dr: 'four', f: 2600 },
+    L: { from: 'galaxy', bs: 'ro', arp: '0123', dr: 'four', solo: 1 } } },
+  galaxyBoss: { name: 'OVERLORD PROTOCOL', root: 45, bpm: 110, scale: 'minor', dirt: 1, pump: 0.25, f: 1400, form: 'IVBV', parts: {
+    I: { from: 'galaxyBoss', pad: 'S..S..S.S.......', bs: 'r', dr: 'halfd', f: 1000 },
+    V: { lead: '@galaxyBoss', bs: 'rrorrror', dr: 'push' },
+    B: { from: 'galaxyBoss', bell: '@galaxyBoss', bs: 'R-------R---R-R-', dr: 'half', f: 900, rise: 1 } } },
+  galaxy2: { name: 'HYPERSPACE HIGHWAY', root: 38, bpm: 136, scale: 'minor', sev: 1, form: 'IVVLV', parts: {
+    I: { from: 'galaxy2', arp: '0123', ao: 1, bs: 'r.o.', dr: 'kicks', f: [600, 2600], rise: 1 },
+    V: { lead: '@galaxy2', bs: 'ro', arp: '0123', dr: 'four', f: 2800 },
+    L: { from: 'galaxy2', bs: 'ro', arp: '0123', dr: 'four', solo: 1 } } },
+  galaxyBoss2: { name: 'ALL YOUR BASE ARE NEON', root: 43, bpm: 116, scale: 'phryg', dirt: 1, pump: 0.25, f: 1400, form: 'IVBV', parts: {
+    I: { from: 'galaxyBoss2', pad: 'S.....S.....S...', bs: 'r', dr: 'kicks', f: [400, 1100], rise: 1 },
+    V: { lead: '@galaxyBoss2', bs: 'rrorrror', dr: 'push' },
+    B: { from: 'galaxyBoss2', bs: 'R-------R---R-R-', arp: '0102', dr: 'halfd', f: 900 } } },
+  galaxyWell: { name: 'KOROBEINIKI 1984', root: 45, bpm: 120, scale: 'minor', form: 'IVLV', parts: {   // the music box, then the synthpop
+    I: { bell: '@galaxyWell', ch: [0, '4^', '4^', 0, 3, 2, '4^', 0], bs: 'r-------', f: [600, 1800], rise: 1 },
+    V: { lead: '@galaxyWell', ch: [0, '4^', '4^', 0, 3, 2, '4^', 0], bs: 'r.o.', arp: '0123', dr: 'four' },
+    L: { ch: [0, '4^', '4^', 0, 3, 2, '4^', 0], bs: 'ro', arp: '0123', dr: 'four', solo: 1 } } },
+  galaxyBossWell: { name: 'LEVEL 9 OVERDRIVE', root: 40, bpm: 140, scale: 'harm', dirt: 1, pump: 0.3, form: 'VLV', parts: {
+    V: { lead: '@galaxyBossWell', bs: 'rrorrror', arp: '0123', dr: 'push', f: 2200 },
+    L: { from: 'galaxyBossWell', bs: 'ro', arp: '0123', dr: 'four', solo: 1 } } },
+  galaxySlop: { name: 'CORPORATE SUNSET 4', root: 41, bpm: 92, scale: 'major', sev: 1, sq: 1, att: 0.6, form: 'IVV', parts: {   // slowed down, vapor
+    I: { bell: '@galaxySlop', bs: 'r-------', f: [600, 1600] },
+    V: { lead: '@galaxySlop', bs: 'r.o.', arp: '0.2.3.2.', dr: 'beat', f: 2000 } } },
+  galaxyBossSlop: { name: 'CORRUPTED.VHS', root: 40, bpm: 124, scale: 'lydian', steps: 15, sev: 1, dirt: 1, form: 'IV', parts: {
+    I: { bell: '@galaxyBossSlop', pad: 'S..S..S..S..S..', bs: 'r.o', dr: 'glitch15', f: 1400 },
+    V: { lead: '@galaxyBossSlop', bs: 'ro', arp: '012', dr: 'glitch15', f: 2200 } } },
+};
+// modes that share a tune (others fall back to the rock ones' aliases)
+const SYNTH_ALIAS = { coop: 'cpu', galaxyRush: 'galaxy' };
+// a lead break: scale steps from the chord, 8ths and long notes (null: hold); the last bar climbs and holds
+const SYNTH_LICKS = [
+  [7, null, 9, null, 11, null, null, null, 9, null, 7, null, 4, null, null, null], [4, null, 7, null, 9, null, 11, null, 14, null, null, null, 11, null, 9, null],
+  [9, null, null, 7, null, null, 4, null, 7, null, 9, null, 7, null, null, null], [11, null, 9, null, 7, 9, 11, null, null, null, 9, null, 7, null, null, null],
+];
+const SYNTH_LAST_LICK = [7, null, null, null, 9, null, null, null, 11, null, null, null, null, null, null, null];
+const SYNTH_LEVEL = 1.0;   // as loud as the rock and the chiptunes
+const SYNTH_VOICES = 72;   // oscillators ringing at once
+
+const Synth = {
+  ctx: null,
+  // the instruments' wiring, made once per audio context (an offline render makes its own)
+  setup(out) {
+    const c = Sound.ctx;
+    if (this.ctx === c && this.out === out) return;
+    if (this.ctx === c && this.trim) this.trim.disconnect();
+    this.ctx = c; this.out = out; this.live = []; this.tr = null; this.hushed = false;
+    const gain = v => { const g = c.createGain(); g.gain.value = v; return g; };
+    const filt = (type, f, q = 0.7) => { const b = c.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b; };
+    const pan = p => { if (!c.createStereoPanner) return gain(1); const s = c.createStereoPanner(); s.pan.value = p; return s; };
+    const chain = (...nodes) => { for (let i = 0; i < nodes.length - 1; i++) nodes[i].connect(nodes[i + 1]); return nodes[0]; };
+    // everything into one bus, a gentle compressor to glue it (and keep the kicks from peaking), then the level
+    this.trim = gain(SYNTH_LEVEL); this.trim.connect(out);
+    const comp = c.createDynamicsCompressor();
+    comp.threshold.value = -14; comp.knee.value = 10; comp.ratio.value = 2.5; comp.attack.value = 0.005; comp.release.value = 0.2;
+    const bus = chain(gain(0.35), comp, this.trim);
+    this.duck = chain(gain(1), bus);   // the sidechain: pads, bass and arp pump on the kick
+    // the reverbs: a hall (2.4 s of decaying noise) and the gated one (a third of a second, flat, then cut off dead)
+    const impulse = (len, gated) => {
+      const n = Math.floor(c.sampleRate * len), b = c.createBuffer(2, n, c.sampleRate), cut = c.sampleRate * 0.008;
+      for (let ch = 0; ch < 2; ch++) {
+        const d = b.getChannelData(ch);
+        for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (gated ? (1 - 0.35 * i / n) * Math.min(1, (n - i) / cut) : Math.exp(-6 * i / n));
+      }
+      return b;
+    };
+    const hall = c.createConvolver(); hall.buffer = impulse(2.4, false); chain(hall, gain(0.45), bus);
+    const gate = c.createConvolver(); gate.buffer = impulse(0.32, true); chain(gate, gain(0.9), bus);
+    this.hallIn = chain(gain(1), hall); this.gateIn = chain(gain(1), gate);
+    // the ping-pong echo (a dotted 8th, set per song)
+    this.echoIn = gain(1);
+    this.dl = c.createDelay(1.5); this.dr = c.createDelay(1.5);
+    const fb = gain(0.4), wet = chain(filt('lowpass', 3200), gain(0.55), bus);
+    this.echoIn.connect(this.dl); chain(this.dl, pan(-0.8), wet); this.dl.connect(this.dr); chain(this.dr, pan(0.8), wet); chain(this.dr, fb, this.dl);
+    // the pads: the left and right saws through the filter, then a chorus (two short delays wobbled by slow LFOs)
+    this.padF = filt('lowpass', 1800, 0.9);
+    this.padL = chain(gain(1), pan(-0.7), this.padF); this.padR = chain(gain(1), pan(0.7), this.padF);
+    const padOut = gain(1); this.padF.connect(padOut); padOut.connect(this.duck); chain(padOut, gain(0.35), this.hallIn);
+    for (const [d, rate, p] of [[0.012, 0.43, -1], [0.019, 0.61, 1]]) {
+      const dly = c.createDelay(0.05), lfo = c.createOscillator(), depth = gain(0.003);
+      dly.delayTime.value = d; lfo.frequency.value = rate; lfo.connect(depth); depth.connect(dly.delayTime); lfo.start();
+      chain(this.padF, dly, pan(p), gain(0.7), padOut);
+    }
+    // the arp, the bass (clean, or driven for darksynth), the stabs: all pumping
+    this.arpIn = chain(gain(1), filt('lowpass', 3600, 4), this.duck);
+    chain(this.arpIn, gain(0.3), this.echoIn);
+    this.bassClean = chain(gain(1), this.duck);
+    const sh = c.createWaveShaper(), n = 512, curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x = i / (n / 2) - 1; curve[i] = Math.tanh(3 * x) / Math.tanh(3); }
+    sh.curve = curve;
+    this.bassDirt = chain(gain(1.3), sh, filt('lowpass', 2600), gain(0.32), this.duck);
+    this.stabIn = chain(gain(1), this.duck); chain(this.stabIn, gain(0.3), this.hallIn);
+    // the lead and the bells: dry, the echo and the hall
+    this.leadIn = chain(gain(1), filt('highpass', 160), filt('lowpass', 6500), bus);
+    this.leadIn.connect(this.echoIn); chain(this.leadIn, gain(0.25), this.hallIn);
+    this.bellIn = chain(gain(1), pan(0.2), bus);
+    chain(this.bellIn, gain(0.5), this.echoIn); chain(this.bellIn, gain(0.6), this.hallIn);
+    // drums (hats a little to the right)
+    this.drums = chain(gain(1), bus);
+    this.hats = chain(pan(0.3), this.drums);
+    // one second of white noise for the kit and the risers; the pulse waves
+    const len = c.sampleRate, buf = c.createBuffer(1, len, c.sampleRate), dd = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) dd[i] = Math.random() * 2 - 1;
+    this.noise = buf;
+    this.sq = Sound.pulseWave(0.5); this.p25 = Sound.pulseWave(0.25);
+    this.padInL = null; this.cutPads();
+  },
+  // new inputs for the pads; the old ones fade out with whatever chords still ring through them (a new track, a pause)
+  cutPads() {
+    const c = this.ctx, now = c.currentTime;
+    for (const g of [this.padInL, this.padInR]) if (g) { g.gain.cancelScheduledValues(now); g.gain.setTargetAtTime(0, now, 0.04); }
+    this.padInL = c.createGain(); this.padInL.connect(this.padL);
+    this.padInR = c.createGain(); this.padInR.connect(this.padR);
+  },
+
+  // a new track: the echo follows its tempo
+  begin(tr) {
+    if (this.tr) this.cutPads();
+    this.tr = tr; this.lastLead = null; this.fresh = true;
+    const t = this.ctx.currentTime, d = Math.min(1.4, tr.stepDur * 3);
+    this.dl.delayTime.setValueAtTime(d, t); this.dr.delayTime.setValueAtTime(d, t);
+    this.depth = tr.song.pump || 0.4;
+  },
+  // paused, muted, another style or nothing playing: the synths go quiet at once (their long pads and echoes too)
+  quiet(q) {
+    if (!this.ctx || this.hushed === q) return;
+    this.hushed = q;
+    if (q) this.cutPads(); else this.fresh = true;   // back: the chord that should be ringing comes in again
+    const p = this.trim.gain, now = this.ctx.currentTime;
+    p.cancelScheduledValues(now); p.setTargetAtTime(q ? 0 : SYNTH_LEVEL, now, q ? 0.04 : 0.015);
+  },
+
+  // the voice cap: is there room for n more oscillators from t to end? (must: play anyway, but count them)
+  room(t, end, n, must) {
+    const L = this.live;
+    let used = 0, k = 0;
+    for (let i = 0; i < L.length; i += 2) if (L[i] > t) { L[k++] = L[i]; L[k++] = L[i + 1]; used += L[i + 1]; }
+    L.length = k;
+    if (!must && used + n > SYNTH_VOICES) return false;
+    L.push(end, n);
+    return true;
+  },
+  osc(type, midi, t, end, dest, det = 0, from) {
+    const o = this.ctx.createOscillator();
+    if (type === 'sq') o.setPeriodicWave(this.sq); else if (type === 'p25') o.setPeriodicWave(this.p25); else o.type = type;
+    o.frequency.setValueAtTime(Sound.midi(from === undefined ? midi : from), t);
+    if (from !== undefined) o.frequency.exponentialRampToValueAtTime(Sound.midi(midi), t + 0.06);   // portamento
+    if (det) o.detune.value = det;
+    o.connect(dest); o.start(t); o.stop(end + 0.02);
+    return o;
+  },
+  // attack a, decay toward sus (a fraction) with time constant d, release r after end
+  env(dest, t, end, vol, a, r, sus = 1, d = 0.3) {
+    const g = this.ctx.createGain(), p = g.gain;
+    end = Math.max(end, t + a + 0.01);
+    p.setValueAtTime(0, t); p.linearRampToValueAtTime(vol, t + a);
+    if (sus < 1) p.setTargetAtTime(vol * sus, t + a, d);
+    p.setTargetAtTime(0, end, r / 5);
+    g.connect(dest);
+    return g;
+  },
+
+  // a held chord: three saws a note, spread left and right
+  pad(notes, t, dur, att) {
+    const end = t + dur, rel = 0.45;
+    if (!this.room(t, end + rel, notes.length * 3)) return;
+    const a = Math.min(att, dur * 0.5), gl = this.env(this.padInL, t, end, 0.05, a, rel, 0.85, 0.6), gr = this.env(this.padInR, t, end, 0.05, a, rel, 0.85, 0.6);
+    for (const m of notes) {
+      this.osc('sawtooth', m, t, end + rel, gl, -12); this.osc('sawtooth', m, t, end + rel, gr, 12);
+      this.osc('sawtooth', m, t, end + rel, gl, 4).connect(gr);
+    }
+  },
+  // a brass stab: the chord on saws through a filter snapping shut
+  stab(notes, t, dur) {
+    const c = this.ctx, end = t + dur;
+    if (!this.room(t, end + 0.1, notes.length * 2)) return;
+    const f = c.createBiquadFilter(), g = this.env(this.stabIn, t, end, 0.14, 0.006, 0.1, 0.5, 0.12);
+    f.type = 'lowpass'; f.Q.value = 2; f.frequency.setValueAtTime(4500, t); f.frequency.setTargetAtTime(600, t + 0.01, 0.09);
+    f.connect(g);
+    for (const m of notes) { this.osc('sawtooth', m, t, end + 0.1, f, -9); this.osc('sawtooth', m, t, end + 0.1, f, 9); }
+  },
+  arpNote(m, t, dur, vol) {
+    const end = t + dur;
+    if (!this.room(t, end + 0.06, 1)) return;
+    this.osc('p25', m, t, end + 0.06, this.env(this.arpIn, t, end, vol, 0.003, 0.06, 0.5, dur * 0.5));
+  },
+  // the bass: saw + square, the filter plucking shut; dirt: through the waveshaper
+  bassNote(m, t, dur, vol, dirt) {
+    const c = this.ctx, end = t + dur, f = c.createBiquadFilter();
+    this.room(t, end + 0.05, 2, true);
+    f.type = 'lowpass'; f.Q.value = 3;
+    f.frequency.setValueAtTime(dirt ? 2600 : 2000, t); f.frequency.setTargetAtTime(dirt ? 420 : 300, t + 0.004, 0.06);
+    f.connect(this.env(dirt ? this.bassDirt : this.bassClean, t, end, vol, 0.004, 0.04, 0.75, 0.15));
+    this.osc('sawtooth', m, t, end + 0.05, f, -5); this.osc('sq', m, t, end + 0.05, f, 5);
+  },
+  // the lead: slides from a long note into the next one close by, vibrato as it rings; k: the harmony (no slide)
+  leadNote(m, t, dur, vol, sq, k) {
+    const c = this.ctx, end = t + dur, rel = 0.15;
+    this.room(t, end + rel, 2, true);
+    const g = this.env(this.leadIn, t, end, vol, 0.012, rel, 0.75, 0.4), prev = k ? null : this.lastLead;
+    const from = prev && Math.abs(prev.end - t) < 0.03 && prev.dur > 0.25 && prev.m !== m && Math.abs(prev.m - m) <= 5 ? prev.m : undefined;
+    if (!k) this.lastLead = { m, end, dur };
+    const os = (sq ? [['sq', -6], ['p25', 6]] : [['sawtooth', -8], ['sawtooth', 8]]).map(([w, d]) => this.osc(w, m, t, end + rel, g, d, from));
+    if (dur > 0.3) {
+      const lfo = c.createOscillator(), lg = c.createGain();
+      lfo.frequency.value = 5.5; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(0, t + 0.18); lg.gain.linearRampToValueAtTime(20, t + 0.45);
+      lfo.connect(lg); for (const o of os) lg.connect(o.detune);
+      lfo.start(t); lfo.stop(end + rel + 0.02);
+    }
+  },
+  // an FM bell: a sine modulated by a sine 3.5 times as fast, the brightness dying away
+  bell(m, t, dur, vol) {
+    const c = this.ctx, f = Sound.midi(m), end = t + Math.max(0.5, dur) + 0.6;
+    if (!this.room(t, end, 2)) return;
+    const car = c.createOscillator(), mod = c.createOscillator(), mg = c.createGain(), g = c.createGain();
+    car.frequency.value = f; mod.frequency.value = f * 3.5;
+    mg.gain.setValueAtTime(f * 2.4, t); mg.gain.exponentialRampToValueAtTime(f * 0.08, t + 0.9);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.001, end);
+    mod.connect(mg); mg.connect(car.frequency); car.connect(g); g.connect(this.bellIn);
+    car.start(t); mod.start(t); car.stop(end + 0.02); mod.stop(end + 0.02);
+  },
+  // the kick ducks the pads, bass and arp
+  pump(t) {
+    const p = this.duck.gain;
+    p.setTargetAtTime(this.depth, t, 0.005); p.setTargetAtTime(1, t + 0.035, 0.09);
+  },
+  // a noise sweep rising over a bar into the next part
+  riser(t, dur) {
+    const c = this.ctx, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    if (!this.room(t, t + dur, 1)) return;
+    s.buffer = this.noise; s.loop = true; f.type = 'bandpass'; f.Q.value = 1.5;
+    f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(7000, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.1, t + dur); g.gain.linearRampToValueAtTime(0, t + dur + 0.03);
+    s.connect(f); f.connect(g); g.connect(this.trim); g.connect(this.hallIn);
+    s.start(t); s.stop(t + dur + 0.05);
+  },
+  hit(kind, t) {
+    const c = this.ctx;
+    this.room(t, t + 0.3, 2, true);
+    const nz = (dest, len, vol, hp, lp, gated) => {
+      const s = c.createBufferSource(), g = c.createGain(), f1 = c.createBiquadFilter(), f2 = c.createBiquadFilter();
+      s.buffer = this.noise; f1.type = 'highpass'; f1.frequency.value = hp; f2.type = 'lowpass'; f2.frequency.value = lp;
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + len);
+      s.connect(f1); f1.connect(f2); f2.connect(g); g.connect(dest); if (gated) g.connect(this.gateIn);
+      s.start(t, Math.random() * 0.5); s.stop(t + len + 0.02);
+      return g;
+    };
+    const tone = (f0, f1, sweep, len, vol, type, gated) => {
+      const o = c.createOscillator(), g = c.createGain(); o.type = type;
+      o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + sweep);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + len);
+      o.connect(g); g.connect(this.drums); if (gated) g.connect(this.gateIn);
+      o.start(t); o.stop(t + len + 0.02);
+    };
+    const clap = () => {
+      const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(), p = g.gain;
+      s.buffer = this.noise; f.type = 'bandpass'; f.frequency.value = 1300; f.Q.value = 1.1;
+      p.setValueAtTime(0, t);
+      for (let k = 0; k < 3; k++) { p.setValueAtTime(0.8, t + k * 0.011); p.exponentialRampToValueAtTime(0.08, t + k * 0.011 + 0.009); }
+      p.setValueAtTime(0.7, t + 0.033); p.exponentialRampToValueAtTime(0.001, t + 0.22);
+      s.connect(f); f.connect(g); g.connect(this.drums); g.connect(this.gateIn);
+      s.start(t, Math.random() * 0.5); s.stop(t + 0.25);
+    };
+    const snare = () => { nz(this.drums, 0.2, 0.75, 1800, 11000, true); tone(200, 165, 0.05, 0.11, 0.45, 'triangle', true); };
+    const kick = () => { tone(165, 48, 0.08, 0.4, 0.8, 'sine'); nz(this.drums, 0.012, 0.25, 2500, 9000); this.pump(t); };
+    if (kind === 'K') kick();
+    else if (kind === 'S') snare();
+    else if (kind === 'C') clap();
+    else if (kind === 'X') { snare(); clap(); }
+    else if (kind === 'Z') { kick(); snare(); clap(); }
+    else if (kind === 'h') nz(this.hats, 0.035, 0.38, 8000, 16000);
+    else if (kind === 'o') nz(this.hats, 0.22, 0.22, 7000, 15000);
+    else if (kind === 'T') tone(220, 130, 0.25, 0.32, 0.65, 'sine', true);
+    else if (kind === 't') tone(155, 90, 0.28, 0.36, 0.7, 'sine', true);
+    else if (kind === 'c') nz(this.drums, 1.6, 0.2, 4500, 13000);
+  },
+};
+
+// ------------------------------------------------------------------ a song, laid out bar by bar
+function synthBuild(key, skill) {
+  const S = SYNTH_SONGS[key], n = S.steps || 16, sc = SYNTH_SCALES[S.scale] || SYNTH_SCALES.minor, bars = [];
+  const pitch = d => sc[((d % 7) + 7) % 7] + 12 * Math.floor(d / 7);
+  const partOf = id => {
+    const P = S.parts[id], at = v => typeof v === 'string' && v[0] === '@';
+    const src = at(P.lead) ? SONGS[P.lead.slice(1)] : at(P.bell) ? SONGS[P.bell.slice(1)] : P.from ? SONGS[P.from] : null;
+    const mel = v => (at(v) ? (SONGS[v.slice(1)] || {}).mel || null : v || null);
+    return Object.assign({}, P, { ch: P.ch || (src ? src.prog : [0, 0, 0, 0]), lead: mel(P.lead), bell: mel(P.bell), id });
+  };
+  // a chord: its root for the bass, a closed voicing for the pads (and the root under it), its notes for the arp
+  let bassLo = S.root - 12;
+  while (bassLo < 30) bassLo += 12;
+  const voicing = (c, P) => {
+    const d = typeof c === 'number' ? c : parseInt(c, 10), q = String(c), r = pitch(d);
+    let third = pitch(d + 2) - r;
+    const fifth = pitch(d + 4) - r;
+    if (q.includes('^') && third === 3) third = 4;
+    if (q.includes('s')) third = pitch(d + 3) - r;
+    const iv = [0, third, fifth].concat(S.sev ? [pitch(d + 6) - r] : []), root = S.root + r, lo = S.root + 12;
+    let bass = root;
+    while (bass >= bassLo + 12) bass -= 12;
+    while (bass < bassLo) bass += 12;
+    const pad = iv.map(x => { let m = root + x; while (m < lo) m += 12; while (m >= lo + 12) m -= 12; return m; }).concat([bass + 12]);
+    let a = root;
+    const alo = S.root + 12 + 12 * (P.ao || 0);
+    while (a < alo) a += 12;
+    while (a >= alo + 12) a -= 12;
+    return { bass, five: fifth, pad, arp: [a, a + third, a + fifth, a + 12, a + 12 + third, a + 12 + fifth, a + 24] };
+  };
+  for (const id of S.form) {
+    const P = partOf(id), beat = /[SXZC]/.test(SYNTH_DRUMS[P.dr] || '');
+    P.ch.forEach((c, b) => bars.push(Object.assign({ P, c, b, first: b === 0, last: b === P.ch.length - 1, beat }, voicing(c, P))));
+  }
+  // a held chord carries on over the next bar when that's the same chord (ties: how many bars more it rings)
+  for (let k = 1; k < bars.length; k++) bars[k].tie = !bars[k - 1].P.pad && !bars[k].P.pad && String(bars[k - 1].c) === String(bars[k].c);
+  for (let k = bars.length - 1; k >= 0; k--) bars[k].ties = k + 1 < bars.length && bars[k + 1].tie ? bars[k + 1].ties + 1 : 0;
+  const tempo = [0.92, 0.96, 1, 1.04, 1.08][skill] || 1;
+  return { synth: true, song: S, sc, steps: n, bars, skill, whole: 'P' + '-'.repeat(n - 1), total: bars.length * n,
+    stepDur: 60 / (S.bpm * tempo) / 4, key: key + '/' + skill };
+}
+
+function synthPitch(tr, deg, base) { const sc = tr.sc, o = Math.floor(deg / 7), d = ((deg % 7) + 7) % 7; return base + sc[d] + 12 * o; }
+
+// one 16th of the song
+function synthStep(tr, i, t) {
+  const S = tr.song, n = tr.steps, bi = Math.floor(i / n), s = i % n, B = tr.bars[bi], P = B.P, sd = tr.stepDur, X = Synth, sk = tr.skill;
+  const inBar = (str, at) => { let k = 1; while (at + k < n && str[(at + k) % str.length] === '-') k++; return k; };
+  const along = (str, at) => { let k = 1; while (str[(at + k) % str.length] === '-' && k < 32) k++; return k; };
+  // a bar begins: the pad filter moves to the part's setting; a crash where a part with drums comes in; a riser
+  if (s === 0) {
+    const f = Array.isArray(P.f) ? P.f[0] + (P.f[1] - P.f[0]) * B.b / Math.max(1, P.ch.length - 1) : P.f || S.f || 2200;
+    X.padF.frequency.setTargetAtTime(f, t, sd * 4);
+    if (B.first && B.beat && bi > 0) X.hit('c', t);
+    if (B.last && P.rise) X.riser(t, n * sd);
+  }
+  // pads and stabs (back from a pause, or a new track mid-chord: the chord comes in again)
+  const pp = P.pad || tr.whole, pc = pp[s % pp.length];
+  const tail = len => len + (s + len >= n ? B.ties * n : 0);
+  if (pc === 'P' && !(s === 0 && B.tie)) X.pad(B.pad, t, tail(inBar(pp, s)) * sd, S.att || 0.3);
+  else if (X.fresh && (pc === 'P' || pc === '-')) {
+    let a = s;
+    while (a > 0 && pp[a % pp.length] === '-') a--;
+    if (pp[a % pp.length] === 'P') X.pad(B.pad, t, tail(inBar(pp, s)) * sd, 0.15);
+  } else if (pc === 'S') X.stab(B.pad, t, Math.min(2, inBar(pp, s)) * sd);
+  X.fresh = false;
+  // bass
+  const bc = P.bs && P.bs[s % P.bs.length];
+  if (bc && bc !== '-' && bc !== '.') {
+    const off = { r: 0, R: 0, o: 12, O: 12, f: B.five, F: B.five }[bc] || 0, acc = bc === 'R' || bc === 'O' || bc === 'F';
+    X.bassNote(B.bass + off, t, inBar(P.bs, s) * sd * 0.9, acc ? 0.36 : 0.3, S.dirt);
+  }
+  // the arpeggiator (8ths only on the easiest skill)
+  if (P.arp && (sk > 0 || s % 2 === 0)) {
+    const a = P.arp[s % P.arp.length];
+    if (a >= '0' && a <= '6') X.arpNote(B.arp[+a], t, sd * 0.85, 0.32);
+  }
+  // the lead: a melody (with its harmony), or a lead break; the bells
+  const leadBase = S.root + 24 + (S.lo || 0);
+  if (P.solo) {
+    const lick = B.last ? SYNTH_LAST_LICK : SYNTH_LICKS[(B.b + (parseInt(B.c, 10) & 1)) % SYNTH_LICKS.length], v = lick[s];
+    if (v !== null && v !== undefined) {
+      let len = 1;
+      while (s + len < Math.min(16, n) && lick[s + len] === null) len++;
+      X.leadNote(synthPitch(tr, parseInt(B.c, 10) + v, leadBase - 12), t, sd * len, 0.24, S.sq);
+    }
+  } else if (P.lead) {
+    const k = B.b * n + s, ch = P.lead[k % P.lead.length], deg = ROCK_DEG(ch);
+    if (deg !== undefined) {
+      const len = along(P.lead, k % P.lead.length) * sd;
+      X.leadNote(synthPitch(tr, deg, leadBase), t, len, 0.26, S.sq);
+      if (P.harm) X.leadNote(synthPitch(tr, deg + P.harm, leadBase), t, len, 0.13, S.sq, 1);
+    }
+  }
+  if (P.bell) {
+    const k = B.b * n + s, deg = ROCK_DEG(P.bell[k % P.bell.length]);
+    if (deg !== undefined) X.bell(synthPitch(tr, deg, leadBase), t, along(P.bell, k % P.bell.length) * sd, 0.4);
+  }
+  // drums: lighter on the easy skills, busier hats on the hard ones, gated toms into the next part
+  if (P.dr) {
+    const D = SYNTH_DRUMS[P.dr] || SYNTH_DRUMS.beat;
+    let d = D[s % D.length];
+    if (sk <= 1 && d === 'h' && s % 2) d = '.';
+    if (sk >= 3 && d === '.' && s % 2 && B.beat) d = 'h';
+    if (B.beat && B.last && s >= n - 4) d = ['T', 'T', 't', 't'][s - (n - 4)];
+    if (d !== '.') X.hit(d, t);
+  }
+}
+
+// which synthwave song plays for a mode (a boss's last phase: mode + '+')
+function synthKey(mode) {
+  const base = mode.replace('+', ''), k = SYNTH_SONGS[base] ? base : SYNTH_ALIAS[base] || ROCK_ALIAS[base];
+  return SYNTH_SONGS[k] ? k : null;
+}
+
+// ------------------------------------------------------------------ into the music player
+{
+  const _build = Music.build, _play = Music.playStep, _want = Music.want;
+  Music.build = function (mode, skill) {
+    const style = Config.get('musicStyle'), k = style === 'SYNTHWAVE' ? synthKey(mode) : null;
+    let tr;
+    if (k) {
+      tr = synthBuild(k, skill);
+      if (mode.endsWith('+')) tr.stepDur /= 1.12;   // a boss's last phase: faster
+      tr.key = mode + '/' + skill;
+    } else tr = _build.call(this, mode, skill);
+    tr.style = style;
+    return tr;
+  };
+  Music.playStep = function (i, t, pass = 0) {
+    if (!this.track || !this.track.synth) return _play.call(this, i, t, pass);
+    Synth.setup(this.gain);
+    if (Synth.tr !== this.track) Synth.begin(this.track);
+    synthStep(this.track, i, t);
+  };
+  // MUSIC STYLE changed: the tune starts again in the new style; the synths hush when paused, muted or not playing
+  Music.want = function (mode, skill, paused) {
+    if (this.track && this.track.style !== Config.get('musicStyle')) this.stop();
+    _want.call(this, mode, skill, paused);
+    Synth.quiet(!(this.track && this.track.synth && !this.paused && !Sound.muted));
+  };
+}
+// the name on a mode's title screen: the synthwave one when that's what plays
+musicName = (name => function (mode) {
+  const k = Config.get('musicStyle') === 'SYNTHWAVE' ? synthKey(mode) : null;
+  return k ? SYNTH_SONGS[k].name : name(mode);
+})(musicName);
 
 </script>
   <script>
@@ -38510,7 +39105,39 @@ Object.assign(INTRO_SCENES, {
 //    w  a window: tanks can't get through, shells and sight can (water underneath, drawn as glass and bars)
 // =====================================================================
 
-const CS_MAP = [
+// every map (the others in their own files: csmap_<name>.js); csUseMap points the CS_* names below at one of them
+const CS_MAPS = {}, CS_MAP_ORDER = [];
+let CS_MAP, CS_W, CS_H, CS_ZONES, CS_STARTS, CS_FLOORS, CS_SPOTS, CS_PAL, CS_MAPKEY = '';
+// and the bots' tables for it (csbots.js)
+let CSB_ROUTES, CSB_POST, CSB_ROT, CSB_CT, CSB_PEEK, CSB_WAYS;
+
+// a map: { name, label (the team screen's DE_ name), theme ({ name, ground, specks }), rows, zones, starts, floors,
+// spots, pal (palettes over CS_PAL_BASE), mini (minimap colours), bots: { routes, post, rot, ct, peek, ways } }
+function csAddMap(key, m) { CS_MAPS[key] = m; if (!CS_MAP_ORDER.includes(key)) CS_MAP_ORDER.push(key); THEMES['cs_' + key] = m.theme; }
+function csUseMap(key) {
+  const m = CS_MAPS[key] || CS_MAPS.dust2;
+  CS_MAPKEY = CS_MAPS[key] ? key : 'dust2';
+  CS_MAP = m.rows; CS_W = m.rows[0].length; CS_H = m.rows.length;
+  CS_ZONES = m.zones; CS_STARTS = m.starts; CS_FLOORS = m.floors; CS_SPOTS = m.spots;
+  CS_PAL = Object.assign({}, CS_PAL_BASE, m.pal || {});
+  const b = m.bots;
+  CSB_ROUTES = b.routes; CSB_POST = b.post; CSB_ROT = b.rot; CSB_CT = b.ct; CSB_PEEK = b.peek || {}; CSB_WAYS = b.ways;
+  return m;
+}
+// tiles past the four of Dust 2 (#, ., x, d, w): their block (a BLOCK_TYPE letter: @ steel, # brick, ~ water, . floor),
+// their picture (fn(g, tx, ty, R) on a 16 x 16 canvas; R seeded per tile) and their colour on the team screen's map
+const CS_TILE_BLOCK = { '#': '@', '.': '.', x: '#', d: '#', w: '~' };
+const CS_TILE_ART = {};
+const CS_THUMB_COL = {};
+// floor kinds past sand, stone and tunnel: fn(g, x, y, tx, ty, P, r) draws one tile of it (P its palette, r seeded)
+const CS_FLOOR_ART = {};
+// each map's walls as a round starts, drawn once (csBuildLayers)
+const CS_LAYER_CACHE = {}, CS_GROUND_CACHE = {};
+
+csAddMap('dust2', {
+  name: 'DUST 2', label: 'DE_DUST2',
+  theme: { name: 'DUST 2', ground: '#B08C58', specks: ['#A07C48', '#C09C68'] },
+  rows: [
   '################################################################',
   '################################################################',
   '##...................######.............##..................####',
@@ -38571,38 +39198,56 @@ const CS_MAP = [
   '#######################.....................####################',
   '################################################################',
   '################################################################',
-];
-const CS_W = CS_MAP[0].length, CS_H = CS_MAP.length;
+  ],
 
-// places on the map, in tiles [x, y, w, h]: the spawns (and their buy zones) and the two bombsites
-const CS_ZONES = {
+  // places on the map, in tiles [x, y, w, h]: the spawns (and their buy zones) and the two bombsites
+  zones: {
   T: [23, 48, 21, 10],
   CT: [24, 2, 16, 8],
   A: [45, 3, 14, 10],
   B: [3, 3, 15, 12],
-};
-// where each side's five tanks start (tiles), and which way they face
-const CS_STARTS = {
+  },
+  // where each side's five tanks start (tiles), and which way they face
+  starts: {
   T: { dir: 0, at: [[30, 50], [33, 52], [36, 50], [30, 55], [36, 55]] },
   CT: { dir: 2, at: [[26, 4], [33, 3], [37, 4], [27, 7], [34, 8]] },
-};
-// the floor: boards in the tunnels and the window room (indoors, darker), stone slabs on the sites; sand elsewhere
-const CS_FLOORS = [
+  },
+  // the floor: boards in the tunnels and the window room (indoors, darker), stone slabs on the sites; sand elsewhere
+  floors: [
   ['tunnel', 8, 19, 5, 30], ['tunnel', 13, 35, 9, 3], ['tunnel', 21, 26, 4, 12], ['tunnel', 25, 26, 5, 3], ['tunnel', 22, 11, 4, 4],
   ['stone', 42, 2, 20, 12], ['stone', 2, 2, 19, 16],
-];
-// call-outs (tiles): where the bots go, hold and look
-const CS_SPOTS = {
+  ],
+  // call-outs (tiles): where the bots go, hold and look (every map has tSpawn, ctSpawn, aSite and bSite)
+  spots: {
   tSpawn: [33, 50], outsideLong: [48, 47], longDoors: [49, 41], long: [54, 34], pit: [58, 44], longA: [56, 24], aCar: [57, 17],
   aRamp: [57, 13], aSite: [51, 8], aPlat: [47, 6], goose: [58, 6], aShort: [41, 13], catwalk: [39, 18], catBottom: [37, 22], xbox: [33, 24],
   midTop: [32, 30], topMid: [32, 37], tRamp: [33, 43], midDoors: [32, 17], ctMid: [31, 12], ctSpawn: [32, 5], ctRamp: [40, 5],
   bDoors: [22, 7], bWindow: [24, 13], bSite: [9, 11], backPlat: [4, 4], bCar: [16, 6], bTunnels: [10, 19], bTunnelsIn: [10, 26],
   upperTunnels: [10, 40], tunnelJunction: [10, 36], lowerTunnels: [22, 31], lowerMid: [27, 27], outsideTunnels: [15, 52],
-};
+  },
+  // the minimap's colours: floor, the sites
+  mini: { floor: [200, 170, 120], site: [214, 150, 110] },
+  // the bots (csbots.js): the terrorists' ways in, call-outs in order, the last one the site (stage: where they
+  // gather; go: on in from there); where they hold round a planted bomb; where the CTs rotate to; the CTs' posts
+  // and which way they look; where each post looks out from now and then; which ways the five take to each site
+  bots: {
+    routes: {
+      long: { site: 'A', path: ['outsideLong', 'longDoors', 'long'], stage: 'long', go: ['longA', 'aCar', 'aSite'] },
+      short: { site: 'A', path: ['tRamp', 'topMid', 'midTop'], stage: 'midTop', go: ['catBottom', 'catwalk', 'aShort', 'aSite'] },
+      tunnels: { site: 'B', path: ['outsideTunnels', 'upperTunnels', 'tunnelJunction'], stage: 'tunnelJunction', go: ['bTunnelsIn', 'bTunnels', 'bSite'] },
+      lurk: { site: 'B', path: ['tRamp', 'topMid', 'midTop', 'lowerMid'], stage: 'lowerMid', go: ['lowerTunnels', 'tunnelJunction', 'bTunnelsIn', 'bTunnels', 'bSite'] },
+    },
+    post: { A: ['goose', 'aCar', 'aPlat', 'aRamp'], B: ['backPlat', 'bCar', 'bTunnels', 'bDoors'] },
+    rot: { A: ['ctRamp', 'goose', 'aSite'], B: ['bDoors', 'bWindow', 'backPlat'] },
+    ct: [['aCar', 2], ['bSite', 2], ['ctMid', 2], ['aSite', 3], ['bWindow', 3]],
+    peek: { aCar: 'longA', bSite: 'bTunnels', ctMid: 'xbox', aSite: 'catwalk', bWindow: 'lowerTunnels' },
+    ways: { A: ['long', 'short', 'long', 'long', 'short'], B: ['tunnels', 'tunnels', 'lurk', 'tunnels', 'tunnels'] },
+  },
+});
 
 // the map as a block map for Stage.load (2 x 2 blocks a tile)
 function csMapBlocks() {
-  const BL = { '#': '@', '.': '.', x: '#', d: '#', w: '~' }, out = [];
+  const BL = CS_TILE_BLOCK, out = [];
   for (const row of CS_MAP) {
     let r = '';
     for (const ch of row) r += (BL[ch] || '.').repeat(2);
@@ -38618,8 +39263,8 @@ function csFloorOf(tx, ty) {
 }
 
 // the look: the season's slot for it (no twist, no weather of its own)
-THEMES.dust = { name: 'DUST 2', ground: '#B08C58', specks: ['#A07C48', '#C09C68'] };
-const CS_PAL = {
+THEMES.dust = CS_MAPS.dust2.theme;
+const CS_PAL_BASE = {
   sand: ['#B8925A', '#A8824C', '#C8A46C', '#9C7840'], stone: ['#C4AC80', '#B09870', '#D4BC90', '#9C8460'], tunnel: ['#5C4830', '#4C3C28', '#6C5638', '#3C2C1C'],
   roof: ['#E2C896', '#D0B07A', '#F2DCAC', '#B89058'], face: ['#8C6434', '#74502A', '#A07848'], deep: ['#9C7A4C', '#8C6A40', '#A88658'],
   crate: ['#B87C34', '#8C5820', '#5C3810', '#D8A458'], door: ['#4C7488', '#36586C', '#203848', '#6C94A8'],
@@ -38628,11 +39273,14 @@ const CS_PAL = {
 Object.assign(Stage.prototype, {
   // the ground, drawn once: sand, stone and boards, the shadows the walls throw, the painted bombsite letters
   csGround() {
-    if (this.ground && this.groundFor === 'cs' && this.ground.width === FW) return this.ground;
+    if (this.ground && this.groundFor === 'cs:' + CS_MAPKEY && this.ground.width === FW) return this.ground;
+    const was = CS_GROUND_CACHE[CS_MAPKEY];
+    if (was && was.width === FW && was.height === FH) { this.ground = was; this.groundFor = 'cs:' + CS_MAPKEY; return was; }
     const c = makeCanvas(FW, FH), g = c.getContext('2d'), r = seeded(2002);
     for (let ty = 0; ty < CS_H; ty++) for (let tx = 0; tx < CS_W; tx++) {
       const k = csFloorOf(tx, ty), P = CS_PAL[k], x = tx * 16, y = ty * 16;
       g.fillStyle = P[0]; g.fillRect(x, y, 16, 16);
+      if (CS_FLOOR_ART[k]) { CS_FLOOR_ART[k](g, x, y, tx, ty, P, r); continue; }
       if (k === 'stone') {
         // big slabs, worn at the joints
         g.fillStyle = P[1]; g.fillRect(x, y + 15, 16, 1); g.fillRect(x + ((ty & 1) ? 0 : 8), y, 1, 15);
@@ -38670,7 +39318,7 @@ Object.assign(Stage.prototype, {
       Font.big(g, s, Math.round(x + w / 2 - (s.length * 8 - 2)), Math.round(y + h / 2 - 7), 2, s === 'T' ? '#7C3810' : '#1C3C7C');
       g.globalAlpha = 1;
     }
-    this.ground = c; this.groundFor = 'cs';
+    this.ground = c; this.groundFor = 'cs:' + CS_MAPKEY; CS_GROUND_CACHE[CS_MAPKEY] = c;
     return c;
   },
 
@@ -38678,6 +39326,7 @@ Object.assign(Stage.prototype, {
   csTileArt(tx, ty) {
     const ch = csTile(tx, ty), c = makeCanvas(16, 16), g = c.getContext('2d'), wall = (x, y) => csTile(x, y) === '#';
     const R = seeded(tx * 131 + ty * 977 + 5);
+    if (CS_TILE_ART[ch]) { CS_TILE_ART[ch](g, tx, ty, R); return c; }
     if (ch === '#') {
       // far from any floor: the flat roofs of the town; next to one: sandstone blocks, a face on the south side
       let near = false;
@@ -38733,6 +39382,14 @@ Object.assign(Stage.prototype, {
     bg.clearRect(0, 0, FW, FH); this.forestLayer.getContext('2d').clearRect(0, 0, FW, FH);
     this.waterCells = []; this.beltCells = [];
     this.bioL = { lava: [], vent: [], gas: [], lamp: [], bog: [] };
+    // the map as it starts every round is drawn once and kept (a tile picture each made a round start stall)
+    const fresh = this.origTerrain && this.terrain.length === this.origTerrain.length && this.terrain.every((v, i) => v === this.origTerrain[i]);
+    const kept = CS_LAYER_CACHE[CS_MAPKEY];
+    if (fresh && kept && kept.width === FW && kept.height === FH) {
+      bg.drawImage(kept, 0, 0);
+      this.dirty = false; this.dirtyCells = []; this.layerOf = this.terrain.slice();
+      return;
+    }
     const art = new Map();
     for (let cy = 0; cy < GH; cy++) for (let cx = 0; cx < GW; cx++) {
       const t = this.terrain[cy * GW + cx];
@@ -38741,6 +39398,7 @@ Object.assign(Stage.prototype, {
       if (!art.has(k)) art.set(k, this.csTileArt(tx, ty));
       bg.drawImage(art.get(k), (cx & 3) * 4, (cy & 3) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
     }
+    if (fresh) { const c = makeCanvas(FW, FH); c.getContext('2d').drawImage(this.bgLayer, 0, 0); CS_LAYER_CACHE[CS_MAPKEY] = c; }
     this.dirty = false;
     this.dirtyCells = [];
     this.layerOf = this.terrain.slice();
@@ -38754,6 +39412,823 @@ Object.assign(Stage.prototype, {
   const build = P.buildLayers;
   P.buildLayers = function () { if (this.cs) this.csBuildLayers(); else build.call(this); };
 })();
+
+csUseMap('dust2');
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  COUNTER-STRIKE's second map: DE_AZTEC, seen from above, a tile to a character (60 x 62 tiles of 16 px).
+//  The classic layout: a Mayan ruin in the jungle, cut through by a river. T spawn in the south west; LONG runs up the
+//  west side to the jungle path on the river's bank, and the ROPE BRIDGE crosses the ravine to the A ramp and
+//  bombsite A in the north west (the archaeological dig round the temple pyramid). From T spawn the T ramp also goes
+//  down to the WATER: the canal running east, under the overpass, to the B ramp and bombsite B in the east (the
+//  temple with its big stairs, the deep pool below it). The T tunnel runs east under the hill to the DOUBLE DOORS;
+//  out of them the lower ramp drops to the water and the OVERPASS crosses it to the courtyard and the B arch.
+//  CT spawn in the north east: the CT hall west to A, the CT path south to B, the connector down to the courtyard
+//  (the CTs' way round between the sites). CTs are close to both sites; the Ts have the long walk.
+//    S  weathered stone (temple walls, the halls): nothing breaks it, it blocks shells and sight
+//    J  the jungle: trees and rock, the same as stone to a tank
+//    T  a stepped temple pyramid (stone too)
+//    ~  deep water (the ravine, the pool): no tank crosses it, shells and sight go over it
+//    .  floor (jungle earth, stone slabs on the sites and in the halls, the shallow canal, the rope bridge's planks,
+//       the stairs and ramps, the overpass: see floors)
+//    x  wooden crate: cover that shells break bit by bit
+//    d  a wooden door leaf beside a doorway (the double doors)
+// =====================================================================
+
+// the new tiles: stone, jungle and temple are unbreakable walls (as Dust 2's #), the water is water
+Object.assign(CS_TILE_BLOCK, { S: '@', J: '@', T: '@', '~': '~' });
+Object.assign(CS_THUMB_COL, { S: '#626A54', J: '#1E3818', T: '#8C8A68', '~': '#24505C' });
+
+csAddMap('aztec', {
+  name: 'AZTEC', label: 'DE_AZTEC',
+  theme: { name: 'AZTEC', ground: '#5E6438', specks: ['#4E5430', '#6E7444'] },
+  rows: [
+  'JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJSSSSSSSSSSSSSSSSSSSSSSSSJJJJJJJJJJSSSSSSSSSSSSSSSSSSSSSJJJ',
+  'JJS...................S..SJJJJJJJJJJS...................SJJJ',
+  'JJS.x...S................SJJJJJJJJJJS...................SJJJ',
+  'JJS................xx....SSSSSSSSSSSS...................SJJJ',
+  'JJS.....................................................SJJJ',
+  'JJS..TTTT...............................................SJJJ',
+  'JJS..TTTT.....................S.........................SJJJ',
+  'JJS..TTTT...............................................SJJJ',
+  'JJS................S....................................SJJJ',
+  'JJS......................SSSSSSSSSSSS...................SJJJ',
+  'JJS..xx..................SJJJJJJJJJJS....SSSSSS.....SSSSSJJJ',
+  'JJS.................x....SJJJJJJJJJJS....SJJJJJ.....JJJJJJJJ',
+  'JJS......................SJJJJJJJJJJS....SJJJJJ.....JJJJJJJJ',
+  'JJS......................SJJJJJJJJJJS....SJJJJJ.....JJJJJJJJ',
+  'JJSSSSSSSSSS......SSSSSSSSJJJJJJJJJJS....SJJJJJ.....JJJJJJJJ',
+  'JJJJJJJJJJJJ......JJJJJJJJJJJJJJJJJJS....SJJJJJ.....JJJJJJJJ',
+  'JJJJJJJJJJJJ......JJJJJJJJJJJJJJJJJJS....SJJJJJ.....JJJJJJJJ',
+  'JJJJJJJJJJJJ......JJJJJJJJJJJJJJJJJJS....SJJJJJ.....JJJJJJJJ',
+  'JJJJJJJJJJJJ......JJJJJJJJJJ............SSJJJJJ.....JJJJJJJJ',
+  'JJJJJJJJJJJJ......JJJJJJJJJJ............JSSSSSSS...SSSSSSSJJ',
+  'JJ~~~~~~~~~~~~..~~~~~~~~~~~J..x.........JS...............SJJ',
+  'JJ~~~~~~~~~~~~..~~~~~~~~~~~J............JS...............SJJ',
+  'JJ~~~~~~~~~~~~..~~~~~~~~~~~J............JS..xx......TTTTTSJJ',
+  'JJ~~~~~~~~~~~~..~~~~~~~~~~~J...TT...................TTTTTSJJ',
+  'JJ~~~~~~~~~~~~..~~~~~~~~~~~J...TT...................TTTTTSJJ',
+  'JJ~~~~~~~~~~~~..~~~~~~~~~~~J.............................SJJ',
+  'JJJ.........J......JJJ~~~~~J.............................SJJ',
+  'JJJ................JJJ~~~~~J............JS...............SJJ',
+  'JJJ..............x.JJJ~~~~~J..........x.JS...............SJJ',
+  'JJJ.....JJ.........JJJ~~~~~J............JS..x............SJJ',
+  'JJJ.....JJJJJJJJJJJJJJ~~~~~J............JS............xx.SJJ',
+  'JJJ.....JJJJJJJJJJJJJJ~~~~~JJJJJJ....JJJJS...............SJJ',
+  'JJJ.....JJJJJJJJJJJJJJ~~~~~JJJJJJ....JJJJS...............SJJ',
+  'JJJJ....JJJJJJJJJJJJJJ~~~~~JJJJJJ....JJJJSSS.....SSSSSSSSSJJ',
+  'JJJ.....JJJJJJJJJJJJJJ~~~~~JJJJJJ....JJJJJJJ.....~~~~~~~~JJJ',
+  'JJJ.....JJJJJJJJJJJJJ............................~~~~~~~~JJJ',
+  'JJJ.....JJJJJJJJJJJJJ............................~~~~~~~~JJJ',
+  'JJJ....JJJJJJJJJJJJJJ............................~~~~~~~~JJJ',
+  'JJJ.....JJJJJJJJJJJJJ............................~~~~~~~~JJJ',
+  'JJJ.....JJJJJJJJJJJJJ....JJJJJJJJ....JJ....J.....~~~~~~~~JJJ',
+  'JJJ.....JJJJJJJJJJJJJ.....JJ.........J....JJJJJJJ~~~~~~~~JJJ',
+  'JJJJ....JJJJJJJJJJJJJ.....JJ...............JJJJJJ~~~~~~~~JJJ',
+  'JJJ.....JJJJJJJJJJJJJ.....JJ...............JJJJJJ~~~~~~~~JJJ',
+  'JJJ.....JJJJJJJJJJJJJ.....JJ.x............JJJJJJJJJJJJJJJJJJ',
+  'JJJ....JJJJJJJJJJJJJJJ....JJJ.............JJJJJJJJJJJJJJJJJJ',
+  'JJJ.....JJJJJJJJJJJJJ......JJJSd...dSJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJJ.....JJJJJJJJJJJJJ......JJJS.....SJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJJJJJ.....................JJJS.....SJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJJJJ......................JJJS.....SJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJJJ.......................JJJS.....SJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJJJ......................JJJJS.....SJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJJJ.................SSSSSSSSSS.....SJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJJJ....x...........................SJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJJJ................................SJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJJJ................................SJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJJJ................................SJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJJJ................SSSSSSSSSSSSSSSSSJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJJJJJ.............JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ',
+  'JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ',
+  ],
+
+  // places on the map, in tiles [x, y, w, h]: the spawns (and their buy zones) and the two bombsites
+  zones: {
+  T: [5, 50, 15, 9],
+  CT: [38, 3, 16, 8],
+  A: [4, 4, 19, 12],
+  B: [43, 23, 13, 11],
+  },
+  // where each side's five tanks start (tiles), and which way they face
+  starts: {
+  T: { dir: 0, at: [[9, 51], [12, 51], [15, 51], [10, 56], [14, 56]] },
+  CT: { dir: 2, at: [[41, 5], [44, 4], [47, 5], [50, 4], [45, 8]] },
+  },
+  // the floor: the rope bridge's planks, the overpass's stone, the shallow canal, the stairs, slabs on the sites, in CT
+  // spawn and the courtyard, dark stone in the halls and the T tunnel; jungle earth everywhere else
+  floors: [
+  ['bridge', 14, 22, 2, 6], ['span', 33, 33, 4, 9], ['shallow', 21, 37, 24, 4],
+  ['steps', 44, 35, 5, 7], ['steps', 12, 16, 6, 6], ['steps', 52, 27, 5, 2],
+  ['slab', 3, 3, 22, 13], ['slab', 37, 3, 19, 9], ['slab', 42, 22, 15, 13], ['slab', 28, 20, 12, 13], ['slab', 40, 25, 2, 4],
+  ['hall', 25, 6, 12, 5], ['hall', 37, 12, 4, 8], ['hall', 21, 54, 15, 4], ['hall', 31, 47, 5, 7],
+  ['earth', 0, 0, 60, 62],
+  ],
+  // call-outs (tiles): where the bots go, hold and look
+  spots: {
+  tSpawn: [12, 53], long: [5, 40], jungle: [5, 29], bridgeFoot: [14, 29], bridge: [14, 24], aRamp: [14, 18],
+  aSite: [16, 10], aEdge: [14, 13], aTemple: [9, 10], aBoxes: [19, 7], aBack: [5, 5], aHall: [24, 8],
+  ctHall: [28, 8], ctSpawn: [45, 7], connector: [38, 15], courtyard: [34, 29], bArch: [40, 26], ctPath: [49, 16],
+  bSite: [46, 29], bEdge: [45, 32], bTemple: [53, 30], bBack: [50, 23], bStairs: [47, 25], bRamp: [45, 38],
+  water: [31, 38], waterIn: [23, 43], tRamp: [23, 49], overpass: [34, 35], lowerRamp: [40, 43], doors: [33, 44],
+  doubleDoors: [33, 50], tTunnel: [27, 55],
+  },
+  // the jungle's colours: earth, slabs, halls, water, planks, stairs; the walls; crates and doors of dark wood
+  pal: {
+  earth: ['#5E6438', '#4E5430', '#6E7444', '#424824', '#3C5A24'],
+  slab: ['#8A8C74', '#767862', '#A0A288', '#62644E', '#6C7A4C'],
+  hall: ['#4E4C3C', '#3E3C30', '#5E5C48', '#2E2C22'],
+  shallow: ['#3E6A5C', '#2E584C', '#5C8A78', '#1E4038', '#8CB4A0'],
+  bridge: ['#8C6438', '#6C4824', '#A87C48', '#3C2814', '#C8B07C'],
+  steps: ['#7C7E68', '#626450', '#9A9C84', '#4C4E3C'],
+  span: ['#828470', '#6A6C58', '#A4A68C', '#4E503E'],
+  wall: ['#8E9480', '#747A66', '#A8AE98', '#5C624E', '#5C6E3A', '#4A5636'],
+  jungle: ['#2E4A22', '#223C1A', '#3E5E2C', '#507034', '#16281A'],
+  water: ['#1E3E44', '#163238', '#2C5458', '#4C7C74'],
+  crate: ['#8C6430', '#64461C', '#3C2810', '#B08C50'], door: ['#6C5434', '#54402A', '#2C2014', '#8C7048'],
+  },
+  // the minimap's colours: floor, the sites
+  mini: { floor: [104, 112, 66], site: [150, 152, 122] },
+  // the bots (csbots.js): the terrorists' ways in (call-outs in order, the last one the site; stage: where they
+  // gather; go: on in from there); where they hold round a planted bomb; where the CTs rotate to; the CTs' posts and
+  // which way they look; where each post looks out from now and then; which ways the five take to each site
+  bots: {
+    routes: {
+      bridge: { site: 'A', path: ['long', 'jungle', 'bridgeFoot'], stage: 'bridgeFoot', go: ['bridge', 'aRamp', 'aSite'] },
+      lurk: { site: 'A', path: ['tTunnel', 'doubleDoors', 'doors', 'overpass', 'courtyard'], stage: 'courtyard', go: ['connector', 'ctHall', 'aHall', 'aSite'] },
+      water: { site: 'B', path: ['tRamp', 'waterIn', 'water'], stage: 'water', go: ['bRamp', 'bSite'] },
+      doors: { site: 'B', path: ['tTunnel', 'doubleDoors', 'doors'], stage: 'doors', go: ['lowerRamp', 'bRamp', 'bSite'] },
+      overpass: { site: 'B', path: ['tTunnel', 'doubleDoors', 'doors'], stage: 'doors', go: ['overpass', 'courtyard', 'bArch', 'bSite'] },
+    },
+    post: { A: ['aTemple', 'aBoxes', 'aEdge', 'aHall'], B: ['bTemple', 'bBack', 'bEdge', 'bStairs'] },
+    rot: { A: ['aHall', 'aBoxes', 'aSite'], B: ['bStairs', 'bBack', 'bSite'] },
+    ct: [['aEdge', 2], ['bEdge', 2], ['courtyard', 2], ['aTemple', 1], ['bTemple', 3]],
+    peek: { aEdge: 'aRamp', bEdge: 'bRamp', courtyard: 'overpass', aTemple: 'aRamp', bTemple: 'bRamp' },
+    ways: { A: ['bridge', 'bridge', 'lurk', 'bridge', 'bridge'], B: ['water', 'doors', 'overpass', 'water', 'doors'] },
+  },
+});
+
+// ------------------------------------------------------------------ the pictures
+(() => {
+  const P = () => CS_PAL;
+  const wallCh = ch => ch === 'S' || ch === 'J' || ch === 'T' || ch === '#';
+  const wallAt = (x, y) => wallCh(csTile(x, y));
+  const dot = (g, c, x, y, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+
+  // weathered stone: blocks with moss in the joints; a face on the side towards the floor below
+  CS_TILE_ART.S = (g, tx, ty, R) => {
+    const W = P().wall;
+    let near = false;
+    for (let y = ty - 1; y <= ty + 1; y++) for (let x = tx - 1; x <= tx + 1; x++) if (!wallAt(x, y)) near = true;
+    dot(g, near ? W[0] : W[3], 0, 0, 16, 16);
+    dot(g, W[1], 0, 7, 16, 1); dot(g, W[1], 0, 15, 16, 1);
+    dot(g, W[1], (ty & 1) ? 5 : 11, 0, 1, 7); dot(g, W[1], (ty & 1) ? 12 : 3, 8, 1, 7);
+    for (let n = 0; n < 7; n++) dot(g, W[1 + Math.floor(R() * 3)], Math.floor(R() * 16), Math.floor(R() * 16));
+    // moss in the joints and the cracks
+    for (let n = 0; n < 5; n++) { const x = Math.floor(R() * 15), y = R() < 0.5 ? 6 + Math.floor(R() * 2) : 14 + Math.floor(R() * 2); dot(g, W[4], x, y, 1 + Math.floor(R() * 3), 1); }
+    if (R() < 0.4) dot(g, W[5], Math.floor(R() * 12), Math.floor(R() * 12), 3, 2);
+    if (!near) return;
+    if (!wallAt(tx, ty - 1)) dot(g, W[2], 0, 0, 16, 1);
+    if (!wallAt(tx - 1, ty)) dot(g, W[2], 0, 0, 1, 16);
+    if (!wallAt(tx + 1, ty)) dot(g, W[3], 15, 0, 1, 16);
+    if (!wallAt(tx, ty + 1)) {
+      // the face, seen a little from the south: a carved band
+      dot(g, W[3], 0, 10, 16, 6); dot(g, W[1], 0, 10, 16, 1); dot(g, W[5], 0, 15, 16, 1);
+      for (let k = (tx & 1) * 4; k < 16; k += 8) { dot(g, W[1], k + 1, 12, 3, 2); dot(g, W[5], k + 2, 13, 1, 1); }
+    }
+  };
+
+  // the jungle: a canopy of leaves, darker under the trees, a fringe of lighter leaves over the floor
+  CS_TILE_ART.J = (g, tx, ty, R) => {
+    const J = P().jungle;
+    dot(g, J[1], 0, 0, 16, 16);
+    for (let n = 0; n < 9; n++) {
+      const cx = Math.floor(R() * 16), cy = Math.floor(R() * 16), r = 2 + Math.floor(R() * 3), c = J[R() < 0.5 ? 0 : R() < 0.6 ? 2 : 4];
+      for (let y = -r; y <= r; y++) { const w = Math.floor(Math.sqrt(r * r - y * y)); dot(g, c, Math.max(0, cx - w), cy + y, Math.min(16, cx + w + 1) - Math.max(0, cx - w), 1); }
+    }
+    for (let n = 0; n < 8; n++) dot(g, J[3], Math.floor(R() * 16), Math.floor(R() * 16), 1 + (R() < 0.4 ? 1 : 0), 1);
+    // the edge towards the floor: the leaves catch the light
+    const edge = (open, x, y, w, h) => { if (!open) return; for (let k = 0; k < 16; k += 2) if (R() < 0.7) dot(g, J[3], x === 'k' ? k : x, y === 'k' ? k : y, w, h); };
+    edge(!wallAt(tx, ty - 1), 'k', 0, 2, 1);
+    edge(!wallAt(tx - 1, ty), 0, 'k', 1, 2);
+    if (!wallAt(tx, ty + 1)) { dot(g, J[4], 0, 14, 16, 2); for (let k = 0; k < 16; k += 3) dot(g, J[0], k, 13 + Math.floor(R() * 2), 2, 1); }
+    if (!wallAt(tx + 1, ty)) dot(g, J[4], 15, 0, 1, 16);
+  };
+
+  // a stepped pyramid seen from above: four faces of steps (lit from the north west), the stairs up the south face,
+  // a little shrine on the flat top
+  CS_TILE_ART.T = (g, tx, ty, R) => {
+    const W = P().wall, run = (dx, dy) => { let n = 0, x = tx + dx, y = ty + dy; while (csTile(x, y) === 'T') { n++; x += dx; y += dy; } return n; };
+    const l = run(-1, 0), r = run(1, 0), u = run(0, -1), d = run(0, 1), small = Math.min(l + r + 1, u + d + 1) * 8;
+    const face = { u: ['#A8AE98', '#8E9480'], l: ['#9AA08A', '#7E846E'], r: ['#767C66', '#5E644E'], d: ['#666C56', '#4E5440'] };
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const dl = l * 16 + x, dr = r * 16 + 15 - x, du = u * 16 + y, dd = d * 16 + 15 - y, m = Math.min(dl, dr, du, dd);
+      const side = m === dd ? 'd' : m === du ? 'u' : m === dl ? 'l' : 'r', F = face[side];
+      let c = m % 4 === 3 ? F[1] : F[0];
+      if (side === 'd' && Math.abs(dl - dr) < 10) c = (m & 1) ? '#B4B89E' : '#7C826C';   // the stairs
+      if (m >= small - 6) {
+        // the top: the shrine's roof, its dark doorway to the south
+        c = m >= small - 4 ? '#8C7454' : '#5C4C34';
+        if (side === 'd' && Math.abs(dl - dr) < 4 && m < small - 1) c = '#1C1810';
+      }
+      g.fillStyle = c; g.fillRect(x, y, 1, 1);
+    }
+    for (let n = 0; n < 4; n++) dot(g, W[4], Math.floor(R() * 16), Math.floor(R() * 16), 2, 1);
+  };
+
+  // deep water: dark green-blue, ripples, a lighter rim along the banks
+  CS_TILE_ART['~'] = (g, tx, ty, R) => {
+    const Q = P().water;
+    dot(g, Q[0], 0, 0, 16, 16);
+    for (let n = 0; n < 4; n++) dot(g, Q[1], Math.floor(R() * 12), Math.floor(R() * 16), 3 + Math.floor(R() * 4), 1);
+    for (let n = 0; n < 3; n++) { const x = Math.floor(R() * 12), y = Math.floor(R() * 15); dot(g, Q[2], x, y, 4, 1); dot(g, Q[3], x + 1, y, 2, 1); }
+    const open = (x, y) => csTile(x, y) !== '~';
+    if (open(tx, ty - 1)) { dot(g, Q[1], 0, 0, 16, 3); dot(g, Q[3], 0, 3, 16, 1); }
+    if (open(tx - 1, ty)) dot(g, Q[2], 0, 0, 1, 16);
+    if (open(tx + 1, ty)) dot(g, Q[2], 15, 0, 1, 16);
+    if (open(tx, ty + 1)) dot(g, Q[2], 0, 15, 16, 1);
+  };
+
+  // the shadows the walls throw down and to the right (every Aztec floor draws its own)
+  const shade = (g, x, y, tx, ty) => {
+    g.fillStyle = 'rgba(8,20,4,0.36)';
+    const up = wallAt(tx, ty - 1);
+    if (up) g.fillRect(x, y, 16, 4);
+    if (wallAt(tx - 1, ty)) g.fillRect(x, y + (up ? 4 : 0), 3, up ? 12 : 16);
+  };
+  const specks = (g, x, y, P2, r, n) => { for (let k = 0; k < n; k++) dot(g, P2[1 + Math.floor(r() * 3)], x + Math.floor(r() * 16), y + Math.floor(r() * 16), 1 + (r() < 0.3 ? 1 : 0), 1); };
+
+  // jungle earth: dirt, moss, fallen leaves, a tuft of grass here and there
+  CS_FLOOR_ART.earth = (g, x, y, tx, ty, P2, r) => {
+    specks(g, x, y, P2, r, 8);
+    if (r() < 0.35) { const gx = x + Math.floor(r() * 12), gy = y + Math.floor(r() * 12); dot(g, P2[4], gx, gy + 1, 1, 2); dot(g, P2[4], gx + 1, gy, 1, 3); dot(g, P2[4], gx + 2, gy + 1, 1, 2); }
+    if (r() < 0.2) dot(g, '#7C5A2C', x + Math.floor(r() * 14), y + Math.floor(r() * 14), 2, 1);
+    shade(g, x, y, tx, ty);
+  };
+  // stone slabs, mossy at the joints
+  CS_FLOOR_ART.slab = (g, x, y, tx, ty, P2, r) => {
+    dot(g, P2[1], x, y + 15, 16, 1); dot(g, P2[1], x + ((ty & 1) ? 0 : 8), y, 1, 15);
+    dot(g, P2[2], x + 1, y + 1, 5, 1);
+    if (r() < 0.5) dot(g, P2[4], x + ((ty & 1) ? 0 : 8), y + 3 + Math.floor(r() * 8), 1, 3);
+    if (r() < 0.4) dot(g, P2[4], x + Math.floor(r() * 12), y + 15, 3, 1);
+    specks(g, x, y, P2, r, 3);
+    shade(g, x, y, tx, ty);
+  };
+  // the halls and the T tunnel: dark worn flagstones
+  CS_FLOOR_ART.hall = (g, x, y, tx, ty, P2, r) => {
+    dot(g, P2[1], x, y + 7, 16, 1); dot(g, P2[1], x, y + 15, 16, 1);
+    dot(g, P2[1], x + ((tx + ty) & 1 ? 4 : 11), y, 1, 7); dot(g, P2[1], x + ((tx + ty) & 1 ? 11 : 4), y + 8, 1, 7);
+    dot(g, P2[2], x + 1, y + 1, 3, 1);
+    specks(g, x, y, P2, r, 3);
+    shade(g, x, y, tx, ty);
+  };
+  // the canal: shallow water over stones, ripples going east
+  CS_FLOOR_ART.shallow = (g, x, y, tx, ty, P2, r) => {
+    for (let n = 0; n < 3; n++) { const sx = x + Math.floor(r() * 13), sy = y + Math.floor(r() * 14); dot(g, P2[1], sx, sy, 3, 2); dot(g, P2[3], sx, sy + 2, 3, 1); }
+    for (let n = 0; n < 2; n++) { const sx = x + Math.floor(r() * 10), sy = y + Math.floor(r() * 16); dot(g, P2[2], sx, sy, 5, 1); dot(g, P2[4], sx + 2, sy, 2, 1); }
+    if (wallAt(tx, ty - 1)) dot(g, P2[3], x, y, 16, 2);
+    if (wallAt(tx, ty + 1)) dot(g, P2[2], x, y + 15, 16, 1);
+    shade(g, x, y, tx, ty);
+  };
+  // the rope bridge: planks across, the ravine's water showing between them, a rope and posts each side
+  CS_FLOOR_ART.bridge = (g, x, y, tx, ty, P2, r) => {
+    const Q = P().water;
+    dot(g, Q[0], x, y, 16, 16);
+    for (let k = 0; k < 16; k += 4) { dot(g, P2[(tx + ty + k) % 3 ? 0 : 2], x, y + k, 16, 3); dot(g, P2[1], x, y + k + 2, 16, 1); }
+    dot(g, P2[3], x + (tx & 1 ? 2 : 9), y + 1, 1, 1);
+    const left = csFloorOf(tx - 1, ty) !== 'bridge', right = csFloorOf(tx + 1, ty) !== 'bridge';
+    for (const [on, rx] of [[left, x], [right, x + 13]]) {
+      if (!on) continue;
+      dot(g, P2[3], rx, y, 3, 16);
+      dot(g, P2[4], rx + 1, y, 1, 16);
+      if (csFloorOf(tx, ty - 1) !== 'bridge' || csFloorOf(tx, ty + 1) !== 'bridge') { dot(g, P2[3], rx, y + 4, 3, 8); dot(g, P2[1], rx + 1, y + 5, 1, 6); }
+    }
+  };
+  // the stairs and ramps: steps going down to the south
+  CS_FLOOR_ART.steps = (g, x, y, tx, ty, P2, r) => {
+    for (let k = 0; k < 16; k += 4) { dot(g, P2[2], x, y + k, 16, 1); dot(g, P2[1], x, y + k + 3, 16, 1); }
+    dot(g, P2[3], x + ((tx * 5 + ty) % 13), y + 1, 2, 1);
+    specks(g, x, y, P2, r, 2);
+    shade(g, x, y, tx, ty);
+  };
+  // the overpass: a stone span over the water with a low parapet each side
+  CS_FLOOR_ART.span = (g, x, y, tx, ty, P2, r) => {
+    dot(g, P2[1], x, y + 7, 16, 1); dot(g, P2[1], x, y + 15, 16, 1); dot(g, P2[1], x + (ty & 1 ? 6 : 12), y, 1, 15);
+    specks(g, x, y, P2, r, 2);
+    const over = csFloorOf(tx - 1, ty) === 'shallow' || csFloorOf(tx + 1, ty) === 'shallow';
+    if (over) {
+      if (csFloorOf(tx - 1, ty) !== 'span') { dot(g, P2[2], x, y, 2, 16); dot(g, P2[3], x + 2, y, 1, 16); }
+      if (csFloorOf(tx + 1, ty) !== 'span') { dot(g, P2[2], x + 14, y, 2, 16); dot(g, P2[3], x + 13, y, 1, 16); }
+    }
+    shade(g, x, y, tx, ty);
+  };
+})();
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  COUNTER-STRIKE's map DE_TRAIN, seen from above, a tile to a character (66 x 68 tiles of 16 px).
+//  The rail yard of the classic layout: T spawn in the north west; ALLEY and PIGEONS east along the top to IVY, which
+//  comes down into the A yard at its north west; T CONNECTOR down from spawn to A MAIN, which comes in from the west;
+//  SHOWERS down from main to POPDOG, the hall under A that comes up into the yard by the E BOX (south west). The A
+//  yard (outside A, the big site) is five tracks of trains running west to east: the ivy train, the two bomb trains
+//  (red and green, the site between them, the sandwich above, a gap through both to plant in), the blue train and the
+//  ladder train; HEAVEN looks down on it from the east through its windows, HELL under it, the LADDER ROOM between
+//  them and down to CT spawn (east); the Z CONNECTOR from the yard's south side to CT spawn. T STAIRS go down the west
+//  side to the B HALLS, UPPER B coming out over the north west of bombsite B (south), LOWER B going on round to the
+//  B RAMP at its south west; B is two tracks of trains (the bomb train and the oil tanker, the green car and the
+//  coach), BACK OF B round from CT spawn to its south east.
+//    #  wall (grey concrete): nothing breaks it, it blocks shells and sight
+//    .  floor (concrete, gravel in the yards, rails on the tracks, tiles indoors: see the floors)
+//    x  wooden crate: cover that shells break bit by bit
+//    w  a window: heaven's, over the yard (shells and sight pass, tanks don't)
+//    1  a rusty red boxcar   2  a green boxcar   3  a blue passenger car   4  a black oil tanker (steel: nothing
+//       breaks a train; a car is a run of one character two tiles tall, its ends drawn where the run ends)
+//    5  the E box (an electrical cabinet, steel)
+// =====================================================================
+
+// the trains and the E box: steel blocks, their own pictures, their colours on the team screen. The registries are
+// shared by every map, so another map's picture for one of these characters (if any) is kept for that map
+(() => {
+  const CARS = '1234', solid = c => CARS.includes(c) || c === '5';
+  for (const ch of CARS + '5') {
+    CS_TILE_BLOCK[ch] = '@';
+    const prev = CS_TILE_ART[ch];
+    CS_TILE_ART[ch] = (g, tx, ty, R) => (CS_MAPKEY === 'train' || !prev ? (ch === '5' ? eBox(g) : car(g, tx, ty, R)) : prev(g, tx, ty, R));
+  }
+  Object.assign(CS_THUMB_COL, { 1: '#8C3C24', 2: '#3C6C40', 3: '#3C5C9C', 4: '#242428', 5: '#6C6C6C' });
+
+  // one tile of a car: drawn in the car's own frame (32 px tall, two tiles), the ends where the run of tiles ends
+  function car(g, tx, ty, R) {
+    const ch = csTile(tx, ty), P = CS_PAL['car' + ch], top = csTile(tx, ty + 1) === ch, oy = top ? 0 : -16;
+    let x0 = tx, x1 = tx;
+    while (csTile(x0 - 1, ty) === ch) x0--;
+    while (csTile(x1 + 1, ty) === ch) x1++;
+    const i = tx - x0, n = x1 - x0 + 1, first = i === 0, last = i === n - 1;
+    const f = (c, x, y, w, h) => { g.fillStyle = c; g.fillRect(x, y + oy, w, h); };
+    const xa = first ? 2 : 0, xb = last ? 14 : 16, w = xb - xa;
+    if (ch === '4') {
+      // a tanker: the frame under it, the barrel shaded round, hoops, a dome with its hatch in the middle
+      f('#2C2C30', first ? 1 : 0, 4, (last ? 15 : 16) - (first ? 1 : 0), 24);
+      const ca = first ? 3 : 0, cb = last ? 13 : 16, cw = cb - ca;
+      f(P[3], ca, 5, cw, 22); f(P[2], ca, 6, cw, 6); f(P[4], ca, 7, cw, 2); f(P[0], ca, 12, cw, 7); f(P[1], ca, 19, cw, 6);
+      // rounded ends, a hoop near each end
+      if (first) { f(P[3], 2, 8, 1, 16); f(P[1], 2, 9, 1, 14); f(P[3], 3, 5, 1, 1); f(P[3], 3, 26, 1, 1); }
+      if (last) { f(P[3], 13, 8, 1, 16); f(P[1], 13, 9, 1, 14); f(P[3], 12, 5, 1, 1); f(P[3], 12, 26, 1, 1); }
+      if (i === 1) f(P[3], 2, 6, 1, 20);
+      if (i === n - 2) f(P[3], 13, 6, 1, 20);
+      if (i === n >> 1) { f(P[3], 3, 9, 10, 14); f(P[2], 4, 10, 8, 12); f(P[4], 5, 11, 4, 1); f(P[0], 5, 13, 6, 8); f(P[3], 7, 15, 2, 4); }
+      // the ladder and the walkway at the ends
+      if (first) { f('#8C8C8C', 0, 6, 1, 20); for (let k = 7; k < 26; k += 3) f('#8C8C8C', 0, k, 2, 1); }
+      if (last) { f('#8C8C8C', 15, 6, 1, 20); for (let k = 7; k < 26; k += 3) f('#8C8C8C', 14, k, 2, 1); }
+      for (let k = 0; k < 3; k++) f(P[1], Math.floor(R() * 16), 10 + Math.floor(R() * 10), 1, 1);
+      return;
+    }
+    // a boxcar or a coach: the body's dark edge, the roof, its lit and shaded sides
+    f(P[3], first ? 1 : 0, 2, (last ? 15 : 16) - (first ? 1 : 0), 28);
+    f(P[0], xa, 3, w, 26);
+    f(P[2], xa, 3, w, 1); f(P[1], xa, 26, w, 3);
+    if (ch === '3') {
+      // a coach: the raised middle of the roof with its vents, gutters, the gangway bellows at the ends
+      f(P[2], xa, 11, w, 10); f(P[1], xa, 20, w, 1);
+      f(P[1], 3, 13, 3, 5); f(P[1], 11, 13, 3, 5); f(P[3], 4, 14, 1, 3); f(P[3], 12, 14, 1, 3);
+      f(P[1], xa, 5, w, 1); f(P[1], xa, 24, w, 1);
+      if (first) f('#2C2C2C', 0, 9, 2, 14);
+      if (last) f('#2C2C2C', 14, 9, 2, 14);
+    } else {
+      // a boxcar: the roof's ribs, the wooden walkway down the middle, the hand brake wheel at one end
+      for (let k = 3; k < 16; k += 4) if (k >= xa && k < xb) { f(P[1], k, 4, 1, 22); if (k + 1 < xb) f(P[2], k + 1, 4, 1, 22); }
+      f('#5C4430', xa, 14, w, 3); f('#7C6044', xa, 14, w, 1);
+      for (let k = 1; k < 16; k += 3) if (k >= xa && k < xb) f('#3C2C1C', k, 14, 1, 3);
+      if (first) { f('#3C3C3C', 2, 5, 1, 22); f('#9C9C9C', 3, 6, 3, 3); }
+      if (last) f('#3C3C3C', 13, 5, 1, 22);
+      for (let k = 0; k < 4; k++) f(R() < 0.5 ? P[1] : P[2], Math.floor(R() * 16), 4 + Math.floor(R() * 22), 1, 1);
+    }
+  }
+  // the E box: a grey electrical cabinet with its warning sign
+  function eBox(g) {
+    g.fillStyle = '#242424'; g.fillRect(1, 1, 14, 14);
+    g.fillStyle = '#8C9094'; g.fillRect(2, 2, 12, 11);
+    g.fillStyle = '#A8ACB0'; g.fillRect(2, 2, 12, 1);
+    g.fillStyle = '#5C6064'; g.fillRect(8, 3, 1, 10); g.fillRect(2, 12, 12, 1);
+    g.fillStyle = '#F8D838'; g.fillRect(4, 5, 3, 3);
+    g.fillStyle = '#000000'; g.fillRect(5, 6, 1, 1);
+  }
+
+  // the floors: shadows the trains throw (the walls' are drawn for every map)
+  const shade = (g, x, y, tx, ty) => {
+    g.fillStyle = 'rgba(16,16,24,0.34)';
+    if (solid(csTile(tx, ty - 1))) g.fillRect(x, y, 16, 4);
+    if (solid(csTile(tx - 1, ty))) g.fillRect(x, y, 3, 16);
+  };
+  const specks = (g, x, y, P, r, n) => { for (let k = 0; k < n; k++) { g.fillStyle = P[1 + Math.floor(r() * 3)]; g.fillRect(x + Math.floor(r() * 16), y + Math.floor(r() * 16), 1 + (r() < 0.3 ? 1 : 0), 1); } };
+  // concrete: big slabs with their joints
+  CS_FLOOR_ART.concrete = (g, x, y, tx, ty, P, r) => {
+    g.fillStyle = P[1];
+    if (tx % 3 === 0) g.fillRect(x, y, 1, 16);
+    if (ty % 3 === 0) g.fillRect(x, y, 16, 1);
+    specks(g, x, y, P, r, 4);
+    if (r() < 0.06) { g.fillStyle = P[3]; g.fillRect(x + 3 + Math.floor(r() * 8), y + 4 + Math.floor(r() * 8), 4, 1); }
+    shade(g, x, y, tx, ty);
+  };
+  // gravel: the yards between the tracks
+  CS_FLOOR_ART.gravel = (g, x, y, tx, ty, P, r) => { specks(g, x, y, P, r, 18); shade(g, x, y, tx, ty); };
+  // the tracks: gravel, wooden sleepers across, two steel rails along (a track is two tiles tall)
+  CS_FLOOR_ART.rails = (g, x, y, tx, ty, P, r) => {
+    specks(g, x, y, ['', P[1], P[2], P[3]], r, 10);
+    const b = CS_FLOORS.find(k => k[0] === 'rails' && tx >= k[1] && ty >= k[2] && tx < k[1] + k[3] && ty < k[2] + k[4]);
+    const oy = !b || ty === b[2] ? 0 : -16;
+    g.save(); g.beginPath(); g.rect(x, y, 16, 16); g.clip();
+    for (let k = 0; k < 16; k++) if ((x + k) % 6 === 0) { g.fillStyle = P[4]; g.fillRect(x + k, y + oy + 5, 3, 22); g.fillStyle = P[5]; g.fillRect(x + k + 2, y + oy + 5, 1, 22); }
+    for (const ry of [9, 21]) { g.fillStyle = P[6]; g.fillRect(x, y + oy + ry, 16, 2); g.fillStyle = P[7]; g.fillRect(x, y + oy + ry + 2, 16, 1); }
+    g.restore();
+    shade(g, x, y, tx, ty);
+  };
+  // indoors: the halls' tiled floor
+  CS_FLOOR_ART.hall = (g, x, y, tx, ty, P, r) => {
+    g.fillStyle = P[1]; g.fillRect(x, y + 7, 16, 1); g.fillRect(x, y + 15, 16, 1); g.fillRect(x + 7, y, 1, 16); g.fillRect(x + 15, y, 1, 16);
+    g.fillStyle = P[2]; g.fillRect(x, y, 7, 1); g.fillRect(x + 8, y + 8, 7, 1);
+    specks(g, x, y, P, r, 3);
+    shade(g, x, y, tx, ty);
+  };
+})();
+
+csAddMap('train', {
+  name: 'TRAIN', label: 'DE_TRAIN',
+  theme: { name: 'TRAIN', ground: '#84847C', specks: ['#74746C', '#94948C'] },
+  rows: [
+  '##################################################################',
+  '##################################################################',
+  '##################################################################',
+  '###xx............#########.............###########################',
+  '###x...................................###########################',
+  '###....................................###########################',
+  '###...........x.................####...###########################',
+  '###...........x.................####...###########################',
+  '###..............#########......####...###########################',
+  '###..............###################...###########################',
+  '###........###...#############............................########',
+  '###........###...#############............................#.....##',
+  '###........###..x#############............................#.....##',
+  '###.............x#############...111111111...222222222....w.....##',
+  '###....######....#############...111111111...222222222....w.....##',
+  '###....######....#############............................#.....##',
+  '###....######....#############............................#.....##',
+  '###....######....#############............................w.....##',
+  '###....######....#############....4444444....11111111.....w.....##',
+  '###....######....#############....4444444....11111111.....#.....##',
+  '###....######.............................................#.....##',
+  '###....######.............................................#.....##',
+  '###....######.............................................###...##',
+  '###....###############...#####....22222222...3333333......###...##',
+  '###....###############...#####....22222222...3333333......###...##',
+  '###....###############...#####xx..........................#.....##',
+  '###....###############...#####........x.........................##',
+  '###....###############...#####..................................##',
+  '###....###############...#####...3333333...44444444.............##',
+  '###....###############...#####...3333333...44444444.......#.....##',
+  '###....###############...#####............................#.....##',
+  '###....###############...#####....5....................xx.#.....##',
+  '###....###############...#####............................#.....##',
+  '###....###############...#####......111111111111..........#.....##',
+  '###....###############...#####......111111111111..........#.....##',
+  '###....###############...#####............................#.....##',
+  '###....###############...#####............................#.....##',
+  '###....###############...######...##########...############.....##',
+  '###....###############...######...##########...############.....##',
+  '###....###########................##########...############.....##',
+  '###....###########................##########....................##',
+  '###....###########................##########....................##',
+  '###....###########................##########....................##',
+  '###....###########...#############################..............##',
+  '###.................##############################..............##',
+  '###.................##############################..............##',
+  '###.................##############################..............##',
+  '###.................##############################..............##',
+  '#########....#####........########################..............##',
+  '#########....#####........########################..............##',
+  '#########....#########..........................##########....####',
+  '#########....#########..........................##########....####',
+  '#########....#########..........................##########....####',
+  '#########....#########....11111111...44444444...##########....####',
+  '#########....#########....11111111...44444444...##########....####',
+  '#########....#########..........................##########....####',
+  '#########....#########..........................##########....####',
+  '#########....#########..........................##########....####',
+  '#########................222222222...33333333.................####',
+  '#########................222222222...33333333.................####',
+  '#########.....................................................####',
+  '#########.....................................................####',
+  '######################......................xx..##################',
+  '######################..........................##################',
+  '##################################################################',
+  '##################################################################',
+  '##################################################################',
+  '##################################################################',
+  ],
+
+  // places on the map, in tiles [x, y, w, h]: the spawns (and their buy zones) and the two bombsites
+  zones: {
+  T: [3, 3, 14, 11],
+  CT: [51, 41, 12, 8],
+  A: [38, 16, 16, 12],
+  B: [27, 51, 15, 11],
+  },
+  // where each side's five tanks start (tiles), and which way they face
+  starts: {
+  T: { dir: 1, at: [[5, 5], [9, 5], [5, 10], [9, 10], [12, 8]] },
+  CT: { dir: 3, at: [[53, 42], [57, 42], [61, 43], [53, 46], [58, 46]] },
+  },
+  // the floor: rails on the tracks, gravel in the yards, tiles indoors (the halls, popdog, the ladder room and
+  // heaven), concrete elsewhere
+  floors: [
+  ['rails', 30, 13, 28, 2], ['rails', 30, 18, 28, 2], ['rails', 30, 23, 28, 2], ['rails', 30, 28, 28, 2], ['rails', 30, 33, 28, 2],
+  ['rails', 22, 53, 26, 2], ['rails', 22, 58, 26, 2],
+  ['gravel', 30, 10, 28, 27], ['gravel', 22, 50, 26, 14],
+  ['hall', 18, 39, 16, 4], ['hall', 31, 37, 3, 2], ['hall', 22, 23, 3, 16], ['hall', 3, 44, 17, 4], ['hall', 18, 43, 3, 1], ['hall', 9, 48, 4, 14], ['hall', 9, 58, 13, 4],
+  ['hall', 59, 11, 5, 29], ['hall', 58, 26, 1, 3],
+  ['concrete', 0, 0, 66, 68],
+  ],
+  // call-outs (tiles): where the bots go, hold and look
+  spots: {
+  tSpawn: [9, 8], alley: [21, 5], pigeons: [28, 6], ivy: [35, 4], ivyExit: [37, 11], tConnector: [14, 17], aMain: [25, 21], main: [32, 21],
+  showers: [23, 31], lowerPopdog: [26, 40], popdog: [32, 37], elBox: [33, 33], sandwich: [43, 16], aSite: [43, 21], redTrain: [50, 21], greenTrain: [43, 26], blueTrain: [41, 31],
+  hell: [55, 27], heaven: [61, 15], ladderRoom: [61, 31], zConnector: [45, 39], ctLower: [60, 54], ctSpawn: [56, 44],
+  tStairs: [4, 26], bHalls: [10, 45], upperHalls: [16, 45], upperB: [21, 49], lowerB: [10, 54], bRamp: [19, 59],
+  bSite: [35, 56], bombTrain: [36, 51], backB: [51, 60], oilB: [45, 56], coach: [40, 61],
+  },
+  // the look: grey concrete and brick, the trains' paint
+  pal: {
+    concrete: ['#8E8E86', '#7E7E76', '#9C9C94', '#6C6C66'], gravel: ['#7A7468', '#6A645A', '#8A8476', '#5A544C'],
+    rails: ['#787268', '#686258', '#888274', '#585248', '#4C3C2C', '#34281C', '#B4B4BC', '#3C3C44'],
+    hall: ['#5E5C58', '#4C4A46', '#6C6A66', '#3E3C38'],
+    roof: ['#9A968E', '#86827A', '#B0ACA4', '#6E6A64'], face: ['#5E5A54', '#4A4640', '#76726C'], deep: ['#6E6A66', '#5E5A56', '#7E7A76'],
+    door: ['#4C7C58', '#36603E', '#1C3C24', '#6C9C78'],
+    car1: ['#8C3C24', '#6C2C18', '#AC5838', '#2C140C'], car2: ['#3C6C40', '#2C5030', '#548858', '#14241A'],
+    car3: ['#3C5C9C', '#2C447C', '#6C8CC4', '#141C34'], car4: ['#404048', '#26262C', '#62626E', '#0C0C10', '#9494A2'],
+  },
+  // the minimap's colours: floor, the sites
+  mini: { floor: [140, 140, 132], site: [178, 132, 110] },
+  // the bots (csbots.js): the terrorists' ways in (stage: where they gather; go: on in from there, the last the
+  // site); where they hold round a planted bomb; where the CTs rotate to; the CTs' posts and which way they look;
+  // where each post looks out from now and then; which ways the five take to each site
+  bots: {
+    routes: {
+      ivy: { site: 'A', path: ['alley', 'pigeons', 'ivy'], stage: 'ivy', go: ['ivyExit', 'sandwich', 'aSite'] },
+      main: { site: 'A', path: ['tConnector', 'aMain'], stage: 'aMain', go: ['main', 'aSite'] },
+      popdog: { site: 'A', path: ['tConnector', 'showers', 'lowerPopdog'], stage: 'lowerPopdog', go: ['popdog', 'elBox', 'blueTrain', 'aSite'] },
+      upper: { site: 'B', path: ['tStairs', 'bHalls', 'upperHalls'], stage: 'upperHalls', go: ['upperB', 'bombTrain', 'bSite'] },
+      lower: { site: 'B', path: ['tStairs', 'bHalls', 'lowerB'], stage: 'lowerB', go: ['bRamp', 'bSite'] },
+    },
+    post: { A: ['greenTrain', 'redTrain', 'sandwich', 'hell'], B: ['backB', 'oilB', 'coach', 'bombTrain'] },
+    rot: { A: ['zConnector', 'hell', 'aSite'], B: ['backB', 'oilB', 'bSite'] },
+    ct: [['heaven', 3], ['aSite', 3], ['bSite', 3], ['blueTrain', 3], ['backB', 3]],
+    peek: { heaven: 'ivyExit', aSite: 'main', bSite: 'upperB', blueTrain: 'elBox', backB: 'bRamp' },
+    ways: { A: ['main', 'ivy', 'popdog', 'main', 'ivy'], B: ['upper', 'lower', 'upper', 'lower', 'upper'] },
+  },
+});
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  COUNTER-STRIKE's second map: DE_MIRAGE, seen from above, a tile to a character (69 x 57 tiles of 16 px), laid out
+//  after the game's own radar (north up). A Moroccan town: terracotta and ochre walls, tiled floors, market awnings.
+//  T spawn in the east. From it three ways out: north and round the block (the way to TOP MID, and the door into the
+//  T APARTMENTS); south down to the T RAMP, then west up the A RAMP (tetris at its top) or south through PALACE ALLEY
+//  and the PALACE (its pillars) out on to A. Bombsite A in the south (firebox, the default box, triple, ninja by the
+//  palace door, the stairs and sandwich under the jungle); west of it the CT way in past the TICKET BOOTH from CT spawn.
+//  MID runs west from top mid (its boxes) to the WINDOW (the CT sniper's nest, a window tanks can't pass); off mid go
+//  the CONNECTOR (south, down to the JUNGLE above A), SHORT (the catwalk, north and west into B as B SHORT) and the
+//  UNDERPASS (north, up into the apartments). The APARTMENTS run west along the north edge from T apartments past the
+//  stair hall to B APARTMENTS and their balcony over bombsite B in the north west (the van, the bench, the B boxes).
+//  South of B the MARKET (its window and the kitchen door on to the site, its door to the arches) and the ARCHES down
+//  to CT spawn in the west, between the sites; from CT spawn a door east into the jungle, and from the jungle the
+//  ladder room leads up to the window room.
+//    #  plaster wall: nothing breaks it, it blocks shells and sight
+//    .  floor (paving outdoors, mosaic on the sites, terracotta tiles indoors: see floors)
+//    x  wooden crate, d  a door leaf (cover shells break)
+//    w  a window: tanks can't get through, shells and sight can
+//    a  a market stall under its awning (a wall)
+//    v  the van on B (a wall)
+//    p  a palm in a clay pot (cover shells break)
+// =====================================================================
+
+// the stall's awning: stripes (teal or red on cream) and a scalloped edge on the south side
+CS_TILE_BLOCK.a = '@';
+CS_TILE_ART.a = (g, tx, ty) => {
+  const P = CS_PAL.awning, col = (tx + ty) & 1 ? P[0] : P[2], open = csTile(tx, ty + 1) !== 'a';
+  g.fillStyle = P[1]; g.fillRect(0, 0, 16, 16);
+  g.fillStyle = col; for (let k = 0; k < 16; k += 6) g.fillRect(k, 0, 3, 16);
+  g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(0, 0, 16, 1); g.fillRect(7, 0, 2, 16);
+  if (open) {
+    // the hem: a row of scallops and the shade under it
+    g.fillStyle = P[3]; g.fillRect(0, 12, 16, 1);
+    for (let k = 0; k < 16; k += 4) g.fillRect(k + 1, 13, 2, 2);
+    g.fillStyle = 'rgba(30,16,8,0.35)'; g.fillRect(0, 15, 16, 1);
+  }
+};
+CS_THUMB_COL.a = '#2C9C94';
+// the van: white, a blue stripe, the cab and its windscreen at the west end
+CS_TILE_BLOCK.v = '@';
+CS_TILE_ART.v = (g, tx, ty) => {
+  const P = CS_PAL.van, v = (x, y) => csTile(x, y) === 'v';
+  const l = !v(tx - 1, ty), r = !v(tx + 1, ty), u = !v(tx, ty - 1), d = !v(tx, ty + 1);
+  g.fillStyle = P[0]; g.fillRect(0, 0, 16, 16);
+  g.fillStyle = P[3];
+  if (l) g.fillRect(0, 0, 1, 16);
+  if (r) g.fillRect(15, 0, 1, 16);
+  if (u) g.fillRect(0, 0, 16, 1);
+  if (d) { g.fillStyle = P[1]; g.fillRect(0, 13, 16, 3); g.fillStyle = P[3]; g.fillRect(0, 15, 16, 1); }
+  g.fillStyle = P[2]; g.fillRect(l ? 1 : 0, d ? 10 : u ? 6 : 7, 16 - (l ? 1 : 0) - (r ? 1 : 0), 2);
+  if (l) { g.fillStyle = '#28445C'; g.fillRect(2, u ? 2 : 0, 4, 16 - (u ? 2 : 0) - (d ? 4 : 0)); g.fillStyle = '#6C9CC0'; g.fillRect(3, u ? 3 : 1, 1, 3); }
+  else { g.fillStyle = P[1]; g.fillRect(0, u ? 3 : 0, 16, 1); g.fillRect(4, 0, 1, 16); g.fillRect(11, 0, 1, 16); }
+};
+CS_THUMB_COL.v = '#D8D8D0';
+// a palm in a big clay pot: cover that shells break, like a crate (the floor shows round the pot)
+CS_TILE_BLOCK.p = '#';
+CS_TILE_ART.p = (g, tx, ty, R) => {
+  const P = CS_PAL.planter;
+  g.fillStyle = 'rgba(40,24,8,0.3)'; g.fillRect(3, 4, 12, 12);
+  g.fillStyle = P[1]; g.fillRect(3, 3, 10, 10); g.fillRect(2, 4, 12, 8); g.fillRect(4, 2, 8, 12);
+  g.fillStyle = P[0]; g.fillRect(4, 4, 8, 8); g.fillRect(3, 5, 10, 6); g.fillRect(5, 3, 6, 10);
+  g.fillStyle = P[2]; g.fillRect(5, 3, 5, 1); g.fillRect(3, 5, 1, 4);
+  // the fronds, from the middle out (each palm turned its own way)
+  const a0 = R() * Math.PI;
+  for (let k = 0; k < 7; k++) {
+    const a = a0 + k * 0.9, len = 5 + (k % 3);
+    for (let s = 1; s <= len; s++) {
+      g.fillStyle = s > len - 2 ? P[4] : P[3];
+      g.fillRect(Math.round(7.5 + Math.cos(a) * s), Math.round(7.5 + Math.sin(a) * s), 1 + (s < 3 ? 1 : 0), 1);
+    }
+  }
+  g.fillStyle = P[5]; g.fillRect(7, 7, 2, 2);
+};
+CS_THUMB_COL.p = '#4C8C3C';
+
+// the floors: paving slabs outdoors, zellige mosaic on the sites, terracotta tiles in the houses
+CS_FLOOR_ART.mpave = (g, x, y, tx, ty, P, r) => {
+  // big flagstones, laid in courses, worn at the joints
+  const o = ((tx * 7 + ty * 3) % 3) * 5 + 3;
+  g.fillStyle = P[1]; g.fillRect(x, y + 15, 16, 1); g.fillRect(x + o, y, 1, 15);
+  if ((tx + ty * 2) % 3 === 0) g.fillRect(x, y + 7, o, 1);
+  g.fillStyle = P[2]; g.fillRect(x + o + 1, y, 3, 1);
+  for (let n = 0; n < 5; n++) { g.fillStyle = P[1 + Math.floor(r() * 3)]; g.fillRect(x + Math.floor(r() * 16), y + Math.floor(r() * 16), 1, 1); }
+};
+CS_FLOOR_ART.mosaic = (g, x, y, tx, ty, P) => {
+  // a star of blue-green tiles on cream, an ochre heart, terracotta in the corners, dark grout round it
+  g.fillStyle = P[2]; g.fillRect(x, y, 16, 1); g.fillRect(x, y, 1, 16);
+  g.fillStyle = P[1]; g.fillRect(x + 6, y + 3, 5, 11); g.fillRect(x + 3, y + 6, 11, 5);
+  g.fillRect(x + 4, y + 4, 9, 9);
+  g.fillStyle = P[0]; g.fillRect(x + 4, y + 4, 1, 1); g.fillRect(x + 12, y + 4, 1, 1); g.fillRect(x + 4, y + 12, 1, 1); g.fillRect(x + 12, y + 12, 1, 1);
+  g.fillStyle = P[3]; g.fillRect(x + 7, y + 7, 3, 3);
+  g.fillStyle = P[4]; g.fillRect(x + 1, y + 1, 2, 2); g.fillRect(x + 14, y + 1, 2, 2); g.fillRect(x + 1, y + 14, 2, 2); g.fillRect(x + 14, y + 14, 2, 2);
+  g.fillStyle = P[2]; g.fillRect(x + 8, y + 5, 1, 1); g.fillRect(x + 8, y + 11, 1, 1); g.fillRect(x + 5, y + 8, 1, 1); g.fillRect(x + 11, y + 8, 1, 1);
+};
+CS_FLOOR_ART.mtile = (g, x, y, tx, ty, P, r) => {
+  // square terracotta tiles, four to a tile, the odd one darker
+  for (let k = 0; k < 4; k++) {
+    const sx = x + (k & 1) * 8, sy = y + (k >> 1) * 8;
+    if (r() < 0.15) { g.fillStyle = P[3]; g.fillRect(sx, sy, 8, 8); }
+    g.fillStyle = P[2]; g.fillRect(sx + 1, sy + 1, 5, 1);
+    g.fillStyle = P[1]; g.fillRect(sx, sy + 7, 8, 1); g.fillRect(sx + 7, sy, 1, 7);
+  }
+};
+
+csAddMap('mirage', {
+  name: 'MIRAGE', label: 'DE_MIRAGE',
+  theme: { name: 'MIRAGE', ground: '#D4B48A', specks: ['#C4A27A', '#E2C49C'] },
+  rows: [
+  '#####################################################################',
+  '#####......................########p......................###########',
+  '#####.....................................................###########',
+  '#####.....................................................###########',
+  '#####......................................############...###......p#',
+  '##############.....################........###......................#',
+  '##p..vvv..............#############........###......................#',
+  '##...vvv..............#############........###......................#',
+  '#.....................#############........###......................#',
+  '#.......x....xx.................####...#######p.....#########.......#',
+  '#...............................####...#######......#########.......#',
+  '#...............................####...#######......#########.......#',
+  '#...............................####...#######......#########.......#',
+  '#...........xx..................####...#######......#########.......#',
+  '##..........xx..................####...#######......#########.......#',
+  '##....................######....####...#######......#########.......#',
+  '##....................######....####...#######......#########.......#',
+  '##....................######....####...#######......#########.......#',
+  '##....................######....####...#######......#########.......#',
+  '##....................######....####...#######......#########.......#',
+  '########...#www##.....######....####...#######......#########.......#',
+  '######..........#.....#....#.........................########.......#',
+  '######..........#.....#....w.........................########p......#',
+  '######....aa....#.....#....w.....................xx..#########......#',
+  '######....aa..........#....w.....................xx..#########......#',
+  '######aa..............#....#.........................#########......#',
+  '######aa..............#....#.........................#########......#',
+  '######......aa..#.....#....#p........................#########......#',
+  '#################.....#....#####....#................#########......#',
+  '#################.....#...x#####....#.......x........#########......#',
+  '#################.....#....#####....##########################......#',
+  '#################.....#....#####....################................#',
+  '#################.....#....#####....################................#',
+  '#################.....#....#####....################................#',
+  '#################.....#....#####....################................#',
+  '#################.....#....#####....################................#',
+  '#################.....#....##..p....######......####................#',
+  '#################.....#.............######xx....####................#',
+  '#################.....#.............######.x.............####....####',
+  '#################........................................####....####',
+  '#################........................................####....####',
+  '###############...........p..............................####....####',
+  '###############.......#########..........................####....####',
+  '###############.......#########.................#############....####',
+  '###########p..........#########.................#############....####',
+  '###########...........#########................##############....####',
+  '###########...........#########.xx.............##................####',
+  '###########...........#########.xx......x......d#................####',
+  '###########...........#########..................................####',
+  '###############.......#########......................#...#.......####',
+  '###############..................................................####',
+  '##################...............................................####',
+  '##################.......##............xxx.......................####',
+  '##################.......##....................d#####################',
+  '##################.............................######################',
+  '##################............p######################################',
+  '#####################################################################',
+  ],
+
+  // the spawns (and their buy zones) and the two bombsites, in tiles [x, y, w, h]
+  zones: {
+  T: [61, 11, 7, 11],
+  CT: [11, 42, 11, 9],
+  A: [34, 45, 8, 8],
+  B: [7, 8, 8, 7],
+  },
+  starts: {
+  T: { dir: 3, at: [[62, 13], [65, 13], [63, 16], [66, 16], [64, 19]] },
+  CT: { dir: 1, at: [[16, 43], [19, 43], [17, 46], [20, 46], [18, 49]] },
+  },
+  // the floor: mosaic on the sites, terracotta tiles in the apartments, the palace, the market and the window room,
+  // the underpass dark, the spawns' yards in slabs; paving everywhere else
+  floors: [
+  ['mosaic', 33, 44, 10, 10], ['mosaic', 6, 7, 10, 9],
+  ['mtile', 5, 1, 53, 4], ['mtile', 35, 5, 8, 4], ['mtile', 47, 46, 18, 7], ['mtile', 6, 20, 10, 8], ['mtile', 23, 21, 4, 15],
+  ['tunnel', 36, 9, 3, 12],
+  ['stone', 61, 4, 7, 19], ['stone', 11, 41, 11, 10],
+  ['mpave', 0, 0, 69, 57],
+  ],
+  // call-outs (tiles)
+  spots: {
+  tSpawn: [64, 16], tApps: [50, 2], appsStairs: [38, 5], bApps: [22, 3], balcony: [16, 7], van: [4, 9], bench: [3, 12], bSite: [11, 11],
+  bShort: [25, 13], short: [29, 17], kitchen: [9, 18], market: [8, 25], arches: [19, 24], underpass: [37, 14],
+  topMid: [48, 13], mid: [40, 24], window: [24, 23], ladderRoom: [24, 31], connector: [33, 31], jungle: [27, 39],
+  stairs: [33, 41], sandwich: [35, 43], aSite: [37, 47], firebox: [32, 49], triple: [40, 54], tetris: [45, 38], ninja: [45, 54],
+  aRamp: [50, 40], tRamp: [56, 34], palaceAlley: [62, 41], palace: [56, 47], palaceExit: [45, 49],
+  ctSpawn: [18, 46], ticket: [23, 51], ct: [29, 52],
+  },
+  // the minimap: paving, the sites' mosaic
+  mini: { floor: [212, 180, 138], site: [120, 178, 168] },
+  // the look: sandy paving, a blue-green mosaic, terracotta tiles, ochre plaster walls with terracotta faces, flat
+  // roofs further off, blue-green doors, the stalls' awnings, the van, the palms
+  pal: {
+    mpave: ['#D4B48A', '#C4A27A', '#E2C49C', '#B8946A'],
+    mosaic: ['#E8DCC0', '#6AAAA2', '#B8A888', '#D8A860', '#C08060'],
+    mtile: ['#B87048', '#9C5A3A', '#C88460', '#A66242'],
+    tunnel: ['#6C5A44', '#5A4A38', '#7C6A50', '#463626'],
+    stone: ['#D8C8A8', '#C4B490', '#E8D8B8', '#AC9C7C'],
+    roof: ['#E4BC88', '#CCA070', '#F4D4A4', '#B08458'], face: ['#B0603A', '#8C4628', '#C8784C'], deep: ['#9C7C5C', '#8A6A4C', '#AC8C6A'],
+    crate: ['#AC7840', '#805424', '#4C3010', '#CC9C5C'], door: ['#2C8C8C', '#1C6C70', '#0C4448', '#58B8B0'],
+    planter: ['#B4643C', '#7C3C1C', '#D08458', '#3C8C34', '#74B44C', '#2C4C1C'],
+    awning: ['#2C9C94', '#F0E0C0', '#C0402C', '#1C6460'], van: ['#ECECE4', '#B4B4AC', '#3C74A8', '#2C2C2C'],
+  },
+  // the bots (csbots.js): the terrorists' ways in (by the ramp, the palace or the connector to A; by the apartments,
+  // short or the underpass to B), where they hold round a planted bomb (looking at the CTs' ways back in), where the CTs
+  // rotate to, their posts (an anchor off each site, the window, the jungle) and where each looks out from now and then
+  bots: {
+    routes: {
+      ramp: { site: 'A', path: ['tRamp', 'aRamp'], stage: 'aRamp', go: ['tetris', 'aSite'] },
+      palace: { site: 'A', path: ['tRamp', 'palaceAlley', 'palace'], stage: 'palace', go: ['palaceExit', 'aSite'] },
+      connector: { site: 'A', path: ['topMid', 'mid', 'connector'], stage: 'connector', go: ['jungle', 'stairs', 'aSite'] },
+      apps: { site: 'B', path: ['tApps', 'appsStairs', 'bApps'], stage: 'bApps', go: ['balcony', 'bSite'] },
+      short: { site: 'B', path: ['topMid', 'mid', 'short'], stage: 'short', go: ['bShort', 'bSite'] },
+      underpass: { site: 'B', path: ['topMid', 'mid', 'underpass', 'appsStairs', 'bApps'], stage: 'bApps', go: ['balcony', 'bSite'] },
+    },
+    post: { A: ['firebox', 'triple', 'stairs', 'tetris'], B: ['bShort', 'van', 'kitchen', 'bench'] },
+    rot: { A: ['ct', 'jungle', 'ticket'], B: ['arches', 'market', 'kitchen'] },
+    ct: [['ticket', 1], ['market', 0], ['window', 1], ['jungle', 1], ['bench', 1]],
+    peek: { ticket: 'firebox', market: 'kitchen', window: 'mid', jungle: 'connector', bench: 'bSite' },
+    ways: { A: ['ramp', 'palace', 'ramp', 'connector', 'palace'], B: ['apps', 'apps', 'short', 'apps', 'underpass'] },
+  },
+});
 
 </script>
   <script>
@@ -38776,7 +40251,10 @@ Object.assign(Stage.prototype, {
 //  The bots are in csbots.js, the title picture in csart.js.
 // =====================================================================
 
-const CS_BUY_TIME = 600, CS_ROUND_TIME = 115 * 60, CS_END_TIME = 330, CS_BOMB_TIME = 40 * 60;
+const CS_BUY_TIME = 600, CS_ROUND_TIME = 115 * 60, CS_END_TIME = 330, CS_BOMB_TIME = 36 * 60;
+// a flashbang: thrown up to six tiles, it bangs after a moment and blinds every tank that can see the bang within its
+// reach (the longer the nearer, and the more it was looking that way)
+const CS_FLASH_R = 120, CS_FLASH_FUSE = 24, CS_FLASH_TIME = 200, CS_FLASH_THROW = 96;
 const CS_PLANT_TIME = 180, CS_DEFUSE_TIME = 600, CS_KIT_TIME = 300, CS_BOMB_R = 76, CS_SMOKE_TIME = 900, CS_SMOKE_R = 26;
 const CS_VIS_R = 18, CS_VIS_EVERY = 6, CS_HEAR = 200, CS_KEY = 'tank1990_cs';
 const CS_MONEY = { start: 800, max: 16000, win: 3250, winBomb: 3500, lose: 1400, loseStep: 500, loseMax: 3400, plant: 300, plantTeam: 800, defuse: 300 };
@@ -38788,6 +40266,7 @@ const CS_BUY = [
   { id: 'armor', name: 'ARMOUR PLATE', price: 650, desc: 'SOAKS ONE HIT, UP TO 2' },
   { id: 'star', name: 'STAR', price: 600, desc: 'FASTER SHELLS, THEN TWO' },
   { id: 'smoke', name: 'SMOKE', price: 300, desc: 'B: A WALL OF SMOKE' },
+  { id: 'flash', name: 'FLASHBANG', price: 200, desc: 'B: BLINDS ALL WHO SEE IT' },
   { id: 'mines', name: 'MINES X3', price: 400, desc: 'B: DROP ONE' },
   { id: 'kit', name: 'DEFUSE KIT', price: 400, desc: 'DEFUSE IN 5 S, NOT 10', ct: true },
   { id: 'flame', weapon: 'flame', mk: 2, name: 'FLAMETHROWER', price: 1200, desc: 'CLOSE AND DEADLY' },
@@ -38826,7 +40305,8 @@ Object.assign(Game, {
     const local = this.players.filter(p => !Input.remote[p.i]).map(p => p.i), groups = [];
     if (local.length) groups.push({ members: local, side: o.side === 'CT' ? 'CT' : 'T', ready: false, local: true });
     for (const p of this.players) if (Input.remote[p.i]) groups.push({ members: [p.i], side: groups.length % 2 ? 'CT' : 'T', ready: false });
-    this.curtain.cs = { groups, row: 0, target: [5, 8, 13].includes(o.target) ? o.target : 8, size: [3, 4, 5].includes(o.size) ? o.size : 5 };
+    this.curtain.cs = { groups, row: 0, target: [5, 8, 13].includes(o.target) ? o.target : 8, size: [3, 4, 5].includes(o.size) ? o.size : 5,
+      map: CS_MAP_ORDER.includes(o.map) || o.map === 'random' ? o.map : 'dust2' };
   },
 
   csTeamsUpdate() {
@@ -38834,11 +40314,12 @@ Object.assign(Game, {
     for (const g of C.groups) {
       const r = g.local ? m : (Input.remote[g.members[0]] || {}).menu || {};
       if (g.local && m.back) { this.toTitle(); return; }
-      if (g.local && (m.up || m.down)) { C.row = (C.row + (m.down ? 1 : 2)) % 3; Sound.play('select'); }
+      if (g.local && (m.up || m.down)) { C.row = (C.row + (m.down ? 1 : 3)) % 4; Sound.play('select'); }
       const dir = r.left ? -1 : r.right ? 1 : 0;
       if (dir && !g.ready) {
         if (!g.local || C.row === 0) g.side = csOther(g.side);
-        else if (C.row === 1) C.target = [5, 8, 13][([5, 8, 13].indexOf(C.target) + dir + 3) % 3];
+        else if (C.row === 1) { const all = CS_MAP_ORDER.concat('random'); C.map = all[(all.indexOf(C.map) + dir + all.length) % all.length]; }
+        else if (C.row === 2) C.target = [5, 8, 13][([5, 8, 13].indexOf(C.target) + dir + 3) % 3];
         else C.size = 3 + ((C.size - 3 + dir + 3) % 3);
         Sound.play('select');
       }
@@ -38854,8 +40335,9 @@ Object.assign(Game, {
     for (const g of C.groups) for (const i of g.members) side[i] = g.side;
     const n0 = humans.filter(p => side[p.i] !== 'CT').length, size = Math.max(C.size, n0, humans.length - n0);
     const local = C.groups.find(g => g.local);
-    STORE.set(CS_KEY, { target: C.target, size: C.size, side: local ? local.side : 'T' });
-    this.csMatch = { target: C.target, size, round: 1, half: 0, score: [0, 0], streak: [0, 0], hist: [], id: 1 + rnd(1e6) };
+    STORE.set(CS_KEY, { target: C.target, size: C.size, side: local ? local.side : 'T', map: C.map || 'dust2' });
+    const map = C.map === 'random' ? CS_MAP_ORDER[rnd(CS_MAP_ORDER.length)] : CS_MAPS[C.map] ? C.map : 'dust2';
+    this.csMatch = { target: C.target, size, round: 1, half: 0, score: [0, 0], streak: [0, 0], hist: [], id: 1 + rnd(1e6), map };
     this.csSeen = {};
     for (const p of humans) p.csSquad = side[p.i] === 'CT' ? 1 : 0;
     let k = 0;
@@ -38870,7 +40352,7 @@ Object.assign(Game, {
 
   // everything bought goes (on death, and at half time with the money)
   csResetGear(p, money) {
-    Object.assign(p, { weapon: 'cannon', wlv: {}, level: 0, mines: 0, turrets: 0, bridges: 0, csArmor: 0, csSmokes: 0, csKit: false });
+    Object.assign(p, { weapon: 'cannon', wlv: {}, level: 0, mines: 0, turrets: 0, bridges: 0, csArmor: 0, csSmokes: 0, csFlashes: 0, csNades: [], csKit: false, csBlind: 0 });
     if (money) Object.assign(p, { csMoney: CS_MONEY.start, csK: 0, csD: 0, csMvp: 0 });
   },
 
@@ -38881,9 +40363,10 @@ Object.assign(Game, {
     this.roundSave = { players: this.players.map(p => keep(Object.assign({}, p, { tank: null }))), base: keep(this.base), customPending: false, taFrames: 0, taCleared: 0, resume: null, csM: keep(M) };
     this.ck = null;
     const [vc, vr] = this.desiredField();
+    csUseMap(M.map);
     setFieldSize(CS_W, CS_H, Math.min(vc, CS_W), Math.min(vr, CS_H));
     this.stageNum = M.round;
-    const st = new Stage(M.round, LEVELS[0], [], { blocks: csMapBlocks(), custom: true, theme: 'dust', base: newBase() });
+    const st = new Stage(M.round, LEVELS[0], [], { blocks: csMapBlocks(), custom: true, theme: 'cs_' + CS_MAPKEY, base: newBase() });
     st.csSetup(this.players, M);
     this.stage = st;
     this.paused = false;
@@ -38941,13 +40424,17 @@ Object.assign(Stage.prototype, {
     for (let by = 0; by < blocks.length; by++) for (let bx = 0; bx < blocks[by].length; bx++) this.setBlock(bx, by, BLOCK_TYPE[blocks[by][bx]] || T_EMPTY);
     this.netDiff = []; this.dirty = true; this.origTerrain = this.terrain.slice(); this.terrainVer = (this.terrainVer || 0) + 1;
     this.csM = M;
-    this.cs = { phase: 'buy', t: 0, clock: CS_ROUND_TIME, bomb: null, feed: [], smokes: [], notes: [], buy: {}, noise: [], vis: {}, ghosts: { T: [], CT: [] },
+    this.cs = { phase: 'buy', t: 0, clock: CS_ROUND_TIME, bomb: null, feed: [], smokes: [], flashes: [], notes: [], buy: {}, noise: [], vis: {}, ghosts: { T: [], CT: [] },
       winner: null, why: '', mvp: -1, round: M.round, half: M.half, score: M.score.slice(), target: M.target, id: M.id, flash: 0 };
     const starts = { T: CS_STARTS.T.at.slice(), CT: CS_STARTS.CT.at.slice() };
     this.vsSpawn = [];
     for (const p of players) {
       p.csTeam = csSide(p.csSquad, M.half);
-      p.out = false; p.tank = null; p.kills = zeroKills(); p.csRoundK = 0; p.csSpec = -1;
+      p.out = false; p.tank = null; p.kills = zeroKills(); p.csRoundK = 0; p.csSpec = -1; p.csBlind = 0;
+      // the defenders get a star and an armour plate every round, free; the terrorists a plate (without it the
+      // defenders, two hits each, won nine rounds in ten)
+      if (p.csTeam === 'CT') p.level = Math.max(p.level || 0, 1);
+      p.csArmor = Math.max(p.csArmor || 0, 1);
       const at = starts[p.csTeam].shift() || CS_STARTS[p.csTeam].at[rnd(5)];
       const t = new Tank({ x: at[0] * 16, y: at[1] * 16, dir: CS_STARTS[p.csTeam].dir, isPlayer: true, player: p });
       t.applyLevel();
@@ -38991,6 +40478,7 @@ Object.assign(Stage.prototype, {
     C.feed = C.feed.filter(f => f.t < 360); C.notes = C.notes.filter(n => n.t < n.life); C.noise = C.noise.filter(n => n.t < 40);
     for (const s of C.smokes) s.t++;
     C.smokes = C.smokes.filter(s => s.t < CS_SMOKE_TIME);
+    this.csFlashTick();
     if (B.state === 'carried') { const c = this.csP(B.carrier); if (c && c.tank) { B.x = c.tank.x + 8; B.y = c.tank.y + 8; } }
     this.csSpectate();
     if (C.phase === 'buy') {
@@ -39127,7 +40615,7 @@ Object.assign(Stage.prototype, {
   csBuyStatus(p, it) {
     if (it.id === 'go') return '';
     if (it.ct && p.csTeam !== 'CT') return 'CT ONLY';
-    const own = { armor: (p.csArmor || 0) >= 2, star: (p.level || 0) >= 2, smoke: (p.csSmokes || 0) >= 2, mines: (p.mines || 0) >= 6, kit: !!p.csKit }[it.id];
+    const own = { armor: (p.csArmor || 0) >= 2, star: (p.level || 0) >= 2, smoke: (p.csSmokes || 0) >= 2, flash: (p.csFlashes || 0) >= 2, mines: (p.mines || 0) >= 6, kit: !!p.csKit }[it.id];
     if (own || (it.weapon && p.weapon === it.weapon)) return 'HAVE IT';
     if ((p.csMoney || 0) < it.price) return 'NO MONEY';
     return '';
@@ -39141,7 +40629,8 @@ Object.assign(Stage.prototype, {
     switch (it.id) {
       case 'armor': p.csArmor = (p.csArmor || 0) + 1; if (t) t.plates = p.csArmor; break;
       case 'star': p.level = (p.level || 0) + 1; if (t) t.applyLevel(); break;
-      case 'smoke': p.csSmokes = (p.csSmokes || 0) + 1; break;
+      case 'smoke': p.csSmokes = (p.csSmokes || 0) + 1; (p.csNades || (p.csNades = [])).push('smoke'); break;
+      case 'flash': p.csFlashes = (p.csFlashes || 0) + 1; (p.csNades || (p.csNades = [])).push('flash'); break;
       case 'mines': p.mines = (p.mines || 0) + 3; break;
       case 'kit': p.csKit = true; break;
       default: p.weapon = it.weapon; p.wlv = { [it.weapon]: it.mk }; if (t) t.wcool = 0;
@@ -39160,12 +40649,52 @@ Object.assign(Stage.prototype, {
     const busy = (B.state === 'carried' && B.carrier === p.i && this.csSiteAt(t.x + 8, t.y + 8))
       || (B.state === 'planted' && p.csTeam === 'CT' && Math.hypot(t.x + 8 - B.x, t.y + 8 - B.y) < 16);
     if (busy) return Object.assign({}, inp, { alt: false, altPressed: false, fire: inp.dir < 0 && inp.alt ? false : inp.fire });
-    if (inp.altPressed && p.csSmokes > 0) {
-      p.csSmokes--;
-      this.csThrowSmoke(t);
+    if (inp.altPressed && (p.csSmokes > 0 || p.csFlashes > 0)) {
+      this.csThrowNade(p, t, inp.nade && (inp.nade === 'flash' ? p.csFlashes > 0 : p.csSmokes > 0) ? inp.nade : null);
       return Object.assign({}, inp, { alt: false, altPressed: false });
     }
     return inp;
+  },
+
+  // B with grenades: the one bought first goes first
+  csThrowNade(p, t, kind) {
+    const q = p.csNades || (p.csNades = []);
+    while (q.length && !(q[0] === 'flash' ? p.csFlashes > 0 : p.csSmokes > 0)) q.shift();
+    if (kind) q.splice(q.indexOf(kind) >>> 0, 1); else kind = q.shift() || (p.csSmokes > 0 ? 'smoke' : 'flash');
+    if (kind === 'flash') { p.csFlashes--; this.csThrowFlash(t); } else { p.csSmokes--; this.csThrowSmoke(t); }
+  },
+
+  // a flashbang flies up to six tiles ahead (short of a wall) and bangs a moment later
+  csThrowFlash(t) {
+    const [dx, dy] = DXY[t.dir];
+    let x = t.x + 8, y = t.y + 8;
+    for (let k = 0; k < CS_FLASH_THROW; k += 4) {
+      const v = this.get((x + dx * 4) >> 2, (y + dy * 4) >> 2);
+      if (v === T_STEEL || v === T_BRICK || v === -1) break;
+      x += dx * 4; y += dy * 4;
+    }
+    this.cs.flashes.push({ x, y, t: 0, team: t.player ? t.player.csTeam : '' });
+    Sound.play('csSmoke');
+  },
+
+  // the bang: who sees it is blinded (players: the screen goes white; bots: can't aim) for a while
+  csFlashTick() {
+    const C = this.cs;
+    for (const p of this.players) if (p.csBlind > 0) p.csBlind--;
+    for (const f of C.flashes) {
+      if (++f.t !== CS_FLASH_FUSE) continue;
+      Sound.play('csFlash');
+      for (const o of this.tanks) {
+        if (!o.alive || !o.player) continue;
+        const cx = o.x + 8, cy = o.y + 8, d = Math.hypot(f.x - cx, f.y - cy);
+        if (d >= CS_FLASH_R || (d > 10 && !this.clearLine(cx, cy, f.x, f.y))) continue;
+        // looking at it: all of it; side on: half; away: a little
+        const [fx, fy] = DXY[o.dir], dot = d > 1 ? ((f.x - cx) * fx + (f.y - cy) * fy) / d : 1;
+        const face = dot > 0.4 ? 1 : dot > -0.4 ? 0.5 : 0.22;
+        o.player.csBlind = Math.max(o.player.csBlind || 0, Math.round(CS_FLASH_TIME * face * (1 - 0.6 * d / CS_FLASH_R)));
+      }
+    }
+    C.flashes = C.flashes.filter(f => f.t < CS_FLASH_FUSE + 20);
   },
 
   // a smoke grenade lands up to three tiles ahead (short of a wall) and blooms into a cloud
@@ -39349,6 +40878,18 @@ Object.assign(Stage.prototype, {
 
   // smoke clouds: grey puffs rolling in place, thinning out at the end
   csRenderSmokes(ctx) {
+    for (const f of this.cs.flashes || []) {
+      if (f.t < CS_FLASH_FUSE) {
+        // the grenade on the ground, its fuse blinking
+        ctx.fillStyle = '#3C3C3C'; ctx.fillRect(Math.round(f.x) - 2, Math.round(f.y) - 2, 5, 5);
+        ctx.fillStyle = (f.t >> 2) & 1 ? '#F8F8F8' : '#7C7C7C'; ctx.fillRect(Math.round(f.x) - 1, Math.round(f.y) - 1, 3, 3);
+      } else {
+        // the bang: a white burst, gone in a third of a second
+        const k = (f.t - CS_FLASH_FUSE) / 20, r = 6 + k * 30;
+        ctx.fillStyle = 'rgba(255,255,240,' + (0.9 * (1 - k)).toFixed(2) + ')';
+        ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, Math.PI * 2); ctx.fill();
+      }
+    }
     for (const s of this.cs.smokes) {
       const k = Math.min(1, s.t / 40, (CS_SMOKE_TIME - s.t) / 90), r = CS_SMOKE_R * k;
       if (r < 2) continue;
@@ -39421,7 +40962,7 @@ Object.assign(Stage.prototype, {
   // the minimap: what the team has explored, the sites, the team, the enemies in sight, where the bomb is
   csMinimap(ctx, camX, camY) {
     if (!Config.on('minimap')) return;
-    const C = this.cs, V = this.csViewer(), mw = CS_W, mh = CS_H, x0 = VIEW_W - mw - 3, y0 = 3, BW = COLS * 2;
+    const C = this.cs, V = this.csViewer(), mw = CS_W, mh = CS_H, x0 = VIEW_W - mw - 3, y0 = 3, BW = COLS * 2, MC = CS_MAPS[CS_MAPKEY].mini;
     if (!C.mini || this.frame - C.miniAt >= 12 || this.frame < C.miniAt) {
       C.miniAt = this.frame;
       if (!C.mini) { C.mini = makeCanvas(mw, mh); C.miniImg = C.mini.getContext('2d').createImageData(mw, mh); }
@@ -39429,7 +40970,7 @@ Object.assign(Stage.prototype, {
       for (let ty = 0; ty < mh; ty++) for (let tx = 0; tx < mw; tx++) {
         const o = (ty * mw + tx) * 4, b = (ty * 2) * BW + tx * 2, v = this.terrain[(ty * 4 + 1) * GW + tx * 4 + 1];
         let col = v === T_STEEL ? [92, 72, 44] : v === T_BRICK ? [150, 96, 40] : v === T_WATER ? [40, 60, 90]
-          : csInZone('A', tx * 16 + 8, ty * 16 + 8) || csInZone('B', tx * 16 + 8, ty * 16 + 8) ? [214, 150, 110] : [200, 170, 120];
+          : csInZone('A', tx * 16 + 8, ty * 16 + 8) || csInZone('B', tx * 16 + 8, ty * 16 + 8) ? MC.site : MC.floor;
         if (seen && !seen[b] && !seen[b + 1] && !seen[b + BW] && !seen[b + BW + 1]) col = [0, 0, 0];
         else if (g && !g[b] && !g[b + 1] && !g[b + BW] && !g[b + BW + 1]) col = col.map(c => c * 0.55);
         d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = 235;
@@ -39484,6 +41025,7 @@ Object.assign(Stage.prototype, {
       for (let j = 0; j < (t ? t.plates : 0); j++) kit.push('#BCBCBC');
       if (p.csKit) kit.push('#3CBCFC');
       for (let j = 0; j < (p.csSmokes || 0); j++) kit.push('#F8F8F8');
+      for (let j = 0; j < (p.csFlashes || 0); j++) kit.push('#F8D838');
       for (let j = 0; j < Math.min(4, p.mines || 0); j++) kit.push('#3C3C3C');
       kit.slice(0, 8).forEach((c, j) => { ctx.fillStyle = COL.black; ctx.fillRect(H + j * 3, y + 18, 3, 4); ctx.fillStyle = c; ctx.fillRect(H + j * 3, y + 18, 2, 3); });
     });
@@ -39494,6 +41036,9 @@ Object.assign(Stage.prototype, {
   // words over the field: the kill feed, the round's news, what B does here, the buy menu, the end of the round
   csRenderBanner(ctx) {
     const C = this.cs, V = this.csViewer(), B = C.bomb, cx = VIEW_W >> 1;
+    // flashed: the field goes white, fading back over the last second
+    const blind = Math.max(0, ...V.ps.filter(p => this.csTankOf(p)).map(p => p.csBlind || 0));
+    if (blind > 0) { ctx.fillStyle = 'rgba(255,255,248,' + Math.min(1, blind / 60).toFixed(2) + ')'; ctx.fillRect(0, 0, VIEW_W, VIEW_H); }
     C.feed.forEach((f, k) => {
       const kp = this.csP(f.k), vp = this.csP(f.v), y = 4 + k * 10, a = kp ? csName(kp) : '', b = csName(vp);
       const w = (a.length + b.length + (a ? 3 : 2)) * 8 + 2;
@@ -39620,17 +41165,19 @@ Object.assign(Stage.prototype, {
   // online: what a guest needs on top of the stage view (tanks, shells and terrain come with it)
   csView() {
     const C = this.cs, B = C.bomb;
-    return { ph: C.phase, t: C.t, ck: C.clock, fl: C.flash, w: C.winner, why: C.why, mvp: C.mvp, rd: C.round, hf: C.half, sc: C.score, tg: C.target, id: C.id,
+    return { mp: CS_MAPKEY, ph: C.phase, t: C.t, ck: C.clock, fl: C.flash, w: C.winner, why: C.why, mvp: C.mvp, rd: C.round, hf: C.half, sc: C.score, tg: C.target, id: C.id,
       b: [B.state, B.carrier, Math.round(B.x), Math.round(B.y), B.site, B.timer, B.plant, B.planter, B.defuse, B.defuser],
       fd: C.feed, nt: C.notes, sm: C.smokes.map(s => [Math.round(s.x), Math.round(s.y), s.t]), nz: C.noise.map(n => [n.x, n.y, n.team, n.t]),
       by: Object.keys(C.buy).map(i => [+i, C.buy[i].idx, C.buy[i].ready ? 1 : 0, C.buy[i].msgT > 0 ? C.buy[i].msg : '']),
       mt: this.mines.map(m => (m.owner && m.owner.player ? m.owner.player.csTeam : '')),
-      pl: this.players.map(p => [p.i, p.csTeam, p.csSquad, p.csMoney, p.csK, p.csD, p.csMvp, p.csKit ? 1 : 0, p.csSmokes || 0, p.csName || '', p.csRoundK || 0, p.csSpec, p.mines || 0]) };
+      pl: this.players.map(p => [p.i, p.csTeam, p.csSquad, p.csMoney, p.csK, p.csD, p.csMvp, p.csKit ? 1 : 0, p.csSmokes || 0, p.csName || '', p.csRoundK || 0, p.csSpec, p.mines || 0, p.csFlashes || 0, p.csBlind || 0]),
+      fb: (C.flashes || []).map(f => [Math.round(f.x), Math.round(f.y), f.t]) };
   },
   applyCsView(v) {
     const C = this.cs || (this.cs = { vis: {}, ghosts: { T: [], CT: [] } });
+    if (v.mp) csUseMap(v.mp);
     Object.assign(C, { phase: v.ph, t: v.t, clock: v.ck, flash: v.fl, winner: v.w, why: v.why, mvp: v.mvp, round: v.rd, half: v.hf, score: v.sc, target: v.tg, id: v.id,
-      feed: v.fd, notes: v.nt, smokes: v.sm.map(a => ({ x: a[0], y: a[1], t: a[2] })), noise: v.nz.map(a => ({ x: a[0], y: a[1], team: a[2], t: a[3] })) });
+      feed: v.fd, notes: v.nt, smokes: v.sm.map(a => ({ x: a[0], y: a[1], t: a[2] })), flashes: (v.fb || []).map(a => ({ x: a[0], y: a[1], t: a[2] })), noise: v.nz.map(a => ({ x: a[0], y: a[1], team: a[2], t: a[3] })) });
     const b = v.b;
     C.bomb = { state: b[0], carrier: b[1], x: b[2], y: b[3], site: b[4], timer: b[5], plant: b[6], planter: b[7], defuse: b[8], defuser: b[9] };
     C.buy = {};
@@ -39638,7 +41185,7 @@ Object.assign(Stage.prototype, {
     this.mines.forEach((m, k) => { m.team = v.mt[k] || ''; });
     for (const a of v.pl) {
       const p = this.players.find(q => q.i === a[0]);
-      if (p) Object.assign(p, { csTeam: a[1], csSquad: a[2], csMoney: a[3], csK: a[4], csD: a[5], csMvp: a[6], csKit: !!a[7], csSmokes: a[8], csName: a[9] || undefined, csRoundK: a[10], csSpec: a[11], mines: a[12] });
+      if (p) Object.assign(p, { csTeam: a[1], csSquad: a[2], csMoney: a[3], csK: a[4], csD: a[5], csMvp: a[6], csKit: !!a[7], csSmokes: a[8], csName: a[9] || undefined, csRoundK: a[10], csSpec: a[11], mines: a[12], csFlashes: a[13] || 0, csBlind: a[14] || 0 });
     }
     this.vs = 'cs'; this.noBase = true; this.hardSteel = true; this.weather = null;
   },
@@ -39648,15 +41195,16 @@ Object.assign(Stage.prototype, {
 Object.assign(Game, {
   // DE_DUST2 small (a pixel a tile), for the team screen
   csThumb() {
-    if (this.csThumbC) return this.csThumbC;
+    const all = this.csThumbs || (this.csThumbs = {});
+    if (all[CS_MAPKEY]) return all[CS_MAPKEY];
     const c = makeCanvas(CS_W, CS_H), g = c.getContext('2d');
     for (let ty = 0; ty < CS_H; ty++) for (let tx = 0; tx < CS_W; tx++) {
       const ch = CS_MAP[ty][tx], x = tx * 16 + 8, y = ty * 16 + 8;
-      g.fillStyle = ch === '#' ? '#3C2C18' : ch === 'x' || ch === 'd' ? '#8C5820' : csInZone('A', x, y) || csInZone('B', x, y) ? '#D89870' : csInZone('T', x, y) ? '#C8A060' : csInZone('CT', x, y) ? '#A8B0B8' : '#B89458';
+      g.fillStyle = CS_THUMB_COL[ch] || ch === '#' ? CS_THUMB_COL[ch] || '#3C2C18' : ch === 'x' || ch === 'd' ? '#8C5820' : csInZone('A', x, y) || csInZone('B', x, y) ? '#D89870' : csInZone('T', x, y) ? '#C8A060' : csInZone('CT', x, y) ? '#A8B0B8' : 'rgb(' + CS_MAPS[CS_MAPKEY].mini.floor + ')';
       g.fillRect(tx, ty, 1, 1);
     }
     for (const k of ['A', 'B']) { const [zx, zy, zw, zh] = CS_ZONES[k]; g.drawImage(csMiniLetter(k), zx + zw / 2 - 2, zy + zh / 2 - 3); }
-    return (this.csThumbC = c);
+    return (all[CS_MAPKEY] = c);
   },
 
   csTeamsRender(ctx) {
@@ -39664,10 +41212,14 @@ Object.assign(Game, {
     ctx.fillStyle = '#140E08'; ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
     ctx.save(); ctx.translate(ox, oy);
     Font.drawCenter(ctx, 'COUNTER-STRIKE', SW / 2, 8, COL.gold);
-    Font.drawCenter(ctx, 'DE_DUST2', SW / 2, 19, COL.lgrey);
+    const rand = C.map === 'random';
+    if (!rand) csUseMap(C.map);
+    Font.drawCenter(ctx, rand ? 'A MAP AT RANDOM' : CS_MAPS[CS_MAPKEY].label, SW / 2, 19, COL.lgrey);
     // the map between the two teams
-    ctx.fillStyle = '#5C4428'; ctx.fillRect(95, 37, CS_W + 2, CS_H + 2);
-    ctx.drawImage(this.csThumb(), 96, 38);
+    const mx = 96 + ((64 - (rand ? 64 : CS_W)) >> 1);
+    ctx.fillStyle = '#5C4428'; ctx.fillRect(mx - 1, 37, (rand ? 64 : CS_W) + 2, (rand ? 60 : CS_H) + 2);
+    if (rand) { ctx.fillStyle = '#2C2014'; ctx.fillRect(mx, 38, 64, 60); Font.big(ctx, '?', mx + 24, 56, 2, COL.gold); }
+    else ctx.drawImage(this.csThumb(), mx, 38);
     const guest = Net.role === 'client' ? Net.slot : -1;
     ['T', 'CT'].forEach((side, k) => {
       const x = k ? 168 : 8, col = CS_COL[side];
@@ -39689,9 +41241,10 @@ Object.assign(Game, {
     });
     // the options (the players at the host's computer set them)
     const local = C.groups.find(g => g.local);
-    const rows = [['SIDE', local ? (local.side === 'T' ? 'TERRORISTS' : 'COUNTER-T.') : '-'], ['ROUNDS TO WIN', String(C.target)], ['TEAM SIZE', C.size + ' V ' + C.size]];
+    const rows = [['SIDE', local ? (local.side === 'T' ? 'TERRORISTS' : 'COUNTER-T.') : '-'], ['MAP', rand ? 'RANDOM' : CS_MAPS[CS_MAPKEY].name],
+      ['ROUNDS TO WIN', String(C.target)], ['TEAM SIZE', C.size + ' V ' + C.size]];
     rows.forEach(([label, val], r) => {
-      const y = 148 + r * 12, sel = guest < 0 && r === C.row;
+      const y = 142 + r * 12, sel = guest < 0 && r === C.row;
       if (sel) Font.draw(ctx, '>', 24, y, COL.gold);
       Font.draw(ctx, label, 36, y, COL.white);
       Font.draw(ctx, (sel ? '<' : ' ') + val + (sel ? '>' : ''), 148, y, r === 0 && local ? CS_COL[local.side] : COL.gold);
@@ -39900,6 +41453,7 @@ Object.assign(Game, {
   };
   const applyStage = Net.applyStage;
   Net.applyStage = function (sv) {
+    if (sv.csx && sv.csx.mp) csUseMap(sv.csx.mp);   // the map's size and look before the stage is built
     applyStage.call(this, sv);
     if (sv.csx && Game.stage) Game.stage.applyCsView(sv.csx);
     else if (Game.stage) Game.stage.cs = null;
@@ -39932,20 +41486,7 @@ Object.assign(Game, {
 // =====================================================================
 
 const CSB_SEE = 168, CSB_ARRIVE = 2, CSB_FIELDS = 3;
-// the ways in: call-outs in order (csmap.js CS_SPOTS), the last one the site; stage: where they gather
-const CSB_ROUTES = {
-  long: { site: 'A', path: ['outsideLong', 'longDoors', 'long'], stage: 'long', go: ['longA', 'aCar', 'aSite'] },
-  short: { site: 'A', path: ['tRamp', 'topMid', 'midTop'], stage: 'midTop', go: ['catBottom', 'catwalk', 'aShort', 'aSite'] },
-  tunnels: { site: 'B', path: ['outsideTunnels', 'upperTunnels', 'tunnelJunction'], stage: 'tunnelJunction', go: ['bTunnelsIn', 'bTunnels', 'bSite'] },
-  lurk: { site: 'B', path: ['tRamp', 'topMid', 'midTop', 'lowerMid'], stage: 'lowerMid', go: ['lowerTunnels', 'tunnelJunction', 'bTunnelsIn', 'bTunnels', 'bSite'] },
-};
-// after the plant: where the terrorists hold round each site; the CTs' posts and which way they look
-const CSB_POST = { A: ['goose', 'aCar', 'aPlat', 'aRamp'], B: ['backPlat', 'bCar', 'bTunnels', 'bDoors'] };
-// where the CTs go when the terrorists show up at a site: the ways in from their side, and the site
-const CSB_ROT = { A: ['ctRamp', 'goose', 'aSite'], B: ['bDoors', 'bWindow', 'backPlat'] };
-const CSB_CT = [['aCar', 2], ['bSite', 2], ['ctMid', 2], ['aSite', 3], ['bWindow', 3]];
-// where a CT on a post looks out from now and then (further up the way in), and for how long out of how long
-const CSB_PEEK = { aCar: 'longA', bSite: 'bTunnels', ctMid: 'xbox', aSite: 'catwalk', bWindow: 'lowerTunnels' };
+// (the ways in, the posts, the rotations and the CTs' posts are the map's: CSB_ROUTES ... CSB_WAYS, set by csUseMap)
 const CSB_PEEK_ON = 7, CSB_PEEK_EVERY = 26;
 // how far (px) the CTs go after an enemy seen or heard, and how long they keep at it once it's gone
 const CSB_HUNT_R = 400, CSB_HUNT_KEEP = 300;
@@ -40029,7 +41570,7 @@ Object.assign(Stage.prototype, {
   csBotBuy(p) {
     const team = p.csTeam, mates = this.players.filter(q => q.csTeam === team), pistol = p.csMoney <= CS_MONEY.start;
     const buy = id => { const it = CS_BUY.find(b => b.id === id); return it && !this.csBuy(p, it); };
-    if (pistol) { if (Math.random() < 0.6) buy('armor'); else buy('star'); if (team === 'T' && Math.random() < 0.3) buy('smoke'); return; }
+    if (pistol) { if (Math.random() < 0.6) buy('armor'); else buy('star'); if (team === 'T' && Math.random() < 0.3) buy('smoke'); else if (Math.random() < 0.3) buy('flash'); return; }
     if (p.csMoney < 1900 && (!p.weapon || p.weapon === 'cannon')) { if (Math.random() < 0.3) buy('star'); return; }   // an eco round: save up
     if (!p.csArmor) buy('armor');
     if (!p.weapon || p.weapon === 'cannon') {
@@ -40042,6 +41583,7 @@ Object.assign(Stage.prototype, {
     }
     if (team === 'CT' && !p.csKit) buy('kit');
     if (team === 'T' && Math.random() < 0.6) buy('smoke');
+    if (p.csMoney > 700 && Math.random() < 0.55) buy('flash');
     if ((p.csArmor || 0) < 2 && p.csMoney > 2500) buy('armor');
     if (team === 'CT' && p.csMoney > 1500 && Math.random() < 0.4) buy('mines');
     if ((p.level || 0) < 1 && p.weapon === 'cannon') buy('star');
@@ -40062,7 +41604,7 @@ Object.assign(Stage.prototype, {
 
   // the terrorist bots' ways in to a site
   csBotWays(site) {
-    const ways = site === 'A' ? ['long', 'short', 'long', 'long', 'short'] : ['tunnels', 'tunnels', 'lurk', 'tunnels', 'tunnels'];
+    const ways = CSB_WAYS[site];
     this.players.filter(p => p.bot && p.csTeam === 'T').forEach((p, k) => { p.csAiPlan = { role: ways[k % ways.length], k: 0 }; });
   },
 
@@ -40105,6 +41647,8 @@ Object.assign(Stage.prototype, {
       const d = [(behind.dir + 1) % 4, (behind.dir + 3) % 4, behind.dir].find(k => this.canStep(t, k));
       if (d !== undefined) { out.dir = d; ai.want = true; return out; }
     }
+    // flashed: can't see to aim; it sits tight till it can
+    if (p.csBlind > 20) { ai.aim = 0; ai.tgt = null; return out; }
     // a fight first
     const fight = this.csBotFight(t, out);
     if (fight === 'shoot') return out;
@@ -40114,7 +41658,8 @@ Object.assign(Stage.prototype, {
     const goal = this.csBotGoal(t, p, pl, B);
     if (goal && goal.act) { out.alt = true; out.altPressed = !ai.alt; ai.alt = true; return out; }
     ai.alt = false;
-    if (goal && goal.smoke && p.csSmokes > 0) { out.alt = true; out.altPressed = true; return out; }
+    if (goal && goal.smoke && p.csSmokes > 0) { out.alt = true; out.altPressed = true; out.nade = 'smoke'; return out; }
+    if (goal && goal.flash && p.csFlashes > 0) { out.alt = true; out.altPressed = true; out.nade = 'flash'; return out; }
     if (!goal) return out;
     const d = this.csField(goal.node), dist = this.csDist(t, d);
     ai.holding = dist >= 0 && dist <= (goal.near !== undefined ? goal.near : CSB_ARRIVE);
@@ -40125,14 +41670,16 @@ Object.assign(Stage.prototype, {
       return out;
     }
     // down the field; a tank in the way: round it, by the free way that loses least, for a moment
-    if (ai.sideT > 0) { ai.sideT--; out.dir = ai.side; ai.want = true; return out; }
+    if (ai.sideT > 0) { ai.sideT--; out.dir = ai.side; ai.want = true; if (!ai.sideT) ai.pastT = 40; return out; }
+    // then on past it the way it was going (straight back to the field would only lead into the tank again)
+    if (ai.pastT > 0) { ai.pastT--; if (this.canStep(t, ai.past)) { out.dir = ai.past; ai.want = true; return out; } ai.pastT = 0; }
     let k = (t.x & 7) === 0 && (t.y & 7) === 0 ? this.csStep(t, d) : t.dir;
     const blocker = k >= 0 && !this.canStep(t, k) ? this.tankAhead(Object.assign({}, t, { dir: k, alive: true })) : null;
     if (blocker) {
       // sideways, away from the middle of the tank in the way (the other side if that's shut)
       const off = k & 1 ? blocker.y - t.y : blocker.x - t.x, away = k & 1 ? (off > 0 ? 0 : 2) : (off > 0 ? 3 : 1);
       const alt = [away, (away + 2) % 4].find(j => this.canStep(t, j));
-      if (alt !== undefined) { k = alt; ai.side = alt; ai.sideT = 12 + rnd(12); }
+      if (alt !== undefined) { ai.past = k; k = alt; ai.side = alt; ai.sideT = 22 + rnd(8); }
     }
     if (k >= 0) { out.dir = k; ai.want = true; }
     return out;
@@ -40224,7 +41771,7 @@ Object.assign(Stage.prototype, {
         const [ox, oy] = CSB_GUARD[(k + C.round) % CSB_GUARD.length];
         return { node: at(B.x - 8 + ox * 16, B.y - 8 + oy * 16), near: 2 };
       }
-      const R = CSB_ROUTES[pl.role] || CSB_ROUTES.long;
+      const R = CSB_ROUTES[pl.role] || Object.values(CSB_ROUTES)[0];
       // everyone at their gathering point (or 25 s gone, or a rush, or time running out): go in
       const lead = this.csBotLead();
       if (!P.exec && lead) {
@@ -40237,11 +41784,12 @@ Object.assign(Stage.prototype, {
       }
       const path = P.exec ? R.go : R.path;
       if (!P.exec && pl.k >= path.length) pl.k = path.length - 1;
-      if (P.exec && !pl.go) { pl.go = true; pl.k = 0; pl.smoked = false; }
+      if (P.exec && !pl.go) { pl.go = true; pl.k = 0; pl.smoked = false; pl.flashed = false; }
       const last = pl.k >= path.length - 1, posts = CSB_POST[R.site];
       const name = P.exec && last ? posts[p.i % posts.length] : path[Math.min(pl.k, path.length - 1)], node = spot(name, last), dd = this.csDist(t, this.csField(node));
       if (dd >= 0 && dd <= 4 && pl.k < path.length - 1) pl.k++;
       if (P.exec && !pl.smoked && p.csSmokes > 0 && pl.k === 1) { pl.smoked = true; return { smoke: true, node }; }
+      if (P.exec && !pl.flashed && p.csFlashes > 0 && pl.k >= path.length - 2 && pl.k >= 1) { pl.flashed = true; return { flash: true, node }; }
       // waiting to go in: anywhere round the gathering point will do (they'd only jostle for the spot)
       return { node, near: last ? (P.exec ? 3 : 6) : CSB_ARRIVE };
     }
@@ -40250,6 +41798,8 @@ Object.assign(Stage.prototype, {
       const cts = this.csAlive('CT').filter(o => o.player.bot), bn = at(B.x - 8, B.y - 8), d = this.csField(bn, true);
       const dist = o => { const v = this.csDist(o, d); return v < 0 ? 1e4 : v - (o.player.csKit ? 12 : 0); };
       const defuser = cts.sort((a, b) => dist(a) - dist(b))[0];
+      // the retake: a flashbang onto the site first
+      if (p.csFlashes > 0 && !pl.retook && Math.hypot(t.x + 8 - B.x, t.y + 8 - B.y) < 110) { pl.retook = true; return { node: bn, flash: true }; }
       if (defuser === t) {
         if (Math.hypot(t.x + 8 - B.x, t.y + 8 - B.y) < 13 && !enemyNear(80)) return { act: true };
         return { node: bn, near: 0 };
@@ -40307,7 +41857,10 @@ Object.assign(Stage.prototype, {
     const c = this.csBotContact();
     if (!c || !c.hunters.includes(t.player.i)) return null;
     // there and nothing to see: the trail's gone cold
-    if (this.csDist(t, this.csField(c.node, true)) <= 3 && this.frame - c.at > 60) { c.hunters = c.hunters.filter(i => i !== t.player.i); return null; }
+    const dd = this.csDist(t, this.csField(c.node, true));
+    if (dd <= 3 && this.frame - c.at > 60) { c.hunters = c.hunters.filter(i => i !== t.player.i); return null; }
+    // close: a flashbang round the corner first
+    if (dd > 0 && dd <= 14 && t.player.csFlashes > 0 && !(c.flashed || (c.flashed = [])).includes(t.player.i)) { c.flashed.push(t.player.i); return { node: c.node, flash: true }; }
     return { node: c.node, near: 2 };
   },
 

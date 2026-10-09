@@ -136,15 +136,35 @@ Maze and VS CPU, and no saving outside Classic and Big maps.
 | **VS eagles** | 2-4 | everyone has an eagle and a fortress (I bottom, II top, III left, IV right). Your shells, rockets and mines now destroy other players; you respawn while your eagle stands, and your own shells can't hurt it. Lose your eagle and you're out; the last eagle standing wins the round. Best of 3 |
 | **Deathmatch** | 1-4 | no eagles; players start in the corners and respawn; first to 10 kills, or the most kills after 3 minutes (the clock is in the side panel). Alone, you play against 3 computer bots (BOT II-IV): they hunt the nearest rival (each other too), take a moment to aim (quicker on harder skills), grab nearby power-ups and shoot through bricks. Bots never set the high score |
 | **Flags** | 2-4 | each player has a flag at home (marked by a square). Drive over another player's flag to grab it and bring it to your own home flag (yours must be at home) to score. Destroying a carrier drops the flag where it fell; touching your own dropped flag sends it home. First to 3 captures |
-| **Counter-Strike** | 1-4 | two teams of five tanks on DE_DUST2, bots filling them up: the terrorists plant the bomb on site A or B, the counter-terrorists stop them or defuse it. Rounds with a buy time and money, no respawns, sides switched at half time, first to 8; a fog of war shows only what your team can see (see *Counter-Strike* below) |
+| **Counter-Strike** | 1-4 | two teams of five tanks on DE_DUST2, DE_AZTEC, DE_TRAIN or DE_MIRAGE, bots filling them up: the terrorists plant the bomb on site A or B, the counter-terrorists stop them or defuse it. Rounds with a buy time and money, no respawns, sides switched at half time, first to 8; a fog of war shows only what your team can see (see *Counter-Strike* below) |
 
 In versus, power-ups drop every 15 seconds (only ones that make sense between players), there are no enemy tanks, and
 the side panel shows each player's wins, kills or captures. Round and match results show who won.
 
 ## Counter-Strike
 
-Two teams of tanks on one map, **DE_DUST2**, seen from above: the classic layout tile by tile. The terrorists start in
-the south (T spawn) and the counter-terrorists in the north (CT spawn, between the two bombsites).
+Two teams of tanks on a classic map seen from above, its layout tile by tile: **DE_DUST2**, **DE_AZTEC**, **DE_TRAIN**
+or **DE_MIRAGE** (MAP on the team screen, or RANDOM). On Dust 2 the terrorists start in the south (T spawn) and the
+counter-terrorists in the north (CT spawn, between the two bombsites).
+
+- **DE_AZTEC** (60 x 62, jungle and grey-green Mayan stone): T spawn in the south west; long up the west side to the
+  river bank and the narrow **rope bridge** over the ravine to the A ramp and **bombsite A** (a dig round a stepped
+  pyramid) in the north west; the T ramp down to the **water**, a shallow canal east under the **overpass** to the B
+  ramp and **bombsite B** (a temple with big stairs above a deep pool) in the east; the T tunnel to the **double
+  doors**, the lower ramp and the overpass to the courtyard; CT spawn in the north east, with the CT hall to A, the CT
+  path to B and the connector down to the courtyard. Deep water stops tanks but not shells or sight.
+- **DE_TRAIN** (66 x 68, concrete and rails): T spawn in the north west; alley, pigeons and **ivy** into the A yard,
+  the T connector to A main, showers and **popdog** under A up by the E box; **bombsite A**, a big yard of five tracks
+  with red, green, blue and black **train cars** (unbreakable; the lanes between them are the way through), heaven
+  behind its windows and hell and the ladder room below to CT spawn in the east; the T stairs down to the **B halls**,
+  upper and lower B and the B ramp to **bombsite B** in the south (two tracks of trains), back of B round from CT spawn;
+  the Z connector between the sites.
+- **DE_MIRAGE** (69 x 57, ochre plaster, terracotta and blue-green mosaics, laid out over the game's own radar):
+  T spawn in the east; T ramp, **palace** and tetris to **bombsite A** in the south (firebox, triple, ninja,
+  sandwich, stairs, jungle, ticket booth, CT); top mid, **mid** with the **window** and the connector, short and the
+  underpass; T apartments, the balcony and B short to **bombsite B** in the north west (the van, the bench, kitchen,
+  the **market** with its stalls and window, the arches); CT spawn in the south west between the sites. Palms in
+  clay pots are cover that breaks.
 
 - **The map** (64 x 60 tiles; the screen scrolls, with the minimap in the corner): **long A** up the east side (outside
   long, the long doors, the pit, long A with the blue container and the long corner, the car at the top by the ramp)
@@ -1433,6 +1453,9 @@ js/csmap.js       COUNTER-STRIKE's map: DE_DUST2 tile by tile, its zones and cal
 js/cs.js          COUNTER-STRIKE: the team screen, rounds, the bomb, buying and money, the fog of war, its HUD, online
 js/csbots.js      COUNTER-STRIKE's bots: buying, the terrorists' and counter-terrorists' plans, routes, fighting
 js/csorders.js    COUNTER-STRIKE's orders to the bots: FOLLOW ME, HOLD HERE, GO ON (keys, pads, touch, online)
+js/csmap_aztec.js  COUNTER-STRIKE's DE_AZTEC (jungle stone, the river, the rope bridge, temples)
+js/csmap_train.js  COUNTER-STRIKE's DE_TRAIN (train cars on rails, concrete halls)
+js/csmap_mirage.js COUNTER-STRIKE's DE_MIRAGE (plaster, terracotta, mosaics, the market)
 js/csart.js       COUNTER-STRIKE's title picture
 js/reach.js       no dead ends: a way opened from every walled-in entry point; stuck enemies come in again
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories

@@ -3,6 +3,26 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.58
+
+- **Counter-Strike: three new maps**, each laid out after the real one: **DE_AZTEC** (the rope bridge over the
+  ravine, the water and the overpass, the double doors, temples on both sites), **DE_TRAIN** (yards of train cars on
+  rails at both sites, ivy, popdog, heaven and hell, the B halls) and **DE_MIRAGE** (palace, mid window, connector,
+  apartments, the market, mosaic sites). Choose the MAP on the team screen, or RANDOM. Online friends get the host's.
+- **Flashbangs** ($200, two at most): B throws one up to six tiles; a moment later it bangs and blinds every tank that
+  can see it within about seven tiles, for up to 3 s (longer when near and looking at it, the thrower too). Your
+  screen goes white; bots hold their fire. Grenades go in the order you bought them. Bots buy and throw them (into a
+  site before going in, round a corner when hunting, onto the site on a retake).
+- **Free gear every round:** each counter-terrorist gets a **star and an armour plate**, each terrorist a plate; the
+  bomb ticks 36 s (was 40). (The defenders' gear alone made them win 9 rounds in 10; with the terrorists' plate and
+  the shorter fuse bot matches come out about even.)
+- **A SYNTHWAVE soundtrack** (Settings → MUSIC STYLE: ROCK, SYNTHWAVE, CHIPTUNE): every tune of the game as 80s
+  synthwave / outrun / darksynth (synthwave.js) — 31 tracks from NEON EAGLE (classic) and DUST AFTER DARK
+  (Counter-Strike) to STARFIGHTER 1986 (galaxy) and CAROL OF THE NEON BELLS. Detuned saw pads, arpeggios, a pumping
+  bass, an echoing lead, gated-reverb drums. Changing MUSIC STYLE mid-game now swaps the tune at once.
+- Counter-Strike round starts no longer stall (the map was drawn from scratch each round: 300-600 ms; now once per
+  map); bots carry on past a teammate they sidestep instead of turning back into it.
+
 ## 0.57
 
 - **Counter-Strike: orders to the bots** (csorders.js): **1 FOLLOW ME**, **2 HOLD HERE** (stay round where you are
