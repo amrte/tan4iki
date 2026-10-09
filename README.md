@@ -348,6 +348,10 @@ then fire), and it fights differently from then on. Every big attack still flash
 
 Settings → BOSSES: boss rounds on/off, boss every 5–30 stages, boss HP 25%–300%.
 
+**Boss gallery** (Settings → ART → BOSS GALLERY): every boss you've met, tanks and galaxy alike, with its picture from
+before the fight, and once beaten the one from after it (FIRE turns it over; < > turn the pages). A boss you haven't
+met isn't shown at all, not even its name. The book is kept in the browser.
+
 ## Save and load
 
 Every mode can be saved (except online games, the daily challenge and the player-against-player matches: VS
@@ -1020,6 +1024,7 @@ js/editor2.js     construction: a level's size, markers and rules (data, the LEV
 js/intro.js       mode title screens: the layout, Enter/Esc, what music plays when
 js/introart.js    the mode title pictures, one animated scene per mode
 js/bossart.js     boss screens: a picture before each boss and one after it
+js/bossbook.js    the boss gallery (Settings -> ART): the bosses you've met, and only those
 js/galya.js       a secret (no spoilers)
 js/modes.js       game modes: time attack, versus eagles, deathmatch, capture the flag
 js/survival.js    SURVIVAL: 100 waves, entry points all round, twists, perks, drops, terrain rebuilds

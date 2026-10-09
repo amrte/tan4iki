@@ -393,6 +393,10 @@ const SETTINGS_DEF = [
   { key: 'newCards', label: 'FIRST-MEET CARDS', values: ONOFF, def: 'ON' },
   { action: 'resetCards', label: 'SHOW ALL CARDS AGAIN' },
 
+  { section: 'ART' },
+  // bossbook.js: the pictures of every boss you've met (none you haven't)
+  { action: 'bossbook', label: 'BOSS GALLERY' },
+
   { section: 'SOUND' },
   { key: 'volume', label: 'VOLUME', values: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 100, fmt: fmtPct },
   { key: 'engineSound', label: 'ENGINE SOUND', values: ONOFF, def: 'ON' },

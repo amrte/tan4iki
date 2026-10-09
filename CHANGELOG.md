@@ -3,6 +3,16 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.51.4
+
+- **Boss gallery** (Settings → ART → BOSS GALLERY): the picture of every boss you've met, tank bosses and galaxy
+  bosses, as shown before the fight; once you've beaten one, FIRE turns to the picture from after it. Bosses you
+  haven't met aren't in it at all, not even their names: the gallery only counts what you've found (< > turn the
+  pages). Bosses met before this version are filled in from your records.
+- **Maze: new enemies** (the first part of the maze overhaul; the rest — keys, gates, themes, lairs — is coming): the
+  MINOTAUR (a huge hunter you hear before you see, from maze 3), CRAWLERS hiding in brick walls, twin-barrelled
+  SENTRIES at junctions, and the LOCKSMITH, a fast tank that will steal keys once the keys arrive.
+
 ## 0.51.3
 
 - **The title menu holds still** while you go through the modes: CONTINUE (shown for a mode with a save) keeps its

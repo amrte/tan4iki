@@ -1756,6 +1756,8 @@ const Game = {
       this.toKeys();
     } else if (row.action === 'ranks') {
       this.setState('ranks');
+    } else if (row.action === 'bossbook') {
+      this.toBossBook();   // bossbook.js
     } else if (row.action === 'fullscreen') {
       toggleFullscreen();
     } else if (row.action === 'back') {
@@ -1886,6 +1888,7 @@ const Game = {
   pointer(x, y) {
     Sound.unlock();
     if (this.state === 'ranks') { this.setState('settings'); return; }
+    if (this.state === 'bossbook') { this.bookPointer(x, y); return; }
     if (this.state === 'construct') { this.constructPointer(x, y, false); return; }
     if (this.state === 'title' || this.state === 'settings' || this.state === 'shop') { x -= menuOX(); y -= menuOY(); }
     if (this.state === 'shop') {
@@ -1934,6 +1937,7 @@ const Game = {
       case 'shop': this.updateShop(); break;
       case 'keys': this.updateKeys(); break;
       case 'ranks': this.updateRanks(); break;
+      case 'bossbook': this.updateBossBook(); break;
       case 'dailyResult': this.updateDailyResult(); break;
       case 'vsResult': this.updateVsResult(); break;
       case 'modeResult': this.updateModeResult(); break;
@@ -1983,6 +1987,7 @@ const Game = {
       case 'shop': this.renderShop(ctx); break;
       case 'keys': this.renderKeys(ctx); break;
       case 'ranks': this.renderRanks(ctx); break;
+      case 'bossbook': this.renderBossBook(ctx); break;
       case 'dailyResult': this.renderDailyResult(ctx); break;
       case 'vsResult': this.renderVsResult(ctx); break;
       case 'modeResult': this.renderModeResult(ctx); break;
