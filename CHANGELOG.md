@@ -3,6 +3,27 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.51
+
+- **Construction, upgraded:** five pages (MAP, MARKERS, LEVEL, ENEMIES, POWER-UPS; Tab switches).
+  - *Map size* from 13x13 up to 40x30: the editor scrolls with the cursor, and O zooms out to the whole map.
+  - *Markers:* the eagle anywhere (its fortress moves with it), starts for players I-IV, 1-8 enemy entry points,
+    up to 12 power-up spots, where the boss appears.
+  - *Level:* season, weather (auto / clear / night / fog), eagle on or off (off: the enemy hunts you), goal
+    (destroy all, or hold out until the clock runs down), time limit, lives.
+  - *Enemies:* the usual line-up or your own: up to 10 groups, each with count, type (any enemy, the seasons' and
+    terrains' own too), rank (normal / veteran / elite), hits and speed; mixed or in turn; how many at once and how
+    often; a boss (any of the 10) with its HP from 25% to 500%.
+  - *Power-ups:* the usual ones or your choice, and timed drops every 10-90 s; they land on your power-up spots.
+  - A random level fills a big map too. Old levels load and play exactly as before; CUSTOM LEVELS, play from the
+    editor, saves and online play all use the new settings. Walled-in entry points get a way opened, as everywhere.
+- **New mode title pictures:** every mode's picture is redrawn at 240x136 (it was 112x64 at double size), one
+  detailed animated scene each (shown at 2x or 4x on big screens): the classic fortress at dusk, the blueprint on a
+  desk, survival's last stand from above with its twists, a dawn race, an aerial big map with platoons and clouds,
+  the turning war-room table, the climb through the sky, the lamp-lit maze, the tower meadow, deep space, the
+  floodlit stadium, two forts in a thunderstorm, the steel arena, the flag run over the river, the machine's
+  fortress.
+
 ## 0.50.1
 
 - **Fix: enemies walled in at their entry point.** Some maps (wider fields mirrored from a classic one, lava, water,
