@@ -6,7 +6,10 @@
 // Menus (title, settings, shop, score) are drawn in a classic 256x224 frame, centred on the
 // play screen, whose size follows the field size (SCREEN_W x SCREEN_H, see setFieldSize).
 const SW = 256, SH = 224;
-const SAVE_KEY = 'tank1990_save';
+const SAVE_KEY = 'tank1990_save';   // CLASSIC's slot; every other mode adds '_' + its slot (see Game.saveSlotOf)
+// modes saved as a checkpoint (CLASSIC and BIG MAPS save the stage exactly), and the game's state they keep
+const CK_MODES = ['custom', 'survival', 'timeattack', 'sides', 'corridor', 'maze', 'fortress', 'galaxy', 'cpu', 'race'];
+const CK_GAME_KEYS = ['taFrames', 'taCleared', 'round', 'raceTarget', 'tdMap', 'nextSide', 'shopDiscount', 'gxRun', 'gxDate', 'gxClock', 'gxEndless'];
 const menuOX = () => (SCREEN_W - SW) >> 1;
 const menuOY = () => (SCREEN_H - SH) >> 1;
 const STORE = {
@@ -245,6 +248,9 @@ const Game = {
     this.hi = STORE.get('tank1990_hi', 20000);
     const c = STORE.get('tank1990_custom', null);
     this.custom = Array.isArray(c) && c.length === 26 ? c : defaultCustomMap();
+    // a BIG MAPS game in the old single slot moves to its own
+    const old = STORE.get(SAVE_KEY, null);
+    if (old && old.mode && old.mode !== 'classic' && !STORE.get(this.saveKey(old.mode), null)) { STORE.set(this.saveKey(old.mode), old); this.dropSave('classic'); }
     this.toTitle();
   },
 
@@ -283,11 +289,10 @@ const Game = {
     if (this.menuIdx >= this.titleMenu().length) this.menuIdx = 0;
   },
 
-  hasSave() { return !!STORE.get(SAVE_KEY, null); },
-
   titleMenu() {
-    const m = [];
-    if (this.hasSave()) m.push({ label: 'CONTINUE', act: () => this.loadGame() });
+    const m = [], sv = this.savePeek(this.titleSlot());
+    // the picked mode's save, and where it goes on from
+    if (sv) m.push({ label: 'CONTINUE', note: this.saveWhere(sv), save: sv, act: () => this.loadGame() });
     m.push({ label: '1 PLAYER', act: () => this.startGame(1) });
     // left/right picks 2, 3 or 4 players
     m.push({ label: this.multiN + ' PLAYERS', act: () => this.startGame(this.multiN), adjust: d => { this.multiN = (this.multiN - 2 + d + 3) % 3 + 2; } });
@@ -295,12 +300,18 @@ const Game = {
     m.push({ label: this.onlineJoin ? 'ONLINE: JOIN' : 'ONLINE: HOST', act: () => this.openOnline(), adjust: () => { this.onlineJoin = !this.onlineJoin; } });
     // skill level, named as in DOOM: left/right (or A) changes it
     // game mode: left/right (or A) changes it
-    m.push({ label: 'MODE: ' + modeInfo(Config.get('gameMode')).name, mode: true, act: () => Config.step('gameMode', 1), adjust: d => Config.step('gameMode', d) });
+    m.push({ label: 'MODE: ' + modeInfo(Config.get('gameMode')).name, mode: true, act: () => this.stepMode(1), adjust: d => this.stepMode(d) });
     m.push({ label: 'DAILY CHALLENGE', daily: true, act: () => this.startDaily() });
     m.push({ label: Config.get('skill') === AUTO_SKILL ? 'AUTO SKILL' : Config.skill().name, skill: true, act: () => Config.step('skill', 1), adjust: d => Config.step('skill', d) });
     m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
     m.push({ label: 'SETTINGS', act: () => this.toSettings() });
     return m;
+  },
+
+  // the next mode; CONTINUE comes and goes with the mode's save, so the cursor stays on the MODE row
+  stepMode(d) {
+    Config.step('gameMode', d);
+    this.menuIdx = Math.max(0, this.titleMenu().findIndex(it => it.mode));
   },
 
   updateTitle() {
@@ -343,6 +354,7 @@ const Game = {
     const menu = this.titleMenu(), top = this.titleMenuY(), step = this.titleStep();
     menu.forEach((it, i) => {
       Font.draw(ctx, it.label, 88, top + i * step, it.skill ? ['#58D854', '#B8F818', COL.white, COL.orange, COL.red, '#3CBCFC'][Config.get('skill')] : COL.white);
+      if (it.note) Font.draw(ctx, it.note, 88 + (it.label.length + 1) * 8, top + i * step, COL.lgrey);
       if (it.adjust && !it.skill && i === this.menuIdx) Font.draw(ctx, '<>', 88 + it.label.length * 8 + 6, top + i * step, COL.lgrey);
     });
     if (this.titleY === 0) {
@@ -365,6 +377,10 @@ const Game = {
         : mi.key === 'race' ? 'FIRST TO ' + Config.get('raceTarget') + '  1P: VS ' + DM_BOTS + ' BOTS'
         : mi.key === 'custom' ? (Customs.used().length ? Customs.used().length + ' OF ' + CUSTOM_SLOTS + ' SLOTS FILLED' : 'MAKE SOME IN CONSTRUCTION') : '< > CHANGE MODE';
       Font.drawCenter(ctx, best, SW / 2, 213, COL.lgrey);
+    } else if (cur && cur.save && this.titleY === 0) {
+      const [a, b] = this.saveInfo(cur.save);
+      Font.drawCenter(ctx, a, SW / 2, 203, COL.gold);
+      Font.drawCenter(ctx, b, SW / 2, 213, COL.lgrey);
     } else if (cur && cur.daily && this.titleY === 0) {
       const d = dailyToday(), best = STORE.get(DAILY_KEY, {});
       Font.drawCenter(ctx, DAILY_MODS[d.mods[0]].name + ' + ' + DAILY_MODS[d.mods[1]].name, SW / 2, 203, COL.gold);
@@ -398,29 +414,191 @@ const Game = {
   titleMenuY() { return TITLE_MENU_Y - (this.titleMenu().length - 4) * this.titleStep() / 2; },
 
   // ---------------------------------------------------------------- save / load
-  // One save slot: written by SAVE GAME in the pause menu and automatically at every stage start.
-  saveGame() {
-    if (!this.stage || this.stage.over || this.daily || (this.mode && this.mode !== 'classic' && this.mode !== 'bigmaps')) return false;
-    const data = {
-      app: APP_VERSION, time: Date.now(), numPlayers: this.players.length, stageNum: this.stageNum, lastScores: this.lastScores,
-      mode: this.mode || 'classic',
-      players: this.players.map(p => { const o = Object.assign({}, p); delete o.tank; return o; }),
-      base: this.base,
-      stage: this.stage.snapshot(),
-    };
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); return true; } catch (e) { return false; }
+  // One save slot per mode (GALAXY: per run type; CLASSIC keeps the old 'tank1990_save' key), written by SAVE GAME in
+  // the pause menu and automatically at every stage start. CLASSIC and BIG MAPS save the stage exactly as it is; the
+  // other modes save a checkpoint: how things stood at the start of the stage, round, sector or wave (this.ck, taken
+  // in beginStage and when the stage passes a mark, see ckMarkOf), and loading plays on from there.
+  // Never online, in the daily challenge or in a versus match (VS EAGLES, DEATHMATCH, FLAGS: one match between players).
+  saveKind() {
+    if (Net.role) return 'NO SAVES ONLINE';
+    if (this.daily) return 'NO SAVES IN DAILY';
+    if (this.mode === 'classic' || this.mode === 'bigmaps') return 'exact';
+    return CK_MODES.includes(this.mode) ? 'ckpt' : "CAN'T SAVE HERE";
   },
 
-  loadGame() {
-    const s = STORE.get(SAVE_KEY, null);
-    if (!s || !s.stage) return;
+  // the slot a mode saves in, and its storage key
+  saveSlotOf(mode = this.mode, run = this.gxRun) { return mode === 'galaxy' && run && run !== 'campaign' ? 'galaxy_' + run : mode; },
+  saveKey(slot) { return slot === 'classic' ? SAVE_KEY : SAVE_KEY + '_' + slot; },
+  // the slot of the mode picked on the title screen (VS EAGLES alone and CO-OP are both VS CPU; no saves in versus)
+  titleSlot() {
+    const m = Config.get('gameMode');
+    if (m === 'coop' || m === 'eagles') return 'cpu';
+    if (m === 'galaxy') return this.saveSlotOf('galaxy', gxdRun());
+    return CK_MODES.includes(m) || m === 'classic' || m === 'bigmaps' ? m : null;
+  },
+
+  // a slot's save, or null (parsed once, then cached while the stored text stays the same)
+  savePeek(slot) {
+    if (!slot) return null;
+    let raw = null;
+    try { raw = localStorage.getItem(this.saveKey(slot)); } catch (e) { /* storage unavailable */ }
+    const c = this.peekCache || (this.peekCache = {});
+    if (!c[slot] || c[slot].raw !== raw) {
+      let s = null;
+      try { s = raw && JSON.parse(raw); } catch (e) { s = null; }
+      // the old single slot could hold a BIG MAPS game (init moves it to its own slot)
+      if (s && (typeof s !== 'object' || (slot === 'classic' && s.mode && s.mode !== 'classic'))) s = null;
+      c[slot] = { raw, s };
+    }
+    const s = c[slot].s;
+    // GALAXY DAILY: today's only
+    if (s && s.mode === 'galaxy' && s.g && s.g.gxRun === 'daily' && s.g.gxDate !== gxdToday()) { this.dropSave(slot); return null; }
+    return s;
+  },
+  hasSave(slot = this.titleSlot()) { return !!this.savePeek(slot); },
+  dropSave(slot) { try { localStorage.removeItem(this.saveKey(slot)); } catch (e) { /* storage unavailable */ } },
+  writeSave(data) {
+    try { localStorage.setItem(this.saveKey(this.saveSlotOf(data.mode, data.g && data.g.gxRun)), JSON.stringify(data)); return true; } catch (e) { return false; }
+  },
+
+  // where a save goes on from: short ('SECTOR 5', on the title) or long ('START OF SECTOR 5', in the messages)
+  saveWhere(s, long) {
+    const at = s.at || {}, g = s.g || {}, n = s.stageNum | 0, start = long && !s.stage ? 'START OF ' : '';
+    let w = 'STAGE ' + n;
+    if (s.mode === 'galaxy') w = g.gxRun === 'rush' ? 'BOSS ' + n : g.gxRun === 'endless' ? 'WAVE ' + ((at.blk >= 0 ? at.blk : 2 * (n - 1)) * GXD_BLOCK + 1) : 'SECTOR ' + n;
+    else if (s.mode === 'fortress') w = 'WAVE ' + ((at.td && at.td.td ? at.td.td.wave | 0 : 0) + 1);
+    else if (s.mode === 'survival') w = 'WAVE ' + (at.wave || 1);
+    else if (s.mode === 'corridor') return (long ? 'CLIMB ' : '') + (at.climbed | 0) + ' M';
+    else if (s.mode === 'race') w = 'ROUND ' + (g.round || 1);
+    else if (s.mode === 'cpu') w = 'ROUND ' + n;
+    else if (s.mode === 'maze') w = 'MAZE ' + n;
+    else if (s.mode === 'timeattack') w = 'STAGE ' + ((g.taCleared | 0) + 1) + '/' + TA_STAGES;
+    return start + w;
+  },
+  // the title's two lines about a save: what and where, then how many players and when
+  saveInfo(s) {
+    const g = s.g || {}, d = new Date(s.time || 0), two = v => String(v).padStart(2, '0'), n = s.humans || s.numPlayers || 1;
+    const name = modeInfo(s.mode || 'classic').name + (s.mode === 'galaxy' && GXD_NAMES[g.gxRun] && g.gxRun !== 'campaign' ? ' ' + GXD_NAMES[g.gxRun] : '');
+    const map = s.mode === 'fortress' && TD_MAPS[g.tdMap | 0] ? TD_MAPS[g.tdMap | 0].name : '';
+    const b = [map, n > 1 ? n + 'P' : '', s.stage ? 'MID-STAGE' : 'CHECKPOINT', s.time ? d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) : '',
+      s.app && s.app !== APP_VERSION ? 'V' + s.app : ''].filter(x => x);
+    while (b.length > 1 && b.join('  ').length > 31) b.pop();   // what fits on the line
+    return [name + ' - ' + this.saveWhere(s), b.join('  ')];
+  },
+
+  // a checkpoint: the players (deep copies), the game's state for the mode, and `at`: where in the stage (null: its start)
+  ckTake(at) {
+    const keep = o => JSON.parse(JSON.stringify(o)), g = {};
+    for (const k of CK_GAME_KEYS) if (this[k] !== undefined && this[k] !== null) g[k] = keep(this[k]);
+    return {
+      app: APP_VERSION, fmt: 2, time: Date.now(), mode: this.mode, humans: this.players.filter(p => !p.bot).length, stageNum: this.stageNum,
+      lastScores: (this.lastScores || []).slice(), players: this.players.map(p => keep(Object.assign({}, p, { tank: null, tdMenu: null }))),
+      base: keep(this.base), g, at: at || null,
+    };
+  },
+
+  // the marks in a stage that make a new checkpoint: SURVIVAL a wave starting, CORRIDOR a new section, FORTRESS a build
+  // phase starting (its RESTART WAVE point), GALAXY ENDLESS the stage's second block of waves
+  ckMarkOf(st) {
+    if (st.survival) return st.waveBreak ? this.ckMark : 'w' + st.wave;
+    if (st.corridor) return 'c' + st.corridor.shifts;
+    if (st.td) return st.tdSave ? 't' + st.tdSave.wave : this.ckMark;
+    if (st.galaxy && st.galaxy.run === 'endless') return 'b' + st.galaxy.blk;
+    return '';
+  },
+  ckAt(st) {
+    if (st.survival) return { wave: st.wave };
+    if (st.corridor) { const c = st.corridor; return { climbed: st.corridorClimb(), lifeAt: c.lifeAt, kinds: c.kinds.slice(), spawned: c.spawned }; }
+    if (st.td && st.tdSave) {
+      const sv = st.tdSave, own = o => Object.assign({}, o, { owner: o.owner ? o.owner.i : -1 });
+      return { td: { td: sv.td, eagleArmor: sv.eagleArmor, built: sv.built, players: sv.players, towers: sv.towers.map(own), turrets: sv.turrets.map(own),
+        terrain: Array.from(sv.terrain, v => String.fromCharCode(v + 48)).join('') } };
+    }
+    if (st.galaxy && st.galaxy.run === 'endless') return { blk: st.galaxy.blk };
+    return null;
+  },
+  // every frame of play: a new checkpoint (and autosave) when the stage passes a mark
+  ckPoll() {
+    const st = this.stage;
+    if (!this.ck || this.ck.mode !== this.mode || !st || st.over || this.saveKind() !== 'ckpt') return;
+    const m = this.ckMarkOf(st);
+    if (m === this.ckMark) return;
+    this.ckMark = m;
+    this.ck = this.ckTake(this.ckAt(st));
+    this.writeSave(this.ck);
+  },
+  // a freshly built stage, moved on to where the checkpoint was (throws on a save it can't use)
+  ckApply(at) {
+    const st = this.stage, P = this.players;
+    if (st.survival && at.wave > 1) {
+      st.wave = at.wave | 0; st.queue = waveQueue(st.wave); st.seasonEnemies(st.queue); st.total = st.queue.length;
+    } else if (st.corridor && at.climbed > 0) {
+      // the climb so far counts on from where you start
+      const c = st.corridor;
+      c.climbed = at.climbed | 0; c.startY += c.climbed * 16; c.lifeAt = Math.max(5, at.lifeAt | 0); c.spawned = at.spawned | 0;
+      c.kinds = Array.isArray(at.kinds) ? at.kinds.slice() : [];
+    } else if (st.td && at.td) {
+      const o = at.td, terrain = Uint8Array.from(String(o.terrain), ch => ch.charCodeAt(0) - 48), own = x => Object.assign({}, x, { owner: P[x.owner] || null });
+      if (terrain.length !== st.terrain.length || !o.td || !Array.isArray(o.players) || o.players.length !== P.length) throw new Error('fortress save does not fit');
+      st.tdSave = { wave: o.td.wave, td: o.td, eagleArmor: o.eagleArmor, terrain, built: o.built || [], towers: (o.towers || []).map(own), turrets: (o.turrets || []).map(own), players: o.players };
+      st.tdRestartWave();
+      st.origTerrain = st.terrain.slice(); st.popups = [];
+    } else if (st.galaxy && st.galaxy.run === 'endless' && at.blk > st.galaxy.blk) {
+      // the stage's second block: its sector, its six waves, then the boss that ends the stage
+      const g = st.galaxy;
+      g.blk = g.blk0 + 1; g.ew = g.blk * GXD_BLOCK; st.gxdBlock(g);
+      g.banner = { text: 'WAVE ' + (g.ew + 1) + ': ' + GX_SECTORS[g.sec].name, t: 150 };
+    }
+  },
+
+  // SAVE GAME (pause menu) and the autosave at every stage start: true when saved; this.saveMsg says how it went
+  saveGame() {
+    const kind = this.saveKind();
+    let ok = false;
+    if (!this.stage || this.stage.over) this.saveMsg = "CAN'T SAVE HERE";
+    else if (kind === 'exact') {
+      const data = {
+        app: APP_VERSION, fmt: 2, time: Date.now(), numPlayers: this.players.length, stageNum: this.stageNum, lastScores: this.lastScores,
+        mode: this.mode || 'classic',
+        players: this.players.map(p => { const o = Object.assign({}, p); delete o.tank; return o; }),
+        base: this.base,
+        stage: this.stage.snapshot(),
+      };
+      ok = this.writeSave(data);
+      this.saveMsg = ok ? 'GAME SAVED' : 'SAVE FAILED';
+    } else if (kind === 'ckpt' && this.ck && this.ck.mode === this.mode) {
+      ok = this.writeSave(this.ck);
+      this.saveMsg = ok ? 'SAVED: ' + this.saveWhere(this.ck, true) : 'SAVE FAILED';
+    } else this.saveMsg = kind === 'ckpt' ? "CAN'T SAVE HERE" : kind;
+    return ok;
+  },
+  autoSave() { const k = this.saveKind(); if (k === 'exact' || (k === 'ckpt' && this.ck)) this.saveGame(); },
+
+  // CONTINUE: the save of the mode picked on the title screen; one that can't be used is dropped
+  loadGame(slot = this.titleSlot()) {
+    const s = this.savePeek(slot);
+    if (!s) return false;
+    let r = false;
+    try { r = s.stage ? this.loadExact(s) : this.loadCheckpoint(s); } catch (e) { r = false; }
+    if (r === true) return true;
+    this.dropSave(slot);
+    this.stage = null; this.paused = false; this.ckResume = null; this.ck = null;
+    this.toTitle(); this.titleY = 0;
+    this.toast(r || 'SAVE TOO OLD');
+    Sound.play('steel');
+    return false;
+  },
+
+  // the whole stage as it was (CLASSIC, BIG MAPS)
+  loadExact(s) {
+    if (!Array.isArray(s.players) || !s.players.length || typeof s.stage.terrain !== 'string') return false;
     if (Net.role === 'host') Net.hangUp();
     Input.remote = {};
     const n = s.numPlayers || (s.twoP ? 2 : 1);
     this.twoP = n > 1;
     Input.numPlayers = n;
     this.players = s.players.map(p => Object.assign(newPlayer(p.i), p, { tank: null }));
-    this.stageNum = s.stageNum;
+    this.stageNum = Math.max(1, s.stageNum | 0);
     this.lastScores = s.lastScores || [0, 0];
     this.customPending = false;
     // the saved terrain only fits the field size it was saved with
@@ -428,12 +606,52 @@ const Game = {
     this.applyLayout(s.stage.cols, s.stage.rows, s.stage.vcols, s.stage.vrows);
     this.base = Object.assign(newBase(), s.base || {});
     this.stage = new Stage(this.stageNum, LEVELS[(this.stageNum - 1) % LEVELS.length], this.players, { snapshot: s.stage, base: this.base });
+    this.ck = null;
     this.paused = true;
     this.pauseIdx = 0;
     this.pauseMsg = 'GAME LOADED';
     this.pauseMsgT = 120;
     this.openH = SCREEN_H / 2;
     this.setState('play');
+    return true;
+  },
+
+  // a checkpoint: the stage built again from its start (or from the wave, section or block in it), paused
+  loadCheckpoint(s) {
+    const P = s.players, g = s.g && typeof s.g === 'object' ? s.g : {};
+    if (!CK_MODES.includes(s.mode) || !Array.isArray(P) || !P.length || P.length > 4 || !(s.stageNum >= 1)) return false;
+    if (s.mode === 'custom' && !Customs.used().length) return 'NO CUSTOM LEVELS FOR IT';
+    if (Net.role === 'host') Net.hangUp();
+    Input.remote = {};
+    AutoSkill.start();
+    this.endDaily();
+    this.mode = s.mode;
+    const n = Math.max(1, Math.min(4, s.humans || P.filter(p => !p.bot).length || 1));
+    this.twoP = n > 1;
+    Input.numPlayers = n;
+    this.players = P.map((p, i) => Object.assign(newPlayer(i), p, { i, tank: null, tdMenu: null }));
+    this.base = Object.assign(newBase(), s.base || {});
+    this.stageNum = s.stageNum | 0;
+    this.lastScores = Array.isArray(s.lastScores) ? s.lastScores : this.players.map(p => p.score);
+    this.customPending = false; this.shopDiscount = false;
+    this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
+    for (const k of CK_GAME_KEYS) if (g[k] !== undefined) this[k] = g[k];
+    if (this.mode === 'fortress') this.tdMap = Math.max(0, Math.min(TD_MAPS.length - 1, this.tdMap | 0));
+    if (this.mode === 'race') this.raceTarget = this.raceTarget || Config.get('raceTarget');
+    if (this.mode === 'galaxy') {
+      this.gxFresh = false; this.gxRun = GXD_NAMES[this.gxRun] ? this.gxRun : 'campaign'; this.gxClock = this.gxClock || 0;
+      this.gxDate = this.gxDate || gxdToday();
+      if (!this.gxEndless || !Array.isArray(this.gxEndless.order)) this.gxEndless = { order: [] };
+    }
+    this.ckResume = s.at && typeof s.at === 'object' ? s.at : null;
+    this.noBossIntro = true;
+    this.applyLayout();
+    this.beginStage();
+    this.paused = true;
+    this.pauseIdx = 0;
+    this.pauseMsg = 'LOADED: ' + this.saveWhere(s, true);
+    this.pauseMsgT = 150;
+    return true;
   },
 
   // ---------------------------------------------------------------- new game / curtain
@@ -570,9 +788,12 @@ const Game = {
 
   beginStage() {
     // what RESTART ROUND (pause menu) goes back to
-    const keep = o => JSON.parse(JSON.stringify(o));
+    const keep = o => JSON.parse(JSON.stringify(o)), resume = this.ckResume || null;
+    this.ckResume = null;
     this.roundSave = { players: this.players.map(p => keep(Object.assign({}, p, { tank: null }))), base: keep(this.base),
-      customPending: this.customPending, taFrames: this.taFrames, taCleared: this.taCleared };
+      customPending: this.customPending, taFrames: this.taFrames, taCleared: this.taCleared, resume };
+    // the checkpoint SAVE GAME writes in most modes: how things stand as the stage begins (see saveGame)
+    this.ck = this.saveKind() === 'ckpt' ? this.ckTake(resume) : null;
     let map, custom = false, theme;
     if (this.customPending) { map = this.custom; custom = true; this.customPending = false; theme = this.customTheme; }
     else if (this.mode === 'custom') {
@@ -628,6 +849,9 @@ const Game = {
       race: this.mode === 'race' && !custom ? { target: this.raceTarget, round: this.round } : null, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
       blocks, big: objective, theme,
     });
+    // a loaded checkpoint from further in: on to its wave, section or block
+    if (resume) this.ckApply(resume);
+    this.ckMark = null; this.ckMark = this.ckMarkOf(this.stage);
     this.paused = false;
     this.openH = SCREEN_H / 2;
     this.setState('play');
@@ -635,7 +859,7 @@ const Game = {
     const bossPic = boss && this.bossScreensWanted() && !this.noBossIntro;
     this.noBossIntro = false;
     if (bossPic) this.toBossIntro(); else Sound.play('start');
-    if (this.mode === 'classic' || this.mode === 'bigmaps') this.saveGame(); // autosave at every stage start
+    this.autoSave();   // at every stage start
     if (!custom && Net.role !== 'client' && !this.daily && this.mode === 'classic') {
       STORE.set('tank1990_lastStage', this.stageNum);
       if (this.stageNum > STORE.get('tank1990_bestStage', 1)) STORE.set('tank1990_bestStage', this.stageNum);
@@ -668,6 +892,7 @@ const Game = {
       return;
     }
     this.stage.update();
+    this.ckPoll();
     if (this.mode === 'timeattack' && !this.stage.over && !this.stage.clearTimer) this.taFrames++;
     const r = this.stage.result;
     if (r === 'vsRound') { this.vsRoundEnd(); return; }
@@ -706,7 +931,7 @@ const Game = {
     else if (PAUSE_STEP[action]) { Config.step(PAUSE_STEP[action], 1); Sound.play('select'); }
     else if (action === 'SAVE GAME') {
       const ok = this.saveGame();
-      this.pauseMsg = ok ? 'GAME SAVED' : this.daily ? 'NO SAVES IN DAILY' : this.mode !== 'classic' ? 'NO SAVES IN THIS MODE' : 'SAVE FAILED';
+      this.pauseMsg = this.saveMsg;
       this.pauseMsgT = 120;
       Sound.play(ok ? 'pickup' : 'steel');
     } else if (action === 'RESTART ROUND' || action === 'RESTART WAVE') {
@@ -732,7 +957,7 @@ const Game = {
     if (!sv) return;
     this.players.forEach((p, i) => Object.assign(p, JSON.parse(JSON.stringify(sv.players[i])), { tank: null }));
     this.base = JSON.parse(JSON.stringify(sv.base));
-    this.customPending = sv.customPending; this.taFrames = sv.taFrames; this.taCleared = sv.taCleared;
+    this.customPending = sv.customPending; this.taFrames = sv.taFrames; this.taCleared = sv.taCleared; this.ckResume = sv.resume;
     this.noBossIntro = true;   // you've seen it
     this.beginStage();
   },
@@ -1032,7 +1257,7 @@ const Game = {
 
   updateVsResult() {
     if (this.t < 30 || !(Input.menu().ok || this.t > 600)) return;
-    if (this.vsRes.final) { this.stage = null; this.toTitle(); this.titleY = 0; return; }
+    if (this.vsRes.final) { if (this.mode === 'race' && !Net.role) this.dropSave('race'); this.stage = null; this.toTitle(); this.titleY = 0; return; }
     this.round++;
     this.stageNum = this.stageNum % LEVELS.length + 1;
     for (const p of this.players) { p.out = false; p.vsKills = 0; }
@@ -1063,7 +1288,11 @@ const Game = {
   },
 
   updateModeResult() {
-    if (this.t > 60 && Input.menu().ok) { this.stage = null; this.toTitle(); this.titleY = 0; }
+    if (this.t > 60 && Input.menu().ok) {
+      // a run won (FORTRESS held, TIME ATTACK or BOSS RUSH done): nothing left to go on with
+      if (this.modeRes && this.modeRes.done && !Net.role && CK_MODES.includes(this.mode)) this.dropSave(this.saveSlotOf());
+      this.stage = null; this.toTitle(); this.titleY = 0;
+    }
   },
 
   renderModeResult(ctx) {
