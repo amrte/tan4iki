@@ -550,6 +550,13 @@ const Sound = {
       case 'mfMirror': // a mirror wakes: a shimmer
         this.seq([96, 91, 98, 93, 100], 0.035, t, { vol: 0.05, wave: 'p12', flat: true });
         break;
+      case 'mfHiss': // a mosslump's fuse: a long rising hiss
+        this.noise(15000, t, [[0, 0.02], [0.4, 0.14], [1.4, 0.3], [1.5, 0]], 11000);
+        break;
+      case 'mfBoom': // and then it goes: a crump of bricks and earth
+        this.noise(700, t, [[0, 0.8], [0.25, 0.55], [0.7, 0]], 160);
+        this.note(40, t, 0.4, { vol: 0.2, slideTo: 32, wave: 'tri' });
+        break;
       case 'select':
         this.noise(13000, t, [[0, 0.35], [0.03, 0]]);
         break;

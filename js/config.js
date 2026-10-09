@@ -325,6 +325,10 @@ const SETTINGS_DEF = [
   { section: 'MIRROR *', enemy: 31 },
   { key: 'e31Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 31 },
   { key: 'e31On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 31 },
+  { section: 'MOSSLUMP *', enemy: 32 },
+  { key: 'e32Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 32 },
+  { key: 'e32Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 32 },
+  { key: 'e32On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 32 },
 
   { section: 'POWER-UPS' },
   { key: 'helmetTime', label: 'HELMET TIME', values: SECS.slice(1), def: 10, fmt: fmtSec },

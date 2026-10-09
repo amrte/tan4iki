@@ -279,7 +279,7 @@ shells 50% faster, 20% faster, fire more, 2× XP). Both grow more common in late
 
 ### Maze enemies
 
-MAZE mode has five enemies of its own, found nowhere else (each has a page under ENEMY TYPES; NEW ENEMY TYPES
+MAZE mode has six enemies of its own, found nowhere else (each has a page under ENEMY TYPES; NEW ENEMY TYPES
 FEW / MANY / OFF and the skill change how many there are, and so does the number of players). None of them is ever
 right by the start.
 
@@ -291,6 +291,7 @@ right by the start.
 | **Sentry** | maze 2 (most in the machine works) | a twin-barrelled turret on a hazard-striped plate | stands in a corner of a junction and swings to each open way in turn, takes aim (a dotted line down the corridor, its muzzles blinking faster) and fires twice down both lanes, then rests: time your dash. It only wakes when someone is near | 4 / 600 |
 | **Locksmith** | maze 3 | a slim fast tank with a big key for a gun and a swag bag | patrols, then hunts you; touching you it steals one of the team's keys (*KEY STOLEN!*) and runs, always away from you (a key in its colour at the edge of the screen shows where it went); destroy it and the key drops. With no key to take it's a fast hunter | 2 / 700 |
 | **Mirror** | maze 2, in open rooms | your own tank in glass | copies the nearest of you in its room, left for right, a moment late; fires when you fire, so its shells meet yours head on. Catch it out of step, or meet it in the middle and fire first: a hit makes it reel | 2 / 800 |
+| **Mosslump** | maze 2 (most in the dungeon and the sewers) | a dull, scruffy, moss-grown block on four stubby legs | creeps after you without a sound and never fires; it shows no arrow or minimap dot until it's within 3 cells. Right by you it hisses and flashes white, faster and faster, and 1.5 s later it blows up: a crater in the brick (steel holds), and every tank in reach is hit, its own side too. Shoot it while it hisses and it goes up there and then (the points are yours); get out of reach in time and it calms down and creeps after you again | 2 / 600 |
 
 ## Online play
 
@@ -985,7 +986,7 @@ the browser, and **RESET TO DEFAULTS** (top level) restores the classic game.
 | Enemies | tanks per stage (20, from 1 to 99), max on screen (4, up to 20, +2 in 2P), spawn rate, fire rate, base hunting (all 100%), flashing bonus tanks (on), AI personalities (mixed), show AI type (off), new enemy types (normal), veterans + elites (on) |
 | Rocket / shield / sapper / shade tank | speed (100%), shell speed (100%), hits to destroy (1 / 2 / 1 / 1), appears (on) |
 | Mason, mortar, skimmer, flamer, splitter, medic, jammer, spotter, snake | speed (100%), hits to destroy, appears (on) |
-| Minotaur, crawler, sentry, locksmith, mirror (the maze's own) | speed (100%; not the sentry or mirror), hits to destroy (12 / 2 / 4 / 2 / 2), appears (on) |
+| Minotaur, crawler, sentry, locksmith, mirror, mosslump (the maze's own) | speed (100%; not the sentry or mirror), hits to destroy (12 / 2 / 4 / 2 / 2 / 2), appears (on) |
 | Basic / fast / power / armor tank | speed (100%), shell speed (100%), hits to destroy (1 / 1 / 1 / 4) |
 | Power-ups | helmet time (10 s), clock time (10 s), shovel time (20 s), new power-up time (15 s), mines per pickup (3) |
 | Who can collect | for each of the 16 power-ups: **ANYONE** (you and enemies, default), **PLAYER** (only you) or **OFF** (never appears). Presets: *classic power-ups only* and *all power-ups on*. The selected power-up's icon and effect are shown at the bottom of the screen. |
@@ -1032,7 +1033,7 @@ js/reach.js       no dead ends: a way opened from every walled-in entry point; s
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go
 js/maze.js        maze mode: the maze generator, patrols, reinforcements, the exit
-js/mazefoes.js    maze mode's own enemies: the minotaur (and the lair's boss), crawlers, sentries, locksmiths, mirrors
+js/mazefoes.js    maze mode's own enemies: the minotaur (and the lair's boss), crawlers, sentries, locksmiths, mirrors, mosslumps
 js/fortress.js    fortress mode (tower defense): towers, upgrades and specialisations, waves, gold, the build menu, maps
 js/galaxy.js      galaxy mode (a shoot-'em-up): sectors, waves, weapons, pickups, the hangar, its bosses
 js/galaxy2.js     galaxy sectors 7-11 and 14: their bosses, the newer enemies and waves, skies and music
