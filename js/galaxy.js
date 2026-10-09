@@ -1363,25 +1363,4 @@ SONGS.galaxyBoss = { name: 'ALIEN OVERLORD', root: 57, bpm: 140, groove: 'stomp'
   mel: '0-0-7-0-6-0-5-4-' + '0-0-7-0-8-7-6-5-' + '4-4-3-4-5-4-3-1-' + '0---z---y---0---' };
 GROOVES.starfield = { drums: 'k.h.s.hhk.hks.h.', bass: 'r.o.r.o.f.o.f.o.' };
 
-// ------------------------------------------------------------------ its title picture (intro.js)
-INTRO_SCENES.galaxy = function (c, t) {
-  Pix.rect(c, 0, 0, INTRO_W, INTRO_H, '#000010');
-  const r = seeded(99);
-  for (let k = 0; k < 40; k++) { const x = Math.floor(r() * INTRO_W), y = (Math.floor(r() * INTRO_H) + (t >> (k % 2 ? 1 : 2))) % INTRO_H; Pix.rect(c, x, y, 1, 1, k % 3 ? '#7C7C9C' : '#F8F8F8'); }
-  Pix.disc(c, 96, 12, 9, '#C83C14'); Pix.disc(c, 93, 9, 5, '#F87858');
-  // a formation of aliens, swaying; one dives
-  const sw = Math.round(Math.sin(t / 30) * 4);
-  for (let row = 0; row < 3; row++) for (let col = 0; col < 6; col++) {
-    const type = row === 0 ? 'brute' : row === 1 ? 'bug' : 'drone', img = GxGfx.get(type, (t >> 3) & 1);
-    if (row === 2 && col === 4 && (t % 160) > 60) continue;
-    c.drawImage(img, 14 + col * 14 + sw - (img.width >> 1) + 6, 4 + row * 12);
-  }
-  const dv = t % 160;
-  if (dv > 60) c.drawImage(GxGfx.get('drone', (t >> 3) & 1), 70 + Math.round(Math.sin(dv / 8) * 10), 28 + (dv - 60) * 0.5);
-  // your tank below, firing up, a laser beside
-  const tx = 48 + Math.round(Math.sin(t / 40) * 20);
-  c.drawImage(Sprites.tank('p0', (t >> 2) & 1, 0, Config.playerPal(0)), tx, 46);
-  Pix.rect(c, tx + 5, 62, 2, 2, (t >> 1) & 1 ? '#F8B800' : '#F83800'); Pix.rect(c, tx + 9, 62, 2, 2, (t >> 1) & 1 ? '#F83800' : '#F8B800');
-  for (let k = 0; k < 3; k++) { const y = 44 - ((t * 4 + k * 14) % 44); Pix.rect(c, tx + 7, y, 2, 4, '#F8F8F8'); }
-  gxDrawPickup(c, 'box', 20, 40 + ((t >> 2) % 10), t, 'spread');
-};
+// its title picture: introart.js

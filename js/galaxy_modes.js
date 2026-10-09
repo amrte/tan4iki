@@ -248,13 +248,16 @@ Object.assign(Game, {
     gxdRenderModeIntro.call(this, ctx);
     if (this.mode !== 'galaxy') return;
     // the lines under the picture again, a little tighter, with the run and its record
-    const y = INTRO_Y + INTRO_H * 2 + 8, t = this.t, run = this.gxRun || gxdRun(), best = gxdBest(run);
-    ctx.fillStyle = COL.black; ctx.fillRect(0, y - 2, SW, SH - y + 2);
-    Font.drawCenter(ctx, modeInfo('galaxy').desc, SW / 2, y, '#F8F8F8');
-    Font.drawCenter(ctx, 'MUSIC: ' + musicName('galaxy'), SW / 2, y + 10, SKILL_TAGS[Music.skillLevel()][1]);
-    Font.drawCenter(ctx, '< ' + GXD_NAMES[run] + ' >', SW / 2, y + 21, COL.gold);
-    Font.drawCenter(ctx, best && (t >> 7) & 1 ? 'BEST ' + best : GXD_BLURB[run], SW / 2, y + 31, COL.lgrey);
-    if ((t >> 4) & 1 || t < 20) Font.drawCenter(ctx, 'PRESS ENTER', SW / 2, y + 41, COL.red);
+    const L = introLayout(), y = L.ty, cx = L.cx, t = this.t, run = this.gxRun || gxdRun(), best = gxdBest(run);
+    ctx.save();
+    ctx.translate(-menuOX(), -menuOY());   // intro.js lays the screen out on the whole screen
+    ctx.fillStyle = COL.black; ctx.fillRect(0, y - 2, SCREEN_W, SCREEN_H - y + 2);
+    Font.drawCenter(ctx, modeInfo('galaxy').desc, cx, y, '#F8F8F8');
+    Font.drawCenter(ctx, 'MUSIC: ' + musicName('galaxy'), cx, y + 10, SKILL_TAGS[Music.skillLevel()][1]);
+    Font.drawCenter(ctx, '< ' + GXD_NAMES[run] + ' >', cx, y + 21, COL.gold);
+    Font.drawCenter(ctx, best && (t >> 7) & 1 ? 'BEST ' + best : GXD_BLURB[run], cx, y + 31, COL.lgrey);
+    if ((t >> 4) & 1 || t < 20) Font.drawCenter(ctx, 'PRESS ENTER', cx, y + 41, COL.red);
+    ctx.restore();
   },
 
   // the title's record line for GALAXY: the chosen run's best
