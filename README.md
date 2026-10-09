@@ -216,8 +216,12 @@ counter-terrorists in the north (CT spawn, between the two bombsites).
   the player is close to it. The counter-terrorists hold posts round both sites, the two nearest going after any
   terrorist seen or heard near them; in a quiet spell each takes a turn looking out further up its way in, and they
   rotate to a site the terrorists show up at. Bots make way for a teammate (a player too) pushing past them.
+- **Your tank:** a TANK row for each player on the team screen (online friends: up/down) picks the tank you drive:
+  your own (it changes with its stars, as everywhere), one of the four player tanks, or any of the enemies' (BASIC to
+  MOSSLUMP), always in your team's colours. Only the look: every tank drives, shoots and takes hits alike. Remembered.
 - **Combat** as in versus: a hit destroys a tank, an armour plate soaks one; friendly fire is off (a teammate's shell
-  stops on you and does nothing); no power-ups on the map (everything is bought); every tank drives and reloads alike
+  stops on you and does nothing); one shell in the air at a time (two with two stars), flying at most 10 tiles, and a FIRE
+  pressed while it's still out fires the moment it can; no power-ups on the map (everything is bought); every tank drives and reloads alike
   (no XP perks in a match). **B** throws a grenade if you have one (smoke or flashbang, in the order you bought them), else drops a mine, else fires; on a site with
   the bomb, or on a planted bomb as a counter-terrorist, B plants or defuses instead.
 
@@ -1182,7 +1186,9 @@ light, tanks driving and firing, smoke, sparks and explosions:
 - **Counter-Strike**: noon on Dust 2: the long doors and a red A on the wall; a terrorist plants the bomb, a
   counter-terrorist comes in behind smoke to defuse it, or (every other time) is shot and the bomb goes off.
 
-**The soundtrack** comes in three styles (Settings → MUSIC STYLE):
+**The soundtrack** comes in three styles (Settings → MUSIC STYLE). The stage-start fanfare before every round plays in
+the style chosen too: the NES original, a rock version (twin lead guitars, chugging power chords, a tom fill into the
+final hits) or a synthwave one (a saw lead over pads, a pumping octave bass, gated drums, a bell on the last chord).
 
 - **ROCK** (the default): hard rock and heavy metal in the manner of the 80s and 90s, every tune written for this
   game — galloping riffs, palm-muted chugs, power chords, twin-guitar harmony leads, double-kick drums and shred
@@ -1427,6 +1433,7 @@ js/audio.js       NES-style Web Audio synth (SFX, jingles, engine)
 js/music.js       the soundtrack: a song per mode, a version per skill, and the sequencer that plays it
 js/rock.js        the ROCK soundtrack: hard rock and metal versions of every tune, and the guitars, bass and drums that play them
 js/synthwave.js   the SYNTHWAVE soundtrack: synthwave, outrun and darksynth versions of every tune, and the synths and drum machine that play them
+js/jingles.js     the stage-start fanfare in the ROCK and SYNTHWAVE styles
 js/input.js       keyboard / gamepad / touch
 js/stage.js       gameplay: terrain, movement, enemy types, bullets, power-ups, XP, rendering
 js/ai.js          enemy personalities (wander / rush / hunt / snipe) and path finding

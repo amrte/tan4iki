@@ -21,6 +21,9 @@ const CS_BUY_TIME = 600, CS_ROUND_TIME = 115 * 60, CS_END_TIME = 330, CS_BOMB_TI
 // a flashbang: thrown up to six tiles, it bangs after a moment and blinds every tank that can see the bang within its
 // reach (the longer the nearer, and the more it was looking that way)
 const CS_FLASH_R = 120, CS_FLASH_FUSE = 24, CS_FLASH_TIME = 200, CS_FLASH_THROW = 96;
+// shells fly at most this far (px): a tank has one in the air at a time (two with two stars), and on these open maps a
+// miss used to fly a whole screen and more before you could fire again
+const CS_SHELL_RANGE = 168, CS_FIRE_BUFFER = 14;
 const CS_PLANT_TIME = 180, CS_DEFUSE_TIME = 600, CS_KIT_TIME = 300, CS_BOMB_R = 76, CS_SMOKE_TIME = 900, CS_SMOKE_R = 26;
 const CS_VIS_R = 18, CS_VIS_EVERY = 6, CS_HEAR = 200, CS_KEY = 'tank1990_cs';
 const CS_MONEY = { start: 800, max: 16000, win: 3250, winBomb: 3500, lose: 1400, loseStep: 500, loseMax: 3400, plant: 300, plantTeam: 800, defuse: 300 };
@@ -48,6 +51,16 @@ const CS_BOT_NAMES = ['ALEX', 'BORIS', 'CHUCK', 'DIMA', 'EDDIE', 'FINN', 'GUS', 
 PALS.csT = [null, '#FCD8A8', '#D86018', '#6C1C00'];
 PALS.csCT = [null, '#C0E0FC', '#3078E8', '#0C2878'];
 const CS_COL = { T: '#F88838', CT: '#58A8F8', Tdk: '#A84810', CTdk: '#1C58B8' };
+// the tank a player drives in a match: the player's own (as its stars make it), one of the four player tanks, or any
+// enemy's; always in the team's colours (an enemy's own accent colours past the three a team has are kept)
+const CS_LOOKS = ['star', 'p0', 'p1', 'p2', 'p3'].concat(ENEMY.map((e, i) => 'e' + i));
+const csLookName = k => (k === 'star' ? 'PLAYER (STARS)' : k[0] === 'p' ? 'PLAYER MK ' + ['I', 'II', 'III', 'IV'][+k[1]] : ENEMY[+k.slice(1)].name);
+function csLookOf(p) {
+  if (!p || !p.csLook || p.csLook === 'star' || !TANK_GRIDS[p.csLook]) return null;
+  const team = csPalKey(p), key = team + '_' + p.csLook;
+  if (!PALS[key]) { const own = PALS[(p.csLook[0] === 'e' && ENEMY[+p.csLook.slice(1)].pal) || 'silver'] || []; PALS[key] = [null].concat(PALS[team].slice(1, 4), own.slice(4)); }
+  return [p.csLook, key];
+}
 const csSide = (squad, half) => ((squad ^ half) === 0 ? 'T' : 'CT');
 const csOther = team => (team === 'T' ? 'CT' : 'T');
 const csName = p => (p ? p.csName || ROMAN[p.i] + '-PLAYER' : '');
@@ -72,7 +85,9 @@ Object.assign(Game, {
     if (local.length) groups.push({ members: local, side: o.side === 'CT' ? 'CT' : 'T', ready: false, local: true });
     for (const p of this.players) if (Input.remote[p.i]) groups.push({ members: [p.i], side: groups.length % 2 ? 'CT' : 'T', ready: false });
     this.curtain.cs = { groups, row: 0, target: [5, 8, 13].includes(o.target) ? o.target : 8, size: [3, 4, 5].includes(o.size) ? o.size : 5,
-      map: CS_MAP_ORDER.includes(o.map) || o.map === 'random' ? o.map : 'dust2' };
+      map: CS_MAP_ORDER.includes(o.map) || o.map === 'random' ? o.map : 'dust2', looks: {} };
+    for (const i of local) this.curtain.cs.looks[i] = CS_LOOKS.includes((o.looks || {})[i]) ? o.looks[i] : 'star';
+    for (const p of this.players) if (Input.remote[p.i]) this.curtain.cs.looks[p.i] = 'star';
   },
 
   csTeamsUpdate() {
@@ -80,9 +95,14 @@ Object.assign(Game, {
     for (const g of C.groups) {
       const r = g.local ? m : (Input.remote[g.members[0]] || {}).menu || {};
       if (g.local && m.back) { this.toTitle(); return; }
-      if (g.local && (m.up || m.down)) { C.row = (C.row + (m.down ? 1 : 3)) % 4; Sound.play('select'); }
+      // the rows: side, map, rounds, team size, then a TANK row for each player at this computer
+      const rows = 4 + (g.local ? g.members.length : 0), look = (i, d) => { C.looks[i] = CS_LOOKS[(CS_LOOKS.indexOf(C.looks[i] || 'star') + d + CS_LOOKS.length) % CS_LOOKS.length]; Sound.play('select'); };
+      if (g.local && (m.up || m.down)) { C.row = (C.row + (m.down ? 1 : rows - 1)) % rows; Sound.play('select'); }
+      // an online friend: left/right the side, up/down the tank
+      if (!g.local && !g.ready && (r.up || r.down)) look(g.members[0], r.down ? 1 : -1);
       const dir = r.left ? -1 : r.right ? 1 : 0;
-      if (dir && !g.ready) {
+      if (dir && !g.ready && g.local && C.row >= 4) look(g.members[C.row - 4], dir);
+      else if (dir && !g.ready) {
         if (!g.local || C.row === 0) g.side = csOther(g.side);
         else if (C.row === 1) { const all = CS_MAP_ORDER.concat('random'); C.map = all[(all.indexOf(C.map) + dir + all.length) % all.length]; }
         else if (C.row === 2) C.target = [5, 8, 13][([5, 8, 13].indexOf(C.target) + dir + 3) % 3];
@@ -101,11 +121,12 @@ Object.assign(Game, {
     for (const g of C.groups) for (const i of g.members) side[i] = g.side;
     const n0 = humans.filter(p => side[p.i] !== 'CT').length, size = Math.max(C.size, n0, humans.length - n0);
     const local = C.groups.find(g => g.local);
-    STORE.set(CS_KEY, { target: C.target, size: C.size, side: local ? local.side : 'T', map: C.map || 'dust2' });
+    const looks = {}; if (local) for (const i of local.members) looks[i] = C.looks[i];
+    STORE.set(CS_KEY, { target: C.target, size: C.size, side: local ? local.side : 'T', map: C.map || 'dust2', looks });
     const map = C.map === 'random' ? CS_MAP_ORDER[rnd(CS_MAP_ORDER.length)] : CS_MAPS[C.map] ? C.map : 'dust2';
     this.csMatch = { target: C.target, size, round: 1, half: 0, score: [0, 0], streak: [0, 0], hist: [], id: 1 + rnd(1e6), map };
     this.csSeen = {};
-    for (const p of humans) p.csSquad = side[p.i] === 'CT' ? 1 : 0;
+    for (const p of humans) { p.csSquad = side[p.i] === 'CT' ? 1 : 0; p.csLook = (C.looks || {})[p.i] || 'star'; }
     let k = 0;
     for (const sq of [0, 1]) {
       const have = this.players.filter(p => p.csSquad === sq).length;
@@ -183,7 +204,7 @@ function csTitleLine(rec) {
 Object.assign(Stage.prototype, {
   csSetup(players, M) {
     this.players = players; this.twoP = true;
-    this.vs = 'cs'; this.noBase = true; this.baseAlive = false; this.hardSteel = true;
+    this.vs = 'cs'; this.noBase = true; this.baseAlive = false; this.hardSteel = true; this.shellRange = CS_SHELL_RANGE;
     this.queue = []; this.total = 0; this.weather = null; this.pads = []; this.powerup = null; this.secrets = []; this.qblocks = [];
     // the map exactly as drawn (the stage's own setup put a fortress in and cleared entry points)
     const blocks = csMapBlocks();
@@ -405,6 +426,22 @@ Object.assign(Stage.prototype, {
       default: p.weapon = it.weapon; p.wlv = { [it.weapon]: it.mk }; if (t) t.wcool = 0;
     }
     return '';
+  },
+
+  // FIRE pressed while your shell's still in the air (or the gun reloading) isn't lost: it fires as soon as it can, within
+  // a quarter of a second (the cannon; the weapons have their own hold-to-fire)
+  csFireBuffer(p, inp) {
+    const t = p.tank;
+    if (!t || (p.weapon && p.weapon !== 'cannon') || this.cs.phase !== 'live') return inp;
+    if (t.fbAt === this.frame) return t.fbFire ? Object.assign({}, inp, { firePressed: true }) : inp;   // read once a frame
+    t.fbAt = this.frame; t.fbFire = false;
+    const can = t.bullets < (t.boost.rapid ? Math.max(4, t.maxBullets) : t.maxBullets) && t.cool === 0;
+    if (inp.firePressed) { if (!can) t.fireBuf = CS_FIRE_BUFFER; return inp; }
+    if (t.fireBuf > 0) {
+      t.fireBuf--;
+      if (can) { t.fireBuf = 0; t.fbFire = true; return Object.assign({}, inp, { firePressed: true }); }
+    }
+    return inp;
   },
 
   // ------------------------------------------------------------ B: plant, defuse, smoke (before the stage sees it)
@@ -718,7 +755,8 @@ Object.assign(Stage.prototype, {
         const p = this.csP(m.i), age = this.frame - m.at;
         if (!p) continue;
         ctx.globalAlpha = Math.max(0, 0.7 - age / 340);
-        ctx.drawImage(Sprites.outline(Sprites.tank('p0', 0, m.dir, csPalKey(p)), CS_COL[p.csTeam]), m.x - 1, m.y - 1);
+        const lk = csLookOf(p);
+        ctx.drawImage(Sprites.outline(lk ? Sprites.tank(lk[0], 0, m.dir, lk[1]) : Sprites.tank('p0', 0, m.dir, csPalKey(p)), CS_COL[p.csTeam]), m.x - 1, m.y - 1);
         ctx.globalAlpha = 1;
         if ((this.frame >> 4) & 1) Font.draw(ctx, '?', m.x + 5, m.y + 4, CS_COL[p.csTeam]);
       }
@@ -986,7 +1024,7 @@ Object.assign(Stage.prototype, {
       fd: C.feed, nt: C.notes, sm: C.smokes.map(s => [Math.round(s.x), Math.round(s.y), s.t]), nz: C.noise.map(n => [n.x, n.y, n.team, n.t]),
       by: Object.keys(C.buy).map(i => [+i, C.buy[i].idx, C.buy[i].ready ? 1 : 0, C.buy[i].msgT > 0 ? C.buy[i].msg : '']),
       mt: this.mines.map(m => (m.owner && m.owner.player ? m.owner.player.csTeam : '')),
-      pl: this.players.map(p => [p.i, p.csTeam, p.csSquad, p.csMoney, p.csK, p.csD, p.csMvp, p.csKit ? 1 : 0, p.csSmokes || 0, p.csName || '', p.csRoundK || 0, p.csSpec, p.mines || 0, p.csFlashes || 0, p.csBlind || 0]),
+      pl: this.players.map(p => [p.i, p.csTeam, p.csSquad, p.csMoney, p.csK, p.csD, p.csMvp, p.csKit ? 1 : 0, p.csSmokes || 0, p.csName || '', p.csRoundK || 0, p.csSpec, p.mines || 0, p.csFlashes || 0, p.csBlind || 0, p.csLook || 'star']),
       fb: (C.flashes || []).map(f => [Math.round(f.x), Math.round(f.y), f.t]) };
   },
   applyCsView(v) {
@@ -1001,7 +1039,7 @@ Object.assign(Stage.prototype, {
     this.mines.forEach((m, k) => { m.team = v.mt[k] || ''; });
     for (const a of v.pl) {
       const p = this.players.find(q => q.i === a[0]);
-      if (p) Object.assign(p, { csTeam: a[1], csSquad: a[2], csMoney: a[3], csK: a[4], csD: a[5], csMvp: a[6], csKit: !!a[7], csSmokes: a[8], csName: a[9] || undefined, csRoundK: a[10], csSpec: a[11], mines: a[12], csFlashes: a[13] || 0, csBlind: a[14] || 0 });
+      if (p) Object.assign(p, { csTeam: a[1], csSquad: a[2], csMoney: a[3], csK: a[4], csD: a[5], csMvp: a[6], csKit: !!a[7], csSmokes: a[8], csName: a[9] || undefined, csRoundK: a[10], csSpec: a[11], mines: a[12], csFlashes: a[13] || 0, csBlind: a[14] || 0, csLook: a[15] || 'star' });
     }
     this.vs = 'cs'; this.noBase = true; this.hardSteel = true; this.weather = null;
   },
@@ -1046,8 +1084,9 @@ Object.assign(Game, {
       for (const g of C.groups) if (g.side === side) for (const i of g.members) humans.push([i, g.ready]);
       const size = Math.max(C.size, humans.length);
       for (let s = 0; s < size; s++) {
-        const y = 66 + s * 15, h = humans[s];
-        ctx.drawImage(Sprites.tank('p0', (t >> 3) & 1 && h ? 1 : 0, k ? 3 : 1, side === 'T' ? 'csT' : 'csCT'), x, y - 4);
+        const y = 67 + s * 14, h = humans[s];
+        const lk = h && csLookOf({ csLook: (C.looks || {})[h[0]], csTeam: side });
+        ctx.drawImage(lk ? Sprites.tank(lk[0], (t >> 3) & 1, k ? 3 : 1, lk[1]) : Sprites.tank('p0', (t >> 3) & 1 && h ? 1 : 0, k ? 3 : 1, side === 'T' ? 'csT' : 'csCT'), x, y - 4);
         if (h) {
           const me = h[0] === guest || (guest < 0 && !Input.remote[h[0]]);
           Font.draw(ctx, ROMAN[h[0]] + (h[0] === guest ? ' YOU' : ''), x + 20, y, h[1] ? '#58D854' : me && (t >> 4) & 1 ? COL.white : COL.gold);
@@ -1059,14 +1098,26 @@ Object.assign(Game, {
     const local = C.groups.find(g => g.local);
     const rows = [['SIDE', local ? (local.side === 'T' ? 'TERRORISTS' : 'COUNTER-T.') : '-'], ['MAP', rand ? 'RANDOM' : CS_MAPS[CS_MAPKEY].name],
       ['ROUNDS TO WIN', String(C.target)], ['TEAM SIZE', C.size + ' V ' + C.size]];
-    rows.forEach(([label, val], r) => {
-      const y = 142 + r * 12, sel = guest < 0 && r === C.row;
+    if (local) for (const i of local.members) rows.push(['TANK ' + ROMAN[i], csLookName((C.looks || {})[i] || 'star'), i]);
+    if (guest >= 0) rows.push(['YOUR TANK', csLookName((C.looks || {})[guest] || 'star'), guest]);
+    const gap = Math.min(12, Math.floor(50 / Math.max(1, rows.length - 1)));
+    rows.forEach(([label, val, who], r) => {
+      const y = 134 + r * gap, sel = guest < 0 && r === C.row;
+      if (who !== undefined) {
+        // a tank row: the tank in its team's colours, its name on the right
+        const side = (C.groups.find(g => g.members.includes(who)) || {}).side || 'T', lk = csLookOf({ csLook: C.looks[who], csTeam: side });
+        if (sel) Font.draw(ctx, '>', 24, y, COL.gold);
+        Font.draw(ctx, label, 36, y, COL.white);
+        ctx.drawImage(lk ? Sprites.tank(lk[0], 0, 1, lk[1]) : Sprites.tank('p0', 0, 1, side === 'T' ? 'csT' : 'csCT'), 104, y - 4);
+        Font.drawRight(ctx, sel || who === guest ? '<' + val + '>' : val, SW - 4, y, COL.gold);
+        return;
+      }
       if (sel) Font.draw(ctx, '>', 24, y, COL.gold);
       Font.draw(ctx, label, 36, y, COL.white);
       Font.draw(ctx, (sel ? '<' : ' ') + val + (sel ? '>' : ''), 148, y, r === 0 && local ? CS_COL[local.side] : COL.gold);
     });
     const wait = C.groups.filter(g => !g.ready).map(g => ROMAN[g.members[0]]);
-    Font.drawCenter(ctx, guest >= 0 ? 'LEFT/RIGHT: SIDE  FIRE: READY' : 'ARROWS: CHANGE  FIRE: READY', SW / 2, 192, COL.lgrey);
+    Font.drawCenter(ctx, guest >= 0 ? 'L/R: SIDE  U/D: TANK  FIRE: READY' : 'ARROWS: CHANGE  FIRE: READY', SW / 2, 192, COL.lgrey);
     if (C.groups.length > 1 && wait.length && (t >> 5) & 1) Font.drawCenter(ctx, 'WAITING FOR ' + wait.join(' '), SW / 2, 204, '#7C7C7C');
     ctx.restore();
   },
@@ -1162,7 +1213,7 @@ Object.assign(Game, {
     const inp = input.call(this, i), st = Game.stage;
     if (!st || !st.cs || Game.state !== 'play' || Net.role === 'client') return inp;
     const p = st.csP(i);
-    return p && !p.bot && p.tank ? st.csInput(p, inp) : inp;
+    return p && !p.bot && p.tank ? st.csInput(p, st.csFireBuffer(p, inp)) : inp;
   };
   // what your team can't see isn't drawn: enemy tanks, shells and missiles out of sight, their mines
   const render = P.render;
@@ -1205,7 +1256,7 @@ Object.assign(Game, {
     if (typeof Game === 'undefined' || Game.mode !== 'cs' || !this.player) return;
     const lv = this.player.level || 0;
     this.speed = 0.75 * Config.scale('pSpeed');
-    this.bulletSpeed = (lv >= 1 ? 4.5 : 2.5) * Config.scale('pShell');
+    this.bulletSpeed = (lv >= 1 ? 4.5 : 3.5) * Config.scale('pShell');   // (the plain shell quicker than elsewhere: these maps are wide open)
     this.reload = 14;
   };
   // the teams' colours on every tank, whoever drives it

@@ -3,6 +3,18 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.60
+
+- **Counter-Strike: pick your tank** on the team screen (a TANK row for each player; online friends use up/down):
+  your own, one of the four player tanks or any enemy's, in your team's colours. The look only; remembered.
+- **Counter-Strike: no more "can't shoot".** A tank has one shell in the air at a time (two with two stars), and on
+  these open maps a miss flew on for a whole screen and more, up to 1.7 s, while FIRE did nothing. Now a shell flies at
+  most 10 tiles, the plain shell is quicker (3.5, was 2.5; a star still makes it 4.5), and FIRE pressed while your shell
+  is still out isn't lost: it fires the moment it can (within a quarter of a second). Pressing away: 13 shots in 10 s
+  without a star (was 6), 16 with one (was 11).
+- **The stage-start fanfare in your MUSIC STYLE:** with ROCK or SYNTHWAVE the tune before every round (classic and
+  every mode that plays it) is a rock or a synthwave version of it; CHIPTUNE keeps the original.
+
 ## 0.59
 
 - **CONTROLS page** instead of the line of keys under the game: in the pause menu (the keys of the players in this

@@ -1016,7 +1016,7 @@ class Stage {
     // out of sight for ages, and you can't fire again until it lands
     if (FW > VIEW_W || FH > VIEW_H) {
       b.dist = (b.dist || 0) + dist;
-      if (b.dist > Math.max(VIEW_W, VIEW_H) + 32) { this.killBullet(b, false); return; }
+      if (b.dist > (this.shellRange || Math.max(VIEW_W, VIEW_H) + 32)) { this.killBullet(b, false); return; }
     }
     this.bulletPad(b);
     if (b.x < 0 || b.y < 0 || b.x > FW - 4 || b.y > FH - 4) {
@@ -1600,6 +1600,8 @@ class Stage {
     } else if (t.isPlayer) {
       spec = 'p' + t.player.level;
       pal = Config.playerPal(t.player.i);
+      const lk = this.cs && typeof csLookOf === 'function' && csLookOf(t.player);   // Counter-Strike: the tank you picked
+      if (lk) [spec, pal] = lk;
     } else {
       spec = 'e' + t.type;
       if (t.bonus && ((this.frame >> 3) & 1)) pal = 'red';
