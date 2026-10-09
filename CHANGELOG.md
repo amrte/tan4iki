@@ -3,6 +3,21 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.47
+
+- **Saving in every mode.** Each mode (and each galaxy run type) has its own slot. Classic and big maps still save
+  exactly where you are; every other mode saves a checkpoint at the start of the stage, round, wave, corridor section,
+  fortress build phase or galaxy sector (after the hangar), with scores, lives, upgrades, perks and credits. SAVE
+  GAME in the pause menu says where you'll resume; autosave at every checkpoint; CONTINUE on the title loads the
+  selected mode's save and shows where. Not online, not in the daily challenge, not in player-vs-player matches.
+- **Galaxy is much harder on the harder skills.** NIGHTMARE!: enemies and bosses 1.85x hit points, 2.5x fire rate,
+  faster shots, more shots on screen, 65% of the small fry's shots aimed at you, 30% less loot (ULTRA-VIOLENCE in
+  between). Extra lives every 250K in galaxy when set to EVERY.
+- **Galaxy's hangar takes credits**, not points: coins (10), gems (40), a little per kill and boss bounties. Upgrades
+  cost more (a full set ~18500 credits, around sector 10) and firepower and rapid fire have 7 levels.
+- **Galaxy bosses redrawn**: about 30% bigger, far more detailed (shading, panels, lights, animated parts), with
+  visible damage each phase, ~35% more hit points and an extra attack in phase 3. The giant head's hands too.
+
 ## 0.46
 
 - **Galaxy: a gameplay overhaul.**

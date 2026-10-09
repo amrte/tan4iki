@@ -117,8 +117,8 @@ Maze and VS CPU, and no saving outside Classic and Big maps.
 |---|---|---|
 | **Classic** | 1-4 | the game as always |
 | **Survival** | 1-4 | endless waves on one map; wave *n* brings 6 + 2*n* tanks and later waves bring the newer, tougher enemies. After each wave a 4-second breather, the fortress walls are patched, and every 5 waves everyone gets a tank. The side panel's flag shows the wave. Ends when the eagle falls or everyone is out; best wave and score are kept |
-| **Any side** | 1-4 | the classic stages with the map turned round: your eagle is on the left, right or top edge (a new one every stage; the curtain says which), you start beside it and the enemy comes in from the edge across. Base upgrades, the minefield, the eagle gun and supply drops all face the right way. Shop as in Classic, no saves |
-| **Custom levels** | 1-4 | your levels from CONSTRUCTION, every filled slot in turn (see below); shop as in Classic, no saves |
+| **Any side** | 1-4 | the classic stages with the map turned round: your eagle is on the left, right or top edge (a new one every stage; the curtain says which), you start beside it and the enemy comes in from the edge across. Base upgrades, the minefield, the eagle gun and supply drops all face the right way. Shop as in Classic |
+| **Custom levels** | 1-4 | your levels from CONSTRUCTION, every filled slot in turn (see below); shop as in Classic |
 | **Big maps** | 1-4 | every stage is a big scrolling map (see below); shop and saves work as in Classic |
 | **Corridor** | 1-4 | the usual width, endless height: no eagle, just climb. The world is three map sections stacked (random classic maps, mirrored outwards on wider fields); once the whole team has climbed out of the bottom section it drops away and a fresh section appears on top, so the climb never ends and nobody gets left behind. Enemies keep arriving just above the screen, faster and tougher the higher you get (the flag shows the level: one per section climbed). The enemy grows slowly with the climb: only basic tanks at first, then fast (10 tiles), power (26) and armor (45), then the newer types one at a time every 20 tiles from 52 (rocket first), each starting rare and taking 40 tiles to reach its full share; veterans from about 100 tiles and elites from 230. A gold *NAME AHEAD!* tells you when a new kind joins; ones left far below drop out. A destroyed tank comes back at the bottom of the screen; every 5 sections everyone gets a tank. The border above the field shows how far you've climbed (in tiles) and your best; ends when everyone is out |
 | **Maze** | 1-4 | a huge labyrinth, a new one every stage and bigger each time (17 x 11 cells at first, growing by 3 x 2 a stage up to 34 x 22; a cell is a 2-tile passage). You start in the bottom-left corner; the one way out, a chequered **EXIT** gate, is on the outer edge as far from the start as the maze allows. The walls are steel that nothing can break (not power shells, rockets or blasts), with the odd stretch of brick you can shoot through for a shortcut; trees and ice fill some passages. Enemy tanks (26 in the first maze, 6 more each maze, up to 100) patrol along the way, half of them from the start (none near the start), and come for you once you get close or shoot them; more turn up out of sight as you go (the side panel counts them). Lost for too long (1 minute on the easiest skill, 3 on the hardest) and the exit sends a signal: a blinking green marker at the edge of the screen. Reaching the exit is worth 2000 plus a time bonus, and every enemy left goes up in smoke; then the tally, the shop and the next maze. A destroyed tank comes back where it was a few seconds before. The border shows the maze number and the time; the best run (mazes escaped) is kept |
@@ -293,14 +293,23 @@ Settings → BOSSES: boss rounds on/off, boss every 5–30 stages, boss HP 25%�
 
 ## Save and load
 
-Pause the game (Enter, P or Esc) and choose **SAVE GAME** to save exactly where you are: the stage, terrain,
-tanks, scores, lives, upgrades and mines. The game also saves automatically at the start of every stage.
+Every mode can be saved (except online games, the daily challenge and the player-against-player matches: VS
+EAGLES for 2-4, DEATHMATCH, FLAGS). Each mode has its own save slot (and each GALAXY run type: campaign, boss rush,
+endless, daily — a daily run's save only lasts its day).
+
+- **Classic and big maps:** pause (Enter, P or Esc) and choose **SAVE GAME** to save exactly where you are: the stage,
+  terrain, tanks, scores, lives, upgrades and mines.
+- **Every other mode** saves a *checkpoint*: the start of the current stage, round, wave, corridor section, fortress
+  build phase or galaxy sector (after the hangar, so what you bought is kept), with everyone's score, lives, upgrades,
+  weapons, perks and credits as they were then. SAVE GAME says where you'll resume ("SAVED: START OF SECTOR 5").
+- The game also saves automatically at the start of every stage (and at each of those checkpoints).
 
 **RESTART ROUND** in the pause menu (press it twice) starts the stage over, with everyone's score, lives, stars and
 weapons as they were when it began. In Fortress it's **RESTART WAVE**: back to the build phase before the current wave,
 with the towers, gold and eagle HP you had then. Not in the daily challenge.
-Choose **CONTINUE** on the title screen to resume; the game opens paused so you can get ready.
-There is one save slot, kept in the browser.
+Choose **CONTINUE** on the title screen to resume the save of the mode that's selected (it shows where, e.g.
+"CONTINUE SECTOR 5"); the game opens paused so you can get ready. Saves are kept in the browser; a save from an older
+version that can't be used any more is dropped with "SAVE TOO OLD".
 
 The stage picker at the start of a new game remembers the stage you last played. You can pick any of the
 35 maps, or any stage up to the furthest one you have reached (up to 99).
@@ -494,6 +503,12 @@ up. 1-4 players together, here or online.
 - **Co-op:** loot from your kills is yours for 3 s (a small mark in your colour); when a player loses their last
   ship an escape pod drifts about for 25 s: hover over it for 1.5 s to bring them back.
 - Big kills shake the screen and freeze it for a moment; losing a ship slows time down.
+- **The skill** goes much further here than in the tank game: on ULTRA-VIOLENCE and NIGHTMARE! enemies and bosses have
+  1.4x / 1.85x the hit points, fire 1.7x / 2.5x as often with faster shots, more of their shots are up at once, the
+  small fry aim at you (40% / 65% of their shots) and less loot drops. I'M TOO YOUNG TO DIE is gentler than before.
+  With EXTRA LIFE set to EVERY, galaxy gives a life every 250K (its scores run much higher).
+- **The bosses** are bigger and more detailed, show their damage phase by phase (cracks, sparks, holes, broken
+  parts), and have about a third more hit points and one more attack in their last phase.
 
 - **Sectors:** twelve, each with six waves and a boss: Moon Orbit, Red Planet, Asteroid Belt, Ice Giant, Nebula,
   The Core, Earth Orbit, Time Vortex (a swirling tunnel), Saturn Rings, Cyberspace (a green grid and falling code),
@@ -533,7 +548,8 @@ up. 1-4 players together, here or online.
 - **Pickups:**
   - A *gift box* gives its weapon (its letter is on it); the same weapon again adds a power level.
   - A green *power cell* adds a power level.
-  - *Coins* and *gems* are points, which are also your money.
+  - *Coins* and *gems* are points and the hangar's money: credits (a coin 10, a gem 40; the enemy you shoot down pays
+    a little, every boss pays everyone a bounty).
   - Also *shields*, *bombs* and *extra lives*.
   - Losing a ship costs two power levels.
   - When a boss goes down, all its loot flies to your ships before the sector ends (a power cell for each ship).
@@ -559,8 +575,9 @@ up. 1-4 players together, here or online.
       while they're alive. It breathes you in and spits tiles. In its last phase, its brain shows.
     - **CATS** (sector 12): "HOW ARE YOU GENTLEMEN !!" "ALL YOUR BASE ARE BELONG TO US." Time bombs counting down
       from 3 (shoot them to defuse), "MAIN SCREEN TURN ON." and its beam, fighters. FOR GREAT JUSTICE.
-- **The hangar** between sectors (the shop), per player:
-  - firepower (+15% damage a level, 5 levels), rapid fire (5), engine (3)
+- **The hangar** between sectors (the shop), per player, paid in credits (CR), not points — combos, medals and
+  grazing raise your score but don't buy anything. A full set of upgrades costs about 18500 credits, around sector 10:
+  - firepower (+15% damage a level, 7 levels), rapid fire (7), engine (3)
   - shield (a shield at every start, 3), magnet (pulls pickups in, 3)
   - wingman drones (little guns at your sides, 2), armour (plates that soak a hit, 2)
   - bombs, power, any weapon, extra lives and revivals

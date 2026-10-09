@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.46</title>
+  <title>tanb4iki_v0.47</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.46';
+const APP_VERSION = '0.47';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -4225,7 +4225,8 @@ function checkExtraLife(p) {
     p.lives++;
     return true;
   }
-  const n = Math.floor(p.score / 20000), had = p.extraCount || 0;
+  // galaxy's scores run far higher (combos, medals): a life every 250K there
+  const n = Math.floor(p.score / (typeof Game !== 'undefined' && Game.mode === 'galaxy' ? 250000 : 20000)), had = p.extraCount || 0;
   if (n <= had) return false;
   p.lives += n - had;
   p.extraCount = n;
@@ -6636,7 +6637,10 @@ const carryable = type => type === PU.HELMET || type === PU.CLOCK || type === PU
 const CLAUDE_SPEED = 1, CLAUDE_EXTRA = 300;   // Claude stays for the new-power-up time + 5 s
 const REVIVE_WAIT = 300;                      // all players out: 5 s to pay for a revival before GAME OVER
 
-const reviveCost = () => (Config.get('reviveCost') === 'OFF' ? 0 : Config.get('reviveCost'));
+const reviveCost = () => {
+  const c = Config.get('reviveCost') === 'OFF' ? 0 : Config.get('reviveCost');
+  return c && typeof Game !== 'undefined' && Game.mode === 'galaxy' ? Math.max(50, Math.round(c / 100) * 10) : c;   // galaxy pays in credits (galaxy_tune.js)
+};
 // who gets the points for a turret's / Claude's / a plane's kills
 const gunner = p => ({ isPlayer: !!p, player: p, bullets: 0, alive: true });
 
@@ -13785,7 +13789,10 @@ const Net = {
 // Menus (title, settings, shop, score) are drawn in a classic 256x224 frame, centred on the
 // play screen, whose size follows the field size (SCREEN_W x SCREEN_H, see setFieldSize).
 const SW = 256, SH = 224;
-const SAVE_KEY = 'tank1990_save';
+const SAVE_KEY = 'tank1990_save';   // CLASSIC's slot; every other mode adds '_' + its slot (see Game.saveSlotOf)
+// modes saved as a checkpoint (CLASSIC and BIG MAPS save the stage exactly), and the game's state they keep
+const CK_MODES = ['custom', 'survival', 'timeattack', 'sides', 'corridor', 'maze', 'fortress', 'galaxy', 'cpu', 'race'];
+const CK_GAME_KEYS = ['taFrames', 'taCleared', 'round', 'raceTarget', 'tdMap', 'nextSide', 'shopDiscount', 'gxRun', 'gxDate', 'gxClock', 'gxEndless'];
 const menuOX = () => (SCREEN_W - SW) >> 1;
 const menuOY = () => (SCREEN_H - SH) >> 1;
 const STORE = {
@@ -14024,6 +14031,9 @@ const Game = {
     this.hi = STORE.get('tank1990_hi', 20000);
     const c = STORE.get('tank1990_custom', null);
     this.custom = Array.isArray(c) && c.length === 26 ? c : defaultCustomMap();
+    // a BIG MAPS game in the old single slot moves to its own
+    const old = STORE.get(SAVE_KEY, null);
+    if (old && old.mode && old.mode !== 'classic' && !STORE.get(this.saveKey(old.mode), null)) { STORE.set(this.saveKey(old.mode), old); this.dropSave('classic'); }
     this.toTitle();
   },
 
@@ -14062,11 +14072,10 @@ const Game = {
     if (this.menuIdx >= this.titleMenu().length) this.menuIdx = 0;
   },
 
-  hasSave() { return !!STORE.get(SAVE_KEY, null); },
-
   titleMenu() {
-    const m = [];
-    if (this.hasSave()) m.push({ label: 'CONTINUE', act: () => this.loadGame() });
+    const m = [], sv = this.savePeek(this.titleSlot());
+    // the picked mode's save, and where it goes on from
+    if (sv) m.push({ label: 'CONTINUE', note: this.saveWhere(sv), save: sv, act: () => this.loadGame() });
     m.push({ label: '1 PLAYER', act: () => this.startGame(1) });
     // left/right picks 2, 3 or 4 players
     m.push({ label: this.multiN + ' PLAYERS', act: () => this.startGame(this.multiN), adjust: d => { this.multiN = (this.multiN - 2 + d + 3) % 3 + 2; } });
@@ -14074,12 +14083,18 @@ const Game = {
     m.push({ label: this.onlineJoin ? 'ONLINE: JOIN' : 'ONLINE: HOST', act: () => this.openOnline(), adjust: () => { this.onlineJoin = !this.onlineJoin; } });
     // skill level, named as in DOOM: left/right (or A) changes it
     // game mode: left/right (or A) changes it
-    m.push({ label: 'MODE: ' + modeInfo(Config.get('gameMode')).name, mode: true, act: () => Config.step('gameMode', 1), adjust: d => Config.step('gameMode', d) });
+    m.push({ label: 'MODE: ' + modeInfo(Config.get('gameMode')).name, mode: true, act: () => this.stepMode(1), adjust: d => this.stepMode(d) });
     m.push({ label: 'DAILY CHALLENGE', daily: true, act: () => this.startDaily() });
     m.push({ label: Config.get('skill') === AUTO_SKILL ? 'AUTO SKILL' : Config.skill().name, skill: true, act: () => Config.step('skill', 1), adjust: d => Config.step('skill', d) });
     m.push({ label: 'CONSTRUCTION', act: () => this.toConstruct() });
     m.push({ label: 'SETTINGS', act: () => this.toSettings() });
     return m;
+  },
+
+  // the next mode; CONTINUE comes and goes with the mode's save, so the cursor stays on the MODE row
+  stepMode(d) {
+    Config.step('gameMode', d);
+    this.menuIdx = Math.max(0, this.titleMenu().findIndex(it => it.mode));
   },
 
   updateTitle() {
@@ -14122,6 +14137,7 @@ const Game = {
     const menu = this.titleMenu(), top = this.titleMenuY(), step = this.titleStep();
     menu.forEach((it, i) => {
       Font.draw(ctx, it.label, 88, top + i * step, it.skill ? ['#58D854', '#B8F818', COL.white, COL.orange, COL.red, '#3CBCFC'][Config.get('skill')] : COL.white);
+      if (it.note) Font.draw(ctx, it.note, 88 + (it.label.length + 1) * 8, top + i * step, COL.lgrey);
       if (it.adjust && !it.skill && i === this.menuIdx) Font.draw(ctx, '<>', 88 + it.label.length * 8 + 6, top + i * step, COL.lgrey);
     });
     if (this.titleY === 0) {
@@ -14144,6 +14160,10 @@ const Game = {
         : mi.key === 'race' ? 'FIRST TO ' + Config.get('raceTarget') + '  1P: VS ' + DM_BOTS + ' BOTS'
         : mi.key === 'custom' ? (Customs.used().length ? Customs.used().length + ' OF ' + CUSTOM_SLOTS + ' SLOTS FILLED' : 'MAKE SOME IN CONSTRUCTION') : '< > CHANGE MODE';
       Font.drawCenter(ctx, best, SW / 2, 213, COL.lgrey);
+    } else if (cur && cur.save && this.titleY === 0) {
+      const [a, b] = this.saveInfo(cur.save);
+      Font.drawCenter(ctx, a, SW / 2, 203, COL.gold);
+      Font.drawCenter(ctx, b, SW / 2, 213, COL.lgrey);
     } else if (cur && cur.daily && this.titleY === 0) {
       const d = dailyToday(), best = STORE.get(DAILY_KEY, {});
       Font.drawCenter(ctx, DAILY_MODS[d.mods[0]].name + ' + ' + DAILY_MODS[d.mods[1]].name, SW / 2, 203, COL.gold);
@@ -14177,29 +14197,191 @@ const Game = {
   titleMenuY() { return TITLE_MENU_Y - (this.titleMenu().length - 4) * this.titleStep() / 2; },
 
   // ---------------------------------------------------------------- save / load
-  // One save slot: written by SAVE GAME in the pause menu and automatically at every stage start.
-  saveGame() {
-    if (!this.stage || this.stage.over || this.daily || (this.mode && this.mode !== 'classic' && this.mode !== 'bigmaps')) return false;
-    const data = {
-      app: APP_VERSION, time: Date.now(), numPlayers: this.players.length, stageNum: this.stageNum, lastScores: this.lastScores,
-      mode: this.mode || 'classic',
-      players: this.players.map(p => { const o = Object.assign({}, p); delete o.tank; return o; }),
-      base: this.base,
-      stage: this.stage.snapshot(),
-    };
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); return true; } catch (e) { return false; }
+  // One save slot per mode (GALAXY: per run type; CLASSIC keeps the old 'tank1990_save' key), written by SAVE GAME in
+  // the pause menu and automatically at every stage start. CLASSIC and BIG MAPS save the stage exactly as it is; the
+  // other modes save a checkpoint: how things stood at the start of the stage, round, sector or wave (this.ck, taken
+  // in beginStage and when the stage passes a mark, see ckMarkOf), and loading plays on from there.
+  // Never online, in the daily challenge or in a versus match (VS EAGLES, DEATHMATCH, FLAGS: one match between players).
+  saveKind() {
+    if (Net.role) return 'NO SAVES ONLINE';
+    if (this.daily) return 'NO SAVES IN DAILY';
+    if (this.mode === 'classic' || this.mode === 'bigmaps') return 'exact';
+    return CK_MODES.includes(this.mode) ? 'ckpt' : "CAN'T SAVE HERE";
   },
 
-  loadGame() {
-    const s = STORE.get(SAVE_KEY, null);
-    if (!s || !s.stage) return;
+  // the slot a mode saves in, and its storage key
+  saveSlotOf(mode = this.mode, run = this.gxRun) { return mode === 'galaxy' && run && run !== 'campaign' ? 'galaxy_' + run : mode; },
+  saveKey(slot) { return slot === 'classic' ? SAVE_KEY : SAVE_KEY + '_' + slot; },
+  // the slot of the mode picked on the title screen (VS EAGLES alone and CO-OP are both VS CPU; no saves in versus)
+  titleSlot() {
+    const m = Config.get('gameMode');
+    if (m === 'coop' || m === 'eagles') return 'cpu';
+    if (m === 'galaxy') return this.saveSlotOf('galaxy', gxdRun());
+    return CK_MODES.includes(m) || m === 'classic' || m === 'bigmaps' ? m : null;
+  },
+
+  // a slot's save, or null (parsed once, then cached while the stored text stays the same)
+  savePeek(slot) {
+    if (!slot) return null;
+    let raw = null;
+    try { raw = localStorage.getItem(this.saveKey(slot)); } catch (e) { /* storage unavailable */ }
+    const c = this.peekCache || (this.peekCache = {});
+    if (!c[slot] || c[slot].raw !== raw) {
+      let s = null;
+      try { s = raw && JSON.parse(raw); } catch (e) { s = null; }
+      // the old single slot could hold a BIG MAPS game (init moves it to its own slot)
+      if (s && (typeof s !== 'object' || (slot === 'classic' && s.mode && s.mode !== 'classic'))) s = null;
+      c[slot] = { raw, s };
+    }
+    const s = c[slot].s;
+    // GALAXY DAILY: today's only
+    if (s && s.mode === 'galaxy' && s.g && s.g.gxRun === 'daily' && s.g.gxDate !== gxdToday()) { this.dropSave(slot); return null; }
+    return s;
+  },
+  hasSave(slot = this.titleSlot()) { return !!this.savePeek(slot); },
+  dropSave(slot) { try { localStorage.removeItem(this.saveKey(slot)); } catch (e) { /* storage unavailable */ } },
+  writeSave(data) {
+    try { localStorage.setItem(this.saveKey(this.saveSlotOf(data.mode, data.g && data.g.gxRun)), JSON.stringify(data)); return true; } catch (e) { return false; }
+  },
+
+  // where a save goes on from: short ('SECTOR 5', on the title) or long ('START OF SECTOR 5', in the messages)
+  saveWhere(s, long) {
+    const at = s.at || {}, g = s.g || {}, n = s.stageNum | 0, start = long && !s.stage ? 'START OF ' : '';
+    let w = 'STAGE ' + n;
+    if (s.mode === 'galaxy') w = g.gxRun === 'rush' ? 'BOSS ' + n : g.gxRun === 'endless' ? 'WAVE ' + ((at.blk >= 0 ? at.blk : 2 * (n - 1)) * GXD_BLOCK + 1) : 'SECTOR ' + n;
+    else if (s.mode === 'fortress') w = 'WAVE ' + ((at.td && at.td.td ? at.td.td.wave | 0 : 0) + 1);
+    else if (s.mode === 'survival') w = 'WAVE ' + (at.wave || 1);
+    else if (s.mode === 'corridor') return (long ? 'CLIMB ' : '') + (at.climbed | 0) + ' M';
+    else if (s.mode === 'race') w = 'ROUND ' + (g.round || 1);
+    else if (s.mode === 'cpu') w = 'ROUND ' + n;
+    else if (s.mode === 'maze') w = 'MAZE ' + n;
+    else if (s.mode === 'timeattack') w = 'STAGE ' + ((g.taCleared | 0) + 1) + '/' + TA_STAGES;
+    return start + w;
+  },
+  // the title's two lines about a save: what and where, then how many players and when
+  saveInfo(s) {
+    const g = s.g || {}, d = new Date(s.time || 0), two = v => String(v).padStart(2, '0'), n = s.humans || s.numPlayers || 1;
+    const name = modeInfo(s.mode || 'classic').name + (s.mode === 'galaxy' && GXD_NAMES[g.gxRun] && g.gxRun !== 'campaign' ? ' ' + GXD_NAMES[g.gxRun] : '');
+    const map = s.mode === 'fortress' && TD_MAPS[g.tdMap | 0] ? TD_MAPS[g.tdMap | 0].name : '';
+    const b = [map, n > 1 ? n + 'P' : '', s.stage ? 'MID-STAGE' : 'CHECKPOINT', s.time ? d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) : '',
+      s.app && s.app !== APP_VERSION ? 'V' + s.app : ''].filter(x => x);
+    while (b.length > 1 && b.join('  ').length > 31) b.pop();   // what fits on the line
+    return [name + ' - ' + this.saveWhere(s), b.join('  ')];
+  },
+
+  // a checkpoint: the players (deep copies), the game's state for the mode, and `at`: where in the stage (null: its start)
+  ckTake(at) {
+    const keep = o => JSON.parse(JSON.stringify(o)), g = {};
+    for (const k of CK_GAME_KEYS) if (this[k] !== undefined && this[k] !== null) g[k] = keep(this[k]);
+    return {
+      app: APP_VERSION, fmt: 2, time: Date.now(), mode: this.mode, humans: this.players.filter(p => !p.bot).length, stageNum: this.stageNum,
+      lastScores: (this.lastScores || []).slice(), players: this.players.map(p => keep(Object.assign({}, p, { tank: null, tdMenu: null }))),
+      base: keep(this.base), g, at: at || null,
+    };
+  },
+
+  // the marks in a stage that make a new checkpoint: SURVIVAL a wave starting, CORRIDOR a new section, FORTRESS a build
+  // phase starting (its RESTART WAVE point), GALAXY ENDLESS the stage's second block of waves
+  ckMarkOf(st) {
+    if (st.survival) return st.waveBreak ? this.ckMark : 'w' + st.wave;
+    if (st.corridor) return 'c' + st.corridor.shifts;
+    if (st.td) return st.tdSave ? 't' + st.tdSave.wave : this.ckMark;
+    if (st.galaxy && st.galaxy.run === 'endless') return 'b' + st.galaxy.blk;
+    return '';
+  },
+  ckAt(st) {
+    if (st.survival) return { wave: st.wave };
+    if (st.corridor) { const c = st.corridor; return { climbed: st.corridorClimb(), lifeAt: c.lifeAt, kinds: c.kinds.slice(), spawned: c.spawned }; }
+    if (st.td && st.tdSave) {
+      const sv = st.tdSave, own = o => Object.assign({}, o, { owner: o.owner ? o.owner.i : -1 });
+      return { td: { td: sv.td, eagleArmor: sv.eagleArmor, built: sv.built, players: sv.players, towers: sv.towers.map(own), turrets: sv.turrets.map(own),
+        terrain: Array.from(sv.terrain, v => String.fromCharCode(v + 48)).join('') } };
+    }
+    if (st.galaxy && st.galaxy.run === 'endless') return { blk: st.galaxy.blk };
+    return null;
+  },
+  // every frame of play: a new checkpoint (and autosave) when the stage passes a mark
+  ckPoll() {
+    const st = this.stage;
+    if (!this.ck || this.ck.mode !== this.mode || !st || st.over || this.saveKind() !== 'ckpt') return;
+    const m = this.ckMarkOf(st);
+    if (m === this.ckMark) return;
+    this.ckMark = m;
+    this.ck = this.ckTake(this.ckAt(st));
+    this.writeSave(this.ck);
+  },
+  // a freshly built stage, moved on to where the checkpoint was (throws on a save it can't use)
+  ckApply(at) {
+    const st = this.stage, P = this.players;
+    if (st.survival && at.wave > 1) {
+      st.wave = at.wave | 0; st.queue = waveQueue(st.wave); st.seasonEnemies(st.queue); st.total = st.queue.length;
+    } else if (st.corridor && at.climbed > 0) {
+      // the climb so far counts on from where you start
+      const c = st.corridor;
+      c.climbed = at.climbed | 0; c.startY += c.climbed * 16; c.lifeAt = Math.max(5, at.lifeAt | 0); c.spawned = at.spawned | 0;
+      c.kinds = Array.isArray(at.kinds) ? at.kinds.slice() : [];
+    } else if (st.td && at.td) {
+      const o = at.td, terrain = Uint8Array.from(String(o.terrain), ch => ch.charCodeAt(0) - 48), own = x => Object.assign({}, x, { owner: P[x.owner] || null });
+      if (terrain.length !== st.terrain.length || !o.td || !Array.isArray(o.players) || o.players.length !== P.length) throw new Error('fortress save does not fit');
+      st.tdSave = { wave: o.td.wave, td: o.td, eagleArmor: o.eagleArmor, terrain, built: o.built || [], towers: (o.towers || []).map(own), turrets: (o.turrets || []).map(own), players: o.players };
+      st.tdRestartWave();
+      st.origTerrain = st.terrain.slice(); st.popups = [];
+    } else if (st.galaxy && st.galaxy.run === 'endless' && at.blk > st.galaxy.blk) {
+      // the stage's second block: its sector, its six waves, then the boss that ends the stage
+      const g = st.galaxy;
+      g.blk = g.blk0 + 1; g.ew = g.blk * GXD_BLOCK; st.gxdBlock(g);
+      g.banner = { text: 'WAVE ' + (g.ew + 1) + ': ' + GX_SECTORS[g.sec].name, t: 150 };
+    }
+  },
+
+  // SAVE GAME (pause menu) and the autosave at every stage start: true when saved; this.saveMsg says how it went
+  saveGame() {
+    const kind = this.saveKind();
+    let ok = false;
+    if (!this.stage || this.stage.over) this.saveMsg = "CAN'T SAVE HERE";
+    else if (kind === 'exact') {
+      const data = {
+        app: APP_VERSION, fmt: 2, time: Date.now(), numPlayers: this.players.length, stageNum: this.stageNum, lastScores: this.lastScores,
+        mode: this.mode || 'classic',
+        players: this.players.map(p => { const o = Object.assign({}, p); delete o.tank; return o; }),
+        base: this.base,
+        stage: this.stage.snapshot(),
+      };
+      ok = this.writeSave(data);
+      this.saveMsg = ok ? 'GAME SAVED' : 'SAVE FAILED';
+    } else if (kind === 'ckpt' && this.ck && this.ck.mode === this.mode) {
+      ok = this.writeSave(this.ck);
+      this.saveMsg = ok ? 'SAVED: ' + this.saveWhere(this.ck, true) : 'SAVE FAILED';
+    } else this.saveMsg = kind === 'ckpt' ? "CAN'T SAVE HERE" : kind;
+    return ok;
+  },
+  autoSave() { const k = this.saveKind(); if (k === 'exact' || (k === 'ckpt' && this.ck)) this.saveGame(); },
+
+  // CONTINUE: the save of the mode picked on the title screen; one that can't be used is dropped
+  loadGame(slot = this.titleSlot()) {
+    const s = this.savePeek(slot);
+    if (!s) return false;
+    let r = false;
+    try { r = s.stage ? this.loadExact(s) : this.loadCheckpoint(s); } catch (e) { r = false; }
+    if (r === true) return true;
+    this.dropSave(slot);
+    this.stage = null; this.paused = false; this.ckResume = null; this.ck = null;
+    this.toTitle(); this.titleY = 0;
+    this.toast(r || 'SAVE TOO OLD');
+    Sound.play('steel');
+    return false;
+  },
+
+  // the whole stage as it was (CLASSIC, BIG MAPS)
+  loadExact(s) {
+    if (!Array.isArray(s.players) || !s.players.length || typeof s.stage.terrain !== 'string') return false;
     if (Net.role === 'host') Net.hangUp();
     Input.remote = {};
     const n = s.numPlayers || (s.twoP ? 2 : 1);
     this.twoP = n > 1;
     Input.numPlayers = n;
     this.players = s.players.map(p => Object.assign(newPlayer(p.i), p, { tank: null }));
-    this.stageNum = s.stageNum;
+    this.stageNum = Math.max(1, s.stageNum | 0);
     this.lastScores = s.lastScores || [0, 0];
     this.customPending = false;
     // the saved terrain only fits the field size it was saved with
@@ -14207,12 +14389,52 @@ const Game = {
     this.applyLayout(s.stage.cols, s.stage.rows, s.stage.vcols, s.stage.vrows);
     this.base = Object.assign(newBase(), s.base || {});
     this.stage = new Stage(this.stageNum, LEVELS[(this.stageNum - 1) % LEVELS.length], this.players, { snapshot: s.stage, base: this.base });
+    this.ck = null;
     this.paused = true;
     this.pauseIdx = 0;
     this.pauseMsg = 'GAME LOADED';
     this.pauseMsgT = 120;
     this.openH = SCREEN_H / 2;
     this.setState('play');
+    return true;
+  },
+
+  // a checkpoint: the stage built again from its start (or from the wave, section or block in it), paused
+  loadCheckpoint(s) {
+    const P = s.players, g = s.g && typeof s.g === 'object' ? s.g : {};
+    if (!CK_MODES.includes(s.mode) || !Array.isArray(P) || !P.length || P.length > 4 || !(s.stageNum >= 1)) return false;
+    if (s.mode === 'custom' && !Customs.used().length) return 'NO CUSTOM LEVELS FOR IT';
+    if (Net.role === 'host') Net.hangUp();
+    Input.remote = {};
+    AutoSkill.start();
+    this.endDaily();
+    this.mode = s.mode;
+    const n = Math.max(1, Math.min(4, s.humans || P.filter(p => !p.bot).length || 1));
+    this.twoP = n > 1;
+    Input.numPlayers = n;
+    this.players = P.map((p, i) => Object.assign(newPlayer(i), p, { i, tank: null, tdMenu: null }));
+    this.base = Object.assign(newBase(), s.base || {});
+    this.stageNum = s.stageNum | 0;
+    this.lastScores = Array.isArray(s.lastScores) ? s.lastScores : this.players.map(p => p.score);
+    this.customPending = false; this.shopDiscount = false;
+    this.vsWins = []; this.round = 1; this.taFrames = 0; this.taCleared = 0;
+    for (const k of CK_GAME_KEYS) if (g[k] !== undefined) this[k] = g[k];
+    if (this.mode === 'fortress') this.tdMap = Math.max(0, Math.min(TD_MAPS.length - 1, this.tdMap | 0));
+    if (this.mode === 'race') this.raceTarget = this.raceTarget || Config.get('raceTarget');
+    if (this.mode === 'galaxy') {
+      this.gxFresh = false; this.gxRun = GXD_NAMES[this.gxRun] ? this.gxRun : 'campaign'; this.gxClock = this.gxClock || 0;
+      this.gxDate = this.gxDate || gxdToday();
+      if (!this.gxEndless || !Array.isArray(this.gxEndless.order)) this.gxEndless = { order: [] };
+    }
+    this.ckResume = s.at && typeof s.at === 'object' ? s.at : null;
+    this.noBossIntro = true;
+    this.applyLayout();
+    this.beginStage();
+    this.paused = true;
+    this.pauseIdx = 0;
+    this.pauseMsg = 'LOADED: ' + this.saveWhere(s, true);
+    this.pauseMsgT = 150;
+    return true;
   },
 
   // ---------------------------------------------------------------- new game / curtain
@@ -14349,9 +14571,12 @@ const Game = {
 
   beginStage() {
     // what RESTART ROUND (pause menu) goes back to
-    const keep = o => JSON.parse(JSON.stringify(o));
+    const keep = o => JSON.parse(JSON.stringify(o)), resume = this.ckResume || null;
+    this.ckResume = null;
     this.roundSave = { players: this.players.map(p => keep(Object.assign({}, p, { tank: null }))), base: keep(this.base),
-      customPending: this.customPending, taFrames: this.taFrames, taCleared: this.taCleared };
+      customPending: this.customPending, taFrames: this.taFrames, taCleared: this.taCleared, resume };
+    // the checkpoint SAVE GAME writes in most modes: how things stand as the stage begins (see saveGame)
+    this.ck = this.saveKind() === 'ckpt' ? this.ckTake(resume) : null;
     let map, custom = false, theme;
     if (this.customPending) { map = this.custom; custom = true; this.customPending = false; theme = this.customTheme; }
     else if (this.mode === 'custom') {
@@ -14407,6 +14632,9 @@ const Game = {
       race: this.mode === 'race' && !custom ? { target: this.raceTarget, round: this.round } : null, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
       blocks, big: objective, theme,
     });
+    // a loaded checkpoint from further in: on to its wave, section or block
+    if (resume) this.ckApply(resume);
+    this.ckMark = null; this.ckMark = this.ckMarkOf(this.stage);
     this.paused = false;
     this.openH = SCREEN_H / 2;
     this.setState('play');
@@ -14414,7 +14642,7 @@ const Game = {
     const bossPic = boss && this.bossScreensWanted() && !this.noBossIntro;
     this.noBossIntro = false;
     if (bossPic) this.toBossIntro(); else Sound.play('start');
-    if (this.mode === 'classic' || this.mode === 'bigmaps') this.saveGame(); // autosave at every stage start
+    this.autoSave();   // at every stage start
     if (!custom && Net.role !== 'client' && !this.daily && this.mode === 'classic') {
       STORE.set('tank1990_lastStage', this.stageNum);
       if (this.stageNum > STORE.get('tank1990_bestStage', 1)) STORE.set('tank1990_bestStage', this.stageNum);
@@ -14447,6 +14675,7 @@ const Game = {
       return;
     }
     this.stage.update();
+    this.ckPoll();
     if (this.mode === 'timeattack' && !this.stage.over && !this.stage.clearTimer) this.taFrames++;
     const r = this.stage.result;
     if (r === 'vsRound') { this.vsRoundEnd(); return; }
@@ -14485,7 +14714,7 @@ const Game = {
     else if (PAUSE_STEP[action]) { Config.step(PAUSE_STEP[action], 1); Sound.play('select'); }
     else if (action === 'SAVE GAME') {
       const ok = this.saveGame();
-      this.pauseMsg = ok ? 'GAME SAVED' : this.daily ? 'NO SAVES IN DAILY' : this.mode !== 'classic' ? 'NO SAVES IN THIS MODE' : 'SAVE FAILED';
+      this.pauseMsg = this.saveMsg;
       this.pauseMsgT = 120;
       Sound.play(ok ? 'pickup' : 'steel');
     } else if (action === 'RESTART ROUND' || action === 'RESTART WAVE') {
@@ -14511,7 +14740,7 @@ const Game = {
     if (!sv) return;
     this.players.forEach((p, i) => Object.assign(p, JSON.parse(JSON.stringify(sv.players[i])), { tank: null }));
     this.base = JSON.parse(JSON.stringify(sv.base));
-    this.customPending = sv.customPending; this.taFrames = sv.taFrames; this.taCleared = sv.taCleared;
+    this.customPending = sv.customPending; this.taFrames = sv.taFrames; this.taCleared = sv.taCleared; this.ckResume = sv.resume;
     this.noBossIntro = true;   // you've seen it
     this.beginStage();
   },
@@ -14811,7 +15040,7 @@ const Game = {
 
   updateVsResult() {
     if (this.t < 30 || !(Input.menu().ok || this.t > 600)) return;
-    if (this.vsRes.final) { this.stage = null; this.toTitle(); this.titleY = 0; return; }
+    if (this.vsRes.final) { if (this.mode === 'race' && !Net.role) this.dropSave('race'); this.stage = null; this.toTitle(); this.titleY = 0; return; }
     this.round++;
     this.stageNum = this.stageNum % LEVELS.length + 1;
     for (const p of this.players) { p.out = false; p.vsKills = 0; }
@@ -14842,7 +15071,11 @@ const Game = {
   },
 
   updateModeResult() {
-    if (this.t > 60 && Input.menu().ok) { this.stage = null; this.toTitle(); this.titleY = 0; }
+    if (this.t > 60 && Input.menu().ok) {
+      // a run won (FORTRESS held, TIME ATTACK or BOSS RUSH done): nothing left to go on with
+      if (this.modeRes && this.modeRes.done && !Net.role && CK_MODES.includes(this.mode)) this.dropSave(this.saveSlotOf());
+      this.stage = null; this.toTitle(); this.titleY = 0;
+    }
   },
 
   renderModeResult(ctx) {
@@ -15000,7 +15233,7 @@ const Game = {
       sh.msg = item.id === 'revive' ? (reviveCost() ? 'NOBODY TO REVIVE' : 'REVIVE IS OFF') : p.out ? 'REVIVE FIRST' : st.text === 'N/A' ? 'NO EAGLE IN THE MAZE' : 'YOU ALREADY HAVE IT';
       sh.msgT = 90; Sound.play('steel'); return;
     }
-    if (wallet(p) < price) { sh.msg = 'NOT ENOUGH POINTS'; sh.msgT = 90; Sound.play('steel'); return; }
+    if (wallet(p) < price) { sh.msg = this.mode === 'galaxy' ? 'NOT ENOUGH CREDITS' : 'NOT ENOUGH POINTS'; sh.msgT = 90; Sound.play('steel'); return; }
     spend(p, price);
     shopApply(item, p);
     sh.msg = 'BOUGHT ' + item.name + (item.weapon && item.weapon !== 'cannon' ? ' MK ' + MK[p.wlv[item.weapon] - 1] : '');
@@ -15047,7 +15280,7 @@ const Game = {
     ctx.drawImage(Sprites.rankTank('p' + p.level, (this.t >> 3) & 1, 1, Config.playerPal(p.i), Config.xpOn() ? p.rank : 1, true), 6, 15);
     Font.draw(ctx, ROMAN[p.i] + '-PLAYER', 26, 20, COL.red);
     Font.drawRight(ctx, wallet(p), 214, 20, COL.gold);
-    Font.draw(ctx, 'PTS', 220, 20, COL.white);
+    Font.draw(ctx, this.mode === 'galaxy' ? 'CR' : 'PTS', 220, 20, COL.white);   // the hangar takes credits (galaxy_tune.js)
     for (let r = 0; r < SHOP_ROWS; r++) {
       const i = sh.scroll + r, item = shopItems()[i];
       if (!item) break;
@@ -18170,7 +18403,7 @@ Object.assign(Stage.prototype, {
       }
       if (e.st === 'gone') { g.list = g.list.filter(o => o !== e); continue; }
       // shooting: eggs straight down; the big ones aim
-      if (e.st !== 'fall' && e.st !== 'enter' && e.y > 0 && --e.fireT <= 0 && g.bullets.length < 14 + 2 * (g.d ?? g.sec) + 6 * g.loop) {
+      if (e.st !== 'fall' && e.st !== 'enter' && e.y > 0 && --e.fireT <= 0 && g.bullets.length < (14 + 2 * (g.d ?? g.sec) + 6 * g.loop) * (g.capMul || 1)) {
         let own;
         if (GX_FIRE[e.type]) own = GX_FIRE[e.type].call(this, e, g, near);   // a number: its own time to the next shot
         else if (T.noFire) { /* rams, never shoots */ }
@@ -18271,18 +18504,19 @@ Object.assign(Stage.prototype, {
 
 // ------------------------------------------------------------------ bosses: one at the end of every sector
 const GX_BOSSES = [
-  { key: 'mothership', name: 'MOTHERSHIP', w: 56, h: 26, hp: 180, pts: 10000, move: 'sway',
-    phases: [['fan5', 'spawnDrones', 'aimed3'], ['ring12', 'aimed5', 'spawnDrones'], ['spiral', 'fan7', 'spawnBugs']] },
-  { key: 'crab', name: 'WAR CRAB', w: 56, h: 32, hp: 240, pts: 12000, move: 'swayFast',
-    phases: [['claws', 'fan5'], ['claws', 'charge', 'ring12'], ['claws', 'ring16', 'charge', 'spiral']] },
-  { key: 'titan', name: 'ROCK TITAN', w: 52, h: 44, hp: 260, pts: 14000, move: 'sway',
-    phases: [['rocks', 'fan5'], ['rocks', 'aimed5', 'ring12'], ['spiral', 'rocks', 'fan9']] },
-  { key: 'frost', name: 'FROST QUEEN', w: 48, h: 40, hp: 330, pts: 16000, move: 'hover',
-    phases: [['shards', 'fan7'], ['freezeBeam', 'shards', 'aimed3'], ['icestorm', 'spiral', 'freezeBeam']] },
-  { key: 'eye', name: 'ELDER EYE', w: 48, h: 40, hp: 280, pts: 18000, move: 'sway', eye: true,
-    phases: [['stare', 'spawnBugs', 'fan5'], ['stare', 'ring12', 'spawnWasps'], ['stare', 'spiral', 'ring16']] },
-  { key: 'overmind', name: 'OVERMIND', w: 56, h: 40, hp: 380, pts: 25000, move: 'sway', orbs: 4,
-    phases: [['aimed5', 'orbFire', 'fan7'], ['spiral', 'orbFire', 'spawnWasps'], ['spiral2', 'ring16', 'aimed5', 'spawnWasps']] },
+  { key: 'mothership', name: 'MOTHERSHIP', w: 76, h: 34, hp: 243, pts: 12000, move: 'sway',
+    phases: [['fan5', 'spawnDrones', 'aimed3'], ['ring12', 'aimed5', 'spawnDrones'], ['spiral', 'fan7', 'spawnBugs', 'aimed5']] },
+  { key: 'crab', name: 'WAR CRAB', w: 76, h: 42, hp: 324, pts: 14400, move: 'swayFast',
+    phases: [['claws', 'fan5'], ['claws', 'charge', 'ring12'], ['claws', 'ring16', 'charge', 'spiral', 'claws']] },
+  { key: 'titan', name: 'ROCK TITAN', w: 66, h: 56, hp: 351, pts: 16800, move: 'sway',
+    phases: [['rocks', 'fan5'], ['rocks', 'aimed5', 'ring12'], ['spiral', 'rocks', 'fan9', 'ring16']] },
+  { key: 'frost', name: 'FROST QUEEN', w: 62, h: 52, hp: 446, pts: 19200, move: 'hover',
+    phases: [['shards', 'fan7'], ['freezeBeam', 'shards', 'aimed3'], ['icestorm', 'spiral', 'freezeBeam', 'shards']] },
+  { key: 'eye', name: 'ELDER EYE', w: 62, h: 52, hp: 378, pts: 21600, move: 'sway', eye: true,
+    phases: [['stare', 'spawnBugs', 'fan5'], ['stare', 'ring12', 'spawnWasps'], ['stare', 'spiral', 'ring16', 'fan7']],
+    frame: (b, fr) => (b.open ? 0 : 1) + 2 * ((fr >> 3) & 1) },
+  { key: 'overmind', name: 'OVERMIND', w: 72, h: 52, hp: 513, pts: 30000, move: 'sway', orbs: 4,
+    phases: [['aimed5', 'orbFire', 'fan7'], ['spiral', 'orbFire', 'spawnWasps'], ['spiral2', 'ring16', 'aimed5', 'spawnWasps', 'orbFire']] },
 ];
 const GX_BOSS_PALS = {
   mothership: [null, '#E8E8F8', '#9898B8', '#48486C', '#F8F8F8', '#A8F8F8', '#F83800', '#0C0C18'],
@@ -18292,60 +18526,235 @@ const GX_BOSS_PALS = {
   eye: [null, '#F8F0F0', '#D8C0C8', '#8C5C6C', '#F8F8F8', '#F83800', '#58D854', '#180810'],
   overmind: [null, '#F8C8E8', '#E078B8', '#8C2C6C', '#C8C8D8', '#F8F878', '#7C7C9C', '#180818'],
 };
+
+// ------------------------------------------------------------------ boss art helpers
+// a ball (or an egg) lit from the top left, its tones dithered into each other: c = [glint, light, mid, shade, rim] (0 leaves it)
+function gxBall(P, cx, cy, rx, ry, c = [4, 1, 2, 3, 3]) {
+  const h = P.g.length, w = P.g[0].length, m = 1.3 / Math.min(rx, ry);
+  for (let y = Math.max(0, Math.floor(cy - ry)); y < Math.min(h, Math.ceil(cy + ry)); y++) for (let x = Math.max(0, Math.floor(cx - rx)); x < Math.min(w, Math.ceil(cx + rx)); x++) {
+    const nx = (x + 0.5 - cx) / rx, ny = (y + 0.5 - cy) / ry, d = Math.hypot(nx, ny);
+    if (d > 1) continue;
+    const l = -nx * 0.5 - ny * 0.6 + Math.sqrt(1 - d * d) * 0.65 + ((x + y) & 1 ? 0.045 : -0.045);
+    const k = d > 1 - m && nx + ny > -0.3 ? 4 : l > 0.95 ? 0 : l > 0.55 ? 1 : l > 0.12 ? 2 : 3;
+    if (c[k]) P.px(x, y, c[k]);
+  }
+}
+// battle scars over what's drawn: jagged cracks (phase 2: n, phase 3: twice as many, sparking at their ends) and in
+// phase 3 holes torn in it with something glowing inside; ok(x, y) says where they may go
+function gxScars(P, ph, seed, n, glow, f = 0, ok = () => true) {
+  if (ph < 2) return;
+  const g = P.g, h = g.length, w = g[0].length, r = seeded(seed * 7919 + 17);
+  const on = (x, y) => x >= 0 && y >= 0 && x < w && y < h && g[y][x] && g[y][x] !== 7 && ok(x, y);
+  const spot = d => { for (let i = 0; i < 80; i++) { const x = Math.floor(r() * w), y = Math.floor(r() * h); if (on(x - d, y) && on(x + d, y) && on(x, y - d) && on(x, y + d)) return [x, y]; } return null; };
+  for (let k = 0; k < (ph >= 3 ? n * 2 : n); k++) {
+    const s = spot(2); if (!s) continue;
+    let [x, y] = s, px = x, py = y;
+    const dx = r() < 0.5 ? -1 : 1, dy = r() < 0.5 ? -1 : 1, len = 4 + Math.floor(r() * 6);
+    for (let i = 0; i < len && on(x, y); i++) {
+      g[y][x] = 7; if (on(x, y + 1) && g[y + 1][x] < 3) g[y + 1][x] = 3;
+      px = x; py = y; if (r() < 0.55) x += dx; else y += dy;
+    }
+    if (ph >= 3 && (k + f) % 2 === 0) g[py][px] = glow;
+  }
+  if (ph < 3) return;
+  for (let k = 0; k < Math.ceil(n / 2); k++) {
+    const s = spot(4); if (!s) continue;
+    const [x, y] = s, rr = 1.6 + r() * 1.2;
+    for (let j = -4; j <= 4; j++) for (let i = -4; i <= 4; i++) {
+      const d = Math.hypot(i, j * 1.2) + ((i * 7 + j * 13 + k) & 3) * 0.25;
+      if (d <= rr) g[y + j][x + i] = 7; else if (d <= rr + 1.3 && on(x + i, y + j)) g[y + j][x + i] = 3;
+    }
+    g[y][x] = glow; g[y + (f ? -1 : 0)][x + (f ? 1 : -1)] = glow;
+  }
+}
+// a shaded crater: dark floor, its far wall lit
+function gxCrater(P, cx, cy, r, floor = 6) {
+  for (let y = Math.floor(cy - r - 1); y <= cy + r + 1; y++) for (let x = Math.floor(cx - r - 1); x <= cx + r + 1; x++) {
+    const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+    if (d <= r) P.px(x, y, Math.hypot(x + 0.5 - cx - 0.9, y + 0.5 - cy - 0.9) <= r - 1 ? floor : 3);
+    else if (d <= r + 1 && x + y > cx + cy) P.px(x, y, 1);
+  }
+}
+// a crystal facet shape: a diamond from (cx, top) to (cx, bot), widest (hw) at y = mid; four faces tl, tr, bl, br
+function gxGem(P, cx, top, mid, bot, hw, c = [1, 2, 6, 3], edge = 4) {
+  for (let y = top; y <= bot; y++) {
+    const k = y <= mid ? (y - top) / Math.max(1, mid - top) : (bot - y) / Math.max(1, bot - mid), half = hw * k;
+    for (let x = Math.round(cx - half); x <= Math.round(cx + half); x++) P.px(x, y, c[(y <= mid ? 0 : 2) + (x < cx ? 0 : 1)]);
+    if (edge) { P.px(Math.round(cx - half), y, y <= mid ? edge : c[2]); if (y === mid) P.line(Math.round(cx - half), y, Math.round(cx), y, edge); }
+  }
+}
+
 const GX_BOSS_DRAW = {
+  // a saucer seen from the side: the crew under its dome, windows, a ring of chasing lights, the tractor emitter under it
   mothership(f, ph) {
-    const P = bossPainter(56, 26);
-    P.disc(28, 9, 9, 5); P.px(24, 5, 4); P.px(25, 4, 4);
-    P.ellipse(28, 16, 27.5, 8.5);
-    P.rect(4, 15, 51, 15, 3);
-    for (let k = 0; k < 9; k++) P.rect(5 + k * 6, 17, 6 + k * 6, 18, (k + f) % 3 ? 6 : 4);
-    P.rect(20, 22, 35, 24, 3); P.rect(22, 23, 33, 23, 6);
-    P.wear(ph, 21); P.outline(); return P.g;
+    const P = bossPainter(76, 34);
+    gxBall(P, 38, 13, 13, 12, [4, 5, 5, 2, 3]);   // the dome
+    for (const x of [33, 43]) { P.disc(x, 9, 2.2, 3); P.rect(x - 2, 11, x + 2, 13, 3); P.px(x - 1, 9, f ? 6 : 5); P.px(x + 1, 9, f ? 6 : 5); }   // two aliens inside
+    P.line(29, 4, 32, 2, 4); P.line(28, 6, 28, 7, 4);
+    gxBall(P, 38, 25, 31, 8, [0, 2, 2, 3, 7]);   // the underside
+    for (let x = 12; x < 66; x += 4) if (Math.abs(x - 38) > 7) { P.rect(x, 27, x, 29, 7); P.px(x + 1, 27, 2); }   // vents
+    P.disc(38, 29.5, 5, 3); P.ring(38, 29.5, 4.5, 7); P.disc(38, 29.5, 3, f ? 6 : 4); P.disc(38, 29.5, 1.5, f ? 4 : 6);   // the emitter
+    gxBall(P, 38, 21, 37.5, 9, [4, 1, 1, 2, 3]); for (let x = 0; x < 76; x++) for (let y = 12; y < 22; y++) if (P.g[y][x] === 4 && (x < 26 || x > 50 || y > 15)) P.g[y][x] = 1;   // the upper hull
+    for (let x = 1; x < 75; x++) { const e = Math.sqrt(Math.max(0, 1 - ((x - 37.5) / 37.5) ** 2)); if (e > 0.25) { P.px(x, Math.round(21 - 4.6 * e), 3); P.px(x, Math.round(22 - 4.6 * e), 1); } }   // a ring seam
+    for (let k = -4; k <= 4; k++) if (k) { P.line(38 + k * 5, Math.round(16.5 + Math.abs(k) * 0.4), 38 + k * 8.4, 21, 2); P.px(38 + k * 8.4 + 1, 21, 3); }   // panel seams
+    for (let k = -5; k <= 5; k++) if (Math.abs(k) > 1) P.rect(37 + k * 6, 13 + Math.round(Math.abs(k) * 0.5), 38 + k * 6, 13 + Math.round(Math.abs(k) * 0.5), (k + f) % 3 ? 5 : 4);   // windows
+    P.rect(1, 21, 74, 24, 2); P.rect(2, 21, 73, 21, 1); P.rect(1, 25, 74, 25, 3); P.rect(1, 24, 74, 24, 3);   // the rim
+    for (let x = 3; x < 74; x += 3) P.px(x, 21, 4);   // rivets
+    for (let k = 0; k < 12; k++) { const x = 4 + k * 6; P.rect(x, 22, x + 2, 23, 7); P.rect(x, 22, x + 1, 22, (k + f * 2) % 4 < 2 ? 6 : 4); P.px(x, 23, (k + f * 2) % 4 < 2 ? 6 : 5); }   // lights
+    P.rect(36, 1, 39, 1, 3); P.px(37, 0, 6); P.px(38, 0, f ? 4 : 6);   // a beacon on top
+    if (ph >= 2) { P.line(44, 4, 47, 9, 3); P.line(47, 9, 46, 12, 3); }   // the dome cracks
+    P.wear(ph, 21); gxScars(P, ph, 21, 3, 6, f, (x, y) => y > 14); P.outline(); return P.g;
   },
+  // f: claws open (0) or shut (1), eyes left or right
   crab(f, ph) {
-    const P = bossPainter(56, 32);
-    for (let k = 0; k < 3; k++) { P.line(18 - k * 3, 18 + k * 3, 8 - k * 4, 28 + (f ? 1 : 0), 3); P.line(38 + k * 3, 18 + k * 3, 48 + k * 4, 28 + (f ? 0 : 1), 3); }   // legs
-    P.ellipse(28, 15, 16, 11);
-    for (const x of [7, 49]) { P.ellipse(x, 20, 6.5, 8); P.rect(x - 3, 27, x - 1, 31, 2); P.rect(x + 1, 27, x + 3, 31, 2); P.rect(x - 1, 28, x + 1, 30, 0); }   // claws
-    P.line(23, 6, 21, 0, 3); P.line(33, 6, 35, 0, 3); P.disc(21, 1, 1.6, 5); P.disc(35, 1, 1.6, 5);   // eye stalks
-    P.rect(22, 18, 34, 19, 3); for (let x = 23; x < 34; x += 2) P.px(x, 20, 4);
-    P.wear(ph, 22); P.outline(); return P.g;
+    const P = bossPainter(76, 42);
+    for (let k = 0; k < 3; k++) for (const s of [-1, 1]) {   // legs: three a side, jointed, tapping
+      const x0 = 38 + s * (8 + k * 5), kx = 38 + s * (12 + k * 6), ky = 33 + k + ((k + f) % 2), x1 = 38 + s * (11 + k * 7), y1 = 40 + ((k + f) % 2 ? -1 : 0);
+      P.line(x0, 28, kx, ky, 3); P.line(x0 + s, 28, kx + s, ky, 6); P.line(kx, ky, x1, y1, 3); P.line(kx + s, ky, x1 + s, y1 - 1, 6); P.px(kx, ky, 2); P.px(x1, y1, 7);
+    }
+    for (const s of [-1, 1]) {   // arms: shoulder, elbow, wrist
+      P.line(38 + s * 16, 24, 38 + s * 23, 17, 3); P.line(38 + s * 16, 23, 38 + s * 23, 16, 6); P.line(38 + s * 16, 22, 38 + s * 23, 15, 2);
+      gxBall(P, 38 + s * 23.5, 16, 3.2, 3.2, [1, 1, 2, 6, 3]);
+      P.line(38 + s * 23, 15, 38 + s * 27, 18, 2); P.line(38 + s * 23, 17, 38 + s * 27, 20, 3);
+    }
+    for (const s of [-1, 1]) {   // the claws: a heavy shell, two fingers with teeth
+      const cx = 38 + s * 28.5;
+      for (const side of [-1, 1]) for (let y = 24; y <= 41; y++) {   // two curved fingers: tips apart (open) or touching (shut)
+        const t = (y - 24) / 17, x = cx + side * (2 + 4.4 * Math.sin(Math.PI * t * 0.85) + (f ? -3.4 : 1.4) * t), hw = 3.2 * (1 - t) + 0.7;
+        for (let xx = Math.round(x - hw); xx <= Math.round(x + hw); xx++) P.px(xx, y, xx === Math.round(x - side * hw) ? 3 : side < 0 ? (xx < x ? 1 : 2) : (xx < x ? 2 : 6));
+        if (y % 2 === 0 && t > 0.25 && t < 0.9) P.px(Math.round(x - side * hw), y, 4);   // teeth
+        if (y === 41) P.px(Math.round(x), y, 3);
+      }
+      gxBall(P, cx, 19, 9.5, 8.5, [1, 1, 2, 6, 3]); for (const [dx, dy] of [[-8, 14], [-8, 19], [8, 14], [8, 19], [-4, 8], [3, 8]]) P.px(cx + dx * (dx * s < 0 ? 1.06 : 1), dy, dx * s < 0 ? 3 : 1);
+      P.line(cx - 6, 16, cx - 3, 13, 4); P.px(cx - 7, 18, 4); P.line(cx - 3, 26, cx + 3, 26, 6);
+      for (const [dx, dy] of [[-4, 20], [3, 16], [1, 22], [-1, 15]]) { P.px(cx + dx, dy, 6); P.px(cx + dx + 1, dy, 6); }   // shell spots
+    }
+    for (const s of [-1, 1]) { P.line(38 + s * 4, 9, 38 + s * 7, 3, 3); P.line(38 + s * 5, 9, 38 + s * 8, 3, 2); }   // eye stalks
+    gxBall(P, 38, 19, 19, 13, [4, 1, 2, 6, 3]);   // the shell
+    for (let k = -4; k <= 4; k++) { const x = 38 + k * 4, y = Math.round(19 - 13 * Math.sqrt(1 - (k * 4 / 19) ** 2)); P.px(x, y - 1, 1); P.px(x, y - 2, k ? 3 : 2); }   // spikes along the top
+    P.line(26, 15, 32, 12, 6); P.line(44, 12, 50, 15, 6); P.line(30, 19, 46, 19, 6);   // ridges
+    for (const [x, y] of [[32, 15], [44, 15], [38, 13], [28, 21], [48, 21]]) { P.px(x, y, 6); P.px(x + 1, y, 3); P.px(x, y - 1, 1); }
+    P.rect(28, 26, 48, 29, 3); P.rect(29, 26, 47, 26, 6);   // the mouth: mandibles and teeth
+    for (let x = 30; x < 47; x += 2) { P.px(x, 27, 4); P.px(x + 1, 28, 4); }
+    for (const s of [-1, 1]) { P.line(38 + s * 3, 30, 38 + s * (5 + f), 33, 2); P.px(38 + s * (5 + f), 33, 5); }   // feelers
+    for (const s of [-1, 1]) { const ex = 38 + s * 8, look = f ? 1 : -1; P.disc(ex + 0.5, 2.5, 2.7, 4); P.ring(ex + 0.5, 2.5, 2.5, 3); P.px(ex + look * 0.6 + (look > 0 ? 0 : 0), 3, 7); P.px(ex + look * 0.6, 2, 7); P.px(ex - 1, 1, 4); }   // eyes
+    P.wear(ph, 22); gxScars(P, ph, 22, 4, 5, f, (x, y) => y > 6);
+    if (ph >= 3) { P.rect(0, 35, 8, 41, 0); P.px(6, 34, 5); }   // a finger broken off
+    P.outline(); return P.g;
   },
+  // a boulder with a face and a heart of magma that breaks out more every phase
   titan(f, ph) {
-    const P = bossPainter(52, 44);
-    P.ellipse(26, 22, 25, 21);
-    for (const [x, y, r] of [[12, 14, 4], [38, 12, 3], [34, 32, 5], [14, 32, 3]]) { P.disc(x, y, r, 3); P.disc(x - 1, y - 1, r - 1.5, 6); }   // craters
-    P.disc(26, 22, 6, 7); P.disc(26, 22, 4, ph >= 2 ? 5 : 6); P.disc(26, 22, 2, f ? 4 : 5);   // the glowing core
-    if (ph >= 2) { P.line(26, 28, 20, 40, 5); P.line(30, 16, 40, 6, 5); }
-    if (ph >= 3) { P.line(20, 20, 6, 24, 5); P.line(32, 24, 46, 30, 5); }
-    for (const x of [8, 44]) { P.rect(x - 3, 36, x + 3, 41, 3); P.rect(x - 1, 41, x + 1, 43, 4); }   // turrets
+    const P = bossPainter(66, 56);
+    const r = seeded(303);
+    for (let k = 0; k < 11; k++) { const a = k * 0.571 + 0.2, rr = 5 + (k % 3) * 1.5; gxBall(P, 33 + Math.cos(a) * 24, 28 + Math.sin(a) * 21, rr, rr * 0.9, [1, 1, 2, 6, 3]); }   // rocks round its edge
+    gxBall(P, 33, 28, 28, 25, [4, 1, 2, 6, 3]);
+    for (let y = 0; y < 56; y++) for (let x = 0; x < 66; x++) { const v = P.g[y][x], q = r(); if (v === 1 && q < 0.1) P.g[y][x] = 4; else if ((v === 1 || v === 2) && q > 0.9) P.g[y][x] = 6; else if (v === 6 && q > 0.92) P.g[y][x] = 3; }   // grit
+    for (const [x0, y0, x1, y1] of [[10, 22, 18, 20], [48, 36, 56, 33], [14, 38, 20, 42], [40, 8, 47, 11]]) { P.line(x0, y0, x1, y1, 3); P.line(x0, y0 - 1, x1, y1 - 1, 1); }   // strata
+    for (const [x, y, rr] of [[15, 13, 4], [50, 14, 3], [52, 30, 2.5], [13, 32, 3], [46, 46, 3.5], [22, 47, 2.5], [33, 6, 2]]) gxCrater(P, x, y, rr);
+    // the brow, the eyes, the magma heart
+    P.line(19, 17, 28, 19, 3); P.line(38, 19, 47, 17, 3); P.line(19, 16, 28, 18, 1); P.line(38, 18, 47, 16, 1);
+    P.line(19, 18, 28, 20, 3); P.line(38, 20, 47, 18, 3);
+    for (const x of [24, 42]) { P.rect(x - 3, 21, x + 3, 23, 7); P.rect(x - 2, 22, x + 2, 22, 5); P.px(x - 1, 21, 7); P.px(x + 1, 21, 7); P.px(x + (x < 33 ? 1 : -1), 22, f ? 4 : 5); P.rect(x - 2, 24, x + 2, 24, 6); }
+    const cr = [5, 7, 8.5][ph - 1];
+    P.disc(33, 34, cr + 1.5, 3); P.disc(33, 34, cr, 5); P.disc(33, 34, cr * 0.55, f ? 4 : 5); P.ring(33, 34, cr * 0.75, f ? 5 : 4);
+    if (ph < 3) for (const dy of ph < 2 ? [-2, 2] : [0]) P.line(33 - cr, 34 + dy, 33 + cr, 34 + dy, 6);   // rock plates still across it
+    // magma veins: more every phase
+    const veins = [[33, 34, 20, 44], [33, 34, 47, 41], [33, 34, 39, 24], [33, 34, 14, 28], [33, 34, 52, 24], [33, 34, 31, 52], [33, 34, 8, 40]];
+    veins.slice(0, [2, 4, 7][ph - 1]).forEach(([x0, y0, x1, y1], k) => { const mx = (x0 + x1) / 2 + (k % 2 ? 3 : -3), my = (y0 + y1) / 2; P.line(x0, y0, mx, my, 5); P.line(mx, my, x1, y1, 5); if (ph >= 2) P.px(mx, my, f ? 4 : 5); });
+    if (ph >= 3) for (const [x, y, rr] of [[7, 16, 5], [60, 38, 4.5]]) for (let j = -6; j <= 6; j++) for (let i = -6; i <= 6; i++) {   // chunks blown off: magma inside
+      const d = Math.hypot(i, j); if (!P.g[y + j] || !P.g[y + j][x + i]) continue;
+      if (d <= rr) P.g[y + j][x + i] = 0; else if (d <= rr + 1.3) P.g[y + j][x + i] = (i + j) % 3 ? 5 : 4;
+    }
+    gxScars(P, ph, 23, 3, 5, f, (x, y) => Math.hypot(x - 33, y - 34) > cr + 3);
     P.outline(); return P.g;
   },
+  // a crystal queen: a crown of spires, facets, wing shards, a frozen heart that pulses
   frost(f, ph) {
-    const P = bossPainter(48, 40);
-    for (let y = 2; y < 38; y++) { const hw = y < 20 ? (y - 2) * 1.2 : (38 - y) * 1.2; for (let x = Math.round(24 - hw); x <= Math.round(23 + hw); x++) P.px(x, y, x < 24 - hw / 2 ? 1 : x > 24 + hw / 3 ? 3 : 2); }
-    for (const x of [10, 18, 30, 38]) P.line(x, 12, x + (x < 24 ? -2 : 2), 2, 4);   // the crown's spikes
-    P.line(24, 2, 24, 38, 6); P.line(6, 20, 42, 20, 6);
-    P.disc(24, 20, 4, f ? 5 : 4); P.disc(24, 20, 2, 1);
-    if (ph >= 2) { P.line(14, 24, 8, 30, 7); P.line(32, 14, 38, 10, 7); }
+    const P = bossPainter(62, 52);
+    for (const s of [-1, 1]) { gxGem(P, 31 + s * 25, 26, 33, 45, 4, [1, 2, 6, 3], 4); gxGem(P, 31 + s * 20, 14, 26, 47, 7, [1, 2, 6, 3], 4); }   // wing shards
+    gxGem(P, 31, 9, 28, 51, 17, [1, 2, 6, 3], 4);   // the body
+    gxGem(P, 31, 18, 28, 44, 9, [4, 1, 2, 6], 0);   // its inner face
+    for (const s of [-1, 1]) { P.line(31 + s * 9, 28, 31 + s * 17, 28, 3); P.line(31 + s * 17, 28, 31, 51, 6); P.line(31 + s * 9, 28, 31 + s * 4, 12, 4); P.line(31 + s * 20, 26, 31 + s * 20, 46, s < 0 ? 4 : 3); }   // facet edges
+    for (const [x, y] of [[23, 44], [27, 47], [35, 47], [39, 44]]) P.line(x, y, x, y + 3, 6);   // icicles
+    // the crown: a band of gems and five spires
+    for (const [x, top] of [[23, 5], [27, 2], [31, 0], [35, 2], [39, 5]]) for (let y = top; y <= 10; y++) { const hw = Math.floor((y - top) / 4); P.rect(x - hw, y, x, y, 1); P.rect(x + 1, y, x + 1 + hw, y, 2); if (y === top) P.px(x, y, (x + f * 4) % 8 < 4 ? 4 : 5); }
+    P.rect(21, 10, 41, 12, 6); P.rect(21, 10, 41, 10, 4); P.rect(21, 12, 41, 12, 3);
+    for (let x = 23; x <= 39; x += 4) P.px(x, 11, x === 31 ? 5 : (x + f) % 8 < 4 ? 1 : 5);
+    // her face: narrow eyes and a cold mouth
+    for (const s of [-1, 1]) { P.line(31 + s * 2, 16, 31 + s * 7, 15, 3); P.rect(Math.min(31 + s * 3, 31 + s * 6), 18, Math.max(31 + s * 3, 31 + s * 6), 19, 7); P.px(31 + s * 4, 18, 5); P.px(31 + s * 5, 18, f ? 4 : 5); P.px(31 + s * 7, 18, 7); }
+    P.rect(30, 23, 32, 23, 3); P.px(31, 24, 6);
+    // the frozen heart
+    gxGem(P, 31, 29, 33, 39, f ? 5 : 4, [5, 5, 3, 3], 0); P.px(30, 31, 4); P.px(30, 32, 4); if (f) { P.px(25, 33, 5); P.px(37, 33, 5); }
+    P.line(31, 13, 31, 17, 4); P.line(17, 28, 21, 28, 4); P.line(41, 28, 45, 28, 4);   // glints on its edges
+    if (ph >= 3) { for (let y = 33; y <= 46; y++) for (let x = 0; x < 8; x++) P.px(x, y, 0); P.line(4, 34, 8, 30, 7); }   // a wing shard snapped off
+    P.wear(ph, 24); gxScars(P, ph, 24, 3, 5, f, (x, y) => y > 12 && Math.abs(x - 31) + Math.abs(y - 34) > 6);
     P.outline(); return P.g;
   },
-  // f: 0 open, 1 closed
+  // f bit 0: open (0) or shut (1); bit 1: the tentacles' sway
   eye(f, ph) {
-    const P = bossPainter(48, 40);
-    for (let k = 0; k < 6; k++) { const x = 6 + k * 7; P.line(x, 28, x + (k % 2 ? 3 : -3), 39, 3); P.line(x + 1, 28, x + 1 + (k % 2 ? 3 : -3), 39, 2); }   // tentacles
-    P.ellipse(24, 18, 22, 15);
-    if (f) { P.rect(3, 17, 45, 18, 3); for (let x = 6; x < 44; x += 4) P.px(x, 19, 7); }   // shut
-    else { P.disc(24, 18, 9, 6); P.disc(24, 18, 5, 7); P.disc(21, 15, 2, 4); for (const [x0, y0] of [[8, 12], [40, 24], [10, 24]]) P.line(x0, y0, x0 + (x0 < 24 ? 5 : -5), y0 + 1, 5); }   // open: iris, veins
-    P.wear(ph, 25); P.outline(); return P.g;
+    const P = bossPainter(62, 52), shut = f & 1, sw = f >> 1;
+    for (let k = 0; k < 6; k++) {   // tentacles, suckers on them
+      const bx = 10 + k * 8.4;
+      for (let t = 0; t <= 17; t++) {
+        const x = Math.round(bx + Math.sin(t / 3 + k * 1.7 + sw * 1.6) * 2.2 * (t / 17) + (k - 2.5) * t * 0.12), y = 34 + t, wd = t < 6 ? 2 : t < 12 ? 1 : 0;
+        P.rect(x - wd, y, x + wd, y, 2); P.px(x - wd, y, 1); P.px(x + wd, y, 3);
+        if (t > 3 && t < 15 && t % 3 === 0) P.px(x, y, 4);
+      }
+    }
+    gxBall(P, 31, 24, 29, 21, [4, 1, 1, 2, 3]);
+    const L = bossPainter(62, 52); gxBall(L, 31, 24, 29, 21, [1, 1, 2, 3, 3]);
+    const lid = (x, up) => 24 + (up ? -1 : 1) * 14 * (1 - ((x + 0.5 - 31) / 25) ** 2);   // the almond the lids leave open
+    for (let y = 0; y < 52; y++) for (let x = 0; x < 62; x++) {
+      const v = P.g[y][x]; if (!v || Math.hypot((x + 0.5 - 31) / 29, (y + 0.5 - 24) / 21) > 1) continue;
+      const open = !shut && Math.abs(x + 0.5 - 31) < 25 && y > lid(x, 1) && y < lid(x, 0);
+      if (!open) P.g[y][x] = L.g[y][x];   // the lids' skin
+    }
+    for (let x = 7; x < 56; x++) { const a = Math.round(lid(x, 1)), c = Math.round(lid(x, 0)); if (shut) { P.px(x, 24, 7); P.px(x, 25, 3); if (x % 3 === 0) P.px(x, 26, 7); } else { P.px(x, a, 7); P.px(x, a - 1, 3); P.px(x, c, 3); if (x % 3 === 1) P.px(x - 1, a - 2, 7); } }   // lid edges, lashes
+    for (let x = 9; x < 54; x++) { P.px(x, Math.round(24 - 19 * (1 - ((x + 0.5 - 31) / 23) ** 2)) + (shut ? 4 : 0), 3); P.px(x, Math.round(lid(x, 0)) + 4, 3); }   // creases
+    if (shut) for (const [x0, y0, x1, y1] of [[14, 12, 20, 16], [20, 16, 22, 21], [44, 10, 40, 16], [40, 16, 41, 20], [24, 33, 27, 30]]) P.line(x0, y0, x1, y1, 3);   // veins under the skin
+    if (!shut) {
+      const vr = seeded(25 + ph);
+      for (let k = 0; k < 4 + ph * 3; k++) {   // veins, more and more bloodshot
+        const left = k % 2 === 0, x0 = left ? 8 + vr() * 4 : 54 - vr() * 4, y0 = 20 + vr() * 8, x1 = 31 + (left ? -1 : 1) * (11 + vr() * 3), y1 = 18 + vr() * 12;
+        P.line(x0, y0, (x0 + x1) / 2, y0 + (vr() - 0.5) * 6, 5); P.line((x0 + x1) / 2, y0 + (vr() - 0.5) * 6, x1, y1, 5);
+      }
+      P.disc(31, 24, 11, 3); P.disc(31, 24, 10, 6);   // the iris
+      for (let k = 0; k < 16; k++) { const a = k * 0.39 + sw * 0.2; P.line(31 + Math.cos(a) * 5, 24 + Math.sin(a) * 5, 31 + Math.cos(a) * 9, 24 + Math.sin(a) * 9, k % 2 ? 3 : 4); }
+      P.disc(31, 24, 6, 6); P.ring(31, 24, 9.6, 3);
+      const pr = sw ? 3 : 4.2; P.disc(31, 24, pr, 7); P.rect(30, 24 - pr - 2, 31, 24 + pr + 1, 7);   // the pupil, a slit through it
+      P.rect(26, 19, 27, 20, 4); P.px(35, 28, 4);
+    }
+    P.wear(ph, 25); gxScars(P, ph, 25, 3, 5, f, (x, y) => y < 44 && (shut || Math.hypot(x - 31, y - 24) > 13));
+    P.outline(); return P.g;
   },
+  // a brain on a machine: folds, electrodes sparking, tubes, the machine's two glowing lenses
   overmind(f, ph) {
-    const P = bossPainter(56, 40);
-    P.rect(10, 26, 45, 36, 6); P.rect(10, 26, 45, 27, 4); for (let x = 12; x < 44; x += 6) P.rect(x, 30, x + 2, 34, 7);   // the machine below
-    P.ellipse(28, 16, 22, 15);
-    for (const [x0, y0, x1, y1] of [[10, 12, 20, 8], [20, 16, 30, 10], [30, 8, 40, 14], [14, 22, 26, 20], [32, 20, 44, 18], [28, 3, 28, 28]]) P.line(x0, y0, x1, y1, 3);   // folds
-    P.disc(20, 30, 2.5, 5); P.disc(36, 30, 2.5, 5); P.px(20, 30, f ? 4 : 7); P.px(36, 30, f ? 4 : 7);
-    P.wear(ph, 26); P.outline(); return P.g;
+    const P = bossPainter(72, 52);
+    for (let y = 33; y <= 51; y++) { const in_ = Math.round((y - 33) * 0.5); P.rect(10 + in_, y, 61 - in_, y, y === 33 ? 4 : y > 47 ? 3 : 6); }   // the machine
+    P.rect(12, 35, 59, 36, 4); P.rect(12, 37, 59, 37, 7);
+    for (let x = 16; x <= 55; x += 3) if (x < 26 || x > 45) { P.rect(x, 40, x, 45, 7); P.px(x + 1, 40, 4); }   // vents
+    for (const x of [27, 45]) { P.disc(x, 43, 4.5, 7); P.disc(x, 43, 3.5, 3); P.disc(x, 43, 2.5, 5); P.px(x - 1, 42, 4); if (f) P.px(x, 43, 4); }   // lenses
+    for (let k = 0; k < 6; k++) P.px(31 + k * 2, 47, (k + f * 3) % 6 < 3 ? 5 : 3);   // a row of lights
+    P.rect(33, 49, 39, 51, 7); P.rect(34, 50, 38, 50, f ? 5 : 3);
+    for (const s of [-1, 1]) { for (let t = 0; t <= 12; t++) { const x = 36 + s * (25 + Math.sin(t / 4) * 4), y = 22 + t; P.rect(x - 1, y, x + 1, y, 6); P.px(x - s, y, 4); } }   // tubes
+    gxBall(P, 36, 19, 31, 18, [1, 1, 2, 3, 3]);   // the brain
+    const lr = seeded(26), inB = (x, y) => Math.hypot((x + 0.5 - 36) / 30, (y + 0.5 - 19) / 17) < 0.93 && Math.abs(x - 35.5) > 1.2;
+    const groove = new Set(), near = (x, y) => { for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) if (groove.has((x + i) + ',' + (y + j))) return true; return false; };
+    for (let k = 0; k < 600; k++) {   // its folds: long curling grooves that keep apart, each lit along its top
+      let x = 6 + lr() * 60, y = 2 + lr() * 33, a = lr() * 6.3, c = (lr() < 0.5 ? -1 : 1) * (0.15 + lr() * 0.2);
+      const w = [];
+      for (let i = 0; i < 40; i++) {
+        const rx = Math.round(x), ry = Math.round(y), last = w[w.length - 1];
+        if (!last || last[0] !== rx || last[1] !== ry) { if (!inB(rx, ry) || near(rx, ry)) break; w.push([rx, ry]); }
+        a += c + (lr() - 0.5) * 0.3; if (i % 9 === 8) c = -c; x += Math.cos(a) * 0.8; y += Math.sin(a) * 0.65;
+      }
+      if (w.length >= 7) for (const [wx, wy] of w) groove.add(wx + ',' + wy);
+    }
+    for (const q of groove) { const [x, y] = q.split(',').map(Number); P.px(x, y, 3); if (inB(x, y - 1) && !groove.has(x + ',' + (y - 1))) P.px(x, y - 1, y < 15 && x < 42 ? 4 : 1); }
+    P.line(36, 2, 36, 35, 3); P.line(35, 2, 35, 34, 2);   // the fissure
+    for (const dx of [-14, 0, 14]) { const x = 36 + dx; P.rect(x - 1, 31, x + 1, 34, 4); P.rect(x, 28, x, 33, 6); P.px(x + (f ? 1 : -1), 28, 5); P.px(x, 27, f ? 4 : 5); }   // electrodes
+    P.wear(ph, 26); gxScars(P, ph, 26, 3, 5, f, (x, y) => y > 36 || y < 30);
+    P.outline(); return P.g;
   },
 };
 GxGfx.boss = function (key, f, variant, ph) {
@@ -18432,7 +18841,7 @@ Object.assign(Stage.prototype, {
         Sound.play('teleport'); done(60); return;
       }
       case 'claws': {
-        if (a.t % 10 === 1) for (const dx of [-b.w / 2 + 7, b.w / 2 - 7]) shoot(b.x + dx, b.y + b.h - 2, toward(b.x + dx, b.y + b.h), 1.7);
+        if (a.t % 10 === 1) for (const dx of [-b.w / 2 + 9.5, b.w / 2 - 9.5]) shoot(b.x + dx, b.y + b.h - 2, toward(b.x + dx, b.y + b.h), 1.7);
         if (a.t >= 30) done(40);
         return;
       }
@@ -18444,7 +18853,7 @@ Object.assign(Stage.prototype, {
       case 'stare':
         // only while it's open: a line from the eye to you, then a burning beam along it
         if (!b.open) { done(20); return; }
-        if (a.t === 1) { const tx = near ? near.x + 8 : b.x, ty = near ? near.y + 8 : FH; b.beams.push({ x: b.x, y0: b.y + 18, tx, ty, t: 0, warn: 40, dur: 24, kind: 'stare' }); Sound.play('charge'); }
+        if (a.t === 1) { const tx = near ? near.x + 8 : b.x, ty = near ? near.y + 8 : FH; b.beams.push({ x: b.x, y0: b.y + 24, tx, ty, t: 0, warn: 40, dur: 24, kind: 'stare' }); Sound.play('charge'); }
         if (a.t > 64) done(30);
         return;
       case 'orbFire': for (const o of b.orbs) if (o.hp > 0) { const [ox, oy] = this.gxOrbPos(b, o); shoot(ox, oy, toward(ox, oy), 1.6); } done(50); return;
@@ -19110,7 +19519,7 @@ Object.assign(GX_MOVES, {
   wing: function (e, g) {
     const b = g.boss;
     if (!b) { e.st = 'kami'; e.vy = 0.6; return; }
-    const tx = b.x + [-34, 34, -22, 22][e.slot % 4], ty = b.y + [8, 8, 28, 28][e.slot % 4] + Math.sin((this.frame + e.slot * 20) / 20) * 3;
+    const tx = b.x + [-42, 42, -26, 26][e.slot % 4], ty = b.y + [12, 12, 38, 38][e.slot % 4] + Math.sin((this.frame + e.slot * 20) / 20) * 3;
     e.x += (tx - e.x) * 0.1; e.y += (ty - e.y) * 0.1;
   },
   // a time bomb: floats to its spot and counts down
@@ -19338,8 +19747,8 @@ const gxDive = (st, type, b, n, near, gap = 16) => {
 };
 GX_BOSSES.push(
   // a city-sized saucer: shielded until a floppy disk uploads a virus, or while its dish is open to fire
-  { key: 'city', name: 'CITY KILLER', w: 88, h: 30, hp: 360, pts: 30000, move: 'sway',
-    phases: [['fighters', 'turrets', 'cityBeam', 'fan5'], ['turrets', 'fighters', 'cityBeam', 'ring12', 'aimed5'], ['cityBeam', 'spiral', 'fighters', 'turrets', 'cityBeam']],
+  { key: 'city', name: 'CITY KILLER', w: 100, h: 40, hp: 486, pts: 36000, move: 'sway',
+    phases: [['fighters', 'turrets', 'cityBeam', 'fan5'], ['turrets', 'fighters', 'cityBeam', 'ring12', 'aimed5'], ['cityBeam', 'spiral', 'fighters', 'turrets', 'cityBeam', 'ring16']],
     init(b) { b.virusT = 0; b.diskT = 240; b.dish = 0; },
     update(b, g) {
       if (b.virusT > 0) b.virusT--;
@@ -19356,7 +19765,7 @@ GX_BOSSES.push(
       b.noFlash = true;
       return dmg * 0.12;   // the shield takes nearly all of it
     },
-    frame: b => (b.dish ? 1 : 0),
+    frame: (b, fr) => (b.dish ? 1 : 0) + 2 * ((fr >> 3) & 1),
     drawOver(ctx, b) {
       const f = this.frame;
       if (b.virusT > 0) {   // the virus at work: glitches
@@ -19368,8 +19777,8 @@ GX_BOSSES.push(
     },
   },
   // the time car: 88 mph, two trails of fire, gone in a flash
-  { key: 'delorean', name: 'TIME CAR', w: 36, h: 22, hp: 300, pts: 32000, move: 'swayFast',
-    phases: [['timeJump', 'flux', 'fan5'], ['timeJump', 'flux', 'bolt', 'aimed5'], ['timeJump', 'bolt', 'flux', 'timeJump', 'spiral']],
+  { key: 'delorean', name: 'TIME CAR', w: 46, h: 30, hp: 405, pts: 38400, move: 'swayFast',
+    phases: [['timeJump', 'flux', 'fan5'], ['timeJump', 'flux', 'bolt', 'aimed5'], ['timeJump', 'bolt', 'flux', 'timeJump', 'spiral', 'fan7']],
     init(b) { b.dash = 0; },
     update(b) {
       if (!b.dash) return false;
@@ -19385,12 +19794,12 @@ GX_BOSSES.push(
     frame: (b, fr) => (fr >> 2) & 1,
     drawUnder(ctx, b) {
       if (!b.dash) return;
-      for (const dx of [-7, 7]) for (let y = Math.max(0, Math.round(b.y) - 40); y < b.y + 4; y += 2) { ctx.fillStyle = (y + this.frame) % 4 ? '#F8B800' : '#F83800'; ctx.fillRect(Math.round(b.x + dx) - 1, y, 3, 2); }
+      for (const dx of [-11, 11]) for (let y = Math.max(0, Math.round(b.y) - 40); y < b.y + 4; y += 2) { ctx.fillStyle = (y + this.frame) % 4 ? '#F8B800' : '#F83800'; ctx.fillRect(Math.round(b.x + dx) - 1, y, 3, 2); }
     },
   },
   // the martian saucer: a big brain in a dome and four wingmen; a bomb (the yodel) hurts it three times as much
-  { key: 'martian', name: 'MARTIAN SAUCER', w: 44, h: 26, hp: 280, pts: 34000, move: 'sway',
-    phases: [['rays', 'wingFire', 'fan5'], ['rays', 'abduct', 'wingFire', 'ring12'], ['rays', 'spiral', 'abduct', 'wingFire', 'fan9']],
+  { key: 'martian', name: 'MARTIAN SAUCER', w: 58, h: 36, hp: 520, pts: 40800, move: 'sway',
+    phases: [['rays', 'wingFire', 'fan5'], ['rays', 'abduct', 'wingFire', 'ring12'], ['rays', 'spiral', 'abduct', 'wingFire', 'fan9', 'aimed5']],
     init(b) { this.gxWingmen(b); this.gxSay(b, 'ACK ACK!', 90); b.ackT = 220; },
     update(b) {
       if (--b.ackT <= 0) { this.gxSay(b, ['ACK ACK!', 'ACK! ACK ACK!', 'ACK?', 'ACK ACK ACK!'][rnd(4)], 70); Sound.play('ack'); b.ackT = 220 + rnd(200); }
@@ -19405,8 +19814,8 @@ GX_BOSSES.push(
     onPhase(b) { this.gxWingmen(b); this.gxDrop(b.x, b.y + b.h, 'bomb'); },
   },
   // the cube: it adapts to the weapon that hurts it most (switch guns!)
-  { key: 'cube', name: 'THE CUBE', w: 48, h: 46, hp: 400, pts: 36000, move: 'slow',
-    phases: [['grid', 'cutter', 'assimilate'], ['tractorCut', 'grid', 'assimilate', 'aimed5'], ['tractorCut', 'grid', 'spiral2', 'assimilate', 'cutter']],
+  { key: 'cube', name: 'THE CUBE', w: 60, h: 58, hp: 470, pts: 43200, move: 'slow',
+    phases: [['grid', 'cutter', 'assimilate'], ['tractorCut', 'grid', 'assimilate', 'aimed5'], ['tractorCut', 'grid', 'spiral2', 'assimilate', 'cutter', 'ring12']],
     init(b) { b.adapt = {}; b.immune = []; b.boxT = 480; this.gxSay(b, 'RESISTANCE IS FUTILE.', 160); },
     update(b, g) {
       if (--b.boxT <= 0) {   // a weapon it hasn't adapted to drifts down now and then
@@ -19444,10 +19853,10 @@ GX_BOSSES.push(
     },
   },
   // the giant head: two hands that slam down at you; it breathes you in and spits tiles
-  { key: 'head', name: 'GIANT HEAD', w: 52, h: 44, hp: 480, pts: 38000, move: 'hover',
-    phases: [['slam', 'tiles', 'fan5'], ['slam', 'inhale', 'tiles', 'slam'], ['slam', 'inhale', 'spiral', 'tiles', 'slam']],
+  { key: 'head', name: 'GIANT HEAD', w: 66, h: 56, hp: 648, pts: 45600, move: 'hover',
+    phases: [['slam', 'tiles', 'fan5'], ['slam', 'inhale', 'tiles', 'slam'], ['slam', 'inhale', 'spiral', 'tiles', 'slam', 'fan7']],
     init(b, g) {
-      b.hands = [-1, 1].map(s => ({ s, hp: 40 * g.hpMul, max: 40 * g.hpMul, st: 'idle', t: 0, x: b.x + s * 38, y: b.y + 30, tx: 0, flash: 0 }));
+      b.hands = [-1, 1].map(s => ({ s, hp: 50 * g.hpMul, max: 50 * g.hpMul, st: 'idle', t: 0, x: b.x + s * 46, y: b.y + 40, tx: 0, flash: 0 }));
       b.mouth = 0; b.slamK = 0;
       this.gxSay(b, 'COME CLOSER, LITTLE TANKS!', 140);
     },
@@ -19455,20 +19864,20 @@ GX_BOSSES.push(
       for (const hd of b.hands) {
         if (hd.hp <= 0) continue;
         if (hd.flash > 0) hd.flash--;
-        const homeX = b.x + hd.s * 38, homeY = b.y + b.h - 12 + Math.sin((b.t + hd.s * 30) / 25) * 3;
+        const homeX = b.x + hd.s * 46, homeY = b.y + b.h - 14 + Math.sin((b.t + hd.s * 30) / 25) * 3;
         hd.t++;
         if (hd.st === 'idle') { hd.x += (homeX - hd.x) * 0.15; hd.y += (homeY - hd.y) * 0.15; }
         else if (hd.st === 'aim') { hd.x += (hd.tx - hd.x) * 0.12; hd.y += (b.y + b.h - hd.y) * 0.12; if (hd.t >= 40) { hd.st = 'down'; hd.t = 0; } }
-        else if (hd.st === 'down') { hd.y += 6; if (hd.y >= FH - 12) { hd.y = FH - 12; hd.st = 'stay'; hd.t = 0; Sound.play('bump'); this.fx.push({ x: hd.x, y: hd.y + 6, frames: Sprites.smallExp, per: 3, tick: 0 }); } }
+        else if (hd.st === 'down') { hd.y += 6; if (hd.y >= FH - 11) { hd.y = FH - 11; hd.st = 'stay'; hd.t = 0; Sound.play('bump'); this.fx.push({ x: hd.x, y: hd.y + 6, frames: Sprites.smallExp, per: 3, tick: 0 }); } }
         else if (hd.st === 'stay') { if (hd.t >= 24) { hd.st = 'up'; hd.t = 0; } }
         else if (hd.st === 'up') { hd.y -= 3; if (hd.y <= homeY) { hd.st = 'idle'; hd.t = 0; } }
-        for (const t of pl) if (overlap(t.x + 3, t.y + 3, 10, 10, hd.x - 10, hd.y - 8, 20, 16)) this.hitPlayer(t);
+        for (const t of pl) if (overlap(t.x + 3, t.y + 3, 10, 10, hd.x - 12, hd.y - 10, 24, 20)) this.hitPlayer(t);
       }
       return false;
     },
     hitParts(b, x, y, w, h, dmg, p) {
       for (const hd of b.hands) {
-        if (hd.hp <= 0 || !overlap(x, y, w, h, hd.x - 10, hd.y - 8, 20, 16)) continue;
+        if (hd.hp <= 0 || !overlap(x, y, w, h, hd.x - 13, hd.y - 10, 26, 20)) continue;
         hd.hp -= dmg; hd.flash = 3;
         if (hd.hp <= 0) { this.fx.push({ x: hd.x, y: hd.y, frames: BIG_EXPLOSION(), per: 4, tick: 0 }); Sound.play('explode'); if (p) this.addScore(p, 1500); this.gxSay(b, 'MY HAND!', 80); }
         return true;
@@ -19478,30 +19887,30 @@ GX_BOSSES.push(
     damage(b, dmg) { return b.hands.some(hd => hd.hp > 0) ? dmg * 0.4 : dmg; },
     onPhase(b, g, ph) {
       const dead = b.hands.find(hd => hd.hp <= 0);
-      if (dead) { dead.hp = dead.max * 0.6; dead.st = 'idle'; dead.x = b.x + dead.s * 38; dead.y = b.y + b.h; }
+      if (dead) { dead.hp = dead.max * 0.6; dead.st = 'idle'; dead.x = b.x + dead.s * 46; dead.y = b.y + b.h; }
       b.mouth = 0;
       this.gxSay(b, ph === 3 ? 'NOW YOU SEE MY TRUE FORM!' : 'YOU BRAT!', 120);
     },
-    frame: b => (b.mouth ? 1 : 0),
+    frame: (b, fr) => (b.mouth ? 1 : 0) + 2 * ((fr >> 4) & 1),
     drawOver(ctx, b) {
       const f = this.frame;
       if (b.mouth) for (let k = 0; k < 10; k++) {   // air rushing into its mouth
-        const a = k * 0.63, d = 70 - ((f * 3 + k * 17) % 70), mx = b.x, my = b.y + 34;
+        const a = k * 0.63, d = 70 - ((f * 3 + k * 17) % 70), mx = b.x, my = b.y + 44;
         ctx.fillStyle = '#A8E8F8'; ctx.fillRect(Math.round(mx + Math.cos(a) * d), Math.round(my + Math.sin(a) * d * 0.8 + 10), 3, 1);
       }
       for (const hd of b.hands) {
         if (hd.hp <= 0) continue;
         if (hd.st === 'aim' && (f >> 2) & 1) {   // where it'll land
           ctx.fillStyle = '#F83800'; const tx = Math.round(hd.tx);
-          ctx.fillRect(tx - 9, FH - 6, 18, 1); ctx.fillRect(tx, FH - 14, 1, 14); ctx.fillRect(tx - 6, FH - 12, 12, 1);
+          ctx.fillRect(tx - 12, FH - 6, 24, 1); ctx.fillRect(tx, FH - 16, 1, 16); ctx.fillRect(tx - 8, FH - 13, 16, 1);
         }
-        ctx.drawImage(GxGfx.hand(hd.flash > 0), Math.round(hd.x - 10), Math.round(hd.y - 8));
+        ctx.drawImage(GxGfx.hand(hd.flash > 0, hd.s), Math.round(hd.x - 13), Math.round(hd.y - 10));
       }
     },
   },
   // CATS: all your base are belong to us
-  { key: 'cats', name: 'CATS', w: 64, h: 40, hp: 760, pts: 50000, move: 'sway',
-    phases: [['timeBomb', 'launch', 'fan7'], ['mainScreen', 'timeBomb', 'launch', 'ring16'], ['mainScreen', 'timeBomb', 'spiral2', 'launch', 'timeBomb']],
+  { key: 'cats', name: 'CATS', w: 84, h: 52, hp: 1026, pts: 60000, move: 'sway',
+    phases: [['timeBomb', 'launch', 'fan7'], ['mainScreen', 'timeBomb', 'launch', 'ring16'], ['mainScreen', 'timeBomb', 'spiral2', 'launch', 'timeBomb', 'ring16']],
     init(b) { b.talk = ['HOW ARE YOU GENTLEMEN !!', 'ALL YOUR BASE ARE BELONG TO US.']; b.bombSaid = 0; b.screen = 0; },
     update(b) {
       if (!b.say && b.talk.length) { this.gxSay(b, b.talk.shift(), 150); Sound.play('talk'); }
@@ -19516,11 +19925,11 @@ GX_BOSSES.push(
       }
     },
     onKill(b, g) { g.banner = { text: 'ALL YOUR BASE ARE YOURS!', t: 240 }; },
-    frame: (b, fr) => (b.say ? (fr >> 3) & 1 : 0),
+    frame: (b, fr) => (b.say ? (fr >> 3) & 1 : 0) + 2 * ((fr >> 4) & 1),
     drawOver(ctx, b) {
       if (!b.screen) return;   // MAIN SCREEN TURN ON
       ctx.fillStyle = (this.frame >> 1) & 1 ? 'rgba(248,248,248,0.7)' : 'rgba(88,248,88,0.5)';
-      ctx.fillRect(Math.round(b.x - b.w / 2 + 22), Math.round(b.y + 12), 20, 18);
+      ctx.fillRect(Math.round(b.x - b.w / 2 + 29), Math.round(b.y + 15), 26, 23);
     },
   },
 );
@@ -19529,7 +19938,7 @@ Object.assign(Stage.prototype, {
   // the martian's four wingmen (back up to four)
   gxWingmen(b) {
     const g = this.galaxy, have = g.list.filter(e => e.st === 'wing').map(e => e.slot);
-    for (let k = 0; k < 4; k++) if (!have.includes(k)) { const e = this.gxSpawn({ type: 'msaucer', st: 'wing', slot: k }); e.x = b.x; e.y = b.y + 10; }
+    for (let k = 0; k < 4; k++) if (!have.includes(k)) { const e = this.gxSpawn({ type: 'msaucer', st: 'wing', slot: k }); e.x = b.x; e.y = b.y + 14; }
   },
 });
 
@@ -19537,7 +19946,7 @@ Object.assign(GX_BOSS_ACTS, {
   // CITY KILLER
   fighters(b, a, c) { if (c.g.list.length < 14) gxDive(this, 'attacker', b, 4, c.near); Sound.play('teleport'); c.done(60); },
   turrets(b, a, c) {
-    if (a.t % 12 === 1) for (const dx of [-36, -20, 20, 36]) { const x = b.x + dx, y = b.y + b.h - 6; c.shoot(x, y, c.toward(x, y), 1.5); }
+    if (a.t % 12 === 1) for (const dx of [-40, -24, 24, 40]) { const x = b.x + dx, y = b.y + (dx * dx > 900 ? 34 : 37); c.shoot(x, y, c.toward(x, y), 1.5); }
     if (a.t >= 36) c.done(50);
   },
   cityBeam(b, a, c) {
@@ -19553,7 +19962,7 @@ Object.assign(GX_BOSS_ACTS, {
   timeJump(b, a, c) {
     if (a.t === 1) {
       b.jx = Math.max(b.w / 2 + 2, Math.min(FW - b.w / 2 - 2, c.near ? c.near.x + 8 : b.x)); b.hold = true;
-      for (const dx of [-7, 7]) b.beams.push({ kind: 'fire', x: b.jx + dx, w: 4, top: 0, t: 0, warn: 45, dur: 110, snd: 'flame' });
+      for (const dx of [-11, 11]) b.beams.push({ kind: 'fire', x: b.jx + dx, w: 4, top: 0, t: 0, warn: 45, dur: 110, snd: 'flame' });
       this.gxSay(b, '88 MPH!', 60);
       Sound.play('mph');
     }
@@ -19612,17 +20021,17 @@ Object.assign(GX_BOSS_ACTS, {
       const alive = b.hands.filter(hd => hd.hp > 0);
       if (!alive.length) { c.done(10); return; }
       const hd = alive[b.slamK++ % alive.length];
-      hd.st = 'aim'; hd.t = 0; hd.tx = Math.max(10, Math.min(FW - 10, c.near ? c.near.x + 8 : FW / 2)); a.hand = b.hands.indexOf(hd);
+      hd.st = 'aim'; hd.t = 0; hd.tx = Math.max(13, Math.min(FW - 13, c.near ? c.near.x + 8 : FW / 2)); a.hand = b.hands.indexOf(hd);
       return;
     }
     const hd = b.hands[a.hand];
     if (!hd || hd.hp <= 0 || (hd.st === 'idle' && a.t > 2) || a.t > 220) c.done(30);
   },
-  tiles(b, a, c) { const t0 = c.toward(b.x, b.y + 34); for (let i = 0; i < 5; i++) c.shoot(b.x, b.y + 34, t0 + (i - 2) * 0.25, 1.3, 'tile'); Sound.play('mortar'); c.done(60); },
+  tiles(b, a, c) { const t0 = c.toward(b.x, b.y + 44); for (let i = 0; i < 5; i++) c.shoot(b.x, b.y + 44, t0 + (i - 2) * 0.25, 1.3, 'tile'); Sound.play('mortar'); c.done(60); },
   inhale(b, a, c) {
     if (a.t === 1) { b.mouth = 1; Sound.play('plane'); }
     if (a.t < 110) for (const t of this.gxPlayers()) { t.y = Math.max(Math.round(FH * 0.35), t.y - 0.45); t.x += Math.sign(b.x - (t.x + 8)) * 0.45; }
-    if (a.t === 110) { for (let i = 0; i < 10; i++) c.shoot(b.x, b.y + 34, i * Math.PI / 5 + 0.3, 1.2, 'tile'); b.mouth = 0; Sound.play('mortar'); c.done(60); }
+    if (a.t === 110) { for (let i = 0; i < 10; i++) c.shoot(b.x, b.y + 44, i * Math.PI / 5 + 0.3, 1.2, 'tile'); b.mouth = 0; Sound.play('mortar'); c.done(60); }
   },
   // CATS
   timeBomb(b, a, c) {
@@ -19638,7 +20047,7 @@ Object.assign(GX_BOSS_ACTS, {
     if (a.t === 1) { this.gxSay(b, 'MAIN SCREEN TURN ON.', 80); b.hold = true; b.screen = 1; Sound.play('talk'); }
     if (a.t === 30) {
       b.beams.push({ kind: 'city', x: b.x, w: 20, top: b.y + b.h, t: 0, warn: 60, dur: 40, snd: 'cityBlast' });
-      if (b.ph >= 3 && c.near) for (const dx of [-24, 24]) b.beams.push({ x: b.x + dx, y0: b.y + b.h, tx: c.near.x + 8 + dx, ty: c.near.y + 8, t: 0, warn: 60, dur: 24, kind: 'stare' });
+      if (b.ph >= 3 && c.near) for (const dx of [-26.5, 26.5]) b.beams.push({ x: b.x + dx, y0: b.y + b.h, tx: c.near.x + 8 + dx, ty: c.near.y + 8, t: 0, warn: 60, dur: 24, kind: 'stare' });
     }
     if (a.t >= 135) { b.hold = false; b.screen = 0; c.done(50); }
   },
@@ -19654,92 +20063,176 @@ Object.assign(GX_BOSS_PALS, {
   cats: [null, '#BCBCBC', '#7C7C7C', '#3C3C3C', '#F8D8B8', '#F83800', '#0C2C0C', '#080808'],
 });
 Object.assign(GX_BOSS_DRAW, {
-  // f: 1 while its dish is open
+  // f bit 0: its dish open; bit 1: the lights' chase. A city on its back, rings and spokes under it, four turrets
   city(f, ph) {
-    const P = bossPainter(88, 30);
-    P.ellipse(44, 15, 43.5, 12);
-    P.ellipse(44, 10, 26, 7);
-    P.rect(4, 16, 83, 16, 3);
-    for (let k = 0; k < 14; k++) P.px(6 + k * 6, 19, k % 2 ? 5 : 4);
-    for (const dx of [-30, -18, 18, 30]) P.line(44 + dx * 0.35, 22, 44 + dx, 27, 3);
-    P.disc(44, 22, 7.5, 3); P.disc(44, 22, 5.5, f ? 5 : 6); P.disc(44, 22, 2.5, f ? 4 : 6);
-    P.wear(ph, 31); P.outline(); return P.g;
-  },
-  // seen from above, nose down at you: hover wheels glowing
-  delorean(f, ph) {
-    const P = bossPainter(36, 22);
-    for (const [x, y] of [[4, 4], [31, 4], [4, 17], [31, 17]]) P.disc(x, y, 3.2, f ? 5 : 6);
-    P.rect(6, 1, 29, 20, 2); P.rect(6, 1, 6, 20, 1); P.rect(29, 1, 29, 20, 3);
-    for (let y = 2; y < 6; y++) P.rect(10, y, 25, y, y % 2 ? 3 : 2);   // rear vents
-    P.rect(9, 7, 26, 10, 1); P.rect(16, 8, 19, 9, f ? 5 : 4);   // roof, the flux capacitor's glow
-    P.rect(10, 12, 25, 16, 6); P.px(11, 13, 4);   // windshield
-    P.px(8, 19, 4); P.px(27, 19, 4);
-    P.wear(ph, 33); P.outline(); return P.g;
-  },
-  martian(f, ph) {
-    const P = bossPainter(44, 26);
-    P.ellipse(22, 19, 21.5, 6);
-    for (let k = 0; k < 9; k++) P.px(4 + Math.round(k * 4.5), 20, (k + f) % 2 ? 6 : 4);
-    P.disc(22, 11, 10, 6);   // the glass dome
-    P.disc(22, 8, 7, 5);     // the brain
-    for (const [x0, y0, x1, y1] of [[18, 4, 20, 8], [24, 3, 23, 7], [27, 6, 25, 9], [16, 8, 19, 10]]) P.line(x0, y0, x1, y1, 2);
-    P.rect(19, 12, 25, 16, 4); P.rect(19, 13, 20, 14, 7); P.rect(24, 13, 25, 14, 7); P.px(21, 16, 7); P.px(23, 16, 7);   // the skull face
-    P.wear(ph, 35); P.outline(); return P.g;
-  },
-  cube(f, ph) {
-    const P = bossPainter(48, 46);
-    for (let y = 0; y < 8; y++) P.rect(8 - y, y, 47 - y, y, 1);
-    P.rect(0, 8, 39, 45, 2);
-    for (let x = 40; x < 48; x++) P.rect(x, 8 - (x - 39), x, 45 - (x - 39), 3);
-    const r = seeded(77);
-    for (let k = 0; k < 28; k++) {
-      const x = 2 + Math.floor(r() * 36), y = 10 + Math.floor(r() * 34), len = 3 + Math.floor(r() * 8);
-      if (k % 2) P.line(x, y, Math.min(38, x + len), y, 6); else P.line(x, y, x, Math.min(44, y + len), 6);
-      P.px(x, y, (k + f) % 3 ? 5 : 4);
+    const P = bossPainter(100, 40), dish = f & 1, a = f >> 1;
+    for (const [x0, x1, top] of [[24, 29, 6], [31, 34, 3], [36, 41, 7], [44, 47, 1], [49, 55, 4], [57, 60, 2], [62, 67, 6], [69, 74, 8]]) {   // the city on top
+      P.rect(x0, top, x1, 12, 2); P.rect(x0, top, x0, 12, 1); P.rect(x1, top, x1, 12, 3); P.rect(x0, top, x1, top, 1);
+      for (let y = top + 2; y < 11; y += 2) for (let x = x0 + 1; x < x1; x += 2) if ((x * 3 + y * 5 + a) % 4 === 0) P.px(x, y, (x + y) % 3 ? 5 : 4);
     }
-    for (let k = 0; k < 6; k++) P.line(10 + k * 6, 2, 16 + k * 6, 2, 6);
-    P.wear(ph, 37); P.outline(); return P.g;
-  },
-  // f: 1 with its mouth open; phase 3 shows the brain
-  head(f, ph) {
-    const P = bossPainter(52, 44);
-    P.ellipse(26, 23, 24, 21);
-    if (ph >= 3) { P.disc(26, 8, 12, 6); for (const [x0, y0, x1, y1] of [[18, 4, 22, 9], [26, 1, 26, 8], [32, 4, 29, 10], [20, 11, 25, 12]]) P.line(x0, y0, x1, y1, 3); }
-    P.rect(8, 14, 44, 15, 3);
-    for (const x of [17, 35]) { P.disc(x, 19.5, 4, 5); P.disc(x, 20, 1.6, 7); }
-    P.line(26, 17, 23, 27, 3); P.line(23, 27, 29, 27, 3);
-    P.line(10, 26, 14, 36, 3); P.line(42, 26, 38, 36, 3);
-    if (f) { P.disc(26, 34, 7, 7); P.rect(21, 28, 31, 28, 4); } else P.rect(17, 33, 35, 34, 3);
-    if (ph >= 2) { P.line(12, 9, 19, 16, 7); P.line(40, 30, 46, 22, 7); }
+    P.line(46, 1, 46, 0, 3); P.px(45, 0, a ? 5 : 4);
+    gxBall(P, 50, 21, 49.5, 13, [4, 1, 2, 3, 3]);   // the saucer
+    for (let y = 8; y < 21; y++) for (let x = 0; x < 100; x++) if (P.g[y][x] === 4 && (x + y) % 3) P.g[y][x] = 1;
+    const ring = (rx, ry, c, hi) => { for (let k = 0; k < 360; k++) { const t = k * Math.PI / 180, x = Math.round(50 + Math.cos(t) * rx), y = Math.round(21 + Math.sin(t) * ry); P.px(x, y, c); if (hi && Math.sin(t) > 0.2) P.px(x, y + 1, hi); } };
+    ring(45, 11, 3, 1); ring(33, 8, 3, 2); ring(20, 5, 3, 0);
+    for (let k = 0; k < 20; k++) { const t = k * Math.PI / 10 + 0.15; if (Math.sin(t) < -0.3) continue; P.line(50 + Math.cos(t) * 21, 21 + Math.sin(t) * 5.5, 50 + Math.cos(t) * 32, 21 + Math.sin(t) * 7.8, 3); P.line(50 + Math.cos(t) * 34, 21 + Math.sin(t) * 8.3, 50 + Math.cos(t) * 44, 21 + Math.sin(t) * 10.6, 2); }   // spokes
+    for (let k = 0; k < 26; k++) { const t = k * Math.PI / 13, x = Math.round(50 + Math.cos(t) * 39), y = Math.round(21 + Math.sin(t) * 9.6); if (Math.sin(t) > -0.5) P.px(x, y, (k + a * 2) % 4 < 2 ? 5 : 4); }   // lights
+    for (let x = 3; x < 97; x += 4) { const y = Math.round(21 + 12.6 * Math.sqrt(Math.max(0, 1 - ((x - 50) / 49.5) ** 2))); if (Math.abs(x - 50) > 10) { P.px(x, y - 1, 7); P.px(x, y - 2, 3); } }   // bays round its rim
+    for (const dx of [-40, -24, 24, 40]) { const x = 50 + dx, y = dx * dx > 900 ? 30 : 33; gxBall(P, x, y, 3, 2.5, [4, 1, 2, 3, 7]); P.rect(x - 0.5, y + 2, x + 0.5, y + 4, 3); P.px(x, y + 4, a ? 5 : 6); }   // turrets
+    // the primary weapon: an iris shut over it, or open and blazing
+    P.disc(50, 31, 8.5, 7); P.disc(50, 31, 7.5, 3); P.ring(50, 31, 7, 2);
+    if (dish) { P.disc(50, 31, 6, 5); P.disc(50, 31, 4, a ? 4 : 5); P.disc(50, 31, 2, 4); for (let k = 0; k < 8; k++) { const t = k * Math.PI / 4 + a * 0.4; P.px(50 + Math.cos(t) * 5, 31 + Math.sin(t) * 5, 4); } }
+    else { P.disc(50, 31, 6, 6); for (let k = 0; k < 6; k++) { const t = k * Math.PI / 3; P.line(50 + Math.cos(t) * 6, 31 + Math.sin(t) * 6, 50 + Math.cos(t + 2) * 1.5, 31 + Math.sin(t + 2) * 1.5, 3); } P.px(50, 31, 5); }
+    P.wear(ph, 31); gxScars(P, ph, 31, 5, 5, a, (x, y) => y > 12 && Math.hypot(x - 50, y - 31) > 10);
     P.outline(); return P.g;
   },
-  // f: its mouth on the screen while it talks
+  // seen from above, nose down at you: four hover wheels glowing, gull-wing doors, the louvres, the flux capacitor
+  delorean(f, ph) {
+    const P = bossPainter(46, 30);
+    for (const [x, y] of [[8, 7], [37, 7], [8, 23], [37, 23]]) { gxBall(P, x + 0.5, y + 0.5, 5, 5, [2, 2, 3, 3, 7]); P.disc(x + 0.5, y + 0.5, 3.3, f ? 5 : 6); P.disc(x + 0.5, y + 0.5, 2, f ? 4 : 5); P.disc(x + 0.5, y + 0.5, 1, 3); }   // the wheels, folded flat, glowing
+    for (let y = 1; y <= 29; y++) { const in_ = y > 26 ? y - 26 : y < 3 ? 3 - y : 0; for (let x = 12 + in_; x <= 33 - in_; x++) P.px(x, y, x === 12 + in_ ? 1 : x === 33 - in_ ? 3 : x % 3 === 0 ? 1 : 2); }   // brushed steel
+    P.rect(14, 2, 31, 3, 3); P.rect(20, 1, 25, 3, 1); P.disc(22.5, 2.5, 2, 4); P.px(22, 2, 1);   // the rear: Mr Fusion on the deck
+    for (const x of [14, 30]) { P.rect(x, 1, x + 1, 2, 7); P.px(x, 1, f ? 5 : 6); }   // vents
+    for (let y = 5; y <= 10; y++) P.rect(15, y, 30, y, y % 2 ? 7 : 3);   // the louvres over the back window
+    P.line(13, 4, 13, 11, 5); P.line(32, 4, 32, 11, 5);   // the time circuits' cables
+    P.rect(15, 12, 30, 18, 1); P.rect(15, 18, 30, 18, 2); P.line(22, 12, 22, 18, 3); P.line(23, 12, 23, 18, 2);   // the roof, gull-wing seam
+    for (const [x0, y0, x1, y1] of [[19, 13, 22, 15], [26, 13, 23, 15], [22.5, 15, 22.5, 17]]) P.line(x0, y0, x1, y1, f ? 4 : 5);   // the flux capacitor's Y glowing through
+    for (let y = 19; y <= 23; y++) P.rect(14 + (y - 19) * 0.5, y, 31 - (y - 19) * 0.5, y, 6);   // the windshield
+    P.line(16, 20, 19, 20, 4); P.px(17, 21, 5);
+    P.line(22.5, 24, 22.5, 27, 3);   // the hood's seam
+    for (const x of [15, 28]) { P.rect(x, 27, x + 2, 28, 4); P.px(x + 1, 28, f ? 1 : 4); }   // headlights
+    P.rect(19, 28, 26, 28, 7); for (let x = 19; x <= 26; x += 2) P.px(x, 28, 3);   // the grille
+    P.px(11, 19, 2); P.px(34, 19, 2);   // mirrors
+    P.wear(ph, 33); gxScars(P, ph, 33, 3, 5, f, (x, y) => x > 12 && x < 33);
+    P.outline(); return P.g;
+  },
+  // a silver saucer, ring lights chasing; in the glass dome a martian: a huge brain, a grinning skull face
+  martian(f, ph) {
+    const P = bossPainter(58, 36);
+    gxBall(P, 29, 29, 18, 5, [0, 2, 2, 3, 7]); P.disc(29, 32.5, 3.5, 3); P.disc(29, 32.5, 2, f ? 6 : 4);   // the underside, its ray gun
+    gxBall(P, 29, 25, 28.5, 7, [4, 1, 1, 2, 3]);   // the saucer
+    P.rect(1, 25, 56, 26, 2); P.rect(1, 25, 56, 25, 1); P.rect(2, 27, 55, 27, 3);
+    for (let k = 0; k < 11; k++) { const x = 3 + k * 5; P.rect(x, 25, x + 1, 26, (k + f) % 2 ? 6 : 4); P.px(x + 1, 26, (k + f) % 2 ? 1 : 6); }   // lights
+    for (const x of [10, 47]) { P.line(x, 21, x + (x < 29 ? 3 : -3), 20, 3); }
+    gxBall(P, 29, 13, 14, 13, [4, 6, 6, 6, 1]);   // the glass dome
+    // the martian: brain, skull, eyes, grin
+    gxBall(P, 29, 9, 10, 7.5, [4, 5, 5, 5, 2]);
+    for (const [x0, y0, x1, y1] of [[22, 6, 25, 4], [25, 4, 27, 7], [29, 2, 29, 9], [31, 5, 34, 4], [33, 8, 36, 7], [21, 10, 25, 9], [31, 10, 34, 11], [26, 11, 27, 8]]) P.line(x0, y0, x1, y1, 2);
+    P.disc(29, 16.5, 6.5, 4); P.rect(24, 13, 34, 15, 4); P.ring(29, 16.5, 6.5, 1);
+    for (const s of [-1, 1]) { P.disc(29 + s * 3 + 0.5, 16, 2.2, 7); P.px(29 + s * 3 + (s < 0 ? 0 : 1), 16, f ? 5 : 7); }   // eye sockets, a glint in them
+    P.px(29, 19, 7); P.rect(25, 21, 33, 21, 7); for (let x = 25; x <= 33; x += 2) P.px(x, 21, 4); P.px(24, 20, 7); P.px(34, 20, 7);   // nose hole, the grin
+    P.rect(24, 23, 34, 24, 3); P.px(29, 23, 6);   // its collar
+    P.line(19, 5, 22, 2, 4); P.line(18, 8, 18, 9, 4); P.px(36, 3, 1);   // glints on the glass
+    P.rect(28, 0, 30, 0, f ? 6 : 4);
+    P.wear(ph, 35); gxScars(P, ph, 35, 3, 6, f, (x, y) => y > 22);
+    if (ph >= 3) { P.line(37, 6, 40, 12, 7); P.line(40, 12, 38, 16, 7); P.line(16, 10, 19, 14, 1); }   // the dome cracked
+    P.outline(); return P.g;
+  },
+  // three faces of greebles: panels, pipes, conduits, green lights that blink (f)
+  cube(f, ph) {
+    const P = bossPainter(60, 58), r = seeded(77);
+    for (let y = 0; y < 11; y++) P.rect(11 - y, y, 59 - y, y, 1);   // the top
+    P.rect(0, 11, 48, 57, 2);   // the front
+    for (let x = 49; x < 60; x++) P.rect(x, 11 - (x - 48), x, 57 - (x - 48), 3);   // the side
+    const front = (x, y) => x >= 1 && x <= 47 && y >= 12 && y <= 56;
+    for (let k = 0; k < 34; k++) {   // panels, raised or sunk
+      const x = 1 + Math.floor(r() * 40), y = 12 + Math.floor(r() * 40), w = 3 + Math.floor(r() * 8), h = 2 + Math.floor(r() * 6), up = r() < 0.6;
+      for (let j = y; j <= Math.min(56, y + h); j++) for (let i = x; i <= Math.min(47, x + w); i++) P.px(i, j, j === y || i === x ? (up ? 1 : 3) : j === Math.min(56, y + h) || i === Math.min(47, x + w) ? (up ? 3 : 1) : up ? 2 : 3);
+    }
+    for (let k = 0; k < 9; k++) { const y = 14 + Math.floor(r() * 42); P.line(1, y, 47, y, 3); P.line(1, y - 1, 47, y - 1, 1); }   // pipes across
+    for (let k = 0; k < 16; k++) {   // conduits, a light at each end
+      const x = 2 + Math.floor(r() * 44), y = 13 + Math.floor(r() * 42), len = 3 + Math.floor(r() * 9);
+      if (k % 2) P.line(x, y, Math.min(46, x + len), y, 6); else P.line(x, y, x, Math.min(55, y + len), 6);
+      P.px(x, y, (k + f) % 3 ? 5 : 4);
+    }
+    for (let k = 0; k < 12; k++) { const x = 13 + Math.floor(r() * 44), y = 1 + Math.floor(r() * 9); P.line(x - y, y, x - y + 5, y, 2); if (k % 3 === 0) P.px(x - y, y, 6); }   // top greebles
+    for (let k = 0; k < 14; k++) { const x = 49 + Math.floor(r() * 10), y = 14 + Math.floor(r() * 40) - (x - 48); P.line(x, y, x, y + 4, k % 2 ? 2 : 7); if (k % 4 === 0) P.px(x, y + 2, (k + f) % 2 ? 6 : 5); }   // the side's
+    for (const [x, y] of [[23, 33], [9, 20], [38, 47]]) { P.rect(x - 2, y - 2, x + 2, y + 2, 7); P.rect(x - 1, y - 1, x + 1, y + 1, f ? 5 : 6); P.px(x, y, f ? 4 : 5); }   // vents glowing green
+    P.line(0, 11, 48, 11, 1); P.line(48, 11, 59, 0, 1); P.line(48, 12, 48, 57, 7);   // edges
+    P.wear(ph, 37); gxScars(P, ph, 37, 5, 5, f, front);
+    P.outline(); return P.g;
+  },
+  // f bit 0: its mouth open; bit 1: its eyes' glow. A huge stern face; phase 3 shows the brain
+  head(f, ph) {
+    const P = bossPainter(66, 56), m = f & 1, a = f >> 1;
+    for (const s of [-1, 1]) { gxBall(P, 33 + s * 29, 30, 4, 7, [1, 1, 2, 3, 3]); P.line(33 + s * 29, 26, 33 + s * 29, 33, 3); }   // ears
+    gxBall(P, 33, 29, 29, 27, [4, 1, 2, 3, 3]);
+    for (let y = 0; y < 56; y++) for (let x = 0; x < 66; x++) if (P.g[y][x] === 4) P.g[y][x] = 1;
+    if (ph >= 3) {   // the skull open: the brain
+      for (let x = 10; x < 57; x++) { const top = Math.round(14 + Math.sin(x * 1.3) * 1.5 + ((x * 7) % 3)); for (let y = 0; y < top; y++) if (P.g[y][x]) P.g[y][x] = 0; P.px(x, top, 4); P.px(x, top + 1, 1); }
+      gxBall(P, 33, 10, 20, 10, [4, 6, 6, 6, 3]);
+      for (const [x0, y0, x1, y1] of [[18, 7, 24, 5], [24, 5, 27, 10], [33, 1, 33, 15], [39, 6, 44, 4], [40, 10, 46, 11], [20, 12, 26, 13], [28, 3, 30, 7], [36, 12, 38, 9]]) P.line(x0, y0, x1, y1, 3);
+      for (let x = 13; x < 54; x++) { const top = Math.round(14 + Math.sin(x * 1.3) * 1.5 + ((x * 7) % 3)); if (P.g[top][x] !== 4) continue; if ((x + top) % 4 === 0) P.px(x, top - 1, 4); }
+    } else for (const y of [9, 12]) for (let x = 20; x < 47; x++) P.px(x, y + Math.round(Math.abs(x - 33) * 0.12), x < 33 ? 3 : 2);   // a frowning forehead
+    // brows, the eyes in deep sockets, the nose, cheekbones
+    for (const s of [-1, 1]) {
+      for (let k = 0; k <= 13; k++) { const x = 33 + s * (3 + k), y = 20 - Math.round(k * 0.35); P.px(x, y, 3); P.px(x, y + 1, 3); P.px(x, y - 1, 1); }
+      const ex = 33 + s * 10; P.disc(ex + 0.5, 25, 5, 7); P.disc(ex + 0.5, 25, 3.6, 5); P.disc(ex + 0.5, 25, 1.8, a ? 4 : 5); P.rect(ex, 23, ex, 27, 7); P.px(ex - 2 * s, 24, 4);
+      P.line(33 + s * 18, 30, 33 + s * 14, 40, 3); P.line(33 + s * 17, 30, 33 + s * 13, 39, 1);   // cheekbones
+      P.line(33 + s * 6, 49, 33 + s * 2, 52, 2);   // the jaw
+    }
+    P.line(32, 22, 31, 35, 1); P.line(34, 22, 35, 35, 2); P.line(35, 26, 36, 35, 3); P.rect(29, 36, 37, 37, 2); P.px(30, 37, 7); P.px(36, 37, 7); P.line(31, 38, 35, 38, 3);   // the nose
+    if (m) { P.disc(33, 44.5, 8, 7); P.rect(27, 38, 39, 39, 7); for (let x = 27; x <= 39; x += 2) { P.px(x, 39, 4); P.px(x, 40, 4); } P.disc(33, 49, 4, 6); P.line(30, 48, 36, 48, 4); for (let x = 29; x <= 37; x += 2) P.px(x, 51, 4); }   // open: teeth, tongue
+    else { P.line(23, 45, 26, 43, 3); P.line(26, 43, 40, 43, 7); P.line(40, 43, 43, 45, 3); P.line(26, 44, 40, 44, 2); P.line(27, 46, 39, 46, 1); }   // shut: a grim line
+    P.line(33, 50, 33, 53, 3);   // a cleft chin
+    gxScars(P, ph, 41, 3, 5, a, (x, y) => y > 15 && Math.hypot(x - 33, y - 44) > 9 && Math.abs(y - 25) > 5);
+    if (ph >= 2) { P.line(13, 17, 19, 24, 7); P.line(19, 24, 18, 28, 7); P.line(52, 31, 56, 24, 7); }
+    P.outline(); return P.g;
+  },
+  // f bit 0: its mouth on the screen while it talks; bit 1: lights. A battleship, CATS's face on its main screen
   cats(f, ph) {
-    const P = bossPainter(64, 40);
-    for (let y = 6; y < 34; y++) { const hw = 31 - Math.abs(y - 20) * 0.9; P.rect(Math.round(32 - hw), y, Math.round(31 + hw), y, y < 12 ? 1 : y > 28 ? 3 : 2); }
-    P.rect(16, 2, 47, 7, 1); P.rect(16, 7, 47, 7, 3);
-    P.rect(2, 16, 9, 24, 3); P.rect(54, 16, 61, 24, 3); P.rect(3, 25, 4, 26, 5); P.rect(59, 25, 60, 26, 5);
-    for (const x of [12, 20, 43, 51]) P.rect(x, 30, x + 1, 37, 3);
-    P.rect(21, 11, 42, 30, 7); P.rect(22, 12, 41, 29, 6);   // the screen
-    for (let y = 0; y < 40; y++) for (let x = 0; x < 64; x++) if (Math.hypot(x + 0.5 - 31.5, y + 0.5 - 21) <= 6.5) P.px(x, y, x >= 32 ? 1 : 4);   // half a face, half metal
-    P.px(29, 19, 7); P.rect(34, 19, 35, 19, 5); P.line(26, 15, 29, 14, 3); P.line(35, 13, 38, 16, 3);
-    P.rect(29, 24, 34, f ? 25 : 24, 7);
-    P.wear(ph, 39); P.outline(); return P.g;
+    const P = bossPainter(84, 52), m = f & 1, a = f >> 1;
+    for (const s of [-1, 1]) { P.line(41.5 + s * 16.5, 1, 41.5 + s * 16.5, 9, 3); P.px(41.5 + s * 16.5, 0, (a + (s > 0)) % 2 ? 5 : 3); }   // masts
+    for (const x of [15, 26, 57, 68]) { P.rect(x - 1, 42, x + 1, 50, 3); P.rect(x - 1, 42, x - 1, 50, 2); P.rect(x - 1, 51, x + 1, 51, 7); P.px(x, 51, a ? 5 : 7); }   // cannons
+    for (let y = 6; y <= 45; y++) { const hw = 34 - Math.max(0, Math.abs(y - 25) - 11) * 1.4; P.rect(Math.round(41.5 - hw), y, Math.round(41.5 + hw), y, y < 12 ? 1 : y > 39 ? 3 : 2); }   // the hull
+    P.rect(26, 2, 57, 7, 2); P.rect(26, 2, 57, 2, 1); P.rect(30, 0, 53, 2, 1); P.rect(30, 0, 53, 0, 4);   // the bridge
+    for (let x = 32; x <= 51; x += 3) P.px(x, 4, (x + a * 3) % 6 < 3 ? 5 : 3);
+    for (const y of [12, 40]) { P.line(9, y, 74, y, 3); P.line(9, y + 1, 74, y + 1, 1); }   // armour seams
+    for (const x of [16, 23, 60, 67]) { P.line(x, 12, x, 40, 3); P.line(x + 1, 13, x + 1, 39, 1); }
+    for (let x = 11; x < 74; x += 4) if (x < 26 || x > 57) { P.px(x, 15, 1); P.px(x, 37, 3); }   // rivets
+    for (const s of [-1, 1]) {   // engine pods, burning
+      const x = 41.5 + s * 36; gxBall(P, x, 27, 5.5, 12, [4, 1, 2, 3, 3]);
+      for (let y = 20; y <= 34; y += 3) P.line(x - 3, y, x + 3, y, 3);
+      P.rect(x - 2, 39, x + 2, 41, 7); P.rect(x - 1, 40, x + 1, 41, a ? 5 : 4); P.px(x, 42, 5);
+    }
+    for (const [x0, y0] of [[11, 20], [11, 30], [69, 20], [69, 30]]) { P.rect(x0, y0, x0 + 3, y0 + 4, 3); P.rect(x0 + 1, y0 + 1, x0 + 2, y0 + 3, 5); if (a) P.px(x0 + 1, y0 + 1, 4); }   // red lights
+    // the main screen: scanlines, CATS (half a face, half machine) on it
+    P.rect(27, 13, 56, 39, 7); P.rect(28, 13, 55, 13, 1); P.rect(28, 14, 55, 38, 3);
+    for (let y = 15; y <= 37; y++) P.rect(29, y, 54, y, y % 2 ? 6 : 7);
+    for (let y = 16; y <= 37; y++) for (let x = 30; x <= 53; x++) {
+      const d = Math.hypot((x + 0.5 - 41.5) / 8, (y + 0.5 - 25) / 9.5);
+      if (d <= 1) P.px(x, y, x < 42 ? (d > 0.85 || x < 35 && y > 25 ? 3 : 4) : d > 0.85 ? 3 : (x + y) % 5 ? 1 : 2);
+    }
+    P.line(42, 16, 42, 34, 3); for (let y = 18; y <= 32; y += 4) P.px(44, y, 3);   // the seam, rivets on the metal half
+    P.rect(36, 17, 41, 18, 3); P.line(43, 17, 48, 19, 2);   // brows
+    P.rect(36, 22, 39, 23, 7); P.px(37, 22, 4);   // its eye
+    P.rect(45, 21, 48, 23, 7); P.rect(46, 22, 47, 22, 5); P.px(46, 22, a ? 4 : 5);   // the red eye
+    P.line(41, 24, 40, 28, 3);
+    P.rect(37, 30, 46, m ? 32 : 30, 7); if (m) P.rect(38, 30, 45, 30, 4);   // the mouth
+    for (const x of [33, 50]) P.line(x, 34, x + (x < 42 ? -2 : 2), 37, 2);   // tubes from its neck
+    P.wear(ph, 39); gxScars(P, ph, 39, 4, 5, a, (x, y) => (x < 27 || x > 56 || y < 13 || y > 39) && y > 3);
+    P.outline(); return P.g;
   },
 });
-GxGfx.hand = function (flash) {
-  const k = 'hand' + (flash ? 'f' : 'n');
+// an open hand, palm down, fingers spread at you (s: -1 the left hand, 1 the right one, the thumb inside)
+GxGfx.hand = function (flash, s = -1) {
+  const k = 'hand' + (flash ? 'f' : 'n') + s;
   let c = this.cache.get(k);
   if (!c) {
-    // an open hand, palm down, fingers spread at you
-    const P = bossPainter(20, 16);
-    P.rect(3, 0, 16, 2, 5); P.rect(3, 2, 16, 2, 3);   // a gold cuff
-    P.rect(3, 3, 16, 9, 2); P.rect(3, 3, 16, 3, 1); P.rect(16, 4, 16, 9, 3);   // the back of the hand
-    for (const [x, len] of [[4, 5], [8, 6], [12, 6], [15, 4]]) { P.rect(x, 10, x + 1, 9 + len, 2); P.px(x + 1, 10, 3); P.rect(x, 9 + len, x + 1, 9 + len, 4); }   // fingers, nails
-    P.rect(0, 5, 2, 6, 2); P.rect(0, 7, 1, 9, 2); P.px(0, 9, 4);   // the thumb
-    for (const x of [5, 9, 13]) P.px(x, 8, 3);   // knuckles
+    const P = bossPainter(26, 20);
+    for (let y = 3; y <= 10; y++) { const x0 = 7 - Math.floor((y - 3) / 2), x1 = 20 + Math.floor((y - 3) / 3); for (let x = x0; x <= x1; x++) P.px(x, y, x === x0 || (y < 6 && x < 14) ? 1 : x === x1 || y === 10 ? 3 : 2); }   // the back of the hand
+    for (const [x0, x1] of [[9, 7], [12, 11], [15, 15], [18, 19]]) P.line(x0, 4, x1, 8, x0 < 13 ? 2 : 3);   // tendons
+    for (const [x, len] of [[4, 6], [9, 8], [14, 8], [19, 6]]) {   // fingers: knuckles, joints, nails
+      for (let y = 10; y <= 9 + len; y++) { P.px(x, y, 1); P.px(x + 1, y, 2); P.px(x + 2, y, 3); }
+      const j = 10 + Math.round(len * 0.45); P.px(x, j, 2); P.px(x + 1, j, 3);
+      P.rect(x, 9 + len, x + 1, 9 + len, 4); P.px(x + 2, 9 + len, 1); P.px(x, 9, 4); P.px(x + 1, 9, 1);
+    }
+    for (const [x, y] of [[4, 6], [3, 7], [2, 8], [1, 9], [1, 10], [1, 11]]) { P.px(x, y, 1); P.px(x + 1, y, 2); P.px(x + 2, y, 3); }   // the thumb
+    P.rect(1, 12, 2, 12, 4); P.px(3, 12, 1);
+    P.rect(6, 0, 20, 2, 5); P.rect(6, 0, 20, 0, 4); P.rect(6, 2, 20, 2, 3); P.rect(12, 0, 14, 1, 6); P.px(12, 0, 4);   // a gold cuff, a jewel
     P.outline();
-    c = gridCanvas(P.g, flash ? BOSS_PALS.f : GX_BOSS_PALS.head); this.cache.set(k, c);
+    const g = s < 0 ? P.g.map(r => r.slice().reverse()) : P.g;
+    c = gridCanvas(g, flash ? BOSS_PALS.f : GX_BOSS_PALS.head); this.cache.set(k, c);
   }
   return c;
 };
@@ -21723,6 +22216,120 @@ Object.assign(Net, {
     return gxdApplyNetView.call(this, v);
   },
 });
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  GALAXY, tuning: how hard each skill level is, and the hangar's own money (credits).
+//    skill    the skill level scales the enemy's hit points, fire rate, shot speed, how many shots can be up at once,
+//             how many of the small fry's shots are aimed at you, and how much loot drops. ULTRA-VIOLENCE and
+//             NIGHTMARE! go well past the tank game's settings.
+//    credits  the hangar no longer takes points (combos, medals and grazing made everyone rich): it takes credits,
+//             from coins (10), gems (40), the enemy you shoot down (a little) and bosses (a bounty for everyone).
+//             Upgrades cost more and firepower and rapid fire have 7 levels.
+// =====================================================================
+
+// the skill as a number from 0 (I'M TOO YOUNG TO DIE) to 4 (NIGHTMARE!); AUTO lands in between
+const gxSkillT = () => { const v = Config.values.skill; return v >= 0 && v <= 4 ? v : Math.max(0, Math.min(4, (Config.skill().fire - 0.35) / 0.3125)); };
+const gxLerp = (a, t) => { const i = Math.min(a.length - 2, Math.floor(t)), k = t - i; return a[i] + (a[i + 1] - a[i]) * k; };
+const GXT = {
+  hp: [0.7, 0.85, 1, 1.4, 1.85],       // their hit points (bosses' too)
+  fire: [1, 1, 1, 1.3, 1.55],          // on top of the skill's own fire rate (UV 1.3 → 1.7, NM 1.6 → 2.5)
+  shot: [1, 1, 1, 1.1, 1.2],           // on top of the skill's shell speed
+  aim: [0, 0, 0.1, 0.4, 0.65],         // share of the small fry's shots aimed at you
+  cap: [0.8, 0.9, 1, 1.4, 1.8],        // how many of their shots can be up at once
+  drops: [1.25, 1.1, 1, 0.85, 0.7],    // loot from what you shoot down
+};
+
+// ------------------------------------------------------------------ skill
+function gxTune(g) {
+  const t = gxSkillT();
+  // other code (ENDLESS) sets these afresh as it goes: scale whatever we haven't scaled yet
+  if (g.hpMul !== g._tHp) g._tHp = g.hpMul = g.hpMul * gxLerp(GXT.hp, t);
+  if (g.fireMul !== g._tFire) g._tFire = g.fireMul = g.fireMul * gxLerp(GXT.fire, t);
+  if (g.shotSpd !== g._tShot) g._tShot = g.shotSpd = g.shotSpd * gxLerp(GXT.shot, t);
+  g.aim = gxLerp(GXT.aim, t); g.capMul = gxLerp(GXT.cap, t); g.dropMul = gxLerp(GXT.drops, t);
+}
+{
+  const _setup = Stage.prototype.setupGalaxy, _update = Stage.prototype.updateGalaxy, _boss = Stage.prototype.gxBossStart;
+  Stage.prototype.setupGalaxy = function (level) { const r = _setup.call(this, level); if (this.galaxy) gxTune(this.galaxy); return r; };
+  Stage.prototype.updateGalaxy = function () { if (this.galaxy) gxTune(this.galaxy); return _update.call(this); };
+  // bosses: their hit points by the skill too
+  Stage.prototype.gxBossStart = function () {
+    const r = _boss.apply(this, arguments), b = this.galaxy.boss;
+    if (b) { b.hp = b.max = b.max * gxLerp(GXT.hp, gxSkillT()); if (b.hands) for (const hd of b.hands) hd.hp = hd.max = hd.max * gxLerp(GXT.hp, gxSkillT()); }
+    return r;
+  };
+}
+// the small fry: on the harder skills some of their shots come at you, not just straight down
+for (const k of ['drone', 'bug', 'wasp', 'splitter']) if (!GX_FIRE[k]) GX_FIRE[k] = function (e, g, near) {
+  if (Math.random() < (g.aim || 0)) this.gxAimed(e, near(e.x, e.y), 1.4);
+  else g.bullets.push({ x: e.x, y: e.y + 5, vx: 0, vy: 1.3 * g.shotSpd, k: 'egg' });
+  return Math.round((e.st === 'cross' ? 150 + rnd(90) : 320 + rnd(400)) / Math.max(0.4, g.fireMul));
+};
+// loot: less of it on the harder skills, more on the easier ones (boss loot and power cells you lost aren't touched)
+{
+  const _kill = Stage.prototype.gxKill, _drop = Stage.prototype.gxDrop;
+  Stage.prototype.gxKill = function (e, p) {
+    this._gxtKill = true;
+    try { return _kill.call(this, e, p); } finally { this._gxtKill = false; }
+  };
+  Stage.prototype.gxDrop = function (x, y, k) {
+    const g = this.galaxy, m = g && g.dropMul !== undefined ? g.dropMul : 1;
+    if (this._gxtKill && m < 1 && Math.random() > m) return;
+    const r = _drop.call(this, x, y, k);
+    if (this._gxtKill && m > 1 && Math.random() < m - 1) _drop.call(this, x + 4, y, 'coin');
+    return r;
+  };
+}
+
+// ------------------------------------------------------------------ credits
+const gxCash = (p, n) => { if (p && !p.out) { const gp = gxPlayer(p); gp.cash = (gp.cash || 0) + n; } };
+{
+  const _wallet = wallet;
+  // in the hangar (and for a revive) galaxy players pay in credits
+  wallet = function (p) { return Game.mode === 'galaxy' && p && p.gx ? Math.max(0, Math.floor(p.gx.cash || 0) - (p.spent || 0)) : _wallet(p); };
+  // (a revive's cost in credits: see reviveCost in extras.js)
+  const _price = shopPrice;
+  shopPrice = function (item, p) { return Game.mode === 'galaxy' && item.id === 'life' ? Math.round(600 * Config.scale('shopPrices') / 10) * 10 : _price(item, p); };
+}
+{
+  const _collect = Stage.prototype.gxCollect, _kill = Stage.prototype.gxKill, _bossKill = Stage.prototype.gxBossKill;
+  Stage.prototype.gxCollect = function (t, u) {
+    if (u.k === 'coin') gxCash(t.player, 10); else if (u.k === 'gem') gxCash(t.player, 40);
+    return _collect.call(this, t, u);
+  };
+  // what you shoot down pays a little (no combo on it)
+  Stage.prototype.gxKill = function (e, p) {
+    if (p && !e.dead && GX_TYPES[e.type]) gxCash(p, GX_TYPES[e.type].pts / 30);
+    return _kill.call(this, e, p);
+  };
+  // a boss: a bounty for everyone, more for whoever finished it
+  Stage.prototype.gxBossKill = function (p) {
+    const g = this.galaxy, bounty = 120 + 30 * g.sec + 60 * g.loop;
+    for (const q of this.players) gxCash(q, bounty + (q === p ? 80 : 0));
+    return _bossKill.call(this, p);
+  };
+}
+// prices in credits (all of them come to about 18500: a full set around sector 10 if that's all you buy);
+// firepower and rapid fire up to 7 levels now
+Object.assign(GX_UPS.fire, { prices: [160, 300, 470, 700, 1010, 1420, 1890] });
+Object.assign(GX_UPS.rapid, { prices: [160, 300, 470, 700, 1010, 1420, 1890] });
+GX_UPS.engine.prices = [140, 300, 540];
+GX_UPS.shield.prices = [160, 350, 650];
+GX_UPS.magnet.prices = [110, 240, 430];
+GX_UPS.drones.prices = [680, 1490];
+GX_UPS.armor.prices = [470, 1080];
+gxShopPrice = function (item, p) {
+  const gp = gxPlayer(p), disc = Game.shopDiscount ? 0.75 : 1;
+  let price;
+  if (item.gxShop === 'power') price = 60 + 40 * gp.power;
+  else if (item.gxShop === 'bomb') price = 60;
+  else if (item.gxShop === 'weapon') price = 150;
+  else { const U = GX_UPS[item.up_]; price = U.prices[Math.min(U.prices.length - 1, gxUp(p, item.up_))]; }
+  return Math.max(10, Math.round((price * Config.scale('shopPrices') * disc) / 10) * 10);
+};
 
 </script>
 </body>
