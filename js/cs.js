@@ -87,7 +87,7 @@ Object.assign(Game, {
     if (local.length) groups.push({ members: local, side: o.side === 'CT' ? 'CT' : 'T', ready: false, local: true });
     for (const p of this.players) if (Input.remote[p.i]) groups.push({ members: [p.i], side: groups.length % 2 ? 'CT' : 'T', ready: false });
     this.curtain.cs = { groups, row: 0, target: [5, 8, 13].includes(o.target) ? o.target : 8, size: [3, 4, 5].includes(o.size) ? o.size : 5,
-      map: CS_MAP_ORDER.includes(o.map) || o.map === 'random' ? o.map : 'dust2', looks: {} };
+      map: CS_MAP_ORDER.includes(o.map) || o.map === 'random' ? o.map : 'dust2', looks: {}, neutrals: [0, 4, 8, 12].includes(o.neutrals) ? o.neutrals : 0 };
     for (const i of local) this.curtain.cs.looks[i] = CS_LOOKS.includes((o.looks || {})[i]) ? o.looks[i] : 'star';
     for (const p of this.players) if (Input.remote[p.i]) this.curtain.cs.looks[p.i] = 'star';
   },
@@ -97,18 +97,19 @@ Object.assign(Game, {
     for (const g of C.groups) {
       const r = g.local ? m : (Input.remote[g.members[0]] || {}).menu || {};
       if (g.local && m.back) { this.toTitle(); return; }
-      // the rows: side, map, rounds, team size, then a TANK row for each player at this computer
-      const rows = 4 + (g.local ? g.members.length : 0), look = (i, d) => { C.looks[i] = CS_LOOKS[(CS_LOOKS.indexOf(C.looks[i] || 'star') + d + CS_LOOKS.length) % CS_LOOKS.length]; Sound.play('select'); };
+      // the rows: side, map, rounds, team size, neutral tanks, then a TANK row for each player at this computer
+      const rows = 5 + (g.local ? g.members.length : 0), look = (i, d) => { C.looks[i] = CS_LOOKS[(CS_LOOKS.indexOf(C.looks[i] || 'star') + d + CS_LOOKS.length) % CS_LOOKS.length]; Sound.play('select'); };
       if (g.local && (m.up || m.down)) { C.row = (C.row + (m.down ? 1 : rows - 1)) % rows; Sound.play('select'); }
       // an online friend: left/right the side, up/down the tank
       if (!g.local && !g.ready && (r.up || r.down)) look(g.members[0], r.down ? 1 : -1);
       const dir = r.left ? -1 : r.right ? 1 : 0;
-      if (dir && !g.ready && g.local && C.row >= 4) look(g.members[C.row - 4], dir);
+      if (dir && !g.ready && g.local && C.row >= 5) look(g.members[C.row - 5], dir);
       else if (dir && !g.ready) {
         if (!g.local || C.row === 0) g.side = csOther(g.side);
         else if (C.row === 1) { const all = CS_MAP_ORDER.concat('random'); C.map = all[(all.indexOf(C.map) + dir + all.length) % all.length]; }
         else if (C.row === 2) C.target = [5, 8, 13][([5, 8, 13].indexOf(C.target) + dir + 3) % 3];
-        else C.size = 3 + ((C.size - 3 + dir + 3) % 3);
+        else if (C.row === 3) C.size = 3 + ((C.size - 3 + dir + 3) % 3);
+        else C.neutrals = [0, 4, 8, 12][([0, 4, 8, 12].indexOf(C.neutrals || 0) + dir + 4) % 4];
         Sound.play('select');
       }
       if (r.ok && this.t > 15) { g.ready = !g.ready; Sound.play(g.ready ? 'pickup' : 'select'); }
@@ -124,9 +125,9 @@ Object.assign(Game, {
     const n0 = humans.filter(p => side[p.i] !== 'CT').length, size = Math.max(C.size, n0, humans.length - n0);
     const local = C.groups.find(g => g.local);
     const looks = {}; if (local) for (const i of local.members) looks[i] = C.looks[i];
-    STORE.set(CS_KEY, { target: C.target, size: C.size, side: local ? local.side : 'T', map: C.map || 'dust2', looks });
+    STORE.set(CS_KEY, { target: C.target, size: C.size, side: local ? local.side : 'T', map: C.map || 'dust2', looks, neutrals: C.neutrals || 0 });
     const map = C.map === 'random' ? CS_MAP_ORDER[rnd(CS_MAP_ORDER.length)] : CS_MAPS[C.map] ? C.map : 'dust2';
-    this.csMatch = { target: C.target, size, round: 1, half: 0, score: [0, 0], streak: [0, 0], hist: [], id: 1 + rnd(1e6), map };
+    this.csMatch = { target: C.target, size, round: 1, half: 0, score: [0, 0], streak: [0, 0], hist: [], id: 1 + rnd(1e6), map, neutrals: C.neutrals || 0 };
     this.csSeen = {};
     for (const p of humans) { p.csSquad = side[p.i] === 'CT' ? 1 : 0; p.csLook = (C.looks || {})[p.i] || 'star'; }
     let k = 0;
@@ -1100,7 +1101,7 @@ Object.assign(Game, {
     // the options (the players at the host's computer set them)
     const local = C.groups.find(g => g.local);
     const rows = [['SIDE', local ? (local.side === 'T' ? 'TERRORISTS' : 'COUNTER-T.') : '-'], ['MAP', rand ? 'RANDOM' : CS_MAPS[CS_MAPKEY].name],
-      ['ROUNDS TO WIN', String(C.target)], ['TEAM SIZE', C.size + ' V ' + C.size]];
+      ['ROUNDS TO WIN', String(C.target)], ['TEAM SIZE', C.size + ' V ' + C.size], ['NEUTRAL TANKS', ['OFF', 'FEW', 'SOME', 'MANY'][[0, 4, 8, 12].indexOf(C.neutrals || 0)]]];
     if (local) for (const i of local.members) rows.push(['TANK ' + ROMAN[i], csLookName((C.looks || {})[i] || 'star'), i]);
     if (guest >= 0) rows.push(['YOUR TANK', csLookName((C.looks || {})[guest] || 'star'), guest]);
     const gap = Math.min(12, Math.floor(50 / Math.max(1, rows.length - 1)));
@@ -1173,7 +1174,7 @@ Object.assign(Game, {
     const foes = weaponFoes.call(this, att);
     if (!this.cs || !att || !att.player) return foes;
     const team = att.player.csTeam;
-    return foes.filter(o => o.player && o.player.csTeam !== team && this.csSees(team, o));
+    return foes.filter(o => (o.player ? o.player.csTeam !== team : !o.isPlayer) && this.csSees(team, o));   // (neutral tanks too)
   };
   // shots are heard (the other side sees where in the fog, if one of them is near enough)
   const fire = P.fire;
@@ -1226,7 +1227,7 @@ Object.assign(Game, {
     if (!V.team) return render.call(this, ctx);
     const keep = [this.tanks, this.bullets, this.wshots, this.mines];
     this.csVision(V.team);
-    this.tanks = keep[0].filter(t => !t.player || t.player.csTeam === V.team || this.csSees(V.team, t));
+    this.tanks = keep[0].filter(t => (t.player ? t.player.csTeam === V.team : false) || this.csSees(V.team, t));   // (neutral tanks: once seen)
     this.bullets = keep[1].filter(b => this.csSeesAt(V.team, b.x + 2, b.y + 2));
     this.wshots = keep[2].filter(m => this.csSeesAt(V.team, m.x, m.y));
     this.mines = keep[3].filter(m => (m.owner && m.owner.player ? m.owner.player.csTeam : m.team) === V.team);

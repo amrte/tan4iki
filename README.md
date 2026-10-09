@@ -226,6 +226,11 @@ counter-terrorists in the north (CT spawn, between the two bombsites).
   early (player II on the same keyboard: **7**; with three or four at one keyboard only an empty magazine reloads). The
   magazine shows in the side panel (yellow while reloading), with a bar under your tank and RELOADING over the field.
   Bots reload when there's nobody to fight and their magazine is half gone.
+- **Neutral tanks:** a NEUTRAL TANKS row on the team screen (OFF / FEW 4 / SOME 8 / MANY 12) puts grey tanks of
+  nobody's side round the map: BASIC, FAST, POWER and ARMOR, all in grey. They wait out the buy time, then roam and shoot
+  whoever's nearest, terrorist or counter-terrorist. Destroying one pays $150; it comes back ten seconds later somewhere
+  nobody can see. They hide in the fog like the other side (grey dots on the minimap once seen), and the bots fight
+  them when they come close. Remembered with the other match settings.
 - **Combat** as in versus: a hit destroys a tank, an armour plate soaks one; friendly fire is off (a teammate's shell
   stops on you and does nothing); one shell in the air at a time (two with two stars), flying at most 10 tiles, and a FIRE
   pressed while it's still out fires the moment it can; no power-ups on the map (everything is bought); every tank drives and reloads alike
@@ -1513,6 +1518,7 @@ js/cs.js          COUNTER-STRIKE: the team screen, rounds, the bomb, buying and 
 js/csbots.js      COUNTER-STRIKE's bots: buying, the terrorists' and counter-terrorists' plans, routes, fighting
 js/csorders.js    COUNTER-STRIKE's orders to the bots: FOLLOW ME, HOLD HERE, GO ON (keys, pads, touch, online)
 js/csreload.js    COUNTER-STRIKE's magazines and reloading (R)
+js/csneutral.js   COUNTER-STRIKE's neutral tanks: grey tanks of nobody's side, $150 a kill
 js/controls.js    the CONTROLS page (pause menu and Settings): the keys in use, per player and mode
 js/csmap_aztec.js  COUNTER-STRIKE's DE_AZTEC (jungle stone, the river, the rope bridge, temples)
 js/csmap_train.js  COUNTER-STRIKE's DE_TRAIN (train cars on rails, concrete halls)

@@ -1604,7 +1604,8 @@ class Stage {
       if (lk) [spec, pal] = lk;
     } else {
       spec = 'e' + t.type;
-      if (t.bonus && ((this.frame >> 3) & 1)) pal = 'red';
+      if (this.cs) pal = 'csN';   // Counter-Strike's neutral tanks: grey, whatever they are
+      else if (t.bonus && ((this.frame >> 3) & 1)) pal = 'red';
       else if (ENEMY[t.type].pal) pal = ENEMY[t.type].pal;
       // armor tanks start green and fade to silver as they take hits
       else if (t.hp >= 4) pal = 'green';

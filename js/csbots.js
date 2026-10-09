@@ -224,9 +224,10 @@ Object.assign(Stage.prototype, {
     // stays the target unless another is clearly better
     let tgt = null, bd = 1e9;
     for (const o of this.tanks) {
-      if (!o.alive || !o.player || o.player.csTeam === team || !this.csSees(team, o)) continue;
+      const neutral = !o.isPlayer && !o.player;   // a neutral tank (csneutral.js): fought only when it comes close
+      if (!o.alive || (!neutral && (!o.player || o.player.csTeam === team)) || !this.csSees(team, o)) continue;
       const ox = o.x + 8 - cx, oy = o.y + 8 - cy, far = Math.abs(ox) + Math.abs(oy);
-      if (far >= CSB_SEE) continue;
+      if (far >= (neutral ? 110 : CSB_SEE)) continue;
       const shot = (Math.abs(ox) < 9 || Math.abs(oy) < 9) && this.clearLine(cx, cy, o.x + 8, o.y + 8) && !this.csMateInLine(t, o);
       const dd = far - (o === ai.tgt ? 24 : 0) - (shot ? 400 : 0);
       if (dd < bd) { bd = dd; tgt = o; }

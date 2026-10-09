@@ -3,6 +3,13 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.63
+
+- **Counter-Strike: neutral tanks** (csneutral.js). A NEUTRAL TANKS row on the team screen (OFF / FEW / SOME / MANY:
+  0, 4, 8 or 12) puts grey tanks of nobody's side round the map (BASIC, FAST, POWER, ARMOR). They wait out the buy
+  time, then hunt whoever's nearest on either team; one destroyed pays $150 and comes back ten seconds later out of
+  sight. Hidden in the fog like the other side, grey dots on the minimap once seen; the bots fight them up close.
+
 ## 0.62
 
 - **Counter-Strike: take over bot after bot.** Out, B takes over the bot you're watching; out again, the next one, as
