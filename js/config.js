@@ -293,6 +293,19 @@ const SETTINGS_DEF = [
   { key: 'e23Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 23 },
   { key: 'e23Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 23 },
   { key: 'e23On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 23 },
+  // the terrain types' own (biomes.js)
+  { section: 'MAGMA *', enemy: 24 },
+  { key: 'e24Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 24 },
+  { key: 'e24Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 3, enemy: 24 },
+  { key: 'e24On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 24 },
+  { section: 'GATOR *', enemy: 25 },
+  { key: 'e25Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 25 },
+  { key: 'e25Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 25 },
+  { key: 'e25On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 25 },
+  { section: 'ROCKET TRUCK *', enemy: 26 },
+  { key: 'e26Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 26 },
+  { key: 'e26Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 26 },
+  { key: 'e26On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 26 },
 
   { section: 'POWER-UPS' },
   { key: 'helmetTime', label: 'HELMET TIME', values: SECS.slice(1), def: 10, fmt: fmtSec },
@@ -338,10 +351,12 @@ const SETTINGS_DEF = [
   { key: 'raceTarget', label: 'RACE: FIRST TO', values: [1, 2, 3, 5, 7, 10], def: 3, fmt: v => v + ' PTS' },
   // galaxy_modes.js: the kind of GALAXY run (also picked on its title screen and first curtain)
   { key: 'galaxyRun', label: 'GALAXY RUN', values: ['CAMPAIGN', 'BOSS RUSH', 'ENDLESS', 'DAILY'], def: 'CAMPAIGN' },
+  // terrain.js, biomes.js: mud, belts, pads, and crates, barrels, deflectors
   { key: 'terrainExtras', label: 'MUD, BELTS, PADS', values: ONOFF, def: 'ON' },
-  // seasons.js: a new season every stage, or one at random, or always the same (OFF: the classic black)
-  { key: 'seasons', label: 'SEASONS', values: ['CYCLE', 'RANDOM', 'OFF', 'SPRING', 'SUMMER', 'AUTUMN', 'WINTER', 'NUCLEAR', 'DESERT'], def: 'CYCLE' },
-  // seasonal.js: showers, wildfire, gusts, blizzards, hot spots, mirages
+  // seasons.js: a new season every stage, or one at random, or always the same (OFF: the classic black); the last
+  // three are the terrain types (biomes.js)
+  { key: 'seasons', label: 'SEASONS', values: ['CYCLE', 'RANDOM', 'OFF', 'SPRING', 'SUMMER', 'AUTUMN', 'WINTER', 'NUCLEAR', 'DESERT', 'VOLCANIC', 'SWAMP', 'CITY'], def: 'CYCLE' },
+  // seasonal.js: showers, wildfire, gusts, blizzards, hot spots, mirages (biomes.js: lava bombs, marsh gas, blackouts)
   { key: 'seasonFx', label: 'SEASON EFFECTS', values: ONOFF, def: 'ON' },
   // secrets.js: power-ups hidden in walls, ? blocks with coins or a guardian mushroom
   { key: 'secrets', label: 'SECRETS', values: ONOFF, def: 'ON' },

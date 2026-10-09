@@ -2,7 +2,9 @@
 // =====================================================================
 //  Construction: the level editor, and the levels you make with it.
 //    8 save slots, each a level and its season (AUTO: whatever the stage would have); every change is saved at once.
-//    A tile palette on the right (every terrain: brick, steel, water, trees, ice, mud, bridges, belts, teleporters),
+//    A tile palette on the right (every terrain: brick, steel, water, trees, ice, mud, bridges, belts, teleporters, and
+//    the terrain types' tiles: lava, basalt, vents, bog, reeds, gas, concrete, rubble, lamps, barrels, crates,
+//    deflectors, manholes),
 //    and a random level generator: a symmetric map like the classic ones, checked so every entry point and both
 //    players can reach the eagle.
 //    CUSTOM LEVELS (on the title screen's MODE row) plays the slots you've filled, one after another, as a normal game
@@ -15,7 +17,8 @@
 
 const CUSTOM_KEY = 'tank1990_customs', CUSTOM_SLOTS = 8;
 const EDIT_THEMES = ['auto', 'classic'].concat(THEME_ORDER);
-const EDIT_THEME_TAGS = { auto: 'ANY', classic: 'BLK', spring: 'SPR', summer: 'SUM', autumn: 'AUT', winter: 'WIN', nuclear: 'NUC', desert: 'DES' };
+const EDIT_THEME_TAGS = { auto: 'ANY', classic: 'BLK', spring: 'SPR', summer: 'SUM', autumn: 'AUT', winter: 'WIN', nuclear: 'NUC', desert: 'DES',
+  volcanic: 'VOL', swamp: 'SWP', city: 'CTY' };
 
 // the palette: the 14 patterns of the original editor (as 2x2 blocks), then the newer terrain
 const CONSTRUCT_PATS = [
@@ -25,6 +28,10 @@ const CONSTRUCT_PATS = [
   // mud, a bridge, conveyor belts (up, right, down, left) and a teleporter pad (pads pair up in the order placed)
   ['mm', 'mm'], ['==', '=='], ['^^', '^^'], ['>>', '>>'], ['vv', 'vv'], ['<<', '<<'], ['TT', 'TT'],
   ['..', '..'],
+  // the second page, the terrain types' (biomes.js): lava, basalt, a fire vent, bog, reeds, swamp gas, concrete, rubble,
+  // a street lamp, barrels, a crate, deflectors (/ and \) and a manhole (they pair up like pads)
+  ['ll', 'll'], ['kk', 'kk'], ['ff', 'ff'], ['bb', 'bb'], ['rr', 'rr'], ['gg', 'gg'], ['cc', 'cc'], ['uu', 'uu'], ['i.', '..'],
+  ['dd', 'dd'], ['xx', 'xx'], ['./', '/.'], ['\\.', '.\\'], ['OO', 'OO'],
 ];
 const PAT_BRICK = 4;
 
@@ -129,13 +136,18 @@ function randomLevel(rnd01 = Math.random) {
 // a pattern drawn small (palette) or large (preview): s = size of one block
 function drawPattern(ctx, p, x, y, s, theme) {
   const tex = themeTex(theme || 'classic');
-  const src = { '#': tex.brick, '@': tex.steel, '~': tex.water0, '%': tex.forest, '_': tex.ice, m: Sprites.mudTex, '=': Sprites.bridgeTex };
+  const src = { '#': tex.brick, '@': tex.steel, '~': tex.water0, '%': tex.forest, '_': tex.ice, m: Sprites.mudTex, '=': Sprites.bridgeTex,
+    l: tex.lava0, k: tex.basalt, b: tex.bog, r: tex.reeds, g: tex.bog, c: tex.conc, u: tex.rubble, i: tex.lamp, d: tex.drum, '/': tex.defl, '\\': tex.defl2 };
   ctx.fillStyle = COL.black;
   ctx.fillRect(x, y, s * 2, s * 2);
   for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) {
     const c = p[j][i], im = src[c];
     if (im) ctx.drawImage(im, 0, 0, 8, 8, x + i * s, y + j * s, s, s);
   }
+  // 16px pictures: a vent, a crate; gas bubbles on its bog; a manhole
+  const big = { f: tex.vent, x: tex.crate, O: manholeSprite() }[p[0][0]];
+  if (big) ctx.drawImage(big, x, y, s * 2, s * 2);
+  if (p[0][0] === 'g') { ctx.fillStyle = '#88D848'; for (const [i, j] of [[0.3, 0.4], [1.1, 0.2], [0.8, 1.1], [1.4, 1.3]]) ctx.fillRect(Math.round(x + i * s), Math.round(y + j * s), Math.max(1, s >> 1), Math.max(1, s >> 1)); }
   const arrow = { '^': [0, -1], '>': [1, 0], v: [0, 1], '<': [-1, 0] }[p[0][0]];
   if (arrow) {
     ctx.fillStyle = '#383838'; ctx.fillRect(x, y, s * 2, s * 2);
@@ -150,6 +162,8 @@ function drawPattern(ctx, p, x, y, s, theme) {
 // side panel layout (screen coordinates)
 const ED_PANEL_X = () => FX + VIEW_W + 4;
 const ED_PAL_Y = 6, ED_PAL_STEP = 10;
+// the palette has pages of 21 tiles; the last slot of a page (bottom right) turns it
+const ED_PAGE = 21, edPage = i => Math.floor(i / ED_PAGE);
 const ED_ROWS = { rnd: 122, theme: 136, slot: 150, help: 192, go: 206 };
 
 Object.assign(Game, {
@@ -278,8 +292,9 @@ Object.assign(Game, {
       return;
     }
     if (drag || x < px - 2) return;
-    const i = Math.floor((y - ED_PAL_Y) / ED_PAL_STEP) * 2 + (x >= px + 12 ? 1 : 0);
-    if (y >= ED_PAL_Y && i >= 0 && i < CONSTRUCT_PATS.length) { ed.pat = i; ed.last = null; Sound.play('select'); return; }
+    const k = Math.floor((y - ED_PAL_Y) / ED_PAL_STEP) * 2 + (x >= px + 12 ? 1 : 0), i = edPage(ed.pat) * ED_PAGE + k;
+    if (y >= ED_PAL_Y && k === ED_PAGE) { ed.pat = edPage(ed.pat) ? 0 : ED_PAGE; ed.last = null; Sound.play('select'); return; }
+    if (y >= ED_PAL_Y && k >= 0 && k < ED_PAGE && i < CONSTRUCT_PATS.length) { ed.pat = i; ed.last = null; Sound.play('select'); return; }
     const near = r => Math.abs(y - (r + 3)) <= 6;
     if (near(ED_ROWS.rnd)) this.edRandom();
     else if (near(ED_ROWS.theme)) this.edTheme(1);
@@ -304,6 +319,7 @@ Object.assign(Game, {
     }
     st.frame = this.t;
     st.renderBelts(ctx);
+    st.renderBio(ctx);   // lava, vents, gas, bog (biomes.js)
     st.renderPads(ctx);
     ctx.drawImage(Sprites.eagle, BASE_X, BASE_Y);
     ctx.drawImage(st.forestLayer, 0, 0);
@@ -311,11 +327,13 @@ Object.assign(Game, {
     ctx.restore();
     // the side panel: palette, then RND, the season, the slot, help and play
     const px = ED_PANEL_X();
-    CONSTRUCT_PATS.forEach((p, i) => {
-      const x = px + (i & 1) * 12, y = ED_PAL_Y + (i >> 1) * ED_PAL_STEP;
-      drawPattern(ctx, p, x, y, 4, th);
+    const page = edPage(ed.pat);
+    for (let k = 0; k < ED_PAGE && page * ED_PAGE + k < CONSTRUCT_PATS.length; k++) {
+      const i = page * ED_PAGE + k, x = px + (k & 1) * 12, y = ED_PAL_Y + (k >> 1) * ED_PAL_STEP;
+      drawPattern(ctx, CONSTRUCT_PATS[i], x, y, 4, th);
       if (i === ed.pat) { ctx.strokeStyle = (this.t >> 3) & 1 ? COL.white : COL.gold; ctx.strokeRect(x - 0.5, y - 0.5, 9, 9); }
-    });
+    }
+    Font.draw(ctx, page ? '<' : '>', px + 12, ED_PAL_Y + (ED_PAGE >> 1) * ED_PAL_STEP, COL.gold);   // the page turner
     Font.draw(ctx, 'RND', px, ED_ROWS.rnd, COL.gold);
     const tt = THEMES[this.customTheme] || {};
     Font.draw(ctx, EDIT_THEME_TAGS[this.customTheme], px, ED_ROWS.theme, this.customTheme === 'auto' ? COL.black : tt.color || COL.white);

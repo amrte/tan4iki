@@ -94,7 +94,7 @@ Object.assign(Stage.prototype, {
       if (x < 8 || x > FW - 8 || y < 8 || y > FH - 8) continue;
       // any ground a tank can drive on: open, trees, ice, mud, bridges, belts
       const t = this.get(x >> 2, y >> 2);
-      if (t === T_BRICK || t === T_STEEL || t === T_WATER || t < 0) continue;
+      if (t === T_BRICK || t === T_STEEL || t === T_WATER || t < 0 || (t >= T_LAVA && bioBad(t))) continue;
       if (PLAYER_SPAWN.some(([sx, sy]) => overlap(x - 4, y - 4, 8, 8, sx, sy, 16, 16))) continue;
       this.mines.push({ x, y, byPlayer: true, owner: null, t: MINE_ARM_TIME });
       n--;
@@ -149,7 +149,7 @@ Object.assign(Stage.prototype, {
       let bad = false;
       for (let cy = y >> 2; cy < (y + 16) >> 2; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
         const v = this.get(cx, cy);
-        if (v === T_STEEL || v === T_WATER || v === T_BRICK) bad = true;
+        if (v === T_STEEL || v === T_WATER || v === T_BRICK || (v >= T_LAVA && bioBad(v))) bad = true;
       }
       if (bad) continue;
       this.powerup.x = x; this.powerup.y = y;

@@ -75,7 +75,7 @@ Object.assign(Stage.prototype, {
 
   // who a player's weapon can hurt: enemy tanks, and in versus the other players
   weaponFoes(att) {
-    return this.tanks.filter(o => o.alive && o !== att && !(o.burrow > 0) && !(o.hopT > 0)
+    return this.tanks.filter(o => o.alive && o !== att && !(o.burrow > 0) && !(o.hopT > 0) && !o.sub
       && (!o.isPlayer || (this.vs && !o.ally && o.player !== att.player)));
   },
 
@@ -151,6 +151,7 @@ Object.assign(Stage.prototype, {
         const qx = Math.floor((nx + (dy ? k : 0)) / 4), qy = Math.floor((ny + (dx ? k : 0)) / 4), v = this.get(qx, qy);
         if (v === T_STEEL) stop = true;
         else if (v === T_BRICK) { if (s.cut) this.set(qx, qy, T_EMPTY); else stop = true; }
+        else if (v >= T_LAVA && this.bioBeam(qx, qy, v, t, s.cut)) stop = true;   // concrete, barrels, crates (biomes.js)
       }
       if (!stop && !this.noBase && overlap(nx - 2, ny - 2, 4, 4, BASE_X, BASE_Y, 16, 16)) stop = true;
       if (!stop && this.qblocks && this.qblocks.length && this.qblockAt(nx - 2, ny - 2, 4, 4)) { this.bulletQBlock({ x: nx - 2, y: ny - 2, isPlayer: true, owner: t, alive: true, free: true }); stop = true; }
@@ -178,9 +179,11 @@ Object.assign(Stage.prototype, {
     if (this.frame % 6) return;
     for (const foe of this.weaponFoes(t)) if (overlap(x, y, fw, fh, foe.x, foe.y, 16, 16)) this.weaponHit(t, foe, s.dmg, { dir: t.dir });
     this.weaponBosses(t, x, y, fw, fh, s.dmg);
-    // it burns trees away (and sets them alight in summer)
+    // it burns trees away (and sets them alight in summer); reeds catch, gas and barrels go up (biomes.js)
     for (let cy = Math.max(0, y >> 2); cy <= (y + fh - 1) >> 2; cy++) for (let cx = Math.max(0, x >> 2); cx <= (x + fw - 1) >> 2; cx++) {
-      if (this.get(cx, cy) !== T_FOREST) continue;
+      const v = this.get(cx, cy);
+      if (v === T_REEDS || v === T_GAS || v === T_DRUM) { this.bioFlame(cx, cy, v, t, true); continue; }
+      if (v !== T_FOREST) continue;
       if (this.seasonFx === 'summer' && this.fires) this.ignite(cy * GW + cx, false, true); else this.set(cx, cy, T_EMPTY);
     }
     if (this.frame % 24 === 0) Sound.play('flame');

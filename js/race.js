@@ -50,7 +50,7 @@ Object.assign(Stage.prototype, {
       let solid = false;
       for (let cy = y >> 2; cy < (y + 16) >> 2 && !solid; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
         const v = this.get(cx, cy);
-        if (v === T_BRICK || v === T_STEEL || v === T_WATER) { solid = true; break; }
+        if (v === T_BRICK || v === T_STEEL || v === T_WATER || (v >= T_LAVA && bioBad(v))) { solid = true; break; }
       }
       if (!solid && !busy(x, y)) return [x, y];
     }

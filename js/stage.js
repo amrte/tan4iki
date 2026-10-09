@@ -12,8 +12,19 @@ let SCREEN_W = 256, SCREEN_H = 224, HUD_X = 232;   // whole play screen and the 
 let VIEW_W = 208, VIEW_H = 208;                    // the part of the field on screen (smaller on big scrolling maps)
 const T_EMPTY = 0, T_BRICK = 1, T_STEEL = 2, T_WATER = 3, T_FOREST = 4, T_ICE = 5, T_BRIDGE = 6, T_MUD = 7;
 const T_BELT = 8;   // 8-11: conveyor belts pushing up / right / down / left (terrain.js)
+// the terrain types' tiles and the elements (biomes.js): concrete 19-21 (whole, cracked, cracked twice), deflectors 26 '/' and 27 '\\'
+const T_LAVA = 12, T_BASALT = 13, T_BASALT2 = 14, T_VENT = 15, T_BOG = 16, T_REEDS = 17, T_GAS = 18, T_CONC = 19, T_RUBBLE = 22,
+  T_LAMP = 23, T_DRUM = 24, T_CRATE = 25, T_DEFL = 26;
 const BLOCK_TYPE = { '.': T_EMPTY, '#': T_BRICK, '@': T_STEEL, '~': T_WATER, '%': T_FOREST, '_': T_ICE,
-  m: T_MUD, '=': T_BRIDGE, '^': T_BELT, '>': T_BELT + 1, v: T_BELT + 2, '<': T_BELT + 3, T: T_EMPTY };   // T: teleporter pad
+  m: T_MUD, '=': T_BRIDGE, '^': T_BELT, '>': T_BELT + 1, v: T_BELT + 2, '<': T_BELT + 3, T: T_EMPTY,   // T: teleporter pad
+  l: T_LAVA, k: T_BASALT, f: T_VENT, b: T_BOG, r: T_REEDS, g: T_GAS, c: T_CONC, u: T_RUBBLE, i: T_LAMP, d: T_DRUM, x: T_CRATE,
+  '/': T_DEFL, '\\': T_DEFL + 1, O: T_EMPTY };   // O: manhole
+// terrain as a string for saves and the online view: one character per cell, '0' + its type
+function terrainCode(a) {
+  let s = '';
+  for (let i = 0; i < a.length; i += 4096) s += String.fromCharCode.apply(null, Array.from(a.subarray(i, i + 4096), v => v + 48));
+  return s;
+}
 const DXY = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
 // basic, fast, power, armor, then the new types (not in the original):
@@ -51,6 +62,10 @@ const ENEMY = [
   { name: 'FROST', kind: 'frost', speed: 0.6, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [2, 3, 3, 2], pal: 'frost', season: 'winter', desc: 'SHELLS FREEZE YOU SOLID' },
   { name: 'GHOUL', kind: 'ghoul', speed: 0.6, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [2, 2, 5, 1], pal: 'ghoul', season: 'nuclear', desc: 'RISES AGAIN: SHOOT ITS WRECK' },
   { name: 'BURROWER', kind: 'burrower', speed: 0.8, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [1, 2, 6, 1], pal: 'burrower', season: 'desert', desc: 'DIVES UNDER THE SAND' },
+  // and one for each terrain type (biomes.js)
+  { name: 'MAGMA', kind: 'magma', speed: 0.6, bullet: 2.5, hp: 3, pts: 500, xp: 30, ai: [2, 4, 3, 1], pal: 'magma', season: 'volcanic', desc: 'CROSSES LAVA, LEAVES FIRE' },
+  { name: 'GATOR', kind: 'gator', speed: 0.9, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [1, 1, 7, 1], pal: 'gator', season: 'swamp', desc: 'SWIMS UNDER, LUNGES AND BITES' },
+  { name: 'ROCKET TRUCK', kind: 'truck', speed: 0.9, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [1, 0, 2, 7], pal: 'truck', season: 'city', desc: 'SHELLS WHERE IT LAST SAW YOU' },
 ];
 // types that can join a line-up, and every non-classic type (the tally's NEW row)
 const NEW_TYPES = ENEMY.map((e, i) => i).filter(i => i >= 4 && !ENEMY[i].mini && !ENEMY[i].season);   // the seasons' own come their own way
@@ -317,6 +332,8 @@ class Stage {
     // the season: its colours, and frozen or dried-up water (seasons.js)
     this.theme = stageTheme(num, opts);
     if (!opts.snapshot && !opts.editor) this.applyThemeTerrain(num);   // the editor shows what you drew
+    // lava, bog, concrete and the rest of a terrain type's own (biomes.js): in the normal stages
+    if (!opts.boss && !opts.custom && !opts.snapshot && !opts.editor && !opts.corridor && !opts.maze && !opts.fortress && !opts.galaxy) this.applyBiome(num);
     // mud, teleporters and belts in the normal stages; night and fog on some (terrain.js)
     if (!opts.boss && !opts.custom && !opts.snapshot && !opts.corridor && !opts.maze && !opts.fortress && !opts.galaxy && Config.on('terrainExtras')) this.addTerrainExtras(num);
     this.weather = opts.corridor || opts.fortress || opts.galaxy ? null : stageWeather(opts.custom ? 1 : num, !!opts.boss);
@@ -380,6 +397,7 @@ class Stage {
       }
     }
     this.setupSeason(opts);   // the season's twist and its own enemy (seasonal.js)
+    this.setupBio(opts);   // barrels, gas, bombs and blackouts (biomes.js)
     this.setupSecrets(opts);   // hidden power-ups and ? blocks (secrets.js)
     if (opts.boss) this.initBoss(opts.boss);
     if (opts.snapshot) this.restore(opts.snapshot);
@@ -394,7 +412,7 @@ class Stage {
       'ai', 'aiBase', 'hold', 'rocketGun', 'frontShield', 'crusher', 'stealth', 'vet', 'hover', 'cd', 'maxHp', 'slither', 'segN', 'trail', 'ally'];
     return {
       cols: COLS, rows: ROWS,
-      terrain: Array.from(this.terrain).join(''),
+      terrain: terrainCode(this.terrain),
       queue: this.spawns.filter(s => s.enemy).map(s => s.enemy).concat(this.queue),
       total: this.total, killed: this.killed, spawnTimer: this.spawnTimer, spawnPos: this.spawnPos,
       spawnInterval: this.spawnInterval, maxEnemies: this.maxEnemies,
@@ -466,7 +484,7 @@ class Stage {
     const clearSolid = (bx, by) => {
       for (let y = by; y < by + 2; y++) for (let x = bx; x < bx + 2; x++) {
         const t = this.get(x * 2, y * 2);
-        if (t === T_BRICK || t === T_STEEL || t === T_WATER) this.setBlock(x, y, T_EMPTY);
+        if (t === T_BRICK || t === T_STEEL || t === T_WATER || t >= T_LAVA) this.setBlock(x, y, T_EMPTY);
       }
     };
     ENEMY_SPAWNS.forEach(([x, y]) => clearSolid(x / 8, y / 8));
@@ -488,7 +506,7 @@ class Stage {
     // once the layers are drawn, only the changed cells are redrawn (a full redraw of a huge map takes a while);
     // water and belts are listed for animation, so a change to or from them redraws everything
     const old = this.layerOf && this.layerOf[cy * GW + cx];
-    if (this.bgLayer && !this.dirty && this.layerOf && old !== T_WATER && t !== T_WATER && !isBelt(old) && !isBelt(t)) (this.dirtyCells || (this.dirtyCells = [])).push(cy * GW + cx);
+    if (this.bgLayer && !this.dirty && this.layerOf && old !== T_WATER && t !== T_WATER && !isBelt(old) && !isBelt(t) && !bioAnim(old) && !bioAnim(t)) (this.dirtyCells || (this.dirtyCells = [])).push(cy * GW + cx);
     else this.dirty = true;
   }
   setBlock(bx, by, t) {
@@ -604,6 +622,7 @@ class Stage {
     this.updateTerrainFx();
     this.updateSpecials();
     this.updateSeason();
+    this.updateBio();   // lava, bog, vents, barrels, gas (biomes.js)
     this.updateSecrets();
     this.updateBase();
     if (this.cpu) this.updateCpu();
@@ -762,7 +781,7 @@ class Stage {
     }
     if (t.mines > 0 && ok && !t.hold && Math.random() < (t.crusher ? 1 / 150 : 1 / 180)) { this.dropMine(t); t.mines--; }
     const kind = kindOf(t);
-    if (kind === 'flamer' || kind === 'mortar' || kind === 'snake') { this[kind + 'Act'](t); return; }
+    if (kind === 'flamer' || kind === 'mortar' || kind === 'snake' || kind === 'gator' || kind === 'truck') { this[kind + 'Act'](t); return; }
     if (t.burrow > 0) return;   // underground: no shooting
     const maxB = t.boost.rapid ? 3 : 1;
     if (t.bullets < maxB && t.cool === 0) {
@@ -853,7 +872,9 @@ class Stage {
   crush(t) {
     let n = 0;
     for (let cy = t.y >> 2; cy <= (t.y + 15) >> 2; cy++) for (let cx = t.x >> 2; cx <= (t.x + 15) >> 2; cx++) {
-      if (this.get(cx, cy) === T_BRICK) { this.set(cx, cy, T_EMPTY); n++; }
+      const v = this.get(cx, cy);
+      if (v === T_BRICK) { this.set(cx, cy, T_EMPTY); n++; }
+      else if (v === T_CRATE || v === T_LAMP) this.bioCrush(cx, cy, v);
     }
     if (n && this.lastBrickSound < this.frame - 20) { Sound.play('brick'); this.lastBrickSound = this.frame; }
   }
@@ -891,6 +912,7 @@ class Stage {
         const tt = this.get(cx, cy);
         if (tt === T_STEEL || (tt === T_BRICK && !t.boost.ghost && !t.crusher && !t.slither)) return false;
         if (tt === T_WATER && !t.ship && !t.boost.ghost && !t.hover) return false;
+        if (tt >= T_LAVA && this.bioBlocks(t, tt)) return false;   // basalt, concrete, barrels, lava for the enemy (biomes.js)
       }
     }
     if (!this.noBase && overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
@@ -992,6 +1014,7 @@ class Stage {
     }
     if (b.mirage) { this.mirageShell(b); return; }   // a mirage's shell harms nothing
     if (b.frost || b.fire) this.specialShell(b);
+    this.bioShell(b, dist);   // deflectors, gas (biomes.js)
     if (this.bulletTerrain(b)) return;
     if (this.qblocks && this.qblocks.length && this.bulletQBlock(b)) return;   // ? blocks (secrets.js)
     if (this.turrets.length && this.bulletTurret(b)) return;
@@ -1014,7 +1037,7 @@ class Stage {
     if (this.td && !b.isPlayer && this.towers.length && this.bulletTower(b)) return;
     for (const t of this.tanks) {
       if (!t.alive || t === b.owner || ((b.eagle || b.passPlayers) && t.isPlayer)) continue;
-      if (t.burrow > 0 || t.hopT > 0) continue;   // under the sand, or in the air: the shell flies past
+      if (t.burrow > 0 || t.hopT > 0 || t.sub) continue;   // under the sand or the water, or in the air: the shell flies past
       if (!overlap(b.x, b.y, 4, 4, t.x, t.y, 16, 16)) continue;
       if (b.pierce) {
         // piercing shells damage each tank once and keep flying
@@ -1063,7 +1086,7 @@ class Stage {
     for (let cy = y0; cy <= y1; cy++) {
       for (let cx = x0; cx <= x1; cx++) {
         const t = this.get(cx, cy);
-        if (t === T_BRICK || t === T_STEEL || (t === T_FOREST && b.cutter)) {
+        if (t === T_BRICK || t === T_STEEL || (t === T_FOREST && b.cutter) || (t >= T_LAVA && bioStops(t, b))) {
           if (vert) { if (hitRow < 0 || (b.dir === 0 ? cy > hitRow : cy < hitRow)) hitRow = cy; }
           else if (hitCol < 0 || (b.dir === 3 ? cx > hitCol : cx < hitCol)) hitCol = cx;
         }
@@ -1074,7 +1097,10 @@ class Stage {
     // piercing shells tunnel through bricks (and trees for cutters), stopping only at steel they can't break
     if (b.pierce) {
       let blocked = false;
-      for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) if (this.get(cx, cy) === T_STEEL && (!b.power || this.hardSteel)) blocked = true;
+      for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) {
+        const v = this.get(cx, cy);
+        if ((v === T_STEEL && (!b.power || this.hardSteel)) || isBasalt(v) || v === T_DRUM) blocked = true;
+      }
       if (!blocked) {
         const lo = vert ? Math.floor((b.x + 2 - 8) / 4) : Math.floor((b.y + 2 - 8) / 4);
         const hi = vert ? Math.floor((b.x + 2 + 7.99) / 4) : Math.floor((b.y + 2 + 7.99) / 4);
@@ -1084,6 +1110,7 @@ class Stage {
           if (t === T_BRICK) { this.set(cx, cy, T_EMPTY); n.brick++; }
           else if (t === T_STEEL) { this.clearGroup(cx, cy, T_STEEL); n.steel++; }
           else if (t === T_FOREST && b.cutter) { this.clearGroup(cx, cy, T_FOREST); n.tree++; }
+          else if (t >= T_LAVA) this.bioPierceCell(cx, cy, t, b, n);
         }
         if (b.isPlayer) this.wreckPoints(b.owner, n, b.x + 2, b.y + 2);
         if (b.isPlayer && this.lastBrickSound < this.frame - 3) { Sound.play('brick'); this.lastBrickSound = this.frame; }
@@ -1101,6 +1128,7 @@ class Stage {
       if (t === T_BRICK) { this.set(cx, cy, T_EMPTY); broke = true; n.brick++; }
       else if (t === T_STEEL && b.power && !this.hardSteel) { this.clearGroup(cx, cy, T_STEEL); broke = true; n.steel++; }
       else if (t === T_FOREST && b.cutter) { this.clearGroup(cx, cy, T_FOREST); broke = true; n.tree++; }
+      else if (t >= T_LAVA && this.bioHitCell(cx, cy, t, b, n)) broke = true;
     };
     if (vert) {
       const mx = b.x + 2, c0 = Math.floor((mx - 8) / 4), c1 = Math.floor((mx + 7.99) / 4);
@@ -1136,6 +1164,7 @@ class Stage {
         const t = this.get(x, y);
         if (t === T_BRICK) { this.set(x, y, T_EMPTY); wrecked.brick++; }
         else if (t === T_STEEL && power && !this.hardSteel) { this.clearGroup(x, y, T_STEEL); wrecked.steel++; }
+        else if (t >= T_LAVA) this.bioBlastCell(x, y, t, power, byPlayer ? owner : null, wrecked);
       }
     }
     if (byPlayer) this.wreckPoints(owner, wrecked, cx, cy);
@@ -1352,7 +1381,7 @@ class Stage {
       let bad = 0;
       for (let cy = y >> 2; cy < (y + 16) >> 2; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
         const t = this.get(cx, cy);
-        if (t === T_STEEL || t === T_WATER) bad++;
+        if (t === T_STEEL || t === T_WATER || (t >= T_LAVA && bioBad(t))) bad++;
       }
       if (bad <= 4) break;
     }
@@ -1486,6 +1515,7 @@ class Stage {
     fo.clearRect(0, 0, FW, FH);
     this.waterCells = [];
     this.beltCells = [];
+    this.bioL = { lava: [], vent: [], gas: [], lamp: [], bog: [] };   // biomes.js
     for (let cy = 0; cy < GH; cy++) {
       for (let cx = 0; cx < GW; cx++) {
         const t = this.terrain[cy * GW + cx];
@@ -1499,6 +1529,7 @@ class Stage {
         else if (isBelt(t)) this.beltCells.push(cy * GW + cx);   // drawn every frame (they move)
         else if (t === T_FOREST) fo.drawImage(tex.forest, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_WATER) this.waterCells.push(cy * GW + cx);
+        else if (t >= T_LAVA) this.bioCell(bg, fo, t, cx, cy, tex);
       }
     }
     this.themeCaps(bg, fo);   // snow on top in winter (seasons.js)
@@ -1523,6 +1554,7 @@ class Stage {
       else if (t === T_BRIDGE) bg.drawImage(Sprites.bridgeTex, sx, sy, 4, 4, dx, dy, 4, 4);
       else if (t === T_MUD) bg.drawImage(Sprites.mudTex, sx, sy, 4, 4, dx, dy, 4, 4);
       else if (t === T_FOREST) fo.drawImage(tex.forest, sx, sy, 4, 4, dx, dy, 4, 4);
+      else if (t >= T_LAVA) this.bioCell(bg, fo, t, cx, cy, tex);
       if (caps && solid(t) && !(cy > 0 && solid(this.terrain[i - GW]))) {
         const ctx = t === T_FOREST ? fo : bg;
         ctx.fillStyle = caps;
@@ -1629,6 +1661,7 @@ class Stage {
       ctx.drawImage(wt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
     }
     this.renderBelts(ctx);
+    this.renderBio(ctx);   // lava, vents, gas, bog bubbles, lamplight (biomes.js)
     this.renderPads(ctx);
     if (this.maze) this.renderMazeExit(ctx);
     this.renderSeasonUnder(ctx);   // hot spots, ghoul wrecks (seasonal.js)
@@ -1666,6 +1699,7 @@ class Stage {
       drawPowerup(ctx, this.powerup, this.powerup.x, this.powerup.y);
     }
     this.renderSpecialsOver(ctx);
+    this.renderBioOver(ctx, camX, camY);   // fire columns, lava bombs, rockets, mist (biomes.js)
     this.renderWeapons(ctx);   // beams, flames, mortar shells, missiles (weapons.js)
     this.renderTdOver(ctx);
     this.renderStrikes(ctx);

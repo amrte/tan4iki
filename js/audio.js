@@ -454,6 +454,47 @@ const Sound = {
         this.noise(2000, t, [[0, 0.7], [0.5, 0.6], [1.6, 0]], 120);
         this.seq([72, 67, 64, 60, 55, 48], 0.12, t + 0.2, { vol: 0.15, decayTo: 0.5 });
         break;
+      // the terrain types (biomes.js)
+      case 'lava': // a tank sinks into lava: a hiss and a low gulp
+        this.noise(9000, t, [[0, 0.4], [0.4, 0.25], [0.7, 0]], 3000);
+        this.note(45, t, 0.5, { vol: 0.14, slideTo: 40, wave: 'tri' });
+        break;
+      case 'vent': // a fire vent erupts: a rising roar
+        this.noise(700, t, [[0, 0.1], [0.15, 0.45], [0.7, 0]], 1800);
+        break;
+      case 'rumble': // the volcano spits bombs
+        this.noise(300, t, [[0, 0.5], [0.8, 0.4], [1.2, 0]], 150);
+        break;
+      case 'gas': // swamp gas lit: a hiss
+        this.noise(14000, t, [[0, 0.05], [0.25, 0.25], [0.4, 0]], 9000);
+        break;
+      case 'barrel': // a barrel or a pocket of gas goes up: a deep boom
+        this.noise(900, t, [[0, 0.7], [0.3, 0.5], [0.6, 0]], 250);
+        this.note(60, t, 0.35, { vol: 0.18, slideTo: 35, wave: 'tri' });
+        break;
+      case 'crate': // wood splinters
+        this.noise(3000, t, [[0, 0.5], [0.03, 0.2], [0.09, 0]]);
+        this.noise(1200, t + 0.05, [[0, 0.3], [0.05, 0]]);
+        break;
+      case 'deflect': // a shell glances off a deflector
+        this.note(1800, t, 0.06, { vol: 0.06, slideTo: 2600, wave: 'p12' });
+        break;
+      case 'sink': // glug
+        this.seq([45, 40, 36], 0.07, t, { vol: 0.15, wave: 'tri', decayTo: 0.4 });
+        break;
+      case 'gator': // jaws open: a rattle
+        this.seq([50, 0, 50, 0, 53], 0.04, t, { vol: 0.12, wave: 'p25', flat: true });
+        break;
+      case 'salvo': // three rockets away
+        for (let k = 0; k < 3; k++) this.noise(5000, t + k * 0.09, [[0, 0.3], [0.12, 0]], 1500);
+        break;
+      case 'manhole': // a manhole cover clanks
+        this.note(55, t, 0.05, { vol: 0.12, wave: 'p25', flat: true });
+        this.note(50, t + 0.08, 0.12, { vol: 0.1, wave: 'p25', decayTo: 0.3 });
+        break;
+      case 'blackout': // the power goes: a falling hum
+        this.note(220, t, 0.6, { vol: 0.1, slideTo: 55, wave: 'p50' });
+        break;
       case 'select':
         this.noise(13000, t, [[0, 0.35], [0.03, 0]]);
         break;

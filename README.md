@@ -434,13 +434,17 @@ it back).
 
 - **Tiles:** the palette on the right has every terrain: brick and steel (whole and half tiles), water, trees, ice,
   mud, a bridge, conveyor belts in four directions, a teleporter pad (pads pair up in the order you place them) and
-  empty ground. Pick one with **Q / E** or a click; **A** / Space places it at the cursor (again on the same spot:
-  the next tile), **B** the previous one. With a mouse, click or drag on the field to paint.
+  empty ground; its second page (the arrow in its bottom corner turns it, and Q / E go on to it) has the terrain
+  types' tiles and the elements: lava, basalt, a fire vent, bog, reeds, swamp gas, concrete, rubble, a street lamp,
+  barrels, a supply crate, deflectors (/ and \\) and a manhole (manholes pair up like pads). Pick one with **Q / E**
+  or a click; **A** / Space places it at the cursor (again on the same spot: the next tile), **B** the previous one.
+  With a mouse, click or drag on the field to paint. A custom level keeps exactly what you painted: the terrain types
+  add their own features only to the normal stages.
 - **R** (or RND on the panel) makes a **random level**: a symmetric map in the classic style (walls, steel, ponds,
   trees, ice, mud, sometimes a bridge, a belt or a pair of teleporters), checked so that every enemy entry point and
   both players can reach the eagle.
 - **T** (or the three letters on the panel) sets the level's **season**: ANY (the stage's usual one), BLK (classic
-  black) or one of the six.
+  black), one of the six or one of the terrain types (VOL, SWP, CTY).
 - **8 slots** (1-8, PgUp / PgDn, or the S1 on the panel): each holds a level and its season, saved as you go.
   Delete clears the slot.
 - **Enter** plays the level you're editing; Esc goes back to the title.
@@ -450,8 +454,9 @@ it back).
 ## Seasons
 
 Every stage has a season, with its own ground, colours and something drifting across the screen (Settings → GAME →
-SEASONS: CYCLE, a new one every stage (default); RANDOM; OFF, the classic black; or always the same one). The stage
-curtain names it and its twist. Each season also changes the rules a little and has an enemy of its own that you
+SEASONS: CYCLE, a new one every stage (default); RANDOM; OFF, the classic black; or always the same one). After the
+six seasons come three **terrain types** with tiles of their own (see below), so CYCLE goes spring, summer, autumn,
+winter, nuclear winter, desert, volcanic, swamp, city ruins and round again. The stage curtain names it and its twist. Each season also changes the rules a little and has an enemy of its own that you
 meet nowhere else (3 or more per stage, more later on; FEW / MANY in NEW ENEMY TYPES apply). Settings → GAME →
 SEASON EFFECTS turns the twists off; each seasonal enemy has its own APPEARS switch under ENEMY TYPES. Boss stages
 keep the look but not the twist.
@@ -464,6 +469,19 @@ keep the look but not the twist.
 | Winter | snowy blue-grey ground, snow on the bricks, steel and trees, snowfall | most lakes are frozen over (ice: slippery, but you can drive across). **Blizzards**: now and then a 10-second whiteout: you only see what's close, and the enemy fires less | **Frost** (pale blue, icicles): its shells freeze you solid for 2.5 s instead of destroying you; a second hit while frozen shatters you. Its shells freeze the water they fly over. 2 hits, 400 |
 | Nuclear winter | ash-grey ground, scorched bricks, dead trees, toxic green water, falling ash, a sickly tint | some lakes are frozen. **Hot spots**: glowing radioactive patches (3 or more, never at the start points); stand in one and your Geiger counter fills (a bar over your tank, clicking faster); full, and your tank is gone (3 s on Ultra-violence, twice that on the easiest skill). Out of them it drains away. A shield protects you | **Ghoul** (skull turret): destroyed, it leaves a glowing wreck that rises again 4 s later with full strength, once, unless you shoot the wreck (100). The stage isn't clear while a wreck lies there. 2 hits, 500 |
 | Desert | sand, sandstone bricks, cacti, drifting sand | many ponds have dried into mud (it slows you). **Mirages**: phantom tanks shimmer into view now and then; their shells can't hurt, and a shot or a touch makes them vanish (no points); they never hold up the end of a stage | **Burrower** (a drill nose): dives under the sand for a few seconds (a moving mound; shells fly over it, it can't fire), runs faster down there and surfaces somewhere else to fire. 2 hits, 500 |
+
+### Terrain types: volcanic, swamp, city ruins
+
+The three terrain types change the map too: in the normal stages each brings tiles of its own, placed the same way
+every time a stage is played and never next to the eagle or on the start and entry points (custom levels keep what
+you painted; boss arenas, the corridor, the maze and the fortress only take the look). Each has a twist and an enemy
+of its own, like the seasons.
+
+| Terrain | Look | Its tiles | Twist | Its own enemy |
+|---|---|---|---|---|
+| Volcanic | black rock with glowing cracks, scorched bricks, charred trees, rising embers, a red glow | most lakes are **lava**: drive in (your tank's middle over it) and you're gone, a life, whatever shield or armour you had; a glowing rim and a red outline on your tank warn you at the edge. Shells fly over it, enemies keep out of it. Steel is **basalt**: shells bounce off, a power shell cracks it and a second one breaks it. **Fire vents** (dark craters): every 5 s they bubble for a second, then a column of fire: any tank on one is hit | **Lava bombs**: now and then the volcano spits 3-5 bombs, one aimed near each of you; a growing shadow (and a red cross at the end) marks each spot for 2 s; where one lands, tanks are hit (both sides), bricks break and the ground burns a while | **Magma** (a rock hull with glowing seams): crosses lava, fireproof (vents and fire don't hurt it), leaves a trail of burning ground. 3 hits, 500 |
+| Swamp | dark marsh, mossy bricks, murky green water, fireflies, drifting mist | mud is **bog**: slower than mud, and stand still in it and you sink (the bog closes over your tank, bubbles, SINKING!); sunk after 3 s, you take a hit; drive and you work your way back up. **Reeds** along the shores: they hide tanks like trees and burn fast (a flame, a fire, a blast). **Swamp gas** (green bubbles on the bog): a shell through it, a flame or a blast lights it: a hiss and 0.4 s later the whole pocket blows up, block after block (hurts every tank near, breaks bricks) | **Marsh gas**: now and then new gas bubbles up out of the bog | **Gator** (a long snout, legs): swims under the water (only its eyes show; shells pass over it), and when a tank comes in line within 4 tiles it surfaces, opens its jaws (a warning) and lunges: a bite is a hit. It never fires. 2 hits, 400 |
+| City ruins | asphalt with lane markings, red bricks, drifting dust | many walls are **concrete**: 3 hits to break (2 with power shells), cracking each time, then it's rubble. **Rubble** slows you a little; shells pass. **Fuel drums** (blue barrels, see below). **Manholes**, in linked pairs: drive onto one and you come up out of the other (shells roll over them). **Street lamps** light up the dark round them (city stages are often night or fog); a shot knocks one down | **Blackout**: a 12-second power cut: dark (if it wasn't), the street lamps out too; only tanks, shots and fire give light | **Rocket truck** (a cab and a rack of four rockets): keeps its distance; when it sees you (up to 11 tiles away; walls and trees block its view) it sends three rockets at that spot, marked with yellow corners for 1.3 s (red as they come in): move and they miss. Never at the eagle. 2 hits, 500 |
 
 ## Galaxy (a shoot-'em-up)
 
@@ -752,18 +770,26 @@ In the classic game, Any side, Big maps, Survival, Time attack, Maze, Kill race,
 
 Not in versus, Fortress or boss stages. Settings → GAME → SECRETS turns them off.
 
-## Terrain: mud, conveyor belts, teleporters; night and fog
+## Terrain: mud, conveyor belts, teleporters, crates, barrels, deflectors; night and fog
 
 - **Mud** (brown, lumpy): any tank on it moves at half speed; shells pass over it; hovering skimmers glide across.
 - **Conveyor belts** (grey with moving stripes): carry any tank along the belt, even one standing still.
 - **Teleporter pads** (coloured squares, in linked pairs of the same colour): drive onto one and you come out of its
   twin; shells that enter a pad leave its twin too (once each).
+- **Supply crates** (wooden, a 16px tile): shoot one open for points (100-500) or, 2 times in 5, a power-up right
+  where it stood (enemy shells just break it).
+- **Barrels** (red; blue fuel drums in the city): a shot, a flame or a blast sets one off: it blows up a moment later,
+  hurting every tank near it (both sides: whoever's shot it was gets the points), breaking bricks, cracking concrete,
+  and setting off the barrels and gas next to it in a chain. Near the eagle one can take it too.
+- **Deflectors** (diagonal steel, / or \\): tanks can't pass; a shell that meets one turns 90 degrees (yours and
+  theirs alike), so you can shoot round corners.
 - They appear in the normal stages, placed the same way every time a stage is played: mud from stage 3,
-  teleporters in most stages from 5, conveyor belts in some from 8, never next to the eagle or on entry points.
-  Bigger fields get more. Settings → GAME → MUD, BELTS, PADS turns them off. In CONSTRUCTION they are the last
-  patterns of the palette (pads pair up in the order you place them).
-- **Night stages** (every 6th stage from 6) are dark except around your tanks, the eagle, shells, explosions, spawns
-  and pads; an enemy shows only in your light or when it fires (enemies fire a bit less at night too). Every second
+  teleporters in most stages from 5, crates in most from 4, barrels in about half from 6, conveyor belts in some from
+  8, deflectors in about half from 10, never next to the eagle or on entry points. Bigger fields get more. Settings →
+  GAME → MUD, BELTS, PADS turns them off. In CONSTRUCTION they are among the patterns of the palette (pads pair up in
+  the order you place them).
+- **Night stages** (every 6th stage from 6) are dark except around your tanks, the eagle, shells, explosions, spawns,
+  pads, street lamps, lava and erupting vents; an enemy shows only in your light or when it fires (enemies fire a bit less at night too). Every second
   power-up on a night stage is NIGHT VISION: 20 s of seeing the whole field.
   **Fog stages** (every 6th from 9) are the same in grey with a wider view. Never on boss stages. The stage curtain
   says NIGHT or FOG. Settings → GAME → NIGHT AND FOG: some (default), off, all night, all fog.
@@ -781,7 +807,8 @@ settings come back afterwards.
 
 ## First-meet cards
 
-The first time you meet each enemy, boss and power-up, a one-line card slides down at the top of the field, such as
+The first time you meet each enemy, boss and power-up (and each new kind of ground: lava, basalt, vents, bog, reeds,
+swamp gas, concrete, barrels, crates, deflectors, manholes), a one-line card slides down at the top of the field, such as
 **NEW: JAMMER - SLOWS YOUR SHELLS NEARBY** (a line too long for the field scrolls along once). Several new things
 queue up and show one after another. What you've met is remembered between games. Settings → GAME → FIRST-MEET CARDS
 turns them off, and SHOW ALL CARDS AGAIN brings them all back. Online, guests see the host's cards.
@@ -863,6 +890,7 @@ js/seasons.js     seasons: themed ground, textures and particles; frozen lakes, 
 js/secrets.js     hidden power-ups in walls, ? blocks (coins, the guardian mushroom)
 js/weapons.js     player weapons: machine gun, laser, flamethrower, mortar, tesla, missiles (MK I-IV), crates
 js/seasonal.js    each season's twist (showers, wildfire, gusts, blizzards, hot spots, mirages) and its own enemy
+js/biomes.js      the terrain types (volcanic, swamp, city ruins): their tiles, twists and enemies; crates, barrels, deflectors
 js/editor.js      construction: the level editor, random levels, save slots, custom levels
 js/intro.js       mode title screens: a pixel-art picture per mode; what music plays when
 js/bossart.js     boss screens: a picture before each boss and one after it

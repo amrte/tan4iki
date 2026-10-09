@@ -28,6 +28,7 @@ Object.assign(Stage.prototype, {
     this.encounter('e' + t.type);   // cards.js
     t.maxHp = t.hp;
     t.cd = 60 + rnd(90);
+    if (ENEMY[t.type].kind === 'gator') t.hover = true;   // it swims (biomes.js)
     // a medic shields tanks that appear near it
     if (this.tanks.some(m => m.alive && m !== t && kindOf(m) === 'medic' && Math.abs(m.x - t.x) + Math.abs(m.y - t.y) < 64)) t.shield = 120;
   },
@@ -234,7 +235,7 @@ Object.assign(Stage.prototype, {
     const n = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 4);
     for (let i = 1; i < n; i++) {
       const v = this.get(Math.floor((x0 + (x1 - x0) * i / n) / 4), Math.floor((y0 + (y1 - y0) * i / n) / 4));
-      if (v === T_STEEL || v === T_BRICK || v === T_FOREST) return false;
+      if (v === T_STEEL || v === T_BRICK || v === T_FOREST || (v >= T_LAVA && bioSight(v))) return false;
     }
     return true;
   },
@@ -248,7 +249,11 @@ Object.assign(Stage.prototype, {
       [f.x, f.y, f.w, f.h] = [[t.x + 2, t.y - len, w, len], [t.x + 16, t.y + 2, len, w], [t.x + 2, t.y + 16, w, len], [t.x - len, t.y + 2, len, w]][t.dir];
       // burn the trees
       for (let cy = Math.max(0, f.y >> 2); cy <= (f.y + f.h - 1) >> 2; cy++) {
-        for (let cx = Math.max(0, f.x >> 2); cx <= (f.x + f.w - 1) >> 2; cx++) if (this.get(cx, cy) === T_FOREST) this.set(cx, cy, T_EMPTY);
+        for (let cx = Math.max(0, f.x >> 2); cx <= (f.x + f.w - 1) >> 2; cx++) {
+          const v = this.get(cx, cy);
+          if (v === T_FOREST) this.set(cx, cy, T_EMPTY);
+          else if (v === T_REEDS || v === T_GAS || v === T_DRUM) this.bioFlame(cx, cy, v, null);   // biomes.js
+        }
       }
       // and every tank in reach, its own side too (once per jet)
       for (const o of this.tanks.slice()) {

@@ -14,15 +14,19 @@ const BELT_SPEED = 0.6, MUD_SLOW = 0.5;
 const NIGHT_VISION_TIME = 20 * 60;   // the NIGHT VISION power-up lights up a night stage for the team for 20 s
 const isBelt = t => t >= T_BELT && t < T_BELT + 4;
 
-// teleporter pads painted in construction ('T' in a 26x26 block map: the top-left block of each 2x2 tile)
+// teleporter pads painted in construction ('T' in a 26x26 block map: the top-left block of each 2x2 tile), and
+// manholes ('O', biomes.js): pads that pair up among themselves
 function padsFromBlocks(blocks) {
-  const pads = [];
+  const pads = [], holes = [];
   for (let by = 0; by < blocks.length; by += 2) for (let bx = 0; bx < blocks[by].length; bx += 2) {
     if (blocks[by][bx] === 'T') pads.push({ x: bx * 8, y: by * 8 });
+    else if (blocks[by][bx] === 'O') holes.push({ x: bx * 8, y: by * 8, kind: 'hole' });
   }
   pads.forEach((p, i) => { p.pair = i ^ 1; p.color = PAD_COLORS[(i >> 1) % PAD_COLORS.length]; });
   if (pads.length & 1) pads.pop();   // an odd pad out has no twin
-  return pads;
+  if (holes.length & 1) holes.pop();
+  holes.forEach((h, i) => { h.pair = pads.length + (i ^ 1); });
+  return pads.concat(holes);
 }
 
 // night, fog or neither for a stage number
@@ -65,7 +69,7 @@ Object.assign(Stage.prototype, {
         for (let y = Math.floor(cy - rad); y <= cy + rad; y++) for (let x = Math.floor(cx - rad); x <= cx + rad; x++) {
           if (Math.hypot(x + 0.5 - cx, y + 0.5 - cy) > rad || this.get(x, y) !== T_EMPTY) continue;
           if (Math.hypot(x * 4 - BASE_X - 8, y * 4 - BASE_Y - 8) < 40 || y < 8) continue;
-          this.set(x, y, T_MUD);
+          this.set(x, y, this.theme === 'swamp' ? T_BOG : T_MUD);   // in the swamp it's bog (biomes.js)
         }
       }
     }
@@ -103,12 +107,18 @@ Object.assign(Stage.prototype, {
         }
       }
     }
+    this.addBioExtras(num, r, area);   // crates, barrels, deflectors (biomes.js)
   },
 
   // ------------------------------------------------------------ every frame
   cellUnder(t) { return this.get((t.x + 8) >> 2, (t.y + 8) >> 2); },
 
-  mudFactor(t) { return this.cellUnder(t) === T_MUD && !t.hover && !t.boost.ghost ? MUD_SLOW : 1; },
+  // mud, bog (slower still the deeper you've sunk) and rubble (biomes.js)
+  mudFactor(t) {
+    if (t.hover || t.boost.ghost) return 1;
+    const c = this.cellUnder(t);
+    return c === T_MUD ? MUD_SLOW : c === T_BOG ? BOG_SLOW * (1 - 0.4 * (t.sink || 0) / SINK_MAX) : c === T_RUBBLE ? RUBBLE_SLOW : 1;
+  },
 
   updateTerrainFx() {
     for (const t of this.tanks) {
@@ -136,7 +146,7 @@ Object.assign(Stage.prototype, {
         if (t.trail) t.trail.length = 0;
         t.tpCool = 90;
         this.addFx(t.x + 8, t.y + 8, [Sprites.sparkle[1], Sprites.sparkle[2], Sprites.sparkle[3]], 3);
-        Sound.play('teleport');
+        Sound.play(p.kind === 'hole' ? 'manhole' : 'teleport');
         break;
       }
     }
@@ -146,7 +156,7 @@ Object.assign(Stage.prototype, {
   bulletPad(b) {
     if (b.tp || !this.pads.length) return;
     for (const p of this.pads) {
-      if (!overlap(b.x, b.y, 4, 4, p.x + 4, p.y + 4, 8, 8)) continue;
+      if (p.kind || !overlap(b.x, b.y, 4, 4, p.x + 4, p.y + 4, 8, 8)) continue;   // shells roll over manholes
       const q = this.pads[p.pair];
       if (!q) return;
       b.x = q.x + 6 + DXY[b.dir][0] * 6; b.y = q.y + 6 + DXY[b.dir][1] * 6;
@@ -174,6 +184,7 @@ Object.assign(Stage.prototype, {
 
   renderPads(ctx) {
     for (const p of this.pads) {
+      if (p.kind === 'hole') { ctx.drawImage(manholeSprite(), p.x, p.y); continue; }   // a manhole (biomes.js)
       const pulse = (this.frame >> 3) & 1;
       ctx.fillStyle = '#202020';
       ctx.fillRect(p.x + 1, p.y + 1, 14, 14);
@@ -187,7 +198,7 @@ Object.assign(Stage.prototype, {
   // night and fog: a dark layer with holes where something gives light
   renderDarkness(ctx) {
     const wo = this.whiteout ? this.whiteout() : 0;   // a winter blizzard (seasonal.js)
-    const w = this.weather || (wo > 0 ? 'blizzard' : null);
+    const w = this.weather || (wo > 0 ? 'blizzard' : null) || (this.lightsOut() ? 'night' : null);   // a city blackout (biomes.js)
     if (!w) return;
     // night vision: the whole field in green, flickering back to dark in its last two seconds
     if (w === 'night' && this.nightVision > 0 && !(this.nightVision < 120 && (this.frame >> 2) & 1)) {
@@ -220,11 +231,12 @@ Object.assign(Stage.prototype, {
     for (const f of this.fx) if (f.tick >= 0) light(f.x, f.y, 28);
     for (const f of this.flames) light(f.x + f.w / 2, f.y + f.h / 2, 30);
     for (const s of this.spawns) light(s.x + 8, s.y + 8, 16);
-    for (const p of this.pads) light(p.x + 8, p.y + 8, 12);
+    for (const p of this.pads) if (!p.kind) light(p.x + 8, p.y + 8, 12);
     for (const tu of this.turrets) if (!tu.enemy) light(tu.x + 8, tu.y + 8, 24);
     for (const c of this.claudes) light(c.x + 8, c.y + 8, 36);
     for (const s of this.strikes) light(s.x + 8, s.y + 8, 22);
     if (this.powerup && (this.frame >> 4) & 1) light(this.powerup.x + 8, this.powerup.y + 8, 16);
+    this.bioLights(light);   // lamps, lava, vents (biomes.js)
     d.globalCompositeOperation = 'source-over';
     ctx.drawImage(this.darkLayer, 0, 0);
   },
