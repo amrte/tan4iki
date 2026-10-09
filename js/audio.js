@@ -729,6 +729,58 @@ const Sound = {
         this.note(36, t, 0.7, { vol: 0.2, wave: 'tri', slideTo: 30 });
         this.noise(2500, t + 0.5, [[0, 0.15], [0.3, 0.1], [0.5, 0]]);
         break;
+      // COUNTER-STRIKE (cs.js)
+      case 'csBeep': // the bomb's beep: short and high
+        this.note(95, t, 0.05, { vol: 0.09, flat: true, wave: 'p25' });
+        break;
+      case 'csArm': // starting to plant or defuse: a click and a little whir
+        this.noise(9000, t, [[0, 0.25], [0.02, 0]]);
+        this.note(72, t + 0.03, 0.12, { vol: 0.06, slideTo: 79, wave: 'p12' });
+        break;
+      case 'csPlanted': // the bomb has been planted: two falling alarm tones
+        this.seq([88, 81, 88, 81], 0.14, t, { vol: 0.12, flat: true, wave: 'p25' });
+        break;
+      case 'csDefuse': // wire cutting, a tick at a time
+        this.noise(7000, t, [[0, 0.18], [0.025, 0]]);
+        break;
+      case 'csDefused': // the bomb's dead: a falling bleep and a sigh of relief
+        this.note(91, t, 0.12, { vol: 0.1, flat: true });
+        this.note(79, t + 0.12, 0.3, { vol: 0.1, decayTo: 0.1, slideTo: 72 });
+        break;
+      case 'csBoom': // the bomb goes off: a long, deep blast
+        this.noise(600, t, [[0, 0.9], [0.4, 0.75], [1.2, 0.35], [1.6, 0]], 140);
+        this.note(36, t, 0.9, { vol: 0.25, slideTo: 24, wave: 'tri' });
+        break;
+      case 'csWinT': // the terrorists win the round: a rough minor fanfare
+        this.seq([62, 65, 69, 74, 0, 72, 74], 0.09, t, { vol: 0.13, decayTo: 0.4, wave: 'p25' });
+        this.seq([50, 0, 53, 0, 57], 0.18, t, { vol: 0.25, wave: 'tri', flat: true });
+        break;
+      case 'csWinCT': // the counter-terrorists win: a bright major one
+        this.seq([67, 71, 74, 79, 0, 78, 79], 0.09, t, { vol: 0.13, decayTo: 0.4 });
+        this.seq([55, 0, 59, 0, 62], 0.18, t, { vol: 0.25, wave: 'tri', flat: true });
+        break;
+      case 'csWin': // a match of bots is over
+        this.seq([72, 76, 79, 84], 0.1, t, { vol: 0.12, decayTo: 0.4 });
+        break;
+      case 'csRound': // a new round: the radio crackles
+        this.noise(5000, t, [[0, 0.12], [0.08, 0.05], [0.12, 0.14], [0.2, 0]]);
+        this.seq([76, 0, 76], 0.06, t + 0.2, { vol: 0.08, flat: true, wave: 'p12' });
+        break;
+      case 'csGo': // go go go! three rising blips
+        this.seq([72, 76, 84], 0.07, t, { vol: 0.13, decayTo: 0.5, wave: 'p25' });
+        break;
+      case 'csBuy': // the till: a ching
+        this.note(96, t, 0.03, { vol: 0.08, flat: true });
+        this.note(100, t + 0.03, 0.14, { vol: 0.08, decayTo: 0.1 });
+        this.noise(11000, t, [[0, 0.12], [0.03, 0]]);
+        break;
+      case 'csPick': // the bomb picked up
+        this.seq([67, 74], 0.05, t, { vol: 0.12, decayTo: 0.4, wave: 'p25' });
+        break;
+      case 'csSmoke': // a smoke grenade pops and hisses
+        this.noise(1800, t, [[0, 0.3], [0.04, 0.05]]);
+        this.noise(12000, t + 0.04, [[0, 0.12], [0.6, 0.08], [0.9, 0]], 6000);
+        break;
       case 'select':
         this.noise(13000, t, [[0, 0.35], [0.03, 0]]);
         break;
