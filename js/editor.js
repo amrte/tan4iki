@@ -140,7 +140,7 @@ function randomLevel(rnd01 = Math.random) {
 // a pattern drawn small (palette) or large (preview): s = size of one block
 function drawPattern(ctx, p, x, y, s, theme) {
   const tex = themeTex(theme || 'classic');
-  const src = { '#': tex.brick, '@': tex.steel, '~': tex.water0, '%': tex.forest, '_': tex.ice, m: Sprites.mudTex, '=': Sprites.bridgeTex,
+  const src = { '#': tex.brick, '@': tex.steel, '~': tex.water0, '%': tex.forest, '_': tex.ice, m: tex.mud || Sprites.mudTex, '=': tex.bridge || Sprites.bridgeTex,
     l: tex.lava0, k: tex.basalt, b: tex.bog, r: tex.reeds, g: tex.bog, c: tex.conc, u: tex.rubble, i: tex.lamp, d: tex.drum, '/': tex.defl, '\\': tex.defl2 };
   ctx.fillStyle = COL.black;
   ctx.fillRect(x, y, s * 2, s * 2);
@@ -422,7 +422,7 @@ Object.assign(Game, {
     const wt = themeTex(th).water0;
     for (const i of st.waterCells) {
       const cx = i % GW, cy = (i / GW) | 0;
-      ctx.drawImage(wt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
+      texCell(ctx, wt, cx, cy);
     }
     st.frame = this.t;
     st.renderBelts(ctx);

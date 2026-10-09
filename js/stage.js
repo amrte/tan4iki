@@ -1529,20 +1529,20 @@ class Stage {
       for (let cx = 0; cx < GW; cx++) {
         const t = this.terrain[cy * GW + cx];
         if (!t) continue;
-        const sx = (cx & 1) * 4, sy = (cy & 1) * 4, dx = cx * 4, dy = cy * 4;
-        if (t === T_BRICK) bg.drawImage(tex.brick, sx, sy, 4, 4, dx, dy, 4, 4);
-        else if (t === T_STEEL) bg.drawImage(tex.steel, sx, sy, 4, 4, dx, dy, 4, 4);
-        else if (t === T_ICE) bg.drawImage(tex.ice, sx, sy, 4, 4, dx, dy, 4, 4);
-        else if (t === T_BRIDGE) bg.drawImage(Sprites.bridgeTex, sx, sy, 4, 4, dx, dy, 4, 4);
-        else if (t === T_MUD) bg.drawImage(Sprites.mudTex, sx, sy, 4, 4, dx, dy, 4, 4);
+        if (t === T_BRICK) texCell(bg, tex.brick, cx, cy);
+        else if (t === T_STEEL) texCell(bg, tex.steel, cx, cy);
+        else if (t === T_ICE) texCell(bg, tex.ice, cx, cy);
+        else if (t === T_BRIDGE) texCell(bg, tex.bridge || Sprites.bridgeTex, cx, cy);
+        else if (t === T_MUD) texCell(bg, tex.mud || Sprites.mudTex, cx, cy);
         else if (isBelt(t)) this.beltCells.push(cy * GW + cx);   // drawn every frame (they move)
-        else if (t === T_FOREST) fo.drawImage(tex.forest, sx, sy, 4, 4, dx, dy, 4, 4);
+        else if (t === T_FOREST) texCell(fo, tex.forest, cx, cy);
         else if (t === T_WATER) this.waterCells.push(cy * GW + cx);
         else if (t >= T_LAVA) this.bioCell(bg, fo, t, cx, cy, tex);
       }
     }
     this.themeCaps(bg, fo);   // snow on top in winter (seasons.js)
     this.dirty = false;
+    this.layerLook = Config.get('look');   // CLASSIC or BLOCKS (blocks.js)
     this.dirtyCells = [];
     this.layerOf = this.terrain.slice();   // what the layers show
   }
@@ -1555,14 +1555,14 @@ class Stage {
     for (const i0 of this.dirtyCells) for (const i of [i0, i0 + GW]) {
       if (i >= GW * GH || done.has(i)) continue;
       done.add(i);
-      const cx = i % GW, cy = (i / GW) | 0, t = this.terrain[i], sx = (cx & 1) * 4, sy = (cy & 1) * 4, dx = cx * 4, dy = cy * 4;
+      const cx = i % GW, cy = (i / GW) | 0, t = this.terrain[i], dx = cx * 4, dy = cy * 4;
       bg.clearRect(dx, dy, 4, 4); fo.clearRect(dx, dy, 4, 4);
-      if (t === T_BRICK) bg.drawImage(tex.brick, sx, sy, 4, 4, dx, dy, 4, 4);
-      else if (t === T_STEEL) bg.drawImage(tex.steel, sx, sy, 4, 4, dx, dy, 4, 4);
-      else if (t === T_ICE) bg.drawImage(tex.ice, sx, sy, 4, 4, dx, dy, 4, 4);
-      else if (t === T_BRIDGE) bg.drawImage(Sprites.bridgeTex, sx, sy, 4, 4, dx, dy, 4, 4);
-      else if (t === T_MUD) bg.drawImage(Sprites.mudTex, sx, sy, 4, 4, dx, dy, 4, 4);
-      else if (t === T_FOREST) fo.drawImage(tex.forest, sx, sy, 4, 4, dx, dy, 4, 4);
+      if (t === T_BRICK) texCell(bg, tex.brick, cx, cy);
+      else if (t === T_STEEL) texCell(bg, tex.steel, cx, cy);
+      else if (t === T_ICE) texCell(bg, tex.ice, cx, cy);
+      else if (t === T_BRIDGE) texCell(bg, tex.bridge || Sprites.bridgeTex, cx, cy);
+      else if (t === T_MUD) texCell(bg, tex.mud || Sprites.mudTex, cx, cy);
+      else if (t === T_FOREST) texCell(fo, tex.forest, cx, cy);
       else if (t >= T_LAVA) this.bioCell(bg, fo, t, cx, cy, tex);
       if (caps && solid(t) && !(cy > 0 && solid(this.terrain[i - GW]))) {
         const ctx = t === T_FOREST ? fo : bg;
@@ -1649,7 +1649,7 @@ class Stage {
     ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
     ctx.fillStyle = COL.black;
     ctx.fillRect(FX, FY, VIEW_W, VIEW_H);
-    if (this.dirty) this.buildLayers();
+    if (this.dirty || this.layerLook !== Config.get('look')) this.buildLayers();   // the look changed: once (blocks.js)
     else if (this.dirtyCells && this.dirtyCells.length) this.redrawCells();
 
     ctx.save();
@@ -1667,7 +1667,7 @@ class Stage {
     const wt = themeTex(this.theme)[(this.frame >> 5) & 1 ? 'water1' : 'water0'];
     for (const i of this.waterCells) {
       const cx = i % GW, cy = (i / GW) | 0;
-      ctx.drawImage(wt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
+      texCell(ctx, wt, cx, cy);
     }
     this.renderBelts(ctx);
     this.renderBio(ctx);   // lava, vents, gas, bog bubbles, lamplight (biomes.js)

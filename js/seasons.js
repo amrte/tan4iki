@@ -68,6 +68,7 @@ function stageTheme(num, opts = {}) {
 // textures in a season's colours (cached per season)
 const themeTexCache = {};
 function themeTex(theme) {
+  if (blockLook()) return blockTex(theme);   // the BLOCKS look (blocks.js)
   if (themeTexCache[theme]) return themeTexCache[theme];
   const t = THEMES[theme] || THEMES.classic, out = {};
   for (const k in TEX_SRC) {
@@ -77,6 +78,9 @@ function themeTex(theme) {
   themeTexCache[theme] = out;
   return out;
 }
+
+// one 4px terrain cell of a texture that repeats across the map (8px classic textures, 16px blocks)
+function texCell(ctx, im, cx, cy) { ctx.drawImage(im, (cx * 4) % im.width, (cy * 4) % im.height, 4, 4, cx * 4, cy * 4, 4, 4); }
 
 Object.assign(Stage.prototype, {
   // the season's mark on the map: frozen lakes in winter, dried ponds in the desert
@@ -102,9 +106,10 @@ Object.assign(Stage.prototype, {
 
   // the ground: the season's colour with a scatter of specks (the same every time for a stage)
   groundLayer() {
-    const t = THEMES[this.theme] || THEMES.classic;
-    if (this.ground && this.ground.width === FW && this.ground.height === FH && this.groundFor === this.theme) return this.ground;
+    const t = THEMES[this.theme] || THEMES.classic, key = this.theme + Config.get('look');
+    if (this.ground && this.ground.width === FW && this.ground.height === FH && this.groundFor === key) return this.ground;
     const c = makeCanvas(FW, FH), x = c.getContext('2d');
+    if (blockLook()) { blockGround(x, this.theme, seeded(this.num * 977 + FW)); this.ground = c; this.groundFor = key; return c; }   // blocks.js
     x.fillStyle = t.ground; x.fillRect(0, 0, FW, FH);
     if (t.specks) {
       const r = seeded(this.num * 977 + FW);
@@ -114,7 +119,7 @@ Object.assign(Stage.prototype, {
       }
     }
     if (t.paint) t.paint(x, seeded(this.num * 499 + FH));   // cracks, puddles, lane markings (biomes.js)
-    this.ground = c; this.groundFor = this.theme;
+    this.ground = c; this.groundFor = key;
     return c;
   },
 

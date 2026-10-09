@@ -361,6 +361,8 @@ const SETTINGS_DEF = [
   { key: 'fieldH', label: 'FIELD HEIGHT', values: range(13, 40).concat(['FIT']), def: 13 },
   { key: 'scaling', label: 'SCALING', values: ['SHARP', 'FILL'], def: 'SHARP' },
   { key: 'minimap', label: 'MINIMAP', values: ONOFF, def: 'ON' },
+  // blocks.js: the terrain as voxel-style blocks; only how this screen draws it (not sent online)
+  { key: 'look', label: 'LOOK', values: ['CLASSIC', 'BLOCKS'], def: 'CLASSIC' },
   { key: 'controls', label: 'CONTROLS', values: ['AUTO', 'PC', 'MAC'], def: 'AUTO' },
   { action: 'keys', label: 'SET UP KEYS AND PADS' },
   { key: 'rumble', label: 'GAMEPAD RUMBLE', values: ONOFF, def: 'ON' },

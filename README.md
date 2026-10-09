@@ -993,8 +993,21 @@ the browser, and **RESET TO DEFAULTS** (top level) restores the classic game.
 | Shop | shop after stages (on), shop prices (100%), base upgrades (on) |
 | Players | III / IV-PLAYER COLOR (blue / pink), gamepad rumble (on), key and pad setup |
 | Bosses | boss rounds (on), boss every (10 stages), boss HP (100%) |
-| Screen | field width (13), field height (13), FIT, scaling (sharp / fill), minimap (on), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
+| Screen | field width (13), field height (13), FIT, scaling (sharp / fill), minimap (on), look (classic / blocks), controls (auto / PC / Mac), *fit to my screen*, toggle fullscreen |
 | Game | game mode (classic), skill (hurt me plenty), kill race first to (3 points), mud, belts, pads (on), seasons (cycle), season effects (on), secrets (on), fortress speed (1x), big map stages (off), night and fog (some), game speed (100%), volume (100%), engine sound (on), music (on), music volume (50%), mode title screens (on), boss screens (on), first-meet cards (on), *show all cards again* |
+
+### Block look
+
+Settings → SCREEN → **LOOK: BLOCKS** (also in the pause menu, any time) draws the battlefield as chunky voxel-style
+blocks: 16px blocks with per-pixel noise, darker edges and light from the top left. Bricks become cobblestone (mossy
+in spring and the swamp, sandstone bricks in the desert, dark red bricks in the volcano, clay bricks in the city), steel
+becomes obsidian plates (near black with a lit purple bevel), concrete a smooth pale slab that cracks and chips; trees
+are leaf blocks with gaps (cacti in the desert), water and lava flow, ice is packed ice, mud and bog are wet blocks,
+bridges are planks, crates are chests, pads are portals, and the ground is a floor of dark blocks (grass, leaf
+litter, snow, ash, sand, rock, marsh or paving). Each season keeps its colours. Brick, steel and concrete stay easy to
+tell apart, and shot-off bits of a wall still go 4px at a time. Only the terrain changes: tanks, shells, explosions
+and power-ups, the galaxy, the title and boss pictures keep their classic look, and the rules are the same. Online
+each player picks their own (the setting isn't sent).
 
 ## Code layout
 
@@ -1020,6 +1033,7 @@ js/secrets.js     hidden power-ups in walls, ? blocks (coins, the guardian mushr
 js/weapons.js     player weapons: machine gun, laser, flamethrower, mortar, tesla, missiles (MK I-IV), crates
 js/seasonal.js    each season's twist (showers, wildfire, gusts, blizzards, hot spots, mirages) and its own enemy
 js/biomes.js      the terrain types (volcanic, swamp, city ruins): their tiles, twists and enemies; crates, barrels, deflectors
+js/blocks.js      the BLOCKS look: voxel-style terrain textures for every tile and season, the block ground, pads and manholes
 js/editor.js      construction: the level editor (terrain and markers pages), random levels, save slots
 js/editor2.js     construction: a level's size, markers and rules (data, the LEVEL / ENEMIES / POWER-UPS pages), playing it
 js/intro.js       mode title screens: the layout, Enter/Esc, what music plays when
