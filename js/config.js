@@ -336,6 +336,8 @@ const SETTINGS_DEF = [
     fmt: v => modeInfo(v).name },
   { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4, 5], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!', 'AUTO'][v] },
   { key: 'raceTarget', label: 'RACE: FIRST TO', values: [1, 2, 3, 5, 7, 10], def: 3, fmt: v => v + ' PTS' },
+  // galaxy_modes.js: the kind of GALAXY run (also picked on its title screen and first curtain)
+  { key: 'galaxyRun', label: 'GALAXY RUN', values: ['CAMPAIGN', 'BOSS RUSH', 'ENDLESS', 'DAILY'], def: 'CAMPAIGN' },
   { key: 'terrainExtras', label: 'MUD, BELTS, PADS', values: ONOFF, def: 'ON' },
   // seasons.js: a new season every stage, or one at random, or always the same (OFF: the classic black)
   { key: 'seasons', label: 'SEASONS', values: ['CYCLE', 'RANDOM', 'OFF', 'SPRING', 'SUMMER', 'AUTUMN', 'WINTER', 'NUCLEAR', 'DESERT'], def: 'CYCLE' },
