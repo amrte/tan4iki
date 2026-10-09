@@ -328,7 +328,8 @@ class Stage {
     this.extraPlayers = Math.max(0, players.length - 1);
     this.terrain = new Uint8Array(GW * GH);
     const classic = COLS === 13 && ROWS === 13;
-    this.load(opts.blocks || expandBlocks(mapToBlocks(map)), !opts.custom || !classic);   // blocks: a stitched big map
+    // blocks: a stitched big map, or a custom level of its own size (opts.cl: it keeps the fortress as painted)
+    this.load(opts.blocks || expandBlocks(mapToBlocks(map)), !opts.custom || (!classic && !opts.cl));
     // the season: its colours, and frozen or dried-up water (seasons.js)
     this.theme = stageTheme(num, opts);
     if (!opts.snapshot && !opts.editor) this.applyThemeTerrain(num);   // the editor shows what you drew
@@ -400,6 +401,7 @@ class Stage {
     this.setupBio(opts);   // barrels, gas, bombs and blackouts (biomes.js)
     this.setupSecrets(opts);   // hidden power-ups and ? blocks (secrets.js)
     if (opts.boss) this.initBoss(opts.boss);
+    if (opts.cl) this.setupCustomLevel(opts.cl, opts);   // a custom level's markers and rules (editor2.js)
     if (opts.snapshot) this.restore(opts.snapshot);
     else if (this.claudeLevel() >= 5 && !this.vs) this.claudeAtStart();   // CLAUDE LEVEL 5 (extras.js)
   }

@@ -796,11 +796,12 @@ const Game = {
       customPending: this.customPending, taFrames: this.taFrames, taCleared: this.taCleared, resume };
     // the checkpoint SAVE GAME writes in most modes: how things stand as the stage begins (see saveGame)
     this.ck = this.saveKind() === 'ckpt' ? this.ckTake(resume) : null;
-    let map, custom = false, theme;
-    if (this.customPending) { map = this.custom; custom = true; this.customPending = false; theme = this.customTheme; }
+    let map, custom = false, theme, lv = null;
+    if (this.customPending) { map = this.custom; custom = true; this.customPending = false; theme = this.customTheme; lv = this.customLevel; }
     else if (this.mode === 'custom') {
-      // CUSTOM LEVELS: your saved levels in turn (editor.js), on the classic field they were made for
-      const used = Customs.used(), lv = Customs.level(used[(this.stageNum - 1) % used.length]);
+      // CUSTOM LEVELS: your saved levels in turn (editor.js), on the classic field they were made for (or their own)
+      const used = Customs.used();
+      lv = Customs.level(used[(this.stageNum - 1) % used.length]);
       map = lv.blocks; custom = true; theme = lv.theme;
       this.applyLayout(13, 13);
     } else map = LEVELS[(this.stageNum - 1) % LEVELS.length];
@@ -812,6 +813,9 @@ const Game = {
     const big = !custom && !boss && (this.mode === 'bigmaps'
       || (this.mode === 'classic' && !this.daily && Config.get('bigStages') === 'SOME' && this.stageNum % 4 === 0));
     let blocks = null, objective = null, maze = null, fortress = null, galaxy = 0;
+    // a level with a size, markers or rules of its own (editor2.js); older ones play as they always did
+    const cl = custom ? this.customSetup(lv) : null;
+    if (cl) blocks = lv.blocks;
     const corridor = !custom && this.mode === 'corridor';
     if (!custom && this.mode === 'galaxy') {
       // GALAXY: open space, the usual field size (galaxy.js)
@@ -856,7 +860,7 @@ const Game = {
     this.stage = new Stage(this.stageNum, map, this.players, {
       custom, boss, base: vs || corridor || maze || fortress || galaxy || this.mode === 'race' || this.mode === 'survival' ? newBase() : this.base, corridor, maze, fortress, galaxy, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
       race: this.mode === 'race' && !custom ? { target: this.raceTarget, round: this.round } : null, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
-      blocks, big: objective, theme,
+      blocks, big: objective, theme, cl,
     });
     // a loaded checkpoint from further in: on to its wave, section or block
     if (resume) this.ckApply(resume);
@@ -2008,7 +2012,7 @@ function boot() {
   // drag to paint in the editor
   canvas.addEventListener('pointermove', e => { if ((e.buttons & 1) && Game.state === 'construct') { const [x, y] = toScreen(e); Game.constructPointer(x, y, true); } });
   canvas.addEventListener('wheel', e => {
-    if (Game.state !== 'settings' && Game.state !== 'shop') return;
+    if (Game.state !== 'settings' && Game.state !== 'shop' && Game.state !== 'construct') return;
     e.preventDefault();
     Game.wheel(e.deltaY);
   }, { passive: false });

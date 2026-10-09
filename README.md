@@ -464,7 +464,12 @@ still mean what they did.
 ## Construction and custom levels
 
 CONSTRUCTION on the title screen opens the level editor (a help screen shows the keys the first time; **H** brings
-it back).
+it back). It has five pages: **TERRAIN** (painting), **MARKERS**, and the menus **LEVEL**, **ENEMIES** and
+**POWER-UPS**. **Tab** goes to the next page; so does the page button on the panel (MAP, MRK, LVL, ENM, PWR), and on
+the menu pages the page names on the panel and the page title (left / right on it) take you anywhere. Esc on a menu
+page goes back to the map. With a gamepad, walk the cursor off the right edge of the map to reach the panel: the
+palette first (the arrows pick a tile or marker, A goes back to the map), and down off it the buttons (up / down, A
+presses, left goes back).
 
 - **Tiles:** the palette on the right has every terrain: brick and steel (whole and half tiles), water, trees, ice,
   mud, a bridge, conveyor belts in four directions, a teleporter pad (pads pair up in the order you place them) and
@@ -474,16 +479,49 @@ it back).
   or a click; **A** / Space places it at the cursor (again on the same spot: the next tile), **B** the previous one.
   With a mouse, click or drag on the field to paint. A custom level keeps exactly what you painted: the terrain types
   add their own features only to the normal stages.
+- **Markers** (the MARKERS page; the palette shows them, Q / E or a click picks one, A puts it at the cursor):
+  the **eagle** (anywhere; its brick fortress moves with it, and nobody paints over it), the **starts** of players
+  I-IV, up to 8 **enemy entry points** (numbered: they're used in turn; tanks come in facing the eagle), up to 12
+  **power-up spots** and where the **boss** starts. A again on an entry point, spot or the boss's spot takes it off,
+  as do **B** and ERASE; the eagle and the starts only move (a start put on another player's swaps with it). Every
+  page of the map shows the markers.
+- **Map size** (LEVEL → WIDTH, HEIGHT): from 13 x 13 up to 40 x 30 tiles. What you painted (and the markers) stays
+  where it fits, from the top left. A map bigger than the window scrolls with the cursor; **O** (or ZM on the panel)
+  shows all of it at once, and you can paint and place markers on that too. The status line above the map says the
+  size and where the cursor is.
+- **LEVEL** also has the **season**, the **weather** (AUTO: as the settings say; CLEAR, NIGHT, FOG), the **EAGLE**
+  (OFF: no eagle and no fortress, and the enemy hunts you instead), the **GOAL** (DESTROY ALL; or HOLD OUT: the
+  line-up comes round again and again until the clock runs out, then whatever is left goes), a **TIME LIMIT** (1-30
+  minutes: run out of it while destroying them all and it's game over; holding out takes 3 unless you say) and
+  **LIVES** (the tanks each player has on this level). The clock shows above the field.
+- **ENEMIES:** the **LINE-UP** is AUTO (the stage's usual tanks) or CUSTOM: up to 10 groups, each a count (1-50), a
+  type (every enemy, the seasons' and terrain types' own too), a rank (NRM, VET, ELI), hits (-- is the type's
+  usual) and a speed (50-200%). Left / right change the field, A / B move between the fields, a count down to 0 or
+  Delete removes a group, **+ ADD TANKS** adds one. The **ORDER** is MIXED (shuffled, the same every time) or IN
+  TURN (group after group). Then how many are on the field **AT ONCE**, a new one **EVERY** so many seconds, and a
+  **BOSS** (any of the ten) with its **HP** (25-500%, on top of the BOSS HP setting). With a custom line-up the boss
+  comes as well as the line-up, and the level is clear when both are beaten; with AUTO it brings its own escorts,
+  as on a boss stage.
+- **POWER-UPS:** USUAL (as in the settings) or CHOSEN (switch each one on or off; ALL ON / ALL OFF), and **TIMED
+  DROPS** (one every 10-90 seconds while none is out). With power-up spots marked, the level's power-ups (from bonus
+  tanks, timed drops, the boss) land on one of them; hidden ones, crates and supply drops keep their own place.
+- On the menu pages: up / down pick a row, left / right change it (A and B too); with a mouse, click a row, then
+  its left or right part (the wheel scrolls). The line above the page says what the row does.
 - **R** (or RND on the panel) makes a **random level**: a symmetric map in the classic style (walls, steel, ponds,
   trees, ice, mud, sometimes a bridge, a belt or a pair of teleporters), checked so that every enemy entry point and
-  both players can reach the eagle.
+  both players can reach the eagle. On a level with its own size or markers, classic-style maps are laid side by
+  side to fill it, the markers are kept clear and the fortress goes round the eagle, checked the same way.
 - **T** (or the three letters on the panel) sets the level's **season**: ANY (the stage's usual one), BLK (classic
   black), one of the six or one of the terrain types (VOL, SWP, CTY).
-- **8 slots** (1-8, PgUp / PgDn, or the S1 on the panel): each holds a level and its season, saved as you go.
-  Delete clears the slot.
+- **8 slots** (1-8, PgUp / PgDn, or the S1 on the panel): each holds a level and its settings, saved as you go.
+  Delete (on the map pages) clears the slot back to a blank 13 x 13 level.
 - **Enter** plays the level you're editing; Esc goes back to the title.
 - **CUSTOM LEVELS** (on the title screen's MODE row) plays every slot you've filled, one after another, as a normal
-  game: tally, shop, base upgrades, the stage number (and the enemy) going up as you go round again.
+  game: tally, shop, base upgrades, the stage number (and the enemy) going up as you go round again. The curtain
+  names a level's boss, weather and goal. Each level plays on its own field (scrolling, with the minimap, when it's
+  bigger than the screen), and saves work as in the other modes (a checkpoint at the start of each level; a level
+  played from the editor saves exactly). Levels made before any of these settings existed play exactly as they did:
+  13 x 13, the eagle at the bottom, the classic entry points.
 
 ## Seasons
 
@@ -925,7 +963,8 @@ js/secrets.js     hidden power-ups in walls, ? blocks (coins, the guardian mushr
 js/weapons.js     player weapons: machine gun, laser, flamethrower, mortar, tesla, missiles (MK I-IV), crates
 js/seasonal.js    each season's twist (showers, wildfire, gusts, blizzards, hot spots, mirages) and its own enemy
 js/biomes.js      the terrain types (volcanic, swamp, city ruins): their tiles, twists and enemies; crates, barrels, deflectors
-js/editor.js      construction: the level editor, random levels, save slots, custom levels
+js/editor.js      construction: the level editor (terrain and markers pages), random levels, save slots
+js/editor2.js     construction: a level's size, markers and rules (data, the LEVEL / ENEMIES / POWER-UPS pages), playing it
 js/intro.js       mode title screens: a pixel-art picture per mode; what music plays when
 js/bossart.js     boss screens: a picture before each boss and one after it
 js/galya.js       a secret (no spoilers)
