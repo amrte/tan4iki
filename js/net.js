@@ -224,7 +224,7 @@ const Net = {
       df: st.netDiff || [],
       tk: st.tanks.filter(t => t.alive).map(t => [t.x, t.y, t.dir, t.isPlayer ? 1 : 0, t.player ? t.player.i : -1, t.type, t.hp,
         t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow, t.reveal, t.ai, t.vet, t.segs ? t.segs.map(p => p[0] + ',' + p[1]).join(';') : 0,
-        t.ally ? 1 : 0, t.boost.smoke ? 1 : 0, (t.burrow > 0 ? 1 : 0) | (t.mirage ? 2 : 0) | (t.blowing ? 4 : 0) | (t.iced > 0 ? 8 : 0) | (t.titan ? 16 : 0), t.hopT || 0]),
+        t.ally ? 1 : 0, t.boost.smoke ? 1 : 0, (t.burrow > 0 ? 1 : 0) | (t.mirage ? 2 : 0) | (t.blowing ? 4 : 0) | (t.iced > 0 ? 8 : 0) | (t.titan ? 16 : 0), t.hopT || 0, bioTankBits(t)]),
       bu: st.bullets.filter(b => b.alive).map(b => [r(b.x), r(b.y), b.dir, b.rocket ? 1 : 0, b.pierce ? 1 : 0, b.light ? 1 : 0]),
       // player weapons: beams and smoke, mortar shells and missiles, flamethrower cones (weapons.js)
       wp: st.wfx.length || st.wshots.length || st.tanks.some(t => t.flame) ? [st.wfx.map(f => (f.kind === 'smoke' ? [r(f.x), r(f.y), f.t] : [f.pts, f.t, f.color, f.w, f.zig ? 1 : 0])),
@@ -267,11 +267,12 @@ const Net = {
       rc: st.race || null,
       nv: st.nightVision || 0,
       th: st.theme,
+      bz: st.bioView(),   // barrels and gas about to go, lava bombs and rockets on the way, a blackout (biomes.js)
       gx: st.galaxy ? st.galaxyView() : null,
     };
     st.netDiff = [];
     // the corridor moved down a section: the whole terrain goes again
-    if (full || st.netFull) sv.tf = Array.from(st.terrain).join('');
+    if (full || st.netFull) sv.tf = terrainCode(st.terrain);
     st.netFull = false;
     if (st.bosses.length) {
       sv.bo = st.bosses.map(b => { const o = Object.assign({}, b); delete o.bullets; return o; });
@@ -407,13 +408,13 @@ const Net = {
     st.twoP = G.players.length > 1;
     st.frame = sv.fr; st.over = sv.ov; st.overTimer = sv.ot; st.baseAlive = sv.ba; st.bossDefeated = !!sv.bd;
     st.queue = new Array(sv.q).fill(0);
-    st.tanks = sv.tk.map(a => new Tank({
+    st.tanks = sv.tk.map(a => new Tank(Object.assign({
       x: a[0], y: a[1], dir: a[2], isPlayer: !!a[3], player: a[4] >= 0 ? G.players.find(p => p.i === a[4]) : null,
       type: a[5], hp: a[6], bonus: !!a[7], shield: a[8], frozen: a[9], ship: !!a[10], anim: a[11], boost: Object.assign(a[12] ? { ghost: 1 } : {}, a[20] ? { smoke: 1 } : {}),
       plates: a[13] || 0, glow: a[14] || 0, reveal: a[15] || 0, ai: a[16] || 0, vet: a[17] || 0, stealth: a[5] === 7,
       segs: a[18] ? a[18].split(';').map(p => p.split(',').map(Number)) : null, ally: !!a[19],
       burrow: a[21] & 1 ? 1 : 0, mirage: a[21] & 2 ? 1 : 0, blowing: !!(a[21] & 4), iced: a[21] & 8 ? 2 : 0, titan: !!(a[21] & 16), hopT: a[22] || 0,
-    }));
+    }, bioTankFrom(a[23]))));
     if (sv.ea) { st.eagleArmor = sv.ea[0]; st.eagleFlash = sv.ea[1]; st.gunDir = sv.ea[2]; st.teslaT = sv.ea[4]; st.zaps = sv.ea[5] || []; st.base = Object.assign(newBase(), G.base || {}); }
     st.turrets = (sv.tu || []).map(a => ({ x: a[0], y: a[1], dir: a[2], hp: a[3], owner: G.players.find(p => p.i === a[4]) || null, enemy: !!a[5] }));
     st.claudes = (sv.cl || []).map(a => ({ x: a[0], y: a[1], t: a[2], lv: a[3] || 0 }));
@@ -432,6 +433,7 @@ const Net = {
     st.race = sv.rc || null;
     st.nightVision = sv.nv || 0;
     if (sv.th && st.theme !== sv.th) { st.theme = sv.th; st.dirty = true; }
+    st.applyBioView(sv.bz);
     if (sv.cr) {
       // the host's world moved down: so does this screen's window
       if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();

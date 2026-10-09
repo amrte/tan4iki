@@ -8,6 +8,7 @@
 //    WINTER          snow on everything, snowfall; most lakes are frozen over (ice)
 //    NUCLEAR WINTER  dead trees, grey bricks, toxic green water, falling ash; some lakes frozen
 //    DESERT          sand, sandstone bricks, cacti, drifting sand; many ponds have dried into mud (it slows you)
+//  ...and three terrain types with tiles of their own (biomes.js): VOLCANIC, SWAMP, CITY RUINS.
 //  Settings -> GAME -> SEASONS: CYCLE (a new one every stage, default), RANDOM, OFF (the classic black), or one of them.
 // =====================================================================
 
@@ -112,6 +113,7 @@ Object.assign(Stage.prototype, {
         x.fillRect(Math.floor(r() * FW), Math.floor(r() * FH), 1 + (r() < 0.3 ? 1 : 0), 1);
       }
     }
+    if (t.paint) t.paint(x, seeded(this.num * 499 + FH));   // cracks, puddles, lane markings (biomes.js)
     this.ground = c; this.groundFor = this.theme;
     return c;
   },
@@ -150,6 +152,10 @@ Object.assign(Stage.prototype, {
         p.x += Math.sin(f / 40 + p.ph) * P.sway * 0.3;
       } else if (P.kind === 'sand') {
         p.x += 1.5 + 2 * p.v; p.y += Math.sin(f / 20 + p.ph) * 0.2;
+      } else if (P.kind === 'ember') {   // embers rise off the rock and flicker out
+        p.y -= P.fall[0] + (P.fall[1] - P.fall[0]) * p.v; p.x += Math.sin(f / 30 + p.ph) * P.sway * 0.3;
+        if (p.y < -2) { p.y = VIEW_H; p.x = Math.random() * VIEW_W; }
+        if ((f + Math.floor(p.ph * 30)) % 80 > 62) continue;
       } else {   // fireflies wander and blink
         p.x += Math.sin(f / 50 + p.ph) * 0.3; p.y += Math.cos(f / 60 + p.ph * 2) * 0.25;
         if ((f + Math.floor(p.ph * 40)) % 90 > 50) continue;

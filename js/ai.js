@@ -73,6 +73,7 @@ Object.assign(Stage.prototype, {
       for (let cy = by * 2; cy < by * 2 + 4 && cost > 0; cy++) for (let cx = bx * 2; cx < bx * 2 + 4; cx++) {
         const t = this.get(cx, cy);
         if (t === T_STEEL || (t === T_WATER && mode !== 'hover')) { cost = -1; break; }
+        if (t >= T_LAVA) { const k = bioNav(t, mode); if (k < 0) { cost = -1; break; } cost += k; }   // lava, concrete, bog (biomes.js)
         if (t === T_BRICK && mode !== 'slither') cost += 0.6;
         if (t === T_MUD && mode !== 'hover') cost += 0.25;
       }
@@ -147,7 +148,7 @@ Object.assign(Stage.prototype, {
     const n = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 4);
     for (let i = 1; i < n; i++) {
       const t = this.get(Math.floor((x0 + (x1 - x0) * i / n) / 4), Math.floor((y0 + (y1 - y0) * i / n) / 4));
-      if (t === T_STEEL) return false;
+      if (t === T_STEEL || isBasalt(t) || isDefl(t)) return false;
     }
     return true;
   },
@@ -178,7 +179,7 @@ Object.assign(Stage.prototype, {
   aiChoose(t, blocked) {
     // now and then do something unexpected, so tanks don't drive in single file
     if (!blocked && Math.random() < 0.06) { this.chooseDir(t, false); return; }
-    const pt = this.nearestPlayer(t), mode = t.hover ? 'hover' : t.slither ? 'slither' : '';
+    const pt = this.nearestPlayer(t), mode = t.hover ? 'hover' : t.slither ? 'slither' : kindOf(t) === 'magma' ? 'magma' : '';
     // a spotter's mark sends everyone (but spotters) after the marked player
     const marked = this.markedTank(t);
     if (marked) { this.followField(t, this.navPlayer(marked, mode), blocked); return; }
@@ -218,7 +219,7 @@ Object.assign(Stage.prototype, {
   brickAhead(t, d = t.dir) {
     const [x0, y0, x1, y1] = [[t.x, t.y - 4, t.x + 15, t.y - 1], [t.x + 16, t.y, t.x + 19, t.y + 15],
       [t.x, t.y + 16, t.x + 15, t.y + 19], [t.x - 4, t.y, t.x - 1, t.y + 15]][d];
-    for (let cy = y0 >> 2; cy <= y1 >> 2; cy++) for (let cx = x0 >> 2; cx <= x1 >> 2; cx++) if (this.get(cx, cy) === T_BRICK) return true;
+    for (let cy = y0 >> 2; cy <= y1 >> 2; cy++) for (let cx = x0 >> 2; cx <= x1 >> 2; cx++) { const v = this.get(cx, cy); if (v === T_BRICK || isConc(v) || v === T_CRATE) return true; }
     return false;
   },
 });

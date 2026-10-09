@@ -16,10 +16,10 @@ const Seen = {
   reset() { this.keys = new Set(); STORE.set(SEEN_KEY, []); },
 };
 
-// "NEW: <name> - <what it does>" for e<type>, b<boss>, p<power-up>
+// "NEW: <name> - <what it does>" for e<type>, b<boss>, p<power-up>, t<tile> (biomes.js)
 function cardText(key) {
   const i = +key.slice(1);
-  const src = key[0] === 'e' ? ENEMY[i] : key[0] === 'b' ? BOSSES[i] : POWERUPS[i];
+  const src = key[0] === 'e' ? ENEMY[i] : key[0] === 'b' ? BOSSES[i] : key[0] === 't' ? BIO_CARDS[i] : POWERUPS[i];
   if (!src) return null;
   const name = key[0] === 'e' && i < 4 ? src.name + ' TANK' : key[0] === 'b' ? 'BOSS ' + src.name : src.name;
   return 'NEW: ' + name + (src.desc ? ' - ' + src.desc : '');

@@ -139,7 +139,7 @@ Object.assign(Stage.prototype, {
     else if (s === 'desert') {
       if (this.tanks.filter(t => t.mirage).length < 2) this.spawnMirage();
       this.seaT = 900 + rnd(700);
-    } else this.seaT = 1e9;
+    } else if (!this.bioEvent(s)) this.seaT = 1e9;   // lava bombs, marsh gas, blackouts (biomes.js)
   },
 
   seasonNote(text, color, x, y) {
@@ -172,8 +172,9 @@ Object.assign(Stage.prototype, {
   ignite(i, ground, safe) {
     if (this.fires.has(i) || this.fires.size > 500) return;
     const v = this.terrain[i];
-    // safe: started by your own napalm tower, it doesn't burn you (fortress.js)
-    if (v === T_FOREST) this.fires.set(i, { life: 150, tree: true, safe });
+    if (v === T_GAS || v === T_DRUM) { this.bioIgnite(i % GW, (i / GW) | 0, null); return; }   // biomes.js
+    // safe: started by your own napalm tower, it doesn't burn you (fortress.js); reeds burn quick and spread fast
+    if (v === T_FOREST || v === T_REEDS) this.fires.set(i, { life: v === T_REEDS ? 90 : 150, tree: true, reed: v === T_REEDS, safe });
     else if (ground && (v === T_EMPTY || v === T_ICE || v === T_MUD)) this.fires.set(i, { life: 90, tree: false, safe });
   },
 
@@ -193,23 +194,23 @@ Object.assign(Stage.prototype, {
     const spread = [];
     for (const [i, f] of this.fires) {
       f.life -= 4;
-      if (f.tree && f.life > 30 && Math.random() < 0.25) {
+      if (f.tree && f.life > 30 && Math.random() < (f.reed ? 0.5 : 0.25)) {
         const cx = i % GW, cy = (i / GW) | 0;
         const [dx, dy] = DXY[rnd(4)], nx = cx + dx, ny = cy + dy;
         if (nx >= 0 && ny >= 0 && nx < GW && ny < GH) spread.push(ny * GW + nx);
       }
       if (f.life <= 0) {
         this.fires.delete(i);
-        if (f.tree && this.terrain[i] === T_FOREST) this.set(i % GW, (i / GW) | 0, T_EMPTY);   // burnt away
+        if (f.tree && (this.terrain[i] === T_FOREST || this.terrain[i] === T_REEDS)) this.set(i % GW, (i / GW) | 0, T_EMPTY);   // burnt away
       }
     }
     for (const i of spread) this.ignite(i, false);
     if (!this.fires.size) return;
     // tanks in the flames get burnt (firebugs don't; something underground or in the air is safe)
     for (const t of this.tanks.slice()) {
-      if (!t.alive || t.burrow > 0 || t.hopT > 0 || t.mirage || (!t.isPlayer && kindOf(t) === 'firebug')) continue;
+      if (!t.alive || t.burrow > 0 || t.hopT > 0 || t.mirage || t.sub || (!t.isPlayer && (kindOf(t) === 'firebug' || kindOf(t) === 'magma'))) continue;
       let hot = false;
-      for (let cy = (t.y + 2) >> 2; cy <= (t.y + 13) >> 2 && !hot; cy++) for (let cx = (t.x + 2) >> 2; cx <= (t.x + 13) >> 2; cx++) { const f = this.fires.get(cy * GW + cx); if (f && !(f.safe && t.isPlayer)) { hot = true; break; } }
+      for (let cy = (t.y + 2) >> 2; cy <= (t.y + 13) >> 2 && !hot; cy++) for (let cx = (t.x + 2) >> 2; cx <= (t.x + 13) >> 2; cx++) { const f = this.fires.get(cy * GW + cx); if (f && !(f.safe && t.isPlayer) && !(f.foe && !t.isPlayer)) { hot = true; break; } }   // foe: a magma's trail (biomes.js)
       if (!hot) { t.heat = 0; continue; }
       if ((t.burnAt || 0) > this.frame) continue;
       // you get a moment to drive out (longer on easier skills); enemies burn at once
@@ -257,7 +258,7 @@ Object.assign(Stage.prototype, {
     if (x1 < 0 || y1 < 0 || x1 > FW - 16 || y1 > FH - 16) return false;
     for (let cy = y1 >> 2; cy < (y1 + 16) >> 2; cy++) for (let cx = x1 >> 2; cx < (x1 + 16) >> 2; cx++) {
       const v = this.get(cx, cy);
-      if (v === T_BRICK || v === T_STEEL || v === T_WATER) return false;
+      if (v === T_BRICK || v === T_STEEL || v === T_WATER || (v >= T_LAVA && bioBad(v))) return false;
     }
     if (this.tanks.some(o => o.alive && o !== t && overlap(o.x, o.y, 16, 16, x1, y1, 16, 16))) return false;
     if (!this.noBase && overlap(x1, y1, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
@@ -289,7 +290,7 @@ Object.assign(Stage.prototype, {
     for (let cy = y0; cy <= y0 + 1; cy++) for (let cx = x0; cx <= x0 + 1; cx++) {
       const v = this.get(cx, cy);
       if (b.frost && v === T_WATER) this.set(cx, cy, T_ICE);
-      if (b.fire && v === T_FOREST) this.ignite(cy * GW + cx, false);
+      if (b.fire && (v === T_FOREST || v === T_REEDS)) this.ignite(cy * GW + cx, false);
     }
   },
 
@@ -360,7 +361,7 @@ Object.assign(Stage.prototype, {
       let bad = false;
       for (let cy = y >> 2; cy < (y + 16) >> 2 && !bad; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
         const v = this.get(cx, cy);
-        if (v === T_BRICK || v === T_STEEL || v === T_WATER) { bad = true; break; }
+        if (v === T_BRICK || v === T_STEEL || v === T_WATER || (v >= T_LAVA && bioBad(v))) { bad = true; break; }
       }
       if (bad) continue;
       const type = rnd(4), st = Config.enemy(type);
@@ -428,6 +429,7 @@ Object.assign(Stage.prototype, {
 
   // a tank as the season sees it: up in the air, under the sand, a shimmer of heat (false: draw it as usual)
   drawSeasonTank(ctx, t) {
+    if (this.drawBioTank(ctx, t)) return true;   // a gator under the water, a tank sinking in the bog (biomes.js)
     if (t.burrow > 0) {
       // a mound of sand moving along
       const f = this.frame;
@@ -520,6 +522,7 @@ Object.assign(Stage.prototype, {
     this.zones = this.zones.filter(z => z.y < FH);
     for (const w of this.wrecks) w.y += S;
     this.wrecks = this.wrecks.filter(w => w.y < FH);
+    this.bioShift(S);
     if (this.seasonFx === 'nuclear') {
       for (let k = 0, tries = 0; k < 3 && tries < 100; tries++) {
         const x = 24 + rnd((FW - 48) / 8) * 8, y = 16 + rnd((S - 32) / 8) * 8;

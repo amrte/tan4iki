@@ -70,7 +70,7 @@ Object.assign(Stage.prototype, {
       let bad = false;
       for (let cy = y >> 2; cy < (y + 40) >> 2 && !bad; cy++) for (let cx = x >> 2; cx < (x + 32) >> 2; cx++) {
         const t = this.get(cx, cy);
-        if (t === T_STEEL || t === T_WATER) { bad = true; break; }
+        if (t === T_STEEL || t === T_WATER || (t >= T_LAVA && bioBad(t))) { bad = true; break; }
       }
       if (!bad && !this.factories.some(f => overlap(x, y, 32, 40, f.x - 16, f.y - 16, 64, 72))) return [x, y];
     }
@@ -243,7 +243,7 @@ Object.assign(Stage.prototype, {
       this.miniMap = this.miniMap && this.miniMap.width === mw && this.miniMap.height === mh ? this.miniMap : makeCanvas(mw, mh);
       this.miniAt = this.frame;
       const c = this.miniMap.getContext('2d'), img = c.createImageData(mw, mh);
-      const COLS4 = { [T_BRICK]: [168, 72, 16], [T_STEEL]: [180, 180, 188], [T_WATER]: [32, 64, 200], [T_FOREST]: [28, 108, 28], [T_ICE]: [168, 200, 232], [T_MUD]: [108, 72, 32], [T_BRIDGE]: [140, 100, 50] };
+      const COLS4 = Object.assign({ [T_BRICK]: [168, 72, 16], [T_STEEL]: [180, 180, 188], [T_WATER]: [32, 64, 200], [T_FOREST]: [28, 108, 28], [T_ICE]: [168, 200, 232], [T_MUD]: [108, 72, 32], [T_BRIDGE]: [140, 100, 50] }, BIO_MINI);
       for (let py = 0; py < mh; py++) for (let px = 0; px < mw; px++) {
         const o = (py * mw + px) * 4;
         const col = this.maze ? null : COLS4[this.get(Math.floor((px + 0.5) / s / 4), Math.floor((py + 0.5) / s / 4))];
