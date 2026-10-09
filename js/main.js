@@ -712,7 +712,7 @@ const Game = {
 
   toCurtain(selectable) {
     Sound.setEngine(0);
-    // ANY SIDE: the edge the eagle will be on this time (never the bottom)
+    // ANY SIDE: the edge the eagle will be on this time (sides2.js makes it the next one in turn)
     if (this.mode === 'sides') this.nextSide = ['left', 'right', 'top'][rnd(3)];
     this.curtain = { selectable, h: 0, phase: 'close' };
     this.setState('curtain');
@@ -879,10 +879,8 @@ const Game = {
       map = LEVELS[this.svRun.map % LEVELS.length];
       if (this.svRun.theme) theme = this.svRun.theme;
     } else if (!custom && this.mode === 'sides') {
-      // ANY SIDE: the classic field, turned so the eagle's edge is the chosen one
-      const side = this.nextSide || 'left';
-      setFieldSize(13, 13, 13, 13, side);
-      blocks = turnBlocks(mapToBlocks(map), side);
+      // ANY SIDE: the classic field, turned so the eagle's edge is the chosen one, with the stage's twist (sides2.js)
+      blocks = this.sidesLayout(map);
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
       custom, boss, base: vs || corridor || maze || fortress || galaxy || this.mode === 'race' || this.mode === 'survival' ? newBase() : this.base, corridor, maze, fortress, galaxy, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
