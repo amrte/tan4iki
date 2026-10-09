@@ -111,7 +111,7 @@ and *show ranks and perks*, a screen with every rank's tank.
 
 Pick a mode on the title screen's **MODE** row (left/right), then start on the PLAYERS row (left/right picks 1-4; versus needs 2-4,
 on one keyboard, with pads, or online; VS eagles, deathmatch and kill race can also be played alone, against the computer).
-Survival, time attack, corridor, maze and VS CPU keep their best results; there is no shop outside Classic, Big maps,
+Survival, time attack, corridor, maze, VS CPU and Counter-Strike keep their best results; there is no shop outside Classic, Big maps,
 Maze and VS CPU, and no saving outside Classic and Big maps.
 
 | Mode | Players | How it works |
@@ -132,9 +132,93 @@ Maze and VS CPU, and no saving outside Classic and Big maps.
 | **VS eagles** | 2-4 | everyone has an eagle and a fortress (I bottom, II top, III left, IV right). Your shells, rockets and mines now destroy other players; you respawn while your eagle stands, and your own shells can't hurt it. Lose your eagle and you're out; the last eagle standing wins the round. Best of 3 |
 | **Deathmatch** | 1-4 | no eagles; players start in the corners and respawn; first to 10 kills, or the most kills after 3 minutes (the clock is in the side panel). Alone, you play against 3 computer bots (BOT II-IV): they hunt the nearest rival (each other too), take a moment to aim (quicker on harder skills), grab nearby power-ups and shoot through bricks. Bots never set the high score |
 | **Flags** | 2-4 | each player has a flag at home (marked by a square). Drive over another player's flag to grab it and bring it to your own home flag (yours must be at home) to score. Destroying a carrier drops the flag where it fell; touching your own dropped flag sends it home. First to 3 captures |
+| **Counter-Strike** | 1-4 | two teams of five tanks on DE_DUST2, bots filling them up: the terrorists plant the bomb on site A or B, the counter-terrorists stop them or defuse it. Rounds with a buy time and money, no respawns, sides switched at half time, first to 8; a fog of war shows only what your team can see (see *Counter-Strike* below) |
 
 In versus, power-ups drop every 15 seconds (only ones that make sense between players), there are no enemy tanks, and
 the side panel shows each player's wins, kills or captures. Round and match results show who won.
+
+## Counter-Strike
+
+Two teams of tanks on one map, **DE_DUST2**, seen from above: the classic layout tile by tile. The terrorists start in
+the south (T spawn) and the counter-terrorists in the north (CT spawn, between the two bombsites).
+
+- **The map** (64 x 60 tiles; the screen scrolls, with the minimap in the corner): **long A** up the east side (outside
+  long, the long doors, the pit, long A with the blue container and the long corner, the car at the top by the ramp)
+  to **bombsite A** in the north east (the goose corner behind its boxes, the boxes on the plat, the CT ramp from CT
+  spawn); **mid** up the middle (top mid, the xbox, the mid doors to CT mid), with the **catwalk** (A short) climbing
+  from mid into A; the **B tunnels** up the west side (outside tunnels, the upper tunnels, the lower tunnels that come
+  out in mid) to **bombsite B** in the north west (back plat, the double stack, the B car, the B doors to CT and the
+  window beside them). The sites have a big painted letter and a dashed line round them. Sandstone walls never break
+  (not even for star 3, mortars or the bomb); wooden crates and door leaves are cover that shells break bit by bit;
+  the window lets shells and sight through but no tank.
+- **Teams:** 1-4 players, on one keyboard and pads or online. Before the match, the team screen: left/right picks your
+  side, up/down and left/right set ROUNDS TO WIN (5, 8, 13) and TEAM SIZE (3 v 3, 4 v 4, 5 v 5), FIRE says you're
+  ready (Esc: back to the title); the choices are remembered. Players at one computer pick together and play on the
+  same team, since they share the screen and its fog of war; each online friend picks a side of their own. Bots (ALEX,
+  BORIS ...) fill both teams up to the size.
+- **A round:** the first 10 seconds are the **buy time**: the tanks hold still in their spawn and the buy menu is up
+  (up/down to choose, FIRE to buy, READY to start early; with several players at one computer each has a cursor of
+  their own). Then 1:55 on the clock (the line above the field). One terrorist carries the **bomb** (his team sees it
+  over his tank, in the side panel and on the minimap); it drops where he's destroyed and any terrorist picks it up by
+  driving over it. On a bombsite, **hold B and keep still for 3 seconds** to plant it (moving or letting go starts
+  over). Planted, it beeps faster and faster for 40 seconds; a counter-terrorist on it holds B still for **10 seconds
+  to defuse** it (**5** with a defuse kit), starting over if he moves. The bomb's blast destroys every tank within five
+  tiles, armour or not, and the crates round it.
+- **A round ends** when one team is wiped out (with the bomb down, the counter-terrorists must still defuse it), the
+  bomb goes off (TERRORISTS WIN, TARGET BOMBED), it's defused (COUNTER-TERRORISTS WIN, BOMB DEFUSED) or the clock runs
+  out with no bomb down (TARGET SAVED). There are no respawns: a destroyed player watches a teammate (FIRE: the next
+  one). The banner names the winners, how, and the round's MVP (the planter of a bomb that went off, the defuser, else
+  the most kills on the winning side), with the scoreboard under it; then the next round on the map as new.
+- **The match:** first to 8 rounds (or 5, 13); after the 7th round (half the most there can be) it's **half time**:
+  the sides switch and the money and the guns start over. The result screen shows the score and each player's kills,
+  deaths and MVPs. The title screen keeps your record: matches won and rounds won (not for a match of bots only).
+  No saving in a match (like versus); RESTART ROUND in the pause menu plays the round again.
+- **Scoreboard:** hold **Tab** (it's also up at the end of every round): both teams, kills, deaths, MVP stars and your
+  own team's money.
+- **Combat** as in versus: a hit destroys a tank, an armour plate soaks one; friendly fire is off (a teammate's shell
+  stops on you and does nothing); no power-ups on the map (everything is bought); every tank drives and reloads alike
+  (no XP perks in a match). **B** throws a smoke grenade if you have one, else drops a mine, else fires; on a site with
+  the bomb, or on a planted bomb as a counter-terrorist, B plants or defuses instead.
+
+**Money:** everyone starts with $800 (and again at half time), at most $16000.
+
+| For | Money |
+|---|---|
+| a kill | $300 with the cannon, mortar, tesla or missiles; $600 machine gun; $900 flamethrower; $100 laser |
+| winning a round | $3250; $3500 when the bomb went off or was defused |
+| losing a round | $1400, $500 more for each loss in a row before it, up to $3400 |
+| planting the bomb | $300 to the planter; and $800 to every terrorist if the round is lost anyway |
+| defusing it | $300 |
+
+| Buy | Price | |
+|---|---|---|
+| Armour plate | $650 | soaks a hit; two at most; kept if you survive the round |
+| Star | $600 | faster shells, then two in the air at once (two stars at most) |
+| Smoke | $300 | B: a cloud up to three tiles ahead (short of a wall) that nobody sees through for 15 s; two at most |
+| Mines x3 | $400 | B drops one; they go off only under the other team, and only your team sees them |
+| Defuse kit | $400 | counter-terrorists only: defuse in 5 s |
+| Flamethrower MK II, machine gun MK II, mortar MK II, tesla MK I, missiles MK II, laser MK II | $1200, $1500, $2000, $2500, $3100, $4750 | the weapons (see *Weapons*), one in hand |
+
+What you buy stays while your tank lives; a destroyed tank loses its gun, plates, stars, smoke, mines and kit.
+
+**Fog of war:** you see only what your team sees: line of sight from every living tank of your team, 9 tiles round
+it, stopped by walls, crates (until they're shot away) and smoke. Ground your team has never seen is black; ground it
+has seen before but can't see now is dim and shows no enemies (and no shells). Where an enemy was last seen a fading
+outline with a question mark stays a few seconds; shots fired out of sight near your team show as a flash where they
+came from. The minimap shows only what has been explored, the sites, your team, the enemies in sight and (for the
+terrorists) the bomb; when the bomb is planted the counter-terrorists see which site it's on. The weapons that find
+their own targets (tesla, missiles, mortar) only go for enemies your team can see. Each team has its own fog (what it
+has explored is kept for the whole match); online, each friend sees their own team's.
+
+**The bots** buy as players do (armour, the best gun they can afford with one sniper laser a team, a kit for the
+counter-terrorists, smoke for the terrorists; a poor round they save). The terrorists pick a site each round and a way
+in for each of them (A by long or the catwalk, B through the tunnels, a lurker through mid and the lower tunnels),
+gather short of it, go in together (some rounds they rush), plant, then hold the ways in while one guards the bomb;
+one of them fetches a dropped bomb. The counter-terrorists hold the car at A, A site, CT mid, B site and the B window,
+facing the way in; they rotate when the enemy is seen or heard at a site, and once the bomb is down the nearest goes
+for it while the rest come round. In a fight a bot takes the enemy it can hit (in line, no wall or teammate between),
+lines up with one that's close, and takes a moment to aim: longer on the move, shorter holding its post, quicker on
+harder skills.
 
 ## Big scrolling maps
 
@@ -818,6 +902,8 @@ light, tanks driving and firing, smoke, sparks and explosions:
 - **Deathmatch**: a steel arena, red beacons, a skull on the floor, shells meeting in the middle, the kill feed.
 - **Flags**: your tank runs their flag home over the bridge, theirs on its tail.
 - **VS CPU** (and co-op): the machine's fortress, a face on its screen; its HQ blinks red at its foot.
+- **Counter-Strike**: noon on Dust 2: the long doors and a red A on the wall; a terrorist plants the bomb, a
+  counter-terrorist comes in behind smoke to defuse it, or (every other time) is shot and the bomb goes off.
 
 **The soundtrack** comes in two styles (Settings → MUSIC STYLE):
 
@@ -830,7 +916,7 @@ light, tanks driving and firing, smoke, sparks and explosions:
   RED LINE (speed metal); Big Maps: WIDE FRONT (a hard rock shuffle); Any Side: TURNED AROUND (prog metal in 7/8);
   Corridor: THE CLIMB (power metal); Maze: LABYRINTH OF STEEL (doom); Fortress: HOLD THE WALLS; Kill Race: NITRO
   (boogie); VS CPU and Co-op: MACHINE WAR (industrial); Eagles: EAGLE DUEL; Deathmatch: NO MERCY; Flags: BRING IT
-  HOME; Custom levels: BRICK BY BRICK; the tank bosses: IRON FIST, DEEP WATERS, WAR MACHINE, CLOSE ENCOUNTER; Baba
+  HOME; Custom levels: BRICK BY BRICK; Counter-Strike: WAR MACHINE (the military march); the tank bosses: IRON FIST, DEEP WATERS, WAR MACHINE, CLOSE ENCOUNTER; Baba
   Galya: SHCHEDRYK (METAL); Galaxy: STARFIGHTER, ALIEN OVERLORD, HYPERSPACE, ALL YOUR BASE, KOROBEINIKI, LEVEL 9,
   UPBEAT CORPORATE ROCK 4 and STOCK MUSIC.EXE in metal; plus WARNING!, VICTORY! and THE EARTH IS SAVED. A boss's
   last phase plays faster; the easier skills play lighter drums and a touch slower.
@@ -852,6 +938,7 @@ light, tanks driving and firing, smoke, sparks and explosions:
 | VS eagles | Eagle Duel | a stand-off |
 | Deathmatch | No Mercy | aggressive |
 | Flags | Bring It Home | a fanfare |
+| Counter-Strike | War Machine | a military march |
 | VS CPU | Machine War | robotic octaves |
 | Galaxy | Starfighter (bosses: Alien Overlord); sectors 7-11 and 14: Hyperspace (bosses: All Your Base); The Well: Korobeiniki (the Stack: Korobeiniki: Level 9); The Slop Feed: Upbeat Corporate 4 (the Slop Machine: Stock Music.exe) | racing arpeggios |
 
@@ -1029,6 +1116,10 @@ js/bossbook.js    the boss gallery (Settings -> ART): the bosses you've met, and
 js/galya.js       a secret (no spoilers)
 js/modes.js       game modes: time attack, versus eagles, deathmatch, capture the flag
 js/survival.js    SURVIVAL: 100 waves, entry points all round, twists, perks, drops, terrain rebuilds
+js/csmap.js       COUNTER-STRIKE's map: DE_DUST2 tile by tile, its zones and call-outs, its look (sand, sandstone, crates)
+js/cs.js          COUNTER-STRIKE: the team screen, rounds, the bomb, buying and money, the fog of war, its HUD, online
+js/csbots.js      COUNTER-STRIKE's bots: buying, the terrorists' and counter-terrorists' plans, routes, fighting
+js/csart.js       COUNTER-STRIKE's title picture
 js/reach.js       no dead ends: a way opened from every walled-in entry point; stuck enemies come in again
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go

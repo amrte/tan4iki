@@ -26,6 +26,7 @@ const MODES = [
   { key: 'eagles', name: 'VS EAGLES', vs: true, cpu: true, desc: 'GUARD YOURS, HIT THEIRS' },   // cpu: 1 player plays the computer
   { key: 'dm', name: 'DEATHMATCH', vs: true, cpu: true, desc: 'FIRST TO 10 KILLS' },   // 1 player: against bots
   { key: 'ctf', name: 'FLAGS', vs: true, desc: 'BRING THEIR FLAG HOME' },
+  { key: 'cs', name: 'COUNTER-STRIKE', desc: 'PLANT THE BOMB OR DEFUSE IT' },   // cs.js: two teams on DE_DUST2, bots fill them
   // not on the MODE row: VS EAGLES with one player becomes this (cpuvs.js)
   { key: 'cpu', name: 'VS CPU', desc: 'DESTROY THE ENEMY HQ' },
 ];
