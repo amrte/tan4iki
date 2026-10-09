@@ -121,7 +121,7 @@ Maze and VS CPU, and no saving outside Classic and Big maps.
 | **Any side** | 1-4 | the classic stages with the map turned round: your eagle is on the left, right or top edge (a new one every stage; the curtain says which), you start beside it and the enemy comes in from the edge across. Base upgrades, the minefield, the eagle gun and supply drops all face the right way. Shop as in Classic |
 | **Custom levels** | 1-4 | your levels from CONSTRUCTION, every filled slot in turn (see below); shop as in Classic |
 | **Big maps** | 1-4 | every stage is a big scrolling map (see below); shop and saves work as in Classic |
-| **Corridor** | 1-4 | the usual width, endless height: no eagle, just climb. The world is three map sections stacked (random classic maps, mirrored outwards on wider fields); once the whole team has climbed out of the bottom section it drops away and a fresh section appears on top, so the climb never ends and nobody gets left behind. Enemies keep arriving just above the screen, faster and tougher the higher you get (the flag shows the level: one per section climbed). The enemy grows slowly with the climb: only basic tanks at first, then fast (10 tiles), power (26) and armor (45), then the newer types one at a time every 20 tiles from 52 (rocket first), each starting rare and taking 40 tiles to reach its full share; veterans from about 100 tiles and elites from 230. A gold *NAME AHEAD!* tells you when a new kind joins; ones left far below drop out. A destroyed tank comes back at the bottom of the screen; every 5 sections everyone gets a tank. The border above the field shows how far you've climbed (in tiles) and your best; ends when everyone is out |
+| **Corridor** | 1-4 | the usual width, endless height: no eagle, just climb. The world is three map sections stacked (random classic maps, mirrored outwards on wider fields); once the whole team has climbed out of the bottom section it drops away and a fresh section appears on top, so the climb never ends and nobody gets left behind. Enemies keep arriving just above the screen, faster and tougher the higher you get (the flag shows the level: one per section climbed). The enemy grows slowly with the climb: only basic tanks at first, then fast (10 tiles), power (26) and armor (45), then the newer types one at a time every 20 tiles from 52 (rocket first), each starting rare and taking 40 tiles to reach its full share; veterans from about 100 tiles and elites from 230. A gold *NAME AHEAD!* tells you when a new kind joins; ones left far below drop out. Every 5 sections everyone gets a tank. And it's a race: a hazard (lava, a flood or a wall of fire) rises from below, faster the higher you are; a climb combo pays x2 and x3 points; every 100 m a new biome (city, forest, snow and ice, volcano, sky fortress); set pieces, splits, supply depots every 250 m (the checkpoint), a boss gate every 500 m, medals at 300, 600 and 1000 m and a ghost where your best run ended (see *Corridor* below). The border above the field shows how far you've climbed (in metres, a tile each) and your best, the left border the climb meter; ends when everyone is out |
 | **Maze** | 1-4 | a huge labyrinth, a new one every stage and bigger each time (17 x 11 cells at first, growing by 3 x 2 a stage up to 34 x 22; a cell is a 2-tile passage). You start in the bottom-left corner; the one way out, a chequered **EXIT** gate, is on the outer edge as far from the start as the maze allows. The walls are steel that nothing can break (not power shells, rockets or blasts), with the odd stretch of brick you can shoot through for a shortcut; trees and ice fill some passages. Enemy tanks (26 in the first maze, 6 more each maze, up to 100) patrol along the way, half of them from the start (none near the start), and come for you once you get close or shoot them; more turn up out of sight as you go (the side panel counts them). Lost for too long (1 minute on the easiest skill, 3 on the hardest) and the exit sends a signal: a blinking green marker at the edge of the screen. Reaching the exit is worth 2000 plus a time bonus, and every enemy left goes up in smoke; then the tally, the shop and the next maze. A destroyed tank comes back where it was a few seconds before. The border shows the maze number and the time; the best run (mazes escaped) is kept |
 | **Fortress** | 1-4 | tower defense: hold your eagle through 30 waves (see *Fortress* below) |
 | **Galaxy** | 1-4 | a space shoot-'em-up: your tanks against alien waves, sector after sector (see *Galaxy* below) |
@@ -198,6 +198,71 @@ and most of them hunt you.
 - **Saving:** the checkpoint is the start of each wave: the same map, terrain, twists and perks when you load it.
 - The side panel's flag shows the wave. It ends when everyone is out or all 100 waves are held; the best wave and
   score are kept (holding all 100 beats reaching the last one).
+
+## Corridor
+
+The corridor is an endless climb (the world is three sections of 13 tiles stacked; the bottom one drops away and a
+new one appears on top as you go, so the climb never ends). How high you are is counted in metres, a tile each.
+The climb is planned from the run's seed: every section has its place in it, so a checkpoint brings back the same one.
+
+- **The hazard.** Something rises from below: a flood in the city and the snow, a wall of fire in the forest and up
+  in the sky fortress, lava in the volcano. It waits a few seconds at the start, then creeps up, faster the higher you
+  are (a tile every 3 s at the bottom, about every 1.3 s from 800 m on HURT ME PLENTY; half that speed on I'M TOO YOUNG
+  TO DIE, 70% on HEY, NOT TOO ROUGH, 15% and 30% faster on ULTRA-VIOLENCE and NIGHTMARE!), and it never falls more
+  than a screen and a bit behind the last of you. Fall behind into it and that tank is lost, whatever shield, plates
+  or boat it had (SWEPT AWAY!, BURNED!, MELTED!); it comes back above it, on open ground on the screen. Enemies that
+  fall in are gone (no points). When it's close the bottom edge of the screen glows, its distance shows in both
+  corners (and *LAVA RISING!* when it's very close), tanks near it flash red and it rumbles; the climb meter shows it
+  too. It holds still during a boss fight and falls back a screen when you reach a depot.
+- **The climb combo.** Every new metre fills the combo meter (the left border); stop for more than a second and a
+  half and it drains, faster after four seconds. A third full is **x2**, two thirds **x3**: every point is doubled or
+  tripled (the climb itself pays 10 a metre to each of you). Losing a tank empties it.
+- **The climb meter** (the left border): the combo (X1 / X2 / X3) and its bar, then the climb from 20 m below you to
+  60 m above: the bands in their colours, depots (a green cross), boss gates (red), the medal heights, your best (a
+  white line), the hazard rising from the bottom, and you (the yellow arrow).
+- **Biome bands.** Every 100 m the corridor changes, and so do its rules, round and round:
+
+| Band | From | Ground and tiles | Twist | Its enemy | Hazard | Music |
+|---|---|---|---|---|---|---|
+| City | 0 m | asphalt, concrete walls, rubble, street lamps, fuel drums | blackouts | rocket truck | flood | The Climb |
+| Forest | 100 m | deep green, the woods grow thicker | wildfire | firebug | wall of fire | Wide Front |
+| Snow and ice | 200 m | snow, most lakes frozen, ice patches | blizzards | frost | flood | Turned Around |
+| Volcano | 300 m | black rock, basalt for steel, fire vents, most lakes lava, lava running down both sides | lava bombs | magma | lava | The Last Stand |
+| Sky fortress | 400 m | steel walkways over a long drop: off the edge is a tank lost (FELL!); landings right across where sections and bands meet; no water up there | gusts (they never blow you off an edge, or into lava) | guster | wall of fire | Starfighter |
+
+  The band changes when the front-runner reaches it: its name comes up with its twist, and the look, weather,
+  enemy and music follow (the tunes are other modes' own; with MUSIC STYLE: ROCK, their rock versions). Where two bands meet, their ground blends over a few pixels. The band's own enemy comes
+  more often than a season's would.
+- **Set pieces**, every third section (each of the six once in every 18 sections, in the run's own order; the name
+  comes up as it scrolls into view):
+  - **Bridge under fire**: a river right across (lava or the drop up high) with one narrow bridge (two tiles over lava
+    or the drop), and turrets on the far bank, one of them guarding the bridge's end.
+  - **Convoy crossing**: a road right across between two low walls with a few gaps; tanks drive along it left to right,
+    turning to fire at a tank lined up with them, then drive on and off the far side. Cross between them, or wreck one.
+  - **Minefield**: open ground sown with mines, taped off with warning signs; one winding way through is clear. A
+    shell that meets a mine sets it off (50 points): shoot your way through from far enough away.
+  - **Turret gate**: a steel wall right across; its gate opens only when the three turrets in front of it are wrecked
+    (a light on the gate for each: red while it stands, green once it's down).
+  - **Conveyor climb**: lanes of belts, most of them running down against you, a few running up (a chevron on each belt
+    shows which way: green up, red down, yellow across), and belts across that shift you between lanes.
+  - **Dark tunnel**: solid rock with a winding way through, dark inside but for your lamp (a pool of light round your
+    tank and a beam ahead); enemies show only in it or when they fire. The maze's tune plays inside.
+- **Splits.** Now and then a steel wall runs up the middle of a section: one side is **FAST** (open, two supply crates,
+  more enemies coming at you there, and a power-up the first time you go in), the other **SAFE** (a slow zigzag).
+  The signs at the fork say which is which.
+- **Supply depots** every 250 m (just past the gate at 500, 1000 ...): drive onto the pad and every tank is patched up
+  (an armour plate at least, a short shield), anyone with no tanks left gets one, and anyone who was out comes back.
+  The depot is the **checkpoint**: SAVE GAME (and the autosave) keep the climb from there (*SAVED: CLIMB 250 M*), and
+  CONTINUE starts you on that depot's section with the same climb ahead. An older corridor save goes on from the
+  section it had reached.
+- **Boss gates** every 500 m: the gatehouse (towers, banners, a portcullis) holds the way; nothing more appears above
+  it until it falls. Climb into its arena and the boss comes out with its escorts: the ten classic bosses in their
+  order (IRON BEAR at 500 m, MOLE at 1000 m ...), each in its own arena, tougher the higher (25% more HP and 7.5% more
+  speed per gate, half again the points), with its own music. It keeps to its arena. Beat it and the gate opens (the
+  victory tune plays a moment), and the climb goes on.
+- **Medals**: bronze at 300 m, silver at 600, gold at 1000. Each comes up as you reach it and is kept for good; the
+  title shows them beside the best climb, the result screen with the run's. **The ghost**: a dashed line and a ghostly
+  tank mark where your best run ended (NEW RECORD! as you pass it).
 
 ## Skill levels
 
@@ -341,7 +406,7 @@ endless, daily — a daily run's save only lasts its day).
 
 - **Classic and big maps:** pause (Enter, P or Esc) and choose **SAVE GAME** to save exactly where you are: the stage,
   terrain, tanks, scores, lives, upgrades and mines.
-- **Every other mode** saves a *checkpoint*: the start of the current stage, round, wave, corridor section, fortress
+- **Every other mode** saves a *checkpoint*: the start of the current stage, round, wave, the corridor's last supply depot, fortress
   build phase or galaxy sector (after the hangar, so what you bought is kept), with everyone's score, lives, upgrades,
   weapons, perks and credits as they were then. SAVE GAME says where you'll resume ("SAVED: START OF SECTOR 5").
 - The game also saves automatically at the start of every stage (and at each of those checkpoints).
@@ -559,7 +624,7 @@ keep the look but not the twist.
 
 The three terrain types change the map too: in the normal stages each brings tiles of its own, placed the same way
 every time a stage is played and never next to the eagle or on the start and entry points (custom levels keep what
-you painted; boss arenas, the corridor, the maze and the fortress only take the look). Each has a twist and an enemy
+you painted; boss arenas, the maze and the fortress only take the look; the corridor's bands have tiles of their own). Each has a twist and an enemy
 of its own, like the seasons.
 
 | Terrain | Look | Its tiles | Twist | Its own enemy |
@@ -1010,6 +1075,7 @@ js/survival.js    SURVIVAL: 100 waves, entry points all round, twists, perks, dr
 js/reach.js       no dead ends: a way opened from every walled-in entry point; stuck enemies come in again
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go
+js/corridor2.js   corridor: the rising hazard, the climb combo, biome bands, set pieces, splits, depots, boss gates, medals
 js/maze.js        maze mode: the maze generator, patrols, reinforcements, the exit
 js/fortress.js    fortress mode (tower defense): towers, upgrades and specialisations, waves, gold, the build menu, maps
 js/galaxy.js      galaxy mode (a shoot-'em-up): sectors, waves, weapons, pickups, the hangar, its bosses

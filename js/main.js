@@ -371,7 +371,7 @@ const Game = {
       Font.drawCenter(ctx, mi.desc + (mi.cpu ? '' : mi.vs ? ' (2-4 P)' : ''), SW / 2, 203, COL.gold);
       const best = mi.key === 'survival' && rec.survival ? 'BEST WAVE ' + rec.survival.wave + '  ' + rec.survival.score
         : mi.key === 'timeattack' && rec.timeattack ? 'BEST TIME ' + fmtTime(rec.timeattack)
-        : mi.key === 'corridor' && rec.corridor ? 'BEST CLIMB ' + rec.corridor.dist + ' M  ' + rec.corridor.score
+        : mi.key === 'corridor' && (rec.corridor || rec.crMedal) ? crTitleBest(rec)   // the medals go beside it (corridor2.js)
         : mi.key === 'maze' && rec.maze ? 'BEST: ' + rec.maze.escaped + ' MAZES ESCAPED  ' + rec.maze.score
         : mi.key === 'fortress' && rec.fortress ? 'STARS ' + TD_MAPS.map(m => (rec.fortress[m.key] || {}).stars || 0).reduce((a, b) => a + b, 0) + '/' + TD_MAPS.length * 3 + '  MAPS ' + TD_MAPS.filter((m, i) => tdUnlocked(i)).length + '/' + TD_MAPS.length
         : mi.key === 'galaxy' ? '1-4 PLAYERS' + (rec.galaxy ? ', BEST SECTOR ' + rec.galaxy.level + '  ' + rec.galaxy.score : '')

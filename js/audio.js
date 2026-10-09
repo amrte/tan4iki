@@ -495,6 +495,40 @@ const Sound = {
       case 'blackout': // the power goes: a falling hum
         this.note(220, t, 0.6, { vol: 0.1, slideTo: 55, wave: 'p50' });
         break;
+      // corridor2.js: the climb
+      case 'crRise': // the hazard close below: a low rumble
+        this.noise(500, t, [[0, 0.3], [0.2, 0.2], [0.45, 0]], 250);
+        this.note(38, t, 0.4, { vol: 0.14, wave: 'tri', slideTo: 45 });
+        break;
+      case 'crDepot': // patched up: two spanner clanks and a bright run up
+        this.noise(6000, t, [[0, 0.3], [0.03, 0]]);
+        this.noise(6000, t + 0.09, [[0, 0.25], [0.03, 0]]);
+        this.seq([67, 71, 74, 79, 83], 0.06, t + 0.18, { vol: 0.12, decayTo: 0.5, wave: 'p25' });
+        break;
+      case 'crGate': // a heavy gate grinds open
+        this.noise(800, t, [[0, 0.45], [0.5, 0.3], [0.8, 0]], 300);
+        this.note(43, t, 0.7, { vol: 0.14, wave: 'p25', flat: true });
+        this.seq([55, 59, 62, 67], 0.1, t + 0.5, { vol: 0.1, decayTo: 0.4 });
+        break;
+      case 'crCombo': // the climb combo goes up
+        this.seq([76, 83], 0.05, t, { vol: 0.1, wave: 'p25', flat: true });
+        break;
+      case 'crComboLost': // ... and it's gone
+        this.note(76, t, 0.25, { vol: 0.09, slideTo: 220, wave: 'p25' });
+        break;
+      case 'crMedal': // a medal: a little fanfare
+        this.seq([72, 76, 79, 84, 0, 84], 0.09, t, { vol: 0.13, decayTo: 0.5 });
+        this.seq([48, 52, 55, 60], 0.135, t, { vol: 0.25, wave: 'tri', flat: true });
+        break;
+      case 'crFall': // off the edge: a falling whistle
+        this.note(1400, t, 0.8, { vol: 0.09, slideTo: 140, wave: 'p12' });
+        break;
+      case 'crBand': // a new band of the climb: a chime
+        this.seq([79, 84, 88], 0.12, t, { vol: 0.1, wave: 'p25', decayTo: 0.3 });
+        break;
+      case 'crRecord': // past your best
+        this.seq([84, 88, 91, 96], 0.06, t, { vol: 0.11, wave: 'p25', decayTo: 0.5 });
+        break;
       case 'select':
         this.noise(13000, t, [[0, 0.35], [0.03, 0]]);
         break;
