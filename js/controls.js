@@ -14,7 +14,7 @@ const CTL_W = 22;   // characters a value may take
 const CTL_ALT = { cs: 'GRENADE/MINE', galaxy: 'SWAP / FOCUS', fortress: 'BUILD MENU', rally: 'DROP: MINE/OIL/SMOKE' };
 // what a mode adds to the keys
 const CTL_EXTRA = {
-  cs: n => [['B STILL', 'PLANT/DEFUSE'], [n > 1 ? '123 / 890' : '1 2 3', 'BOT ORDERS'], ['Q', 'NEXT ORDER'], ['TAB', 'SCOREBOARD']],
+  cs: n => [['B STILL', 'PLANT/DEFUSE'], [n > 1 ? '123 / 890' : '1 2 3', 'BOT ORDERS'], ['Q', 'NEXT ORDER'], [n > 2 ? 'EMPTY' : n > 1 ? 'R / 7' : 'R', 'RELOAD'], ['TAB', 'SCOREBOARD']],
   galaxy: () => [['B TWICE', 'BOMB']],
   rally: () => [['FIRE', 'FORWARD WEAPON'], ['FIRE + B', 'BOOST']],
 };

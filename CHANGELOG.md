@@ -3,6 +3,16 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.62
+
+- **Counter-Strike: take over bot after bot.** Out, B takes over the bot you're watching; out again, the next one, as
+  long as your team has a bot left (it was once a round).
+- **The tank you take over stays as it was** (its type and look), not yours.
+- **Bots get a random tank type** at the start of a match (any of the player tanks or the enemies'), kept all match.
+- **Reloading** (csreload.js): every gun has a magazine (cannon 6, machine gun 40, flamethrower 2.5 s, mortar 3,
+  tesla 4, missiles 2, laser 3); empty, the tank reloads for 1.7-2.5 s; R reloads early (player II: 7). The magazine
+  in the side panel, a bar under your tank while it reloads; bots reload in quiet moments. Sent to online guests.
+
 ## 0.61
 
 - **New mode: TANK RALLY** — a tribute to Rock n' Roll Racing with tanks (rallytracks.js, rally.js, rallycareer.js,

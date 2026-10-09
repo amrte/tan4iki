@@ -196,8 +196,8 @@ counter-terrorists in the north (CT spawn, between the two bombsites).
 - **A round ends** when one team is wiped out (with the bomb down, the counter-terrorists must still defuse it), the
   bomb goes off (TERRORISTS WIN, TARGET BOMBED), it's defused (COUNTER-TERRORISTS WIN, BOMB DEFUSED) or the clock runs
   out with no bomb down (TARGET SAVED). There are no respawns: a destroyed player watches a teammate (FIRE: the next
-  one) and can **take over a bot** they're watching with **B**, once a round: its tank, its gear and the bomb if it
-  has it (the bot is out). With the **whole team out** while the round goes on (the bomb down, the other side to
+  one) and can **take over a bot** they're watching with **B**: its tank (as it looks), its gear, its magazine and the
+  bomb if it has it (the bot is out); out again, they can take over the next one, as long as a bot of the team is left. With the **whole team out** while the round goes on (the bomb down, the other side to
   defuse it) the fog lifts: the arrows move the camera round the map and FIRE follows the next tank still in it. The banner names the winners, how, and the round's MVP (the planter of a bomb that went off, the defuser, else
   the most kills on the winning side), with the scoreboard under it; then the next round on the map as new.
 - **The match:** first to 8 rounds (or 5, 13); after the 7th round (half the most there can be) it's **half time**:
@@ -220,6 +220,12 @@ counter-terrorists in the north (CT spawn, between the two bombsites).
 - **Your tank:** a TANK row for each player on the team screen (online friends: up/down) picks the tank you drive:
   your own (it changes with its stars, as everywhere), one of the four player tanks, or any of the enemies' (BASIC to
   MOSSLUMP), always in your team's colours. Only the look: every tank drives, shoots and takes hits alike. Remembered.
+  The bots get a tank each at random at the start of a match and keep it.
+- **Reloading:** every gun has a magazine — cannon 6 shells, machine gun 40, flamethrower 2.5 s of flame, mortar 3,
+  tesla 4, missiles 2 volleys, laser 3 — and when it's empty the tank reloads (1.7-2.5 s) and can't fire. **R** reloads
+  early (player II on the same keyboard: **7**; with three or four at one keyboard only an empty magazine reloads). The
+  magazine shows in the side panel (yellow while reloading), with a bar under your tank and RELOADING over the field.
+  Bots reload when there's nobody to fight and their magazine is half gone.
 - **Combat** as in versus: a hit destroys a tank, an armour plate soaks one; friendly fire is off (a teammate's shell
   stops on you and does nothing); one shell in the air at a time (two with two stars), flying at most 10 tiles, and a FIRE
   pressed while it's still out fires the moment it can; no power-ups on the map (everything is bought); every tank drives and reloads alike
@@ -1506,6 +1512,7 @@ js/csmap.js       COUNTER-STRIKE's map: DE_DUST2 tile by tile, its zones and cal
 js/cs.js          COUNTER-STRIKE: the team screen, rounds, the bomb, buying and money, the fog of war, its HUD, online
 js/csbots.js      COUNTER-STRIKE's bots: buying, the terrorists' and counter-terrorists' plans, routes, fighting
 js/csorders.js    COUNTER-STRIKE's orders to the bots: FOLLOW ME, HOLD HERE, GO ON (keys, pads, touch, online)
+js/csreload.js    COUNTER-STRIKE's magazines and reloading (R)
 js/controls.js    the CONTROLS page (pause menu and Settings): the keys in use, per player and mode
 js/csmap_aztec.js  COUNTER-STRIKE's DE_AZTEC (jungle stone, the river, the rope bridge, temples)
 js/csmap_train.js  COUNTER-STRIKE's DE_TRAIN (train cars on rails, concrete halls)

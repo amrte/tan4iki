@@ -781,6 +781,15 @@ const Sound = {
         this.noise(2600, t, [[0, 0.55], [0.08, 0.1], [0.25, 0]]);
         this.note(3520, t + 0.02, 1.4, { wave: 'p25', vol: 0.05, decayTo: 0.1 });
         break;
+      case 'csReload': // the magazine out: a click and a slide
+        this.noise(9000, t, [[0, 0.25], [0.02, 0]]);
+        this.noise(3000, t + 0.08, [[0, 0.12], [0.12, 0.06], [0.16, 0]], 5000);
+        break;
+      case 'csReloaded': // the new one in, the bolt home
+        this.noise(7000, t, [[0, 0.3], [0.025, 0]]);
+        this.note(60, t + 0.05, 0.04, { vol: 0.1, wave: 'p25', flat: true });
+        this.noise(9000, t + 0.06, [[0, 0.22], [0.02, 0]]);
+        break;
       case 'csSmoke': // a smoke grenade pops and hisses
         this.noise(1800, t, [[0, 0.3], [0.04, 0.05]]);
         this.noise(12000, t + 0.04, [[0, 0.12], [0.6, 0.08], [0.9, 0]], 6000);

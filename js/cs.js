@@ -55,11 +55,13 @@ const CS_COL = { T: '#F88838', CT: '#58A8F8', Tdk: '#A84810', CTdk: '#1C58B8' };
 // enemy's; always in the team's colours (an enemy's own accent colours past the three a team has are kept)
 const CS_LOOKS = ['star', 'p0', 'p1', 'p2', 'p3'].concat(ENEMY.map((e, i) => 'e' + i));
 const csLookName = k => (k === 'star' ? 'PLAYER (STARS)' : k[0] === 'p' ? 'PLAYER MK ' + ['I', 'II', 'III', 'IV'][+k[1]] : ENEMY[+k.slice(1)].name);
+// (the tank a player drives now: their own, or a bot's they took over, csTankLook)
 function csLookOf(p) {
-  if (!p || !p.csLook || p.csLook === 'star' || !TANK_GRIDS[p.csLook]) return null;
-  const team = csPalKey(p), key = team + '_' + p.csLook;
-  if (!PALS[key]) { const own = PALS[(p.csLook[0] === 'e' && ENEMY[+p.csLook.slice(1)].pal) || 'silver'] || []; PALS[key] = [null].concat(PALS[team].slice(1, 4), own.slice(4)); }
-  return [p.csLook, key];
+  const look = p && (p.csTankLook || p.csLook);
+  if (!look || look === 'star' || !TANK_GRIDS[look]) return null;
+  const team = csPalKey(p), key = team + '_' + look;
+  if (!PALS[key]) { const own = PALS[(look[0] === 'e' && ENEMY[+look.slice(1)].pal) || 'silver'] || []; PALS[key] = [null].concat(PALS[team].slice(1, 4), own.slice(4)); }
+  return [look, key];
 }
 const csSide = (squad, half) => ((squad ^ half) === 0 ? 'T' : 'CT');
 const csOther = team => (team === 'T' ? 'CT' : 'T');
@@ -130,7 +132,7 @@ Object.assign(Game, {
     let k = 0;
     for (const sq of [0, 1]) {
       const have = this.players.filter(p => p.csSquad === sq).length;
-      for (let j = have; j < size; j++) this.players.push(Object.assign(newPlayer(this.players.length), { bot: true, csSquad: sq, csName: CS_BOT_NAMES[k++ % CS_BOT_NAMES.length] }));
+      for (let j = have; j < size; j++) this.players.push(Object.assign(newPlayer(this.players.length), { bot: true, csSquad: sq, csName: CS_BOT_NAMES[k++ % CS_BOT_NAMES.length], csLook: CS_LOOKS[rnd(CS_LOOKS.length)] }));   // a tank of its own, picked at random
     }
     for (const p of this.players) this.csResetGear(p, true);
     this.round = 1;
@@ -217,7 +219,7 @@ Object.assign(Stage.prototype, {
     this.vsSpawn = [];
     for (const p of players) {
       p.csTeam = csSide(p.csSquad, M.half);
-      p.out = false; p.tank = null; p.kills = zeroKills(); p.csRoundK = 0; p.csSpec = -1; p.csBlind = 0; p.csTook = false;
+      p.out = false; p.tank = null; p.kills = zeroKills(); p.csRoundK = 0; p.csSpec = -1; p.csBlind = 0; p.csTankLook = null;
       // the defenders get a star and an armour plate every round, free; the terrorists a plate (without it the
       // defenders, two hits each, won nine rounds in ten)
       if (p.csTeam === 'CT') p.level = Math.max(p.level || 0, 1);
@@ -548,20 +550,21 @@ Object.assign(Stage.prototype, {
       p.csSpec = mates[k];
       // B: take over the bot you're watching (once a round)
       const b = this.csP(p.csSpec);
-      if (inp.altPressed && b && b.bot && !p.csTook && this.cs.phase === 'live') this.csTakeOver(p, b);
+      if (inp.altPressed && b && b.bot && this.cs.phase === 'live') this.csTakeOver(p, b);
     }
   },
 
-  // a fallen player drives a living bot of the team from here on: its tank, its gear, the bomb if it has it; the bot
-  // is out of the round
+  // a fallen player drives a living bot of the team from here on: its tank (as it looks), its gear, its magazine, the
+  // bomb if it has it; the bot is out of the round. Out again: another bot, as often as there's one left
   csTakeOver(p, b) {
     const t = this.csTankOf(b), B = this.cs.bomb;
     if (!t) return;
-    for (const k of ['weapon', 'wlv', 'level', 'mines', 'turrets', 'csArmor', 'csSmokes', 'csFlashes', 'csNades', 'csKit']) p[k] = b[k] === undefined ? b[k] : JSON.parse(JSON.stringify(b[k]));
+    for (const k of ['weapon', 'wlv', 'level', 'mines', 'turrets', 'csArmor', 'csSmokes', 'csFlashes', 'csNades', 'csKit', 'csMag', 'csMagW', 'csReload']) p[k] = b[k] === undefined ? b[k] : JSON.parse(JSON.stringify(b[k]));
+    p.csTankLook = b.csTankLook || b.csLook || 'star';
     Game.csResetGear(b, false);
     b.out = true; b.tank = null;
     t.player = p; t.csAi = null;
-    Object.assign(p, { tank: t, out: false, csTook: true, csSpec: -1, csBlind: Math.max(p.csBlind || 0, b.csBlind || 0) });
+    Object.assign(p, { tank: t, out: false, csSpec: -1, csBlind: Math.max(p.csBlind || 0, b.csBlind || 0) });
     if (B.carrier === b.i) B.carrier = p.i;
     if (B.defuser === b.i) { B.defuser = -1; B.defuse = 0; }
     this.csNote(csName(p) + ' TAKES OVER ' + csName(b), CS_COL[p.csTeam], 150, p.csTeam);
@@ -898,7 +901,7 @@ Object.assign(Stage.prototype, {
         if ((this.frame >> 5) & 1) Font.drawCenter(ctx, 'ARROWS: LOOK  FIRE: NEXT TANK', cx, VIEW_H - 12, COL.lgrey);
       } else {
         Font.drawCenter(ctx, sp && this.csTankOf(sp) ? 'WATCHING ' + csName(sp) : 'YOUR TEAM IS OUT', cx, VIEW_H - 12, COL.white);
-        const take = sp && sp.bot && !dead.csTook && C.phase === 'live';
+        const take = sp && sp.bot && C.phase === 'live';
         if (sp && (this.frame >> 5) & 1) Font.drawCenter(ctx, take ? 'FIRE: NEXT  B: TAKE OVER' : 'FIRE: NEXT', cx, VIEW_H - 22, take ? COL.gold : COL.lgrey);
       }
     }
