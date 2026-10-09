@@ -351,18 +351,19 @@ const Game = {
       Font.drawRight(ctx, this.lastScores[1], 248, 28, COL.white);
     }
     const pat = Sprites.bricks(ctx);
-    const menu = this.titleMenu(), top = this.titleMenuY(), step = this.titleStep();
+    const menu = this.titleMenu(), top = this.titleMenuY();
     // the brick title (28 high) halfway between the score row (and the II-player row under it) and the menu
     const rowBottom = this.lastScores[1] ? 36 : 24;
     Font.big(ctx, GAME_NAME, (SW - Font.bigWidth(GAME_NAME, 4)) >> 1, Math.round((rowBottom + top - 4 - 28) / 2), 4, pat);
     menu.forEach((it, i) => {
-      Font.draw(ctx, it.label, 88, top + i * step, it.skill ? ['#58D854', '#B8F818', COL.white, COL.orange, COL.red, '#3CBCFC'][Config.get('skill')] : COL.white);
-      if (it.note) Font.draw(ctx, it.note, 88 + (it.label.length + 1) * 8, top + i * step, COL.lgrey);
-      if (it.adjust && !it.skill && i === this.menuIdx) Font.draw(ctx, '<>', 88 + it.label.length * 8 + 6, top + i * step, COL.lgrey);
+      const y = this.titleRowY(i);
+      Font.draw(ctx, it.label, 88, y, it.skill ? ['#58D854', '#B8F818', COL.white, COL.orange, COL.red, '#3CBCFC'][Config.get('skill')] : COL.white);
+      if (it.note) Font.draw(ctx, it.note, 88 + (it.label.length + 1) * 8, y, COL.lgrey);
+      if (it.adjust && !it.skill && i === this.menuIdx) Font.draw(ctx, '<>', 88 + it.label.length * 8 + 6, y, COL.lgrey);
     });
     if (this.titleY === 0) {
       const anim = (this.t >> 2) & 1;
-      ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, top - 4 + this.menuIdx * step);
+      ctx.drawImage(Sprites.tank('p0', anim, 1, Config.playerPal(0)), 64, this.titleRowY(this.menuIdx) - 4);
     }
     const cur = menu[this.menuIdx];
     if (cur && cur.mode && this.titleY === 0) {
@@ -413,8 +414,12 @@ const Game = {
   },
 
   // tighter spacing when the menu gets long, so it never reaches the version line
-  titleStep() { return this.titleMenu().length > 6 ? 12 : 14; },
-  titleMenuY() { return TITLE_MENU_Y - (this.titleMenu().length - 4) * this.titleStep() / 2; },
+  // The menu is laid out for its longest form (with CONTINUE): CONTINUE comes and goes with the picked mode's save,
+  // and its row is left empty rather than everything moving up and down as you go through the modes.
+  titleStep() { return 12; },
+  titleMenuY() { return TITLE_MENU_Y - 2 * this.titleStep(); },   // where CONTINUE's row is (8 rows round TITLE_MENU_Y)
+  titleSkip() { const m = this.titleMenu(); return m[0] && m[0].save ? 0 : 1; },
+  titleRowY(i) { return this.titleMenuY() + (i + this.titleSkip()) * this.titleStep(); },
 
   // ---------------------------------------------------------------- save / load
   // One save slot per mode (GALAXY: per run type; CLASSIC keeps the old 'tank1990_save' key), written by SAVE GAME in
@@ -1891,7 +1896,7 @@ const Game = {
       return;
     }
     if (this.state === 'title' && this.titleY === 0) {
-      const i = Math.floor((y - this.titleMenuY() + 4) / this.titleStep());
+      const i = Math.floor((y - this.titleMenuY() + 4) / this.titleStep()) - this.titleSkip();
       if (i >= 0 && i < this.titleMenu().length && x > 56 && x < 200) {
         if (i === this.menuIdx) this.chooseMenu(i);
         else { this.menuIdx = i; Sound.play('select'); }

@@ -3,6 +3,11 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.51.3
+
+- **The title menu holds still** while you go through the modes: CONTINUE (shown for a mode with a save) keeps its
+  own row, left empty when there's nothing to continue, so the title and the other rows no longer jump up and down.
+
 ## 0.51.2
 
 - **Saving when the browser won't store it.** If the browser refuses to keep a save (its storage for the page is
