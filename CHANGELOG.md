@@ -3,6 +3,27 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.52
+
+- **The maze, reworked** (maze2.js, with its enemies in mazefoes.js):
+  - *Keys and gates:* red, blue and yellow gates on the way out (more in deeper mazes), each key behind the gate
+    before it — always solvable. Keys are the team's (shown on the side panel); a LOCKSMITH can steal one.
+  - *The sealed exit:* collect 3 power cells first. *Rivers* cut some mazes in two: find the BRIDGE crate.
+    *Pressure plates* open a door elsewhere for 20 s (ticking, with a marker pointing to it).
+  - *Moving walls* slide or swing every 15 s (rumble and dust first; never onto a tank, never cutting you off),
+    *cracked floor* falls in behind you, *belts* and *teleporters* make shortcuts and traps.
+  - *Darkness:* your lamp lights the way, explored passages stay dim, pitch-black stretches have torches that stay lit
+    once passed. The lamp burns down over about 3 minutes — fuel cans in the side passages refill it.
+  - *The minimap* shows only what you've seen; drop up to 5 markers on it (I-player: Q / E). A MAP SCROLL shows the
+    whole maze for 15 s.
+  - *The collapse:* once every key and cell is taken the maze starts to fall in behind you; get out before the clock
+    runs down (or lose a tank and the clock restarts, shorter).
+  - *Par times and stars* (★ to ★★★), the best kept per maze; *treasure rooms* (coins, weapon crates, lives),
+    *vaults* opened by beating the Minotaur, *secret exits* behind a wall that only looks like steel (skip a maze).
+  - *Depths:* stone dungeon (mazes 1-4), sewer (5-9), ice caverns (10-14), machine (15+), each with its own look; every
+    5th maze is a LAIR with the Minotaur as its boss in a central arena (the exit stays sealed until it falls).
+  - *Its enemies:* the MINOTAUR, CRAWLERS, SENTRIES, the LOCKSMITH, MIRROR tanks in open rooms, and the MOSSLUMP.
+
 ## 0.51.5
 
 - **Block look** (Settings → SCREEN → LOOK: CLASSIC / BLOCKS, also in the pause menu): a texture pack in a chunky
