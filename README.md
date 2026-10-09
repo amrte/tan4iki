@@ -156,7 +156,7 @@ the south (T spawn) and the counter-terrorists in the north (CT spawn, between t
   (not even for star 3, mortars or the bomb); wooden crates and door leaves are cover that shells break bit by bit;
   the window lets shells and sight through but no tank.
 - **Teams:** 1-4 players, on one keyboard and pads or online. Before the match, the team screen: left/right picks your
-  side, up/down and left/right set ROUNDS TO WIN (5, 8, 13) and TEAM SIZE (3 v 3, 4 v 4, 5 v 5), FIRE says you're
+  side, up/down and left/right set the MAP (or RANDOM), ROUNDS TO WIN (5, 8, 13) and TEAM SIZE (3 v 3, 4 v 4, 5 v 5), FIRE says you're
   ready (Esc: back to the title); the choices are remembered. Players at one computer pick together and play on the
   same team, since they share the screen and its fog of war; each online friend picks a side of their own. Bots (ALEX,
   BORIS ...) fill both teams up to the size.
@@ -165,7 +165,7 @@ the south (T spawn) and the counter-terrorists in the north (CT spawn, between t
   their own). Then 1:55 on the clock (the line above the field). One terrorist carries the **bomb**: a player, when there's one on that side, else a bot (his team sees it
   over his tank, in the side panel and on the minimap); it drops where he's destroyed and any terrorist picks it up by
   driving over it. On a bombsite, **hold B and keep still for 3 seconds** to plant it (moving or letting go starts
-  over). Planted, it beeps faster and faster for 40 seconds; a counter-terrorist on it holds B still for **10 seconds
+  over). Planted, it beeps faster and faster for 36 seconds; a counter-terrorist on it holds B still for **10 seconds
   to defuse** it (**5** with a defuse kit), starting over if he moves. The bomb's blast destroys every tank within five
   tiles, armour or not, and the crates round it.
 - **A round ends** when one team is wiped out (with the bomb down, the counter-terrorists must still defuse it), the
@@ -192,8 +192,11 @@ the south (T spawn) and the counter-terrorists in the north (CT spawn, between t
   rotate to a site the terrorists show up at. Bots make way for a teammate (a player too) pushing past them.
 - **Combat** as in versus: a hit destroys a tank, an armour plate soaks one; friendly fire is off (a teammate's shell
   stops on you and does nothing); no power-ups on the map (everything is bought); every tank drives and reloads alike
-  (no XP perks in a match). **B** throws a smoke grenade if you have one, else drops a mine, else fires; on a site with
+  (no XP perks in a match). **B** throws a grenade if you have one (smoke or flashbang, in the order you bought them), else drops a mine, else fires; on a site with
   the bomb, or on a planted bomb as a counter-terrorist, B plants or defuses instead.
+
+**Free each round:** every counter-terrorist starts the round with a **star and an armour plate**, every terrorist with an
+**armour plate** (a tank that kept one from the last round gets nothing more; a second of each can still be bought).
 
 **Money:** everyone starts with $800 (and again at half time), at most $16000.
 
@@ -210,6 +213,7 @@ the south (T spawn) and the counter-terrorists in the north (CT spawn, between t
 | Armour plate | $650 | soaks a hit; two at most; kept if you survive the round |
 | Star | $600 | faster shells, then two in the air at once (two stars at most) |
 | Smoke | $300 | B: a cloud up to three tiles ahead (short of a wall) that nobody sees through for 15 s; two at most |
+| Flashbang | $200 | B: thrown up to six tiles ahead, it bangs a moment later and blinds every tank that can see the bang within about seven tiles, for up to 3 s (longer the nearer, and the more it was looking that way; the thrower too). A blinded player's screen goes white; a blinded bot holds its fire. Two at most |
 | Mines x3 | $400 | B drops one; they go off only under the other team, and only your team sees them |
 | Defuse kit | $400 | counter-terrorists only: defuse in 5 s |
 | Flamethrower MK II, machine gun MK II, mortar MK II, tesla MK I, missiles MK II, laser MK II | $1200, $1500, $2000, $2500, $3100, $4750 | the weapons (see *Weapons*), one in hand |
