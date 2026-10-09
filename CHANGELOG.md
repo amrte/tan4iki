@@ -3,6 +3,11 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.49.2
+
+- The title screen: the brick TANЬ4IKI sits halfway between the score row and the menu (it moves with the menu when
+  CONTINUE appears).
+
 ## 0.49.1
 
 - **Fix: a black screen at start-up** when GALAXY was the last mode you picked (the title asked the galaxy code for

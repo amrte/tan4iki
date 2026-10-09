@@ -350,8 +350,10 @@ const Game = {
       Font.drawRight(ctx, this.lastScores[1], 248, 28, COL.white);
     }
     const pat = Sprites.bricks(ctx);
-    Font.big(ctx, GAME_NAME, (SW - Font.bigWidth(GAME_NAME, 4)) >> 1, 58, 4, pat);
     const menu = this.titleMenu(), top = this.titleMenuY(), step = this.titleStep();
+    // the brick title (28 high) halfway between the score row (and the II-player row under it) and the menu
+    const rowBottom = this.lastScores[1] ? 36 : 24;
+    Font.big(ctx, GAME_NAME, (SW - Font.bigWidth(GAME_NAME, 4)) >> 1, Math.round((rowBottom + top - 4 - 28) / 2), 4, pat);
     menu.forEach((it, i) => {
       Font.draw(ctx, it.label, 88, top + i * step, it.skill ? ['#58D854', '#B8F818', COL.white, COL.orange, COL.red, '#3CBCFC'][Config.get('skill')] : COL.white);
       if (it.note) Font.draw(ctx, it.note, 88 + (it.label.length + 1) * 8, top + i * step, COL.lgrey);
