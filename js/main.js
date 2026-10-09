@@ -840,6 +840,13 @@ const Game = {
       setFieldSize(SX * SECTOR, SY * SECTOR, vc, vr);
       blocks = bigWorldBlocks(this.stageNum, SX, SY);
       objective = Math.floor(this.stageNum / (this.mode === 'bigmaps' ? 1 : 4)) % 2 ? 'outposts' : 'factories';
+    } else if (!custom && this.mode === 'survival') {
+      // SURVIVAL: one map a little bigger than the screen for the whole run, the same after a reload (survival.js)
+      const [vc, vr] = this.desiredField(), sv = resume && resume.sv;
+      this.svRun = sv ? { seed: sv.seed, map: sv.map, theme: sv.theme } : svNewRun();
+      setFieldSize(sv ? sv.cols : vc + SV_GROW, sv ? sv.rows : vr + SV_GROW, vc, vr);
+      map = LEVELS[this.svRun.map % LEVELS.length];
+      if (this.svRun.theme) theme = this.svRun.theme;
     } else if (!custom && this.mode === 'sides') {
       // ANY SIDE: the classic field, turned so the eagle's edge is the chosen one
       const side = this.nextSide || 'left';
@@ -847,7 +854,7 @@ const Game = {
       blocks = turnBlocks(mapToBlocks(map), side);
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
-      custom, boss, base: vs || corridor || maze || fortress || galaxy || this.mode === 'race' ? newBase() : this.base, corridor, maze, fortress, galaxy, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
+      custom, boss, base: vs || corridor || maze || fortress || galaxy || this.mode === 'race' || this.mode === 'survival' ? newBase() : this.base, corridor, maze, fortress, galaxy, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
       race: this.mode === 'race' && !custom ? { target: this.raceTarget, round: this.round } : null, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
       blocks, big: objective, theme,
     });
@@ -908,7 +915,7 @@ const Game = {
       if (Config.on('shop') && this.players.some(p => !p.out)) this.toShop(); else this.toCurtain(false);
       return;
     }
-    if (r === 'tdwin') { this.saveHi(); this.toModeResult(true); return; }
+    if (r === 'tdwin' || r === 'svwin') { this.saveHi(); this.toModeResult(true); return; }   // FORTRESS held, SURVIVAL's 100 waves
     if (this.stage.result) {
       // beating a boss earns 25% off in the next shop
       this.shopDiscount = this.stage.result === 'clear' && this.stage.bossIdx !== undefined;
@@ -1189,8 +1196,9 @@ const Game = {
     const res = { mode: this.mode, done, score, newBest: false };
     if (this.mode === 'survival') {
       res.wave = this.stage.wave;
-      const b = rec.survival;
-      if (!b || res.wave > b.wave || (res.wave === b.wave && score > b.score)) { rec.survival = { wave: res.wave, score }; res.newBest = true; }
+      // all 100 waves held beats getting to wave 100
+      const b = rec.survival, lvl = o => o.wave + (o.won ? 1 : 0);
+      if (!b || lvl(res) > lvl(b) || (lvl(res) === lvl(b) && score > b.score)) { rec.survival = { wave: res.wave, won: done, score }; res.won = done; res.newBest = true; }
       res.best = rec.survival;
     } else if (this.mode === 'cpu') {
       res.rounds = this.stageNum - 1;
@@ -1303,9 +1311,9 @@ const Game = {
     ctx.fillRect(0, 0, SW, SH);
     Font.drawCenter(ctx, modeInfo(r.mode).name, SW / 2, 40, COL.red);
     if (r.mode === 'survival') {
-      Font.drawCenter(ctx, 'YOU HELD OUT TO WAVE ' + r.wave, SW / 2, 80, COL.white);
+      Font.drawCenter(ctx, r.done ? 'ALL ' + r.wave + ' WAVES HELD!' : 'YOU HELD OUT TO WAVE ' + r.wave, SW / 2, 80, r.done ? COL.gold : COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
-      Font.drawCenter(ctx, 'BEST: WAVE ' + r.best.wave + '  ' + r.best.score, SW / 2, 124, COL.lgrey);
+      Font.drawCenter(ctx, 'BEST: ' + (r.best.won ? 'ALL ' + r.best.wave + ' WAVES' : 'WAVE ' + r.best.wave) + '  ' + r.best.score, SW / 2, 124, COL.lgrey);
     } else if (r.mode === 'cpu') {
       Font.drawCenter(ctx, r.rounds === 1 ? 'YOU WON 1 ROUND' : 'YOU WON ' + r.rounds + ' ROUNDS', SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);

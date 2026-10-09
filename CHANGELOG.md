@@ -3,6 +3,34 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.50
+
+- **Survival, reworked: hold out for 100 waves.** No eagle any more: you start in the middle of one map, 4 tiles
+  bigger each way than the screen (it scrolls), the same map for the whole run (a random one, in a random season),
+  and the enemy comes in from entry points all round the edge and hunts you. Waves grow only to 28 tanks; after that
+  they get tougher instead (more armour, more hunters, 4 rising to 8 on the field at once, faster spawns, the newer
+  types, veterans and elites). A **twist** every third wave, announced a wave ahead: night, fog, a swarm of fast light
+  tanks, an armoured column, sappers, a double-speed blitz, rocket rain from the sky, a shield wall, shadows, a snake
+  pit; wave 100 is THE LAST WAVE. Between waves 10-60% of the wrecked terrain is rebuilt and a few power-ups are
+  dropped around the map; a **perfect wave** (no tank lost) pays 1000 + 100 per wave and a power-up each; every 5
+  waves **pick 1 of 3 perks** for the team (12 of them: plates, reload, shell speed, a twin gun, engine, spare tanks,
+  more drops, longer power-ups, stars, bounty, AP shells, spawn shield). Co-op makes waves bigger and busier. The
+  wave checkpoint keeps the map, terrain, twists and perks; holding all 100 waves is a victory of its own.
+- **Three new terrain types: VOLCANIC, SWAMP, CITY RUINS** (seasons now cycle through nine), each with tiles, a twist
+  and an enemy of its own:
+  - *Volcanic*: lava lakes (deadly to drive into), basalt instead of steel (a power shell cracks it, a second breaks
+    it), fire vents that erupt every 5 s; twist LAVA BOMBS (marked spots, a blast and burning ground); enemy MAGMA (3
+    hits, crosses lava, leaves burning ground).
+  - *Swamp*: bog that slows you and sinks you if you stand still (a hit after 3 s), reeds that hide tanks and burn,
+    pockets of swamp gas that a shell sets off; twist MARSH GAS (new gas bubbles up); enemy GATOR (hides underwater,
+    surfaces and bites).
+  - *City ruins*: concrete (3 hits, then rubble), fuel drums, linked manholes, street lamps that light the dark;
+    twist BLACKOUT (12 s in the dark, lamps out); enemy ROCKET TRUCK (three rockets at a marked spot).
+- **New elements in any stage:** supply crates (points or a power-up), explosive barrels (chain reactions) and
+  deflectors that turn shells 90°. The weapons, AI, first-meet cards, online play and the editor (a second palette
+  page) all know the new tiles.
+- Fix: saves and online play keep conveyor belts right (two belt directions were written wrongly).
+
 ## 0.49.3
 
 - **Title menu:** one PLAYERS row (left/right: 1-4) instead of 1 PLAYER and 2 PLAYERS, and a new order: CONTINUE,

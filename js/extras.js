@@ -278,7 +278,8 @@ Object.assign(Stage.prototype, {
     p.lives = 0;
     this.spawnPlayer(p, 0);
     this.reviveWait = 0;
-    this.popups.push({ x: PLAYER_SPAWN[p.i][0] + 8, y: PLAYER_SPAWN[p.i][1], text: 'REVIVED!', label: true, color: COL.gold, t: 0, delay: 0, life: 90 });
+    const [rx, ry] = (this.vsSpawn || PLAYER_SPAWN)[p.i];
+    this.popups.push({ x: rx + 8, y: ry, text: 'REVIVED!', label: true, color: COL.gold, t: 0, delay: 0, life: 90 });
     Sound.play('life');
   },
 

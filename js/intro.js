@@ -147,15 +147,12 @@ const INTRO_SCENES = {
     }
   },
 
-  // the last stand: your eagle behind steel, wave after wave closing in under a red sky
+  // the last stand: your tank alone in the middle, wave after wave closing in from every side under a red sky
   survival(c, t) {
     Pix.bands(c, 0, INTRO_H, ['#280000', '#3C0800', '#501000', '#3C0800', '#280000']);
     const r = seeded(7);
     for (let k = 0; k < 40; k++) Pix.rect(c, Math.floor(r() * INTRO_W), Math.floor(r() * INTRO_H), 2, 1, '#180000');
-    const tex = Sprites.tex;
-    Pix.tiles(c, tex.steel, 40, 12, 32, 8); Pix.tiles(c, tex.steel, 40, 44, 32, 8);
-    Pix.tiles(c, tex.steel, 40, 20, 8, 24); Pix.tiles(c, tex.steel, 64, 20, 8, 24);
-    c.drawImage(Sprites.eagle, 48, 24);
+    c.drawImage(Sprites.tank('p0', (t >> 3) & 1, [0, 1, 2, 3][(t >> 5) & 3], Config.playerPal(0)), 48, 24);
     // eight tanks close in from all sides; each wave is a little nearer before it goes up in smoke
     const cyc = t % 150, wave = 1 + Math.floor(t / 150);
     for (let k = 0; k < 8; k++) {

@@ -2,7 +2,7 @@
 // =====================================================================
 //  Game modes (picked on the title screen's MODE row)
 //    CLASSIC      the game as always
-//    SURVIVAL     endless waves on one map, each bigger and stronger; a breather between waves
+//    SURVIVAL     100 waves on one map with no eagle; enemies from every edge hunt you (survival.js)
 //    TIME ATTACK  clear stages 1-5 as fast as you can (the clock runs from the first stage)
 //    BIG MAPS     every stage is a big scrolling map with outposts to hold or factories to destroy (bigmap.js)
 //    VS EAGLES    2-4 players, each with an eagle: defend yours, destroy theirs; best of 3 rounds
@@ -13,7 +13,7 @@
 const MODES = [
   { key: 'classic', name: 'CLASSIC', desc: 'THE GAME AS ALWAYS' },
   { key: 'custom', name: 'CUSTOM LEVELS', desc: 'YOUR OWN LEVELS, IN TURN' },   // editor.js
-  { key: 'survival', name: 'SURVIVAL', desc: 'ENDLESS WAVES, HOW LONG?' },
+  { key: 'survival', name: 'SURVIVAL', desc: 'HOLD OUT FOR 100 WAVES' },
   { key: 'timeattack', name: 'TIME ATTACK', desc: 'CLEAR 5 STAGES FAST' },
   { key: 'bigmaps', name: 'BIG MAPS', desc: 'HUGE SCROLLING BATTLEFIELDS' },
   { key: 'sides', name: 'ANY SIDE', desc: 'YOUR EAGLE ON ANOTHER EDGE' },   // the map turned: eagle left, right or top

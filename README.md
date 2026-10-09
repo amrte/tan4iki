@@ -117,7 +117,7 @@ Maze and VS CPU, and no saving outside Classic and Big maps.
 | Mode | Players | How it works |
 |---|---|---|
 | **Classic** | 1-4 | the game as always |
-| **Survival** | 1-4 | endless waves on one map; wave *n* brings 6 + 2*n* tanks and later waves bring the newer, tougher enemies. After each wave a 4-second breather, the fortress walls are patched, and every 5 waves everyone gets a tank. The side panel's flag shows the wave. Ends when the eagle falls or everyone is out; best wave and score are kept |
+| **Survival** | 1-4 | hold out for 100 waves on one map, with no eagle: you start in the middle and the enemy comes in from every edge to hunt you down. Waves grow to 28 tanks, then get tougher instead; a twist every third wave; terrain rebuilt and power-ups dropped between waves; a perk every 5 waves (see below) |
 | **Any side** | 1-4 | the classic stages with the map turned round: your eagle is on the left, right or top edge (a new one every stage; the curtain says which), you start beside it and the enemy comes in from the edge across. Base upgrades, the minefield, the eagle gun and supply drops all face the right way. Shop as in Classic |
 | **Custom levels** | 1-4 | your levels from CONSTRUCTION, every filled slot in turn (see below); shop as in Classic |
 | **Big maps** | 1-4 | every stage is a big scrolling map (see below); shop and saves work as in Classic |
@@ -162,6 +162,39 @@ taking turns:
 
 Play them in the **BIG MAPS** mode (every stage), or in Classic with Settings → GAME → **BIG MAP STAGES: SOME**
 (every 4th stage that isn't a boss stage; off by default).
+
+## Survival
+
+Hold out for **100 waves**. There is no eagle: you start in the middle of one map, a little bigger than the screen (4
+tiles more each way; it scrolls, with the minimap in the corner), and it stays the same map for the whole run — a
+random classic map in a random season (with seasons on CYCLE), its crates, barrels, mud, belts and teleporters
+included. Enemies come in at entry points all round the edge (3 tiles apart, kept clear), away from you if they can,
+and most of them hunt you.
+
+- **The waves:** wave *n* has 4 + 2*n* tanks, up to 28 (wave 12). After that they get tougher instead: more armour
+  (an extra hit for up to 3 in 4 tanks, a second one from wave 40), more hunters and fewer wanderers, more of them on
+  the field at once (4, rising to 8 by wave 73), spawns that come faster (every 2.5 s at first, under a second at the
+  end), the newer enemy types, veterans and elites. Wave 100 is THE LAST WAVE: 39 tanks, all elite.
+- **Twists** every third wave, the same for the whole run (they're picked when it starts, never the same twice in a
+  row), announced a wave ahead (*NEXT WAVE: BLITZ*) and again in the breather before it:
+  NIGHT WAVE (dark), SWARM (half again as many fast light tanks, more at once, quicker), ARMOURED COLUMN (armour
+  only, veterans), SAPPERS, BLITZ (double-speed enemies), ROCKET RAIN (rocket tanks, and shells from the sky: a
+  shadow marks each spot near you before it lands), FOG, SHIELD WALL, SHADOWS (shades) and SNAKE PIT. A twist whose
+  enemy is switched off in the settings is left out.
+- **Between waves** a 5-second breather: a random 10-60% of the wrecked terrain is rebuilt (never under a tank, a
+  mine or a power-up; the screen says how much), and 2-3 power-ups are dropped around the map (one more per extra
+  player). They stay 30 seconds; only you can take them. Every 10 waves everyone gets a tank.
+- **Perfect wave** (nobody lost a tank): 1000 + 100 per wave to each of you, and a power-up beside each tank.
+- **Perks:** after every 5th wave the game waits while you pick 1 of 3 (up/down, FIRE) for the whole team, for the
+  rest of the run: ARMOUR PLATE (a plate on every tank, regrown each wave; up to 3), QUICK RELOAD, HOT SHELLS, TWIN
+  GUN (one more shell in the air), BIG ENGINE, SPARE TANKS (two lives now; brings back anyone who is out), SCAVENGER
+  (one more drop each wave), LONG FUSE (timed power-ups and the helmet last 50% longer), VETERAN CREW (respawn with a
+  star more), BOUNTY (25% more points), AP SHELLS (break steel), FIELD SHIELD (longer spawn shield). No shop.
+- **Co-op:** each extra player makes the waves 35% bigger, puts one more tank on the field at once, makes them come a
+  little faster and adds a drop.
+- **Saving:** the checkpoint is the start of each wave: the same map, terrain, twists and perks when you load it.
+- The side panel's flag shows the wave. It ends when everyone is out or all 100 waves are held; the best wave and
+  score are kept (holding all 100 beats reaching the last one).
 
 ## Skill levels
 
@@ -896,7 +929,8 @@ js/editor.js      construction: the level editor, random levels, save slots, cus
 js/intro.js       mode title screens: a pixel-art picture per mode; what music plays when
 js/bossart.js     boss screens: a picture before each boss and one after it
 js/galya.js       a secret (no spoilers)
-js/modes.js       game modes: survival waves, time attack, versus eagles, deathmatch, capture the flag
+js/modes.js       game modes: time attack, versus eagles, deathmatch, capture the flag
+js/survival.js    SURVIVAL: 100 waves, entry points all round, twists, perks, drops, terrain rebuilds
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go
 js/maze.js        maze mode: the maze generator, patrols, reinforcements, the exit

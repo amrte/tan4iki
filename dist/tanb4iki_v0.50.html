@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.49.3</title>
+  <title>tanb4iki_v0.50</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.49.3';
+const APP_VERSION = '0.50';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2620,6 +2620,19 @@ const SETTINGS_DEF = [
   { key: 'e23Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 23 },
   { key: 'e23Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 23 },
   { key: 'e23On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 23 },
+  // the terrain types' own (biomes.js)
+  { section: 'MAGMA *', enemy: 24 },
+  { key: 'e24Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 24 },
+  { key: 'e24Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 3, enemy: 24 },
+  { key: 'e24On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 24 },
+  { section: 'GATOR *', enemy: 25 },
+  { key: 'e25Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 25 },
+  { key: 'e25Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 25 },
+  { key: 'e25On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 25 },
+  { section: 'ROCKET TRUCK *', enemy: 26 },
+  { key: 'e26Speed', label: 'SPEED', values: PCTS, def: 100, fmt: fmtPct, enemy: 26 },
+  { key: 'e26Hits', label: 'HITS TO DESTROY', values: range(1, 9), def: 2, enemy: 26 },
+  { key: 'e26On', label: 'APPEARS', values: ONOFF, def: 'ON', enemy: 26 },
 
   { section: 'POWER-UPS' },
   { key: 'helmetTime', label: 'HELMET TIME', values: SECS.slice(1), def: 10, fmt: fmtSec },
@@ -2665,10 +2678,12 @@ const SETTINGS_DEF = [
   { key: 'raceTarget', label: 'RACE: FIRST TO', values: [1, 2, 3, 5, 7, 10], def: 3, fmt: v => v + ' PTS' },
   // galaxy_modes.js: the kind of GALAXY run (also picked on its title screen and first curtain)
   { key: 'galaxyRun', label: 'GALAXY RUN', values: ['CAMPAIGN', 'BOSS RUSH', 'ENDLESS', 'DAILY'], def: 'CAMPAIGN' },
+  // terrain.js, biomes.js: mud, belts, pads, and crates, barrels, deflectors
   { key: 'terrainExtras', label: 'MUD, BELTS, PADS', values: ONOFF, def: 'ON' },
-  // seasons.js: a new season every stage, or one at random, or always the same (OFF: the classic black)
-  { key: 'seasons', label: 'SEASONS', values: ['CYCLE', 'RANDOM', 'OFF', 'SPRING', 'SUMMER', 'AUTUMN', 'WINTER', 'NUCLEAR', 'DESERT'], def: 'CYCLE' },
-  // seasonal.js: showers, wildfire, gusts, blizzards, hot spots, mirages
+  // seasons.js: a new season every stage, or one at random, or always the same (OFF: the classic black); the last
+  // three are the terrain types (biomes.js)
+  { key: 'seasons', label: 'SEASONS', values: ['CYCLE', 'RANDOM', 'OFF', 'SPRING', 'SUMMER', 'AUTUMN', 'WINTER', 'NUCLEAR', 'DESERT', 'VOLCANIC', 'SWAMP', 'CITY'], def: 'CYCLE' },
+  // seasonal.js: showers, wildfire, gusts, blizzards, hot spots, mirages (biomes.js: lava bombs, marsh gas, blackouts)
   { key: 'seasonFx', label: 'SEASON EFFECTS', values: ONOFF, def: 'ON' },
   // secrets.js: power-ups hidden in walls, ? blocks with coins or a guardian mushroom
   { key: 'secrets', label: 'SECRETS', values: ONOFF, def: 'ON' },
@@ -3242,6 +3257,47 @@ const Sound = {
       case 'bossDie':
         this.noise(2000, t, [[0, 0.7], [0.5, 0.6], [1.6, 0]], 120);
         this.seq([72, 67, 64, 60, 55, 48], 0.12, t + 0.2, { vol: 0.15, decayTo: 0.5 });
+        break;
+      // the terrain types (biomes.js)
+      case 'lava': // a tank sinks into lava: a hiss and a low gulp
+        this.noise(9000, t, [[0, 0.4], [0.4, 0.25], [0.7, 0]], 3000);
+        this.note(45, t, 0.5, { vol: 0.14, slideTo: 40, wave: 'tri' });
+        break;
+      case 'vent': // a fire vent erupts: a rising roar
+        this.noise(700, t, [[0, 0.1], [0.15, 0.45], [0.7, 0]], 1800);
+        break;
+      case 'rumble': // the volcano spits bombs
+        this.noise(300, t, [[0, 0.5], [0.8, 0.4], [1.2, 0]], 150);
+        break;
+      case 'gas': // swamp gas lit: a hiss
+        this.noise(14000, t, [[0, 0.05], [0.25, 0.25], [0.4, 0]], 9000);
+        break;
+      case 'barrel': // a barrel or a pocket of gas goes up: a deep boom
+        this.noise(900, t, [[0, 0.7], [0.3, 0.5], [0.6, 0]], 250);
+        this.note(60, t, 0.35, { vol: 0.18, slideTo: 35, wave: 'tri' });
+        break;
+      case 'crate': // wood splinters
+        this.noise(3000, t, [[0, 0.5], [0.03, 0.2], [0.09, 0]]);
+        this.noise(1200, t + 0.05, [[0, 0.3], [0.05, 0]]);
+        break;
+      case 'deflect': // a shell glances off a deflector
+        this.note(1800, t, 0.06, { vol: 0.06, slideTo: 2600, wave: 'p12' });
+        break;
+      case 'sink': // glug
+        this.seq([45, 40, 36], 0.07, t, { vol: 0.15, wave: 'tri', decayTo: 0.4 });
+        break;
+      case 'gator': // jaws open: a rattle
+        this.seq([50, 0, 50, 0, 53], 0.04, t, { vol: 0.12, wave: 'p25', flat: true });
+        break;
+      case 'salvo': // three rockets away
+        for (let k = 0; k < 3; k++) this.noise(5000, t + k * 0.09, [[0, 0.3], [0.12, 0]], 1500);
+        break;
+      case 'manhole': // a manhole cover clanks
+        this.note(55, t, 0.05, { vol: 0.12, wave: 'p25', flat: true });
+        this.note(50, t + 0.08, 0.12, { vol: 0.1, wave: 'p25', decayTo: 0.3 });
+        break;
+      case 'blackout': // the power goes: a falling hum
+        this.note(220, t, 0.6, { vol: 0.1, slideTo: 55, wave: 'p50' });
         break;
       case 'select':
         this.noise(13000, t, [[0, 0.35], [0.03, 0]]);
@@ -4395,8 +4451,19 @@ let SCREEN_W = 256, SCREEN_H = 224, HUD_X = 232;   // whole play screen and the 
 let VIEW_W = 208, VIEW_H = 208;                    // the part of the field on screen (smaller on big scrolling maps)
 const T_EMPTY = 0, T_BRICK = 1, T_STEEL = 2, T_WATER = 3, T_FOREST = 4, T_ICE = 5, T_BRIDGE = 6, T_MUD = 7;
 const T_BELT = 8;   // 8-11: conveyor belts pushing up / right / down / left (terrain.js)
+// the terrain types' tiles and the elements (biomes.js): concrete 19-21 (whole, cracked, cracked twice), deflectors 26 '/' and 27 '\\'
+const T_LAVA = 12, T_BASALT = 13, T_BASALT2 = 14, T_VENT = 15, T_BOG = 16, T_REEDS = 17, T_GAS = 18, T_CONC = 19, T_RUBBLE = 22,
+  T_LAMP = 23, T_DRUM = 24, T_CRATE = 25, T_DEFL = 26;
 const BLOCK_TYPE = { '.': T_EMPTY, '#': T_BRICK, '@': T_STEEL, '~': T_WATER, '%': T_FOREST, '_': T_ICE,
-  m: T_MUD, '=': T_BRIDGE, '^': T_BELT, '>': T_BELT + 1, v: T_BELT + 2, '<': T_BELT + 3, T: T_EMPTY };   // T: teleporter pad
+  m: T_MUD, '=': T_BRIDGE, '^': T_BELT, '>': T_BELT + 1, v: T_BELT + 2, '<': T_BELT + 3, T: T_EMPTY,   // T: teleporter pad
+  l: T_LAVA, k: T_BASALT, f: T_VENT, b: T_BOG, r: T_REEDS, g: T_GAS, c: T_CONC, u: T_RUBBLE, i: T_LAMP, d: T_DRUM, x: T_CRATE,
+  '/': T_DEFL, '\\': T_DEFL + 1, O: T_EMPTY };   // O: manhole
+// terrain as a string for saves and the online view: one character per cell, '0' + its type
+function terrainCode(a) {
+  let s = '';
+  for (let i = 0; i < a.length; i += 4096) s += String.fromCharCode.apply(null, Array.from(a.subarray(i, i + 4096), v => v + 48));
+  return s;
+}
 const DXY = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
 // basic, fast, power, armor, then the new types (not in the original):
@@ -4434,6 +4501,10 @@ const ENEMY = [
   { name: 'FROST', kind: 'frost', speed: 0.6, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [2, 3, 3, 2], pal: 'frost', season: 'winter', desc: 'SHELLS FREEZE YOU SOLID' },
   { name: 'GHOUL', kind: 'ghoul', speed: 0.6, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [2, 2, 5, 1], pal: 'ghoul', season: 'nuclear', desc: 'RISES AGAIN: SHOOT ITS WRECK' },
   { name: 'BURROWER', kind: 'burrower', speed: 0.8, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [1, 2, 6, 1], pal: 'burrower', season: 'desert', desc: 'DIVES UNDER THE SAND' },
+  // and one for each terrain type (biomes.js)
+  { name: 'MAGMA', kind: 'magma', speed: 0.6, bullet: 2.5, hp: 3, pts: 500, xp: 30, ai: [2, 4, 3, 1], pal: 'magma', season: 'volcanic', desc: 'CROSSES LAVA, LEAVES FIRE' },
+  { name: 'GATOR', kind: 'gator', speed: 0.9, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [1, 1, 7, 1], pal: 'gator', season: 'swamp', desc: 'SWIMS UNDER, LUNGES AND BITES' },
+  { name: 'ROCKET TRUCK', kind: 'truck', speed: 0.9, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [1, 0, 2, 7], pal: 'truck', season: 'city', desc: 'SHELLS WHERE IT LAST SAW YOU' },
 ];
 // types that can join a line-up, and every non-classic type (the tally's NEW row)
 const NEW_TYPES = ENEMY.map((e, i) => i).filter(i => i >= 4 && !ENEMY[i].mini && !ENEMY[i].season);   // the seasons' own come their own way
@@ -4700,6 +4771,8 @@ class Stage {
     // the season: its colours, and frozen or dried-up water (seasons.js)
     this.theme = stageTheme(num, opts);
     if (!opts.snapshot && !opts.editor) this.applyThemeTerrain(num);   // the editor shows what you drew
+    // lava, bog, concrete and the rest of a terrain type's own (biomes.js): in the normal stages
+    if (!opts.boss && !opts.custom && !opts.snapshot && !opts.editor && !opts.corridor && !opts.maze && !opts.fortress && !opts.galaxy) this.applyBiome(num);
     // mud, teleporters and belts in the normal stages; night and fog on some (terrain.js)
     if (!opts.boss && !opts.custom && !opts.snapshot && !opts.corridor && !opts.maze && !opts.fortress && !opts.galaxy && Config.on('terrainExtras')) this.addTerrainExtras(num);
     this.weather = opts.corridor || opts.fortress || opts.galaxy ? null : stageWeather(opts.custom ? 1 : num, !!opts.boss);
@@ -4763,6 +4836,7 @@ class Stage {
       }
     }
     this.setupSeason(opts);   // the season's twist and its own enemy (seasonal.js)
+    this.setupBio(opts);   // barrels, gas, bombs and blackouts (biomes.js)
     this.setupSecrets(opts);   // hidden power-ups and ? blocks (secrets.js)
     if (opts.boss) this.initBoss(opts.boss);
     if (opts.snapshot) this.restore(opts.snapshot);
@@ -4777,7 +4851,7 @@ class Stage {
       'ai', 'aiBase', 'hold', 'rocketGun', 'frontShield', 'crusher', 'stealth', 'vet', 'hover', 'cd', 'maxHp', 'slither', 'segN', 'trail', 'ally'];
     return {
       cols: COLS, rows: ROWS,
-      terrain: Array.from(this.terrain).join(''),
+      terrain: terrainCode(this.terrain),
       queue: this.spawns.filter(s => s.enemy).map(s => s.enemy).concat(this.queue),
       total: this.total, killed: this.killed, spawnTimer: this.spawnTimer, spawnPos: this.spawnPos,
       spawnInterval: this.spawnInterval, maxEnemies: this.maxEnemies,
@@ -4849,7 +4923,7 @@ class Stage {
     const clearSolid = (bx, by) => {
       for (let y = by; y < by + 2; y++) for (let x = bx; x < bx + 2; x++) {
         const t = this.get(x * 2, y * 2);
-        if (t === T_BRICK || t === T_STEEL || t === T_WATER) this.setBlock(x, y, T_EMPTY);
+        if (t === T_BRICK || t === T_STEEL || t === T_WATER || t >= T_LAVA) this.setBlock(x, y, T_EMPTY);
       }
     };
     ENEMY_SPAWNS.forEach(([x, y]) => clearSolid(x / 8, y / 8));
@@ -4871,7 +4945,7 @@ class Stage {
     // once the layers are drawn, only the changed cells are redrawn (a full redraw of a huge map takes a while);
     // water and belts are listed for animation, so a change to or from them redraws everything
     const old = this.layerOf && this.layerOf[cy * GW + cx];
-    if (this.bgLayer && !this.dirty && this.layerOf && old !== T_WATER && t !== T_WATER && !isBelt(old) && !isBelt(t)) (this.dirtyCells || (this.dirtyCells = [])).push(cy * GW + cx);
+    if (this.bgLayer && !this.dirty && this.layerOf && old !== T_WATER && t !== T_WATER && !isBelt(old) && !isBelt(t) && !bioAnim(old) && !bioAnim(t)) (this.dirtyCells || (this.dirtyCells = [])).push(cy * GW + cx);
     else this.dirty = true;
   }
   setBlock(bx, by, t) {
@@ -4987,6 +5061,7 @@ class Stage {
     this.updateTerrainFx();
     this.updateSpecials();
     this.updateSeason();
+    this.updateBio();   // lava, bog, vents, barrels, gas (biomes.js)
     this.updateSecrets();
     this.updateBase();
     if (this.cpu) this.updateCpu();
@@ -5145,7 +5220,7 @@ class Stage {
     }
     if (t.mines > 0 && ok && !t.hold && Math.random() < (t.crusher ? 1 / 150 : 1 / 180)) { this.dropMine(t); t.mines--; }
     const kind = kindOf(t);
-    if (kind === 'flamer' || kind === 'mortar' || kind === 'snake') { this[kind + 'Act'](t); return; }
+    if (kind === 'flamer' || kind === 'mortar' || kind === 'snake' || kind === 'gator' || kind === 'truck') { this[kind + 'Act'](t); return; }
     if (t.burrow > 0) return;   // underground: no shooting
     const maxB = t.boost.rapid ? 3 : 1;
     if (t.bullets < maxB && t.cool === 0) {
@@ -5236,7 +5311,9 @@ class Stage {
   crush(t) {
     let n = 0;
     for (let cy = t.y >> 2; cy <= (t.y + 15) >> 2; cy++) for (let cx = t.x >> 2; cx <= (t.x + 15) >> 2; cx++) {
-      if (this.get(cx, cy) === T_BRICK) { this.set(cx, cy, T_EMPTY); n++; }
+      const v = this.get(cx, cy);
+      if (v === T_BRICK) { this.set(cx, cy, T_EMPTY); n++; }
+      else if (v === T_CRATE || v === T_LAMP) this.bioCrush(cx, cy, v);
     }
     if (n && this.lastBrickSound < this.frame - 20) { Sound.play('brick'); this.lastBrickSound = this.frame; }
   }
@@ -5274,6 +5351,7 @@ class Stage {
         const tt = this.get(cx, cy);
         if (tt === T_STEEL || (tt === T_BRICK && !t.boost.ghost && !t.crusher && !t.slither)) return false;
         if (tt === T_WATER && !t.ship && !t.boost.ghost && !t.hover) return false;
+        if (tt >= T_LAVA && this.bioBlocks(t, tt)) return false;   // basalt, concrete, barrels, lava for the enemy (biomes.js)
       }
     }
     if (!this.noBase && overlap(nx, ny, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
@@ -5375,6 +5453,7 @@ class Stage {
     }
     if (b.mirage) { this.mirageShell(b); return; }   // a mirage's shell harms nothing
     if (b.frost || b.fire) this.specialShell(b);
+    this.bioShell(b, dist);   // deflectors, gas (biomes.js)
     if (this.bulletTerrain(b)) return;
     if (this.qblocks && this.qblocks.length && this.bulletQBlock(b)) return;   // ? blocks (secrets.js)
     if (this.turrets.length && this.bulletTurret(b)) return;
@@ -5397,7 +5476,7 @@ class Stage {
     if (this.td && !b.isPlayer && this.towers.length && this.bulletTower(b)) return;
     for (const t of this.tanks) {
       if (!t.alive || t === b.owner || ((b.eagle || b.passPlayers) && t.isPlayer)) continue;
-      if (t.burrow > 0 || t.hopT > 0) continue;   // under the sand, or in the air: the shell flies past
+      if (t.burrow > 0 || t.hopT > 0 || t.sub) continue;   // under the sand or the water, or in the air: the shell flies past
       if (!overlap(b.x, b.y, 4, 4, t.x, t.y, 16, 16)) continue;
       if (b.pierce) {
         // piercing shells damage each tank once and keep flying
@@ -5446,7 +5525,7 @@ class Stage {
     for (let cy = y0; cy <= y1; cy++) {
       for (let cx = x0; cx <= x1; cx++) {
         const t = this.get(cx, cy);
-        if (t === T_BRICK || t === T_STEEL || (t === T_FOREST && b.cutter)) {
+        if (t === T_BRICK || t === T_STEEL || (t === T_FOREST && b.cutter) || (t >= T_LAVA && bioStops(t, b))) {
           if (vert) { if (hitRow < 0 || (b.dir === 0 ? cy > hitRow : cy < hitRow)) hitRow = cy; }
           else if (hitCol < 0 || (b.dir === 3 ? cx > hitCol : cx < hitCol)) hitCol = cx;
         }
@@ -5457,7 +5536,10 @@ class Stage {
     // piercing shells tunnel through bricks (and trees for cutters), stopping only at steel they can't break
     if (b.pierce) {
       let blocked = false;
-      for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) if (this.get(cx, cy) === T_STEEL && (!b.power || this.hardSteel)) blocked = true;
+      for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) {
+        const v = this.get(cx, cy);
+        if ((v === T_STEEL && (!b.power || this.hardSteel)) || isBasalt(v) || v === T_DRUM) blocked = true;
+      }
       if (!blocked) {
         const lo = vert ? Math.floor((b.x + 2 - 8) / 4) : Math.floor((b.y + 2 - 8) / 4);
         const hi = vert ? Math.floor((b.x + 2 + 7.99) / 4) : Math.floor((b.y + 2 + 7.99) / 4);
@@ -5467,6 +5549,7 @@ class Stage {
           if (t === T_BRICK) { this.set(cx, cy, T_EMPTY); n.brick++; }
           else if (t === T_STEEL) { this.clearGroup(cx, cy, T_STEEL); n.steel++; }
           else if (t === T_FOREST && b.cutter) { this.clearGroup(cx, cy, T_FOREST); n.tree++; }
+          else if (t >= T_LAVA) this.bioPierceCell(cx, cy, t, b, n);
         }
         if (b.isPlayer) this.wreckPoints(b.owner, n, b.x + 2, b.y + 2);
         if (b.isPlayer && this.lastBrickSound < this.frame - 3) { Sound.play('brick'); this.lastBrickSound = this.frame; }
@@ -5484,6 +5567,7 @@ class Stage {
       if (t === T_BRICK) { this.set(cx, cy, T_EMPTY); broke = true; n.brick++; }
       else if (t === T_STEEL && b.power && !this.hardSteel) { this.clearGroup(cx, cy, T_STEEL); broke = true; n.steel++; }
       else if (t === T_FOREST && b.cutter) { this.clearGroup(cx, cy, T_FOREST); broke = true; n.tree++; }
+      else if (t >= T_LAVA && this.bioHitCell(cx, cy, t, b, n)) broke = true;
     };
     if (vert) {
       const mx = b.x + 2, c0 = Math.floor((mx - 8) / 4), c1 = Math.floor((mx + 7.99) / 4);
@@ -5519,6 +5603,7 @@ class Stage {
         const t = this.get(x, y);
         if (t === T_BRICK) { this.set(x, y, T_EMPTY); wrecked.brick++; }
         else if (t === T_STEEL && power && !this.hardSteel) { this.clearGroup(x, y, T_STEEL); wrecked.steel++; }
+        else if (t >= T_LAVA) this.bioBlastCell(x, y, t, power, byPlayer ? owner : null, wrecked);
       }
     }
     if (byPlayer) this.wreckPoints(owner, wrecked, cx, cy);
@@ -5735,7 +5820,7 @@ class Stage {
       let bad = 0;
       for (let cy = y >> 2; cy < (y + 16) >> 2; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
         const t = this.get(cx, cy);
-        if (t === T_STEEL || t === T_WATER) bad++;
+        if (t === T_STEEL || t === T_WATER || (t >= T_LAVA && bioBad(t))) bad++;
       }
       if (bad <= 4) break;
     }
@@ -5869,6 +5954,7 @@ class Stage {
     fo.clearRect(0, 0, FW, FH);
     this.waterCells = [];
     this.beltCells = [];
+    this.bioL = { lava: [], vent: [], gas: [], lamp: [], bog: [] };   // biomes.js
     for (let cy = 0; cy < GH; cy++) {
       for (let cx = 0; cx < GW; cx++) {
         const t = this.terrain[cy * GW + cx];
@@ -5882,6 +5968,7 @@ class Stage {
         else if (isBelt(t)) this.beltCells.push(cy * GW + cx);   // drawn every frame (they move)
         else if (t === T_FOREST) fo.drawImage(tex.forest, sx, sy, 4, 4, dx, dy, 4, 4);
         else if (t === T_WATER) this.waterCells.push(cy * GW + cx);
+        else if (t >= T_LAVA) this.bioCell(bg, fo, t, cx, cy, tex);
       }
     }
     this.themeCaps(bg, fo);   // snow on top in winter (seasons.js)
@@ -5906,6 +5993,7 @@ class Stage {
       else if (t === T_BRIDGE) bg.drawImage(Sprites.bridgeTex, sx, sy, 4, 4, dx, dy, 4, 4);
       else if (t === T_MUD) bg.drawImage(Sprites.mudTex, sx, sy, 4, 4, dx, dy, 4, 4);
       else if (t === T_FOREST) fo.drawImage(tex.forest, sx, sy, 4, 4, dx, dy, 4, 4);
+      else if (t >= T_LAVA) this.bioCell(bg, fo, t, cx, cy, tex);
       if (caps && solid(t) && !(cy > 0 && solid(this.terrain[i - GW]))) {
         const ctx = t === T_FOREST ? fo : bg;
         ctx.fillStyle = caps;
@@ -6012,6 +6100,7 @@ class Stage {
       ctx.drawImage(wt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
     }
     this.renderBelts(ctx);
+    this.renderBio(ctx);   // lava, vents, gas, bog bubbles, lamplight (biomes.js)
     this.renderPads(ctx);
     if (this.maze) this.renderMazeExit(ctx);
     this.renderSeasonUnder(ctx);   // hot spots, ghoul wrecks (seasonal.js)
@@ -6049,6 +6138,7 @@ class Stage {
       drawPowerup(ctx, this.powerup, this.powerup.x, this.powerup.y);
     }
     this.renderSpecialsOver(ctx);
+    this.renderBioOver(ctx, camX, camY);   // fire columns, lava bombs, rockets, mist (biomes.js)
     this.renderWeapons(ctx);   // beams, flames, mortar shells, missiles (weapons.js)
     this.renderTdOver(ctx);
     this.renderStrikes(ctx);
@@ -6277,6 +6367,7 @@ Object.assign(Stage.prototype, {
       for (let cy = by * 2; cy < by * 2 + 4 && cost > 0; cy++) for (let cx = bx * 2; cx < bx * 2 + 4; cx++) {
         const t = this.get(cx, cy);
         if (t === T_STEEL || (t === T_WATER && mode !== 'hover')) { cost = -1; break; }
+        if (t >= T_LAVA) { const k = bioNav(t, mode); if (k < 0) { cost = -1; break; } cost += k; }   // lava, concrete, bog (biomes.js)
         if (t === T_BRICK && mode !== 'slither') cost += 0.6;
         if (t === T_MUD && mode !== 'hover') cost += 0.25;
       }
@@ -6351,7 +6442,7 @@ Object.assign(Stage.prototype, {
     const n = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 4);
     for (let i = 1; i < n; i++) {
       const t = this.get(Math.floor((x0 + (x1 - x0) * i / n) / 4), Math.floor((y0 + (y1 - y0) * i / n) / 4));
-      if (t === T_STEEL) return false;
+      if (t === T_STEEL || isBasalt(t) || isDefl(t)) return false;
     }
     return true;
   },
@@ -6382,7 +6473,7 @@ Object.assign(Stage.prototype, {
   aiChoose(t, blocked) {
     // now and then do something unexpected, so tanks don't drive in single file
     if (!blocked && Math.random() < 0.06) { this.chooseDir(t, false); return; }
-    const pt = this.nearestPlayer(t), mode = t.hover ? 'hover' : t.slither ? 'slither' : '';
+    const pt = this.nearestPlayer(t), mode = t.hover ? 'hover' : t.slither ? 'slither' : kindOf(t) === 'magma' ? 'magma' : '';
     // a spotter's mark sends everyone (but spotters) after the marked player
     const marked = this.markedTank(t);
     if (marked) { this.followField(t, this.navPlayer(marked, mode), blocked); return; }
@@ -6422,7 +6513,7 @@ Object.assign(Stage.prototype, {
   brickAhead(t, d = t.dir) {
     const [x0, y0, x1, y1] = [[t.x, t.y - 4, t.x + 15, t.y - 1], [t.x + 16, t.y, t.x + 19, t.y + 15],
       [t.x, t.y + 16, t.x + 15, t.y + 19], [t.x - 4, t.y, t.x - 1, t.y + 15]][d];
-    for (let cy = y0 >> 2; cy <= y1 >> 2; cy++) for (let cx = x0 >> 2; cx <= x1 >> 2; cx++) if (this.get(cx, cy) === T_BRICK) return true;
+    for (let cy = y0 >> 2; cy <= y1 >> 2; cy++) for (let cx = x0 >> 2; cx <= x1 >> 2; cx++) { const v = this.get(cx, cy); if (v === T_BRICK || isConc(v) || v === T_CRATE) return true; }
     return false;
   },
 });
@@ -6459,6 +6550,7 @@ Object.assign(Stage.prototype, {
     this.encounter('e' + t.type);   // cards.js
     t.maxHp = t.hp;
     t.cd = 60 + rnd(90);
+    if (ENEMY[t.type].kind === 'gator') t.hover = true;   // it swims (biomes.js)
     // a medic shields tanks that appear near it
     if (this.tanks.some(m => m.alive && m !== t && kindOf(m) === 'medic' && Math.abs(m.x - t.x) + Math.abs(m.y - t.y) < 64)) t.shield = 120;
   },
@@ -6665,7 +6757,7 @@ Object.assign(Stage.prototype, {
     const n = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 4);
     for (let i = 1; i < n; i++) {
       const v = this.get(Math.floor((x0 + (x1 - x0) * i / n) / 4), Math.floor((y0 + (y1 - y0) * i / n) / 4));
-      if (v === T_STEEL || v === T_BRICK || v === T_FOREST) return false;
+      if (v === T_STEEL || v === T_BRICK || v === T_FOREST || (v >= T_LAVA && bioSight(v))) return false;
     }
     return true;
   },
@@ -6679,7 +6771,11 @@ Object.assign(Stage.prototype, {
       [f.x, f.y, f.w, f.h] = [[t.x + 2, t.y - len, w, len], [t.x + 16, t.y + 2, len, w], [t.x + 2, t.y + 16, w, len], [t.x - len, t.y + 2, len, w]][t.dir];
       // burn the trees
       for (let cy = Math.max(0, f.y >> 2); cy <= (f.y + f.h - 1) >> 2; cy++) {
-        for (let cx = Math.max(0, f.x >> 2); cx <= (f.x + f.w - 1) >> 2; cx++) if (this.get(cx, cy) === T_FOREST) this.set(cx, cy, T_EMPTY);
+        for (let cx = Math.max(0, f.x >> 2); cx <= (f.x + f.w - 1) >> 2; cx++) {
+          const v = this.get(cx, cy);
+          if (v === T_FOREST) this.set(cx, cy, T_EMPTY);
+          else if (v === T_REEDS || v === T_GAS || v === T_DRUM) this.bioFlame(cx, cy, v, null);   // biomes.js
+        }
       }
       // and every tank in reach, its own side too (once per jet)
       for (const o of this.tanks.slice()) {
@@ -6839,7 +6935,7 @@ Object.assign(Stage.prototype, {
       if (x < 8 || x > FW - 8 || y < 8 || y > FH - 8) continue;
       // any ground a tank can drive on: open, trees, ice, mud, bridges, belts
       const t = this.get(x >> 2, y >> 2);
-      if (t === T_BRICK || t === T_STEEL || t === T_WATER || t < 0) continue;
+      if (t === T_BRICK || t === T_STEEL || t === T_WATER || t < 0 || (t >= T_LAVA && bioBad(t))) continue;
       if (PLAYER_SPAWN.some(([sx, sy]) => overlap(x - 4, y - 4, 8, 8, sx, sy, 16, 16))) continue;
       this.mines.push({ x, y, byPlayer: true, owner: null, t: MINE_ARM_TIME });
       n--;
@@ -6894,7 +6990,7 @@ Object.assign(Stage.prototype, {
       let bad = false;
       for (let cy = y >> 2; cy < (y + 16) >> 2; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
         const v = this.get(cx, cy);
-        if (v === T_STEEL || v === T_WATER || v === T_BRICK) bad = true;
+        if (v === T_STEEL || v === T_WATER || v === T_BRICK || (v >= T_LAVA && bioBad(v))) bad = true;
       }
       if (bad) continue;
       this.powerup.x = x; this.powerup.y = y;
@@ -7294,7 +7390,8 @@ Object.assign(Stage.prototype, {
     p.lives = 0;
     this.spawnPlayer(p, 0);
     this.reviveWait = 0;
-    this.popups.push({ x: PLAYER_SPAWN[p.i][0] + 8, y: PLAYER_SPAWN[p.i][1], text: 'REVIVED!', label: true, color: COL.gold, t: 0, delay: 0, life: 90 });
+    const [rx, ry] = (this.vsSpawn || PLAYER_SPAWN)[p.i];
+    this.popups.push({ x: rx + 8, y: ry, text: 'REVIVED!', label: true, color: COL.gold, t: 0, delay: 0, life: 90 });
     Sound.play('life');
   },
 
@@ -7544,15 +7641,19 @@ const BELT_SPEED = 0.6, MUD_SLOW = 0.5;
 const NIGHT_VISION_TIME = 20 * 60;   // the NIGHT VISION power-up lights up a night stage for the team for 20 s
 const isBelt = t => t >= T_BELT && t < T_BELT + 4;
 
-// teleporter pads painted in construction ('T' in a 26x26 block map: the top-left block of each 2x2 tile)
+// teleporter pads painted in construction ('T' in a 26x26 block map: the top-left block of each 2x2 tile), and
+// manholes ('O', biomes.js): pads that pair up among themselves
 function padsFromBlocks(blocks) {
-  const pads = [];
+  const pads = [], holes = [];
   for (let by = 0; by < blocks.length; by += 2) for (let bx = 0; bx < blocks[by].length; bx += 2) {
     if (blocks[by][bx] === 'T') pads.push({ x: bx * 8, y: by * 8 });
+    else if (blocks[by][bx] === 'O') holes.push({ x: bx * 8, y: by * 8, kind: 'hole' });
   }
   pads.forEach((p, i) => { p.pair = i ^ 1; p.color = PAD_COLORS[(i >> 1) % PAD_COLORS.length]; });
   if (pads.length & 1) pads.pop();   // an odd pad out has no twin
-  return pads;
+  if (holes.length & 1) holes.pop();
+  holes.forEach((h, i) => { h.pair = pads.length + (i ^ 1); });
+  return pads.concat(holes);
 }
 
 // night, fog or neither for a stage number
@@ -7595,7 +7696,7 @@ Object.assign(Stage.prototype, {
         for (let y = Math.floor(cy - rad); y <= cy + rad; y++) for (let x = Math.floor(cx - rad); x <= cx + rad; x++) {
           if (Math.hypot(x + 0.5 - cx, y + 0.5 - cy) > rad || this.get(x, y) !== T_EMPTY) continue;
           if (Math.hypot(x * 4 - BASE_X - 8, y * 4 - BASE_Y - 8) < 40 || y < 8) continue;
-          this.set(x, y, T_MUD);
+          this.set(x, y, this.theme === 'swamp' ? T_BOG : T_MUD);   // in the swamp it's bog (biomes.js)
         }
       }
     }
@@ -7633,12 +7734,18 @@ Object.assign(Stage.prototype, {
         }
       }
     }
+    this.addBioExtras(num, r, area);   // crates, barrels, deflectors (biomes.js)
   },
 
   // ------------------------------------------------------------ every frame
   cellUnder(t) { return this.get((t.x + 8) >> 2, (t.y + 8) >> 2); },
 
-  mudFactor(t) { return this.cellUnder(t) === T_MUD && !t.hover && !t.boost.ghost ? MUD_SLOW : 1; },
+  // mud, bog (slower still the deeper you've sunk) and rubble (biomes.js)
+  mudFactor(t) {
+    if (t.hover || t.boost.ghost) return 1;
+    const c = this.cellUnder(t);
+    return c === T_MUD ? MUD_SLOW : c === T_BOG ? BOG_SLOW * (1 - 0.4 * (t.sink || 0) / SINK_MAX) : c === T_RUBBLE ? RUBBLE_SLOW : 1;
+  },
 
   updateTerrainFx() {
     for (const t of this.tanks) {
@@ -7666,7 +7773,7 @@ Object.assign(Stage.prototype, {
         if (t.trail) t.trail.length = 0;
         t.tpCool = 90;
         this.addFx(t.x + 8, t.y + 8, [Sprites.sparkle[1], Sprites.sparkle[2], Sprites.sparkle[3]], 3);
-        Sound.play('teleport');
+        Sound.play(p.kind === 'hole' ? 'manhole' : 'teleport');
         break;
       }
     }
@@ -7676,7 +7783,7 @@ Object.assign(Stage.prototype, {
   bulletPad(b) {
     if (b.tp || !this.pads.length) return;
     for (const p of this.pads) {
-      if (!overlap(b.x, b.y, 4, 4, p.x + 4, p.y + 4, 8, 8)) continue;
+      if (p.kind || !overlap(b.x, b.y, 4, 4, p.x + 4, p.y + 4, 8, 8)) continue;   // shells roll over manholes
       const q = this.pads[p.pair];
       if (!q) return;
       b.x = q.x + 6 + DXY[b.dir][0] * 6; b.y = q.y + 6 + DXY[b.dir][1] * 6;
@@ -7704,6 +7811,7 @@ Object.assign(Stage.prototype, {
 
   renderPads(ctx) {
     for (const p of this.pads) {
+      if (p.kind === 'hole') { ctx.drawImage(manholeSprite(), p.x, p.y); continue; }   // a manhole (biomes.js)
       const pulse = (this.frame >> 3) & 1;
       ctx.fillStyle = '#202020';
       ctx.fillRect(p.x + 1, p.y + 1, 14, 14);
@@ -7717,7 +7825,7 @@ Object.assign(Stage.prototype, {
   // night and fog: a dark layer with holes where something gives light
   renderDarkness(ctx) {
     const wo = this.whiteout ? this.whiteout() : 0;   // a winter blizzard (seasonal.js)
-    const w = this.weather || (wo > 0 ? 'blizzard' : null);
+    const w = this.weather || (wo > 0 ? 'blizzard' : null) || (this.lightsOut() ? 'night' : null);   // a city blackout (biomes.js)
     if (!w) return;
     // night vision: the whole field in green, flickering back to dark in its last two seconds
     if (w === 'night' && this.nightVision > 0 && !(this.nightVision < 120 && (this.frame >> 2) & 1)) {
@@ -7750,11 +7858,12 @@ Object.assign(Stage.prototype, {
     for (const f of this.fx) if (f.tick >= 0) light(f.x, f.y, 28);
     for (const f of this.flames) light(f.x + f.w / 2, f.y + f.h / 2, 30);
     for (const s of this.spawns) light(s.x + 8, s.y + 8, 16);
-    for (const p of this.pads) light(p.x + 8, p.y + 8, 12);
+    for (const p of this.pads) if (!p.kind) light(p.x + 8, p.y + 8, 12);
     for (const tu of this.turrets) if (!tu.enemy) light(tu.x + 8, tu.y + 8, 24);
     for (const c of this.claudes) light(c.x + 8, c.y + 8, 36);
     for (const s of this.strikes) light(s.x + 8, s.y + 8, 22);
     if (this.powerup && (this.frame >> 4) & 1) light(this.powerup.x + 8, this.powerup.y + 8, 16);
+    this.bioLights(light);   // lamps, lava, vents (biomes.js)
     d.globalCompositeOperation = 'source-over';
     ctx.drawImage(this.darkLayer, 0, 0);
   },
@@ -7772,6 +7881,7 @@ Object.assign(Stage.prototype, {
 //    WINTER          snow on everything, snowfall; most lakes are frozen over (ice)
 //    NUCLEAR WINTER  dead trees, grey bricks, toxic green water, falling ash; some lakes frozen
 //    DESERT          sand, sandstone bricks, cacti, drifting sand; many ponds have dried into mud (it slows you)
+//  ...and three terrain types with tiles of their own (biomes.js): VOLCANIC, SWAMP, CITY RUINS.
 //  Settings -> GAME -> SEASONS: CYCLE (a new one every stage, default), RANDOM, OFF (the classic black), or one of them.
 // =====================================================================
 
@@ -7876,6 +7986,7 @@ Object.assign(Stage.prototype, {
         x.fillRect(Math.floor(r() * FW), Math.floor(r() * FH), 1 + (r() < 0.3 ? 1 : 0), 1);
       }
     }
+    if (t.paint) t.paint(x, seeded(this.num * 499 + FH));   // cracks, puddles, lane markings (biomes.js)
     this.ground = c; this.groundFor = this.theme;
     return c;
   },
@@ -7914,6 +8025,10 @@ Object.assign(Stage.prototype, {
         p.x += Math.sin(f / 40 + p.ph) * P.sway * 0.3;
       } else if (P.kind === 'sand') {
         p.x += 1.5 + 2 * p.v; p.y += Math.sin(f / 20 + p.ph) * 0.2;
+      } else if (P.kind === 'ember') {   // embers rise off the rock and flicker out
+        p.y -= P.fall[0] + (P.fall[1] - P.fall[0]) * p.v; p.x += Math.sin(f / 30 + p.ph) * P.sway * 0.3;
+        if (p.y < -2) { p.y = VIEW_H; p.x = Math.random() * VIEW_W; }
+        if ((f + Math.floor(p.ph * 30)) % 80 > 62) continue;
       } else {   // fireflies wander and blink
         p.x += Math.sin(f / 50 + p.ph) * 0.3; p.y += Math.cos(f / 60 + p.ph * 2) * 0.25;
         if ((f + Math.floor(p.ph * 40)) % 90 > 50) continue;
@@ -8071,7 +8186,7 @@ Object.assign(Stage.prototype, {
     else if (s === 'desert') {
       if (this.tanks.filter(t => t.mirage).length < 2) this.spawnMirage();
       this.seaT = 900 + rnd(700);
-    } else this.seaT = 1e9;
+    } else if (!this.bioEvent(s)) this.seaT = 1e9;   // lava bombs, marsh gas, blackouts (biomes.js)
   },
 
   seasonNote(text, color, x, y) {
@@ -8104,8 +8219,9 @@ Object.assign(Stage.prototype, {
   ignite(i, ground, safe) {
     if (this.fires.has(i) || this.fires.size > 500) return;
     const v = this.terrain[i];
-    // safe: started by your own napalm tower, it doesn't burn you (fortress.js)
-    if (v === T_FOREST) this.fires.set(i, { life: 150, tree: true, safe });
+    if (v === T_GAS || v === T_DRUM) { this.bioIgnite(i % GW, (i / GW) | 0, null); return; }   // biomes.js
+    // safe: started by your own napalm tower, it doesn't burn you (fortress.js); reeds burn quick and spread fast
+    if (v === T_FOREST || v === T_REEDS) this.fires.set(i, { life: v === T_REEDS ? 90 : 150, tree: true, reed: v === T_REEDS, safe });
     else if (ground && (v === T_EMPTY || v === T_ICE || v === T_MUD)) this.fires.set(i, { life: 90, tree: false, safe });
   },
 
@@ -8125,23 +8241,23 @@ Object.assign(Stage.prototype, {
     const spread = [];
     for (const [i, f] of this.fires) {
       f.life -= 4;
-      if (f.tree && f.life > 30 && Math.random() < 0.25) {
+      if (f.tree && f.life > 30 && Math.random() < (f.reed ? 0.5 : 0.25)) {
         const cx = i % GW, cy = (i / GW) | 0;
         const [dx, dy] = DXY[rnd(4)], nx = cx + dx, ny = cy + dy;
         if (nx >= 0 && ny >= 0 && nx < GW && ny < GH) spread.push(ny * GW + nx);
       }
       if (f.life <= 0) {
         this.fires.delete(i);
-        if (f.tree && this.terrain[i] === T_FOREST) this.set(i % GW, (i / GW) | 0, T_EMPTY);   // burnt away
+        if (f.tree && (this.terrain[i] === T_FOREST || this.terrain[i] === T_REEDS)) this.set(i % GW, (i / GW) | 0, T_EMPTY);   // burnt away
       }
     }
     for (const i of spread) this.ignite(i, false);
     if (!this.fires.size) return;
     // tanks in the flames get burnt (firebugs don't; something underground or in the air is safe)
     for (const t of this.tanks.slice()) {
-      if (!t.alive || t.burrow > 0 || t.hopT > 0 || t.mirage || (!t.isPlayer && kindOf(t) === 'firebug')) continue;
+      if (!t.alive || t.burrow > 0 || t.hopT > 0 || t.mirage || t.sub || (!t.isPlayer && (kindOf(t) === 'firebug' || kindOf(t) === 'magma'))) continue;
       let hot = false;
-      for (let cy = (t.y + 2) >> 2; cy <= (t.y + 13) >> 2 && !hot; cy++) for (let cx = (t.x + 2) >> 2; cx <= (t.x + 13) >> 2; cx++) { const f = this.fires.get(cy * GW + cx); if (f && !(f.safe && t.isPlayer)) { hot = true; break; } }
+      for (let cy = (t.y + 2) >> 2; cy <= (t.y + 13) >> 2 && !hot; cy++) for (let cx = (t.x + 2) >> 2; cx <= (t.x + 13) >> 2; cx++) { const f = this.fires.get(cy * GW + cx); if (f && !(f.safe && t.isPlayer) && !(f.foe && !t.isPlayer)) { hot = true; break; } }   // foe: a magma's trail (biomes.js)
       if (!hot) { t.heat = 0; continue; }
       if ((t.burnAt || 0) > this.frame) continue;
       // you get a moment to drive out (longer on easier skills); enemies burn at once
@@ -8189,7 +8305,7 @@ Object.assign(Stage.prototype, {
     if (x1 < 0 || y1 < 0 || x1 > FW - 16 || y1 > FH - 16) return false;
     for (let cy = y1 >> 2; cy < (y1 + 16) >> 2; cy++) for (let cx = x1 >> 2; cx < (x1 + 16) >> 2; cx++) {
       const v = this.get(cx, cy);
-      if (v === T_BRICK || v === T_STEEL || v === T_WATER) return false;
+      if (v === T_BRICK || v === T_STEEL || v === T_WATER || (v >= T_LAVA && bioBad(v))) return false;
     }
     if (this.tanks.some(o => o.alive && o !== t && overlap(o.x, o.y, 16, 16, x1, y1, 16, 16))) return false;
     if (!this.noBase && overlap(x1, y1, 16, 16, BASE_X, BASE_Y, 16, 16)) return false;
@@ -8221,7 +8337,7 @@ Object.assign(Stage.prototype, {
     for (let cy = y0; cy <= y0 + 1; cy++) for (let cx = x0; cx <= x0 + 1; cx++) {
       const v = this.get(cx, cy);
       if (b.frost && v === T_WATER) this.set(cx, cy, T_ICE);
-      if (b.fire && v === T_FOREST) this.ignite(cy * GW + cx, false);
+      if (b.fire && (v === T_FOREST || v === T_REEDS)) this.ignite(cy * GW + cx, false);
     }
   },
 
@@ -8292,7 +8408,7 @@ Object.assign(Stage.prototype, {
       let bad = false;
       for (let cy = y >> 2; cy < (y + 16) >> 2 && !bad; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
         const v = this.get(cx, cy);
-        if (v === T_BRICK || v === T_STEEL || v === T_WATER) { bad = true; break; }
+        if (v === T_BRICK || v === T_STEEL || v === T_WATER || (v >= T_LAVA && bioBad(v))) { bad = true; break; }
       }
       if (bad) continue;
       const type = rnd(4), st = Config.enemy(type);
@@ -8360,6 +8476,7 @@ Object.assign(Stage.prototype, {
 
   // a tank as the season sees it: up in the air, under the sand, a shimmer of heat (false: draw it as usual)
   drawSeasonTank(ctx, t) {
+    if (this.drawBioTank(ctx, t)) return true;   // a gator under the water, a tank sinking in the bog (biomes.js)
     if (t.burrow > 0) {
       // a mound of sand moving along
       const f = this.frame;
@@ -8452,6 +8569,7 @@ Object.assign(Stage.prototype, {
     this.zones = this.zones.filter(z => z.y < FH);
     for (const w of this.wrecks) w.y += S;
     this.wrecks = this.wrecks.filter(w => w.y < FH);
+    this.bioShift(S);
     if (this.seasonFx === 'nuclear') {
       for (let k = 0, tries = 0; k < 3 && tries < 100; tries++) {
         const x = 24 + rnd((FW - 48) / 8) * 8, y = 16 + rnd((S - 32) / 8) * 8;
@@ -8465,6 +8583,1044 @@ Object.assign(Stage.prototype, {
   // anything still to come before the stage can be clear (a ghoul's wreck)
   seasonPending() { return (this.wrecks || []).length > 0; },
 });
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  Terrain types: three more looks alongside the seasons (seasons.js), each with tiles of its own, a twist and an
+//  enemy found nowhere else; and three elements that turn up in any stage.
+//    VOLCANIC  LAVA        drive in (your tank's middle over it) and you're gone; a glowing rim warns you. Shells fly
+//                          over it, enemies keep out of it
+//              BASALT      dark rock: shells bounce off; a power shell cracks it, a second one breaks it
+//              FIRE VENTS  bubble for a second, then a column of fire: any tank on one is hit
+//              LAVA BOMBS  (twist) the volcano spits bombs; a shadow marks where each one lands, the ground burns
+//              MAGMA       (enemy) crosses lava, fireproof, leaves a trail of burning ground
+//    SWAMP     BOG         slower than mud; stand still in it and you sink; sunk, you take a hit
+//              REEDS       hide tanks like trees, burn like tinder
+//              SWAMP GAS   a shot, a flame or a blast lights it: a hiss, then the whole pocket blows up
+//              MARSH GAS   (twist) new gas bubbles up out of the bog
+//              GATOR       (enemy) swims under the water (shells pass over it), surfaces, lunges and bites
+//    CITY      CONCRETE    takes 3 hits (2 with power shells), cracking; then it's rubble
+//              RUBBLE      slows you a little; shells pass
+//              MANHOLES    linked pairs: drive onto one and you come up out of the other (shells don't)
+//              STREET LAMPS light up the dark around them (city stages are often night or fog)
+//              BLACKOUT    (twist) a power cut: dark for a while, street lamps and all; only tanks and gunfire give light
+//              ROCKET TRUCK (enemy) shells the spot where it last saw you: three rockets, the spot marked
+//    anywhere  CRATES      shoot one open: points or a power-up
+//              BARRELS     (fuel drums in the city) blow up when shot, hurting every tank near and setting off
+//                          their neighbours
+//              DEFLECTORS  diagonal steel: turns shells 90 degrees
+//  Crates come from stage 4, barrels from 6, deflectors from 10 (Settings -> MUD, BELTS, PADS turns them off);
+//  CONSTRUCTION paints every one of them.
+// =====================================================================
+
+const BOG_SLOW = 0.4, RUBBLE_SLOW = 0.8, SINK_MAX = 180;
+const VENT_PERIOD = 300, VENT_WARN = 60, VENT_FIRE = 54;
+const GAS_FUSE = 24, DRUM_FUSE = 8, DRUM_R = 15, GAS_R = 12;
+const BOMB_TIME = 110, BOMB_R = 11, BLACKOUT_TIME = 720;
+const SALVO_TIME = 80, SALVO_R = 11, TRUCK_SIGHT = 176, LUNGE_RANGE = 64, LUNGE_TIME = 22;
+const MANHOLE_CARD = 40;   // manholes are pads, not tiles: their card key
+
+const isConc = v => v >= T_CONC && v <= T_CONC + 2;
+const isDefl = v => v === T_DEFL || v === T_DEFL + 1;
+const isBasalt = v => v === T_BASALT || v === T_BASALT2;
+// stops a tank like a wall (lava stops only the enemy: see bioBlocks)
+const bioSolid = v => isBasalt(v) || isConc(v) || v === T_LAMP || v === T_DRUM || v === T_CRATE || isDefl(v);
+// no place to put something down (a power-up, a mirage, a hopper's landing)
+const bioBad = v => v === T_LAVA || v === T_VENT || bioSolid(v);
+// drawn every frame or listed for light: a change to or from one redraws the layers
+const bioAnim = v => v === T_LAVA || v === T_VENT || v === T_GAS || v === T_LAMP || v === T_BOG;
+// blocks a line of sight like trees and walls
+const bioSight = v => bioSolid(v) || v === T_REEDS;
+// stops a shell (a deflector turns it instead; a cutter shell mows reeds)
+const bioStops = (v, b) => (bioSolid(v) && !isDefl(v)) || (v === T_REEDS && b.cutter);
+// what an enemy's route pays to go through (-1: never; the snake can't shoot its way through)
+const bioNav = (v, mode) => (v === T_LAVA ? (mode === 'magma' ? 0 : -1) : isBasalt(v) || isDefl(v) || v === T_DRUM || v === T_LAMP ? -1
+  : mode === 'slither' && (isConc(v) || v === T_CRATE) ? -1 : isConc(v) ? 1.2 : v === T_CRATE ? 0.6 : v === T_VENT ? 0.8 : v === T_BOG ? (mode === 'hover' ? 0 : 0.6) : v === T_GAS ? 0.3 : v === T_RUBBLE ? 0.1 : 0);
+// on the big maps' minimap
+const BIO_MINI = { [T_LAVA]: [248, 88, 0], [T_BASALT]: [72, 64, 84], [T_BASALT2]: [72, 64, 84], [T_VENT]: [136, 20, 0], [T_BOG]: [52, 60, 28],
+  [T_REEDS]: [120, 160, 56], [T_GAS]: [140, 210, 60], [T_CONC]: [168, 164, 148], [T_CONC + 1]: [168, 164, 148], [T_CONC + 2]: [168, 164, 148],
+  [T_RUBBLE]: [100, 96, 88], [T_LAMP]: [248, 216, 120], [T_DRUM]: [200, 60, 24], [T_CRATE]: [183, 101, 6], [T_DEFL]: [200, 200, 200], [T_DEFL + 1]: [200, 200, 200] };
+// first-meet cards (cards.js: 't' + the tile)
+const BIO_CARDS = {
+  [T_LAVA]: { name: 'LAVA', desc: 'DRIVE IN AND YOU BURN; SHELLS FLY OVER' },
+  [T_BASALT]: { name: 'BASALT', desc: 'ONLY POWER SHELLS CRACK IT' },
+  [T_VENT]: { name: 'FIRE VENT', desc: 'BUBBLES, THEN ERUPTS: KEEP OFF' },
+  [T_BOG]: { name: 'BOG', desc: 'SLOW; STOP IN IT AND YOU SINK' },
+  [T_REEDS]: { name: 'REEDS', desc: 'HIDE TANKS, BURN FAST' },
+  [T_GAS]: { name: 'SWAMP GAS', desc: 'A SHOT OR A FLAME BLOWS IT UP' },
+  [T_CONC]: { name: 'CONCRETE', desc: 'TAKES 3 HITS' },
+  [T_DRUM]: { name: 'BARRELS', desc: 'BLOW UP WHEN SHOT, HURT ALL NEAR' },
+  [T_CRATE]: { name: 'SUPPLY CRATE', desc: 'SHOOT IT: POINTS OR A POWER-UP' },
+  [T_DEFL]: { name: 'DEFLECTOR', desc: 'TURNS SHELLS 90 DEGREES' },
+  [MANHOLE_CARD]: { name: 'MANHOLES', desc: 'IN ONE, OUT OF ITS TWIN' },
+};
+// the 8px texture of each static tile (the rest are drawn as they move)
+const BIO_TEX = { [T_BASALT]: 'basalt', [T_BASALT2]: 'basalt2', [T_CONC]: 'conc', [T_CONC + 1]: 'conc2', [T_CONC + 2]: 'conc3',
+  [T_RUBBLE]: 'rubble', [T_DRUM]: 'drum', [T_DEFL]: 'defl', [T_DEFL + 1]: 'defl2' };
+
+// ------------------------------------------------------------------ textures (8px like the others; crates and vents 16px)
+// a round crater for the vents: a rim lit from the top left, a dark throat, an ember core
+const VENT_ROWS = Array.from({ length: 16 }, (_, y) => Array.from({ length: 16 }, (_, x) => {
+  const d = Math.hypot(x - 7.5, y - 7.5);
+  return d > 7.7 ? '.' : d > 6.3 ? (x + y < 14 ? 'h' : 'k') : d > 5 ? 'K' : d > 2.6 ? 'b' : 'c';
+}).join(''));
+Object.assign(TEX_SRC, {
+  lava0: { rows: ['oorrrdro', 'oyorrrro', 'yyyorddr', 'oyoorrrr', 'rorroooo', 'rrdroyyo', 'drrooywy', 'rrroooyo'],
+    colors: { d: '#A81000', r: '#E03800', o: '#F87800', y: '#F8C838', w: '#FCF0B0' } },
+  lava1: { rows: ['roorrdrr', 'ooyorrrr', 'oyyyorrd', 'ooyoorrr', 'rrorroyo', 'drrrooyy', 'rdrrooyw', 'rrrrooyo'],
+    colors: { d: '#A81000', r: '#E03800', o: '#F87800', y: '#F8C838', w: '#FCF0B0' } },
+  basalt: { rows: ['hhhkhhkb', 'hkkkkKkb', 'hkKkkkkb', 'kkkkKkKb', 'hkkKkkkb', 'kKkkkkKb', 'hkkkKkkb', 'bbbbbbbb'],
+    colors: { h: '#6C6474', k: '#4C4454', K: '#302838', b: '#18141C' } },
+  basalt2: { rows: ['hhhkhhkb', 'hkkckKkb', 'hkKkckkb', 'kkcckkKb', 'hkkKcckb', 'kKkkkckb', 'hkkkKkkb', 'bbbbbbbb'],
+    colors: { h: '#6C6474', k: '#4C4454', K: '#302838', b: '#18141C', c: '#E85800' } },
+  vent: { rows: VENT_ROWS, colors: { h: '#6C6070', k: '#3C3040', K: '#2C2028', b: '#140C10', c: '#701000' } },
+  bog: { rows: ['bbcbbabb', 'bcebbbab', 'bbbbdbbb', 'abbbbbcb', 'bbdbbceb', 'bbbabbbb', 'cbbbbdbb', 'ebbcbbba'],
+    colors: { a: '#283018', b: '#323C1C', c: '#3C4824', d: '#1C2410', e: '#566428' } },
+  reeds: { rows: ['.b..b...', '.BgbB.b.', '.GgBG.Bg', 'gG.GgGG.', '.Gg.gGgG', 'GgGgGgGg', 'gGgGgGgG', 'GgGgGgGg'],
+    colors: { g: '#88B040', G: '#3C6C18', b: '#7C4818', B: '#4C2808' } },
+  conc: { rows: ['LLLLLLLC', 'LCCCsCCD', 'LCsCCCCD', 'LCCCCCsD', 'LsCCCCCD', 'LCCCsCCD', 'LCCCCCCD', 'CDDDDDDD'],
+    colors: { L: '#C8C4B4', C: '#A8A494', s: '#8C8878', D: '#6C6858' } },
+  conc2: { rows: ['LLLLLLLC', 'LCCkCCCD', 'LCsCkCCD', 'LCCCkCsD', 'LsCkCCCD', 'LCCkCCCD', 'LCCCkCCD', 'CDDDDDDD'],
+    colors: { L: '#C8C4B4', C: '#A8A494', s: '#8C8878', D: '#6C6858', k: '#3C3830' } },
+  conc3: { rows: ['LLL.LLLC', 'LCkkCCkD', 'LkCCkCkD', '.CCkkkCD', 'LskCCkCD', 'LCkCCkCD', 'LkCCkCC.', 'CDDD.DDD'],
+    colors: { L: '#C8C4B4', C: '#A8A494', s: '#8C8878', D: '#6C6858', k: '#3C3830' } },
+  rubble: { rows: ['.ab..c..', 'bb...cb.', '....a...', '.ca....b', '.bb..ab.', '....cb..', 'a.....ca', 'bc..a...'],
+    colors: { a: '#8C887C', b: '#5C584C', c: '#B4B0A0' } },
+  lamp: { rows: ['..mmmm..', '.myyyym.', '.myYYym.', '.myyyym.', '..mmmm..', '...kk...', '...kk...', '..kmmk..'],
+    colors: { m: '#5C5C68', y: '#F8E8A0', Y: '#F8B800', k: '#2C2C34' } },
+  drum: { rows: ['.rrrrrr.', 'rRhhRRRr', 'rhrrrrRd', 'rRrwwrRd', 'rRrwwrRd', 'rRrrrrRd', 'rRRRRRRd', '.dddddd.'],
+    colors: { r: '#701808', R: '#C83C18', h: '#F07850', w: '#F8D838', d: '#380800' } },
+  crate: { rows: ['kkkkkkkkkkkkkkkk', 'kWWWWWWWWWWWWWWk', 'kWkwwwwwwwwwwkwk', 'kWwkwwwwwwwwkwwk', 'kWwwkwwwwwwkwwwk', 'kWwwwkwwwwkwwwwk',
+    'kWwwwwkwwkwwwwwk', 'kWwwwwwkkwwwwwwk', 'kWwwwwwkkwwwwwwk', 'kWwwwwkwwkwwwwwk', 'kWwwwkwwwwkwwwwk', 'kWwwkwwwwwwkwwwk',
+    'kWwkwwwwwwwwkwwk', 'kWkwwwwwwwwwwkwk', 'kwwwwwwwwwwwwwwk', 'kkkkkkkkkkkkkkkk'],
+  colors: { k: '#4C2400', W: '#F0B060', w: '#B76506' } },
+  defl: { rows: ['BbbbbbWG', 'bbbbbWGD', 'bbbbWGDb', 'bbbWGDbb', 'bbWGDbbb', 'bWGDbbbb', 'WGDbbbbb', 'GDbbbbbB'],
+    colors: { b: '#383840', B: '#24242C', W: '#F8F8F8', G: '#BCBCBC', D: '#6C6C6C' } },
+  defl2: { rows: ['GWbbbbbB', 'DGWbbbbb', 'bDGWbbbb', 'bbDGWbbb', 'bbbDGWbb', 'bbbbDGWb', 'bbbbbDGW', 'BbbbbbDG'],
+    colors: { b: '#383840', B: '#24242C', W: '#F8F8F8', G: '#BCBCBC', D: '#6C6C6C' } },
+});
+
+// ------------------------------------------------------------------ the three looks
+THEME_ORDER.push('volcanic', 'swamp', 'city');
+Object.assign(THEMES, {
+  volcanic: {
+    name: 'VOLCANIC', color: '#F85800', ground: '#1C100C', specks: ['#2C1810', '#341C14', '#140A08'], tint: 'rgba(255,60,0,0.05)',
+    tex: { brick: { colors: { R: '#7C3420', H: '#A85C34', D: '#3C1008', M: '#4C3C38' } },
+      forest: { colors: { g: '#6C5848', G: '#2C1C14' } },
+      water0: { colors: { b: '#1C2C5C', w: '#5C6C9C' } }, water1: { colors: { b: '#1C2C5C', w: '#5C6C9C' } } },
+    particles: { kind: 'ember', n: 24, colors: ['#F87800', '#F8B800', '#D82800', '#8C8C8C'], w: 1, h: 1, big: 0.12, fall: [0.2, 0.6], sway: 0.7 },
+    paint: (x, r) => {   // dark cracks in the rock, a few still glowing
+      for (let k = 0; k < FW * FH / 900; k++) {
+        let px = Math.floor(r() * FW), py = Math.floor(r() * FH);
+        x.fillStyle = r() < 0.2 ? '#5C1808' : '#0C0604';
+        for (let s = 0; s < 4 + r() * 8; s++) { x.fillRect(px, py, 1, 1); px += r() < 0.5 ? 1 : 0; py += r() < 0.5 ? 1 : -1; }
+      }
+    },
+  },
+  swamp: {
+    name: 'SWAMP', color: '#8CB040', ground: '#141A0C', specks: ['#1C2410', '#222C14', '#0E1408'],
+    tex: { brick: { colors: { R: '#7C4C2C', H: '#A87040', D: '#3C2010', M: '#4C6C2C' } }, steel: { colors: { W: '#C8D0B8', G: '#8C9C7C' } },
+      forest: { colors: { g: '#5C8C30', G: '#1C4010' } },
+      water0: { colors: { b: '#2C4C30', w: '#7CA86C' } }, water1: { colors: { b: '#2C4C30', w: '#7CA86C' } } },
+    particles: { kind: 'firefly', n: 16, colors: ['#D8F858', '#A8F818'], w: 1, h: 1 },
+    mist: true,
+    paint: (x, r) => {   // dark wet patches and tufts of grass
+      for (let k = 0; k < FW * FH / 700; k++) {
+        const px = Math.floor(r() * FW), py = Math.floor(r() * FH);
+        if (r() < 0.5) { x.fillStyle = '#0A1006'; x.fillRect(px, py, 3 + Math.floor(r() * 4), 2); }
+        else { x.fillStyle = '#2C4018'; x.fillRect(px, py, 1, 2); x.fillRect(px + 2, py, 1, 2); x.fillRect(px + 1, py - 1, 1, 2); }
+      }
+    },
+  },
+  city: {
+    name: 'CITY RUINS', color: '#BCBCBC', ground: '#28282C', specks: ['#323236', '#202024', '#3A3A3E'],
+    tex: { brick: { colors: { R: '#A04C34', H: '#C8785C', D: '#58200C', M: '#6C6C6C' } }, forest: { colors: { g: '#5C9438', G: '#1C4818' } },
+      water0: { colors: { b: '#203C70', w: '#8CA8D8' } }, water1: { colors: { b: '#203C70', w: '#8CA8D8' } },
+      drum: { colors: { r: '#284C7C', R: '#4C7CB8', h: '#88B8F0', w: '#F8B800', d: '#102440' } } },
+    particles: { kind: 'drift', n: 16, colors: ['#8C8C8C', '#5C5C5C', '#ADADAD'], w: 1, h: 1, big: 0.2, fall: [0.1, 0.3], sway: 0.8 },
+    paint: (x, r) => {   // asphalt: worn lane dashes and cracks
+      x.fillStyle = '#4C4C44';
+      for (let y = 40; y < FH - 24; y += 64) for (let px = 4; px < FW; px += 16) if (r() < 0.7) x.fillRect(px, y, 6, 1);
+      for (let k = 0; k < FW * FH / 1200; k++) {
+        let px = Math.floor(r() * FW), py = Math.floor(r() * FH);
+        x.fillStyle = '#18181A';
+        for (let s = 0; s < 3 + r() * 6; s++) { x.fillRect(px, py, 1, 1); px += r() < 0.5 ? 1 : -1; py += 1; }
+      }
+    },
+  },
+});
+Object.assign(SEASON_ENEMY, { volcanic: 24, swamp: 25, city: 26 });
+Object.assign(SEASON_FX_NAME, { volcanic: 'LAVA BOMBS', swamp: 'MARSH GAS', city: 'BLACKOUT' });
+
+// ------------------------------------------------------------------ the three tanks
+Object.assign(PALS, {
+  magma: [null, '#F8A030', '#7C2C14', '#200804'],
+  gator: [null, '#D8F878', '#3C7C28', '#0C2C08'],
+  truck: [null, '#E8E4C8', '#6C7C30', '#141808'],
+});
+// MAGMA: a rock hull split by glowing seams round a molten core, a short glowing gun
+TANK_GRIDS.e24 = canvasEnemyGrids(['.......1', '.......1', '......13', '111...13', '13111111', '11112222', '13123222', '11122322',
+  '13122233', '11122233', '13123222', '11112322', '13112222', '11111111', '131.....', '111.....']);
+// GATOR: a long snout, eyes, legs out to the sides, a tail behind; no tracks
+TANK_GRIDS.e25 = canvasEnemyGrids(['......11', '.....122', '.....132', '.....122', '....1222', '...13122', '...12222', '11.12222',
+  '.1112322', '...12232', '...12322', '11.12222', '.1112222', '....1222', '.....122', '......12'], false);
+// ROCKET TRUCK: a cab with a windscreen up front, a rack of four rockets behind it, wheels
+TANK_GRIDS.e26 = canvasEnemyGrids(['........', '....1111', '...12222', '...13333', '11.12222', '11.12222', '...11111', '...12121',
+  '...13131', '11.13131', '11.13131', '...12121', '...11111', '11.12222', '11.11111', '........'], false);
+
+// a manhole cover (16px), drawn once
+let manholeImg = null;
+function manholeSprite() {
+  if (manholeImg) return manholeImg;
+  const rows = Array.from({ length: 16 }, (_, y) => Array.from({ length: 16 }, (_, x) => {
+    const d = Math.hypot(x - 7.5, y - 7.5);
+    if (d > 7.6) return '.';
+    if (d > 6.4) return 'k';
+    if (d > 5.6) return x + y < 14 ? 'h' : 'm';
+    return y % 3 === 1 ? 'k' : (x + y < 13 ? 'h' : 'm');
+  }).join(''));
+  manholeImg = paintRows(rows, { k: '#141418', m: '#4C4C54', h: '#7C7C88' });
+  return manholeImg;
+}
+
+Object.assign(Stage.prototype, {
+  // ------------------------------------------------------------ set-up
+  setupBio(opts) {
+    this.booms = [];   // barrels and gas about to go, lava bombs and rockets on the way
+    this.blackout = 0;
+    this.bioCarded = !!opts.editor;
+  },
+
+  // the terrain type's own features, placed the same way each time a stage is played (normal stages only)
+  applyBiome(num) {
+    const r = seeded(num * 6151 + 29), area = (COLS * ROWS) / 169;
+    if (this.theme === 'volcanic') this.biomeVolcanic(r, area);
+    else if (this.theme === 'swamp') this.biomeSwamp(r, area);
+    else if (this.theme === 'city') this.biomeCity(r, area);
+  },
+
+  // a free 16px tile: open ground, away from the eagle (near px), the start points, entry points and pads
+  bioTileFree(tx, ty, near = 56) {
+    const x = tx * 16, y = ty * 16;
+    if (tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS || y < 32 || y > FH - 48) return false;
+    if (Math.hypot(x - BASE_X, y - BASE_Y) < near) return false;
+    if (PLAYER_SPAWN.concat(ENEMY_SPAWNS).some(([sx, sy]) => overlap(x, y, 16, 16, sx - 16, sy - 16, 48, 48))) return false;
+    if (this.pads.some(p => overlap(x, y, 16, 16, p.x - 8, p.y - 8, 32, 32))) return false;
+    for (let cy = ty * 4; cy < ty * 4 + 4; cy++) for (let cx = tx * 4; cx < tx * 4 + 4; cx++) if (this.get(cx, cy) !== T_EMPTY) return false;
+    return true;
+  },
+
+  bioPick(r, near, test) {
+    for (let k = 0; k < 150; k++) {
+      const tx = Math.floor(r() * COLS), ty = Math.floor(r() * ROWS);
+      if (this.bioTileFree(tx, ty, near) && (!test || test(tx, ty))) return [tx, ty];
+    }
+    return null;
+  },
+
+  fillTile(tx, ty, v) { for (let cy = ty * 4; cy < ty * 4 + 4; cy++) for (let cx = tx * 4; cx < tx * 4 + 4; cx++) this.set(cx, cy, v); },
+
+  // each connected body of one tile type (4px cells, 4-connected)
+  bioGroups(v) {
+    const seen = new Uint8Array(GW * GH), out = [];
+    for (let i = 0; i < GW * GH; i++) {
+      if (seen[i] || this.terrain[i] !== v) continue;
+      const g = [i]; seen[i] = 1;
+      for (let k = 0; k < g.length; k++) {
+        const c = g[k], cx = c % GW, cy = (c / GW) | 0;
+        for (const [dx, dy] of DXY) {
+          const nx = cx + dx, ny = cy + dy, n = ny * GW + nx;
+          if (nx < 0 || ny < 0 || nx >= GW || ny >= GH || seen[n] || this.terrain[n] !== v) continue;
+          seen[n] = 1; g.push(n);
+        }
+      }
+      out.push(g);
+    }
+    return out;
+  },
+
+  // the eagle's fortress (and what's right round it) keeps its bricks
+  nearBase(cx, cy, d) { return Math.hypot(cx * 4 + 2 - BASE_X - 8, cy * 4 + 2 - BASE_Y - 8) < d; },
+
+  biomeVolcanic(r, area) {
+    // most lakes turn to lava (not one lapping at a player's start point); steel turns to basalt
+    let lava = 0;
+    for (const lake of this.bioGroups(T_WATER)) {
+      const nearStart = lake.some(i => PLAYER_SPAWN.some(([sx, sy]) => Math.hypot((i % GW) * 4 + 2 - sx - 8, ((i / GW) | 0) * 4 + 2 - sy - 8) < 36));
+      if (nearStart || r() > 0.7) continue;
+      for (const i of lake) this.set(i % GW, (i / GW) | 0, T_LAVA);
+      lava += lake.length;
+    }
+    for (let i = 0; i < GW * GH; i++) if (this.terrain[i] === T_STEEL && !this.nearBase(i % GW, (i / GW) | 0, 20)) this.set(i % GW, (i / GW) | 0, T_BASALT);
+    // no lakes: a pool or two of its own
+    for (let k = 0, n = lava > 20 ? 0 : Math.max(1, Math.round(1.5 * area)); k < n; k++) {
+      const wide = r() < 0.5, t = this.bioPick(r, 72, (tx, ty) => this.bioTileFree(tx + (wide ? 1 : 0), ty + (wide ? 0 : 1), 72));
+      if (!t) break;
+      this.fillTile(t[0], t[1], T_LAVA); this.fillTile(t[0] + (wide ? 1 : 0), t[1] + (wide ? 0 : 1), T_LAVA);
+    }
+    // fire vents on open ground
+    for (let k = 0, n = Math.max(2, Math.round((2 + r() * 2) * area)); k < n; k++) {
+      const t = this.bioPick(r, 64);
+      if (t) this.fillTile(t[0], t[1], T_VENT);
+    }
+  },
+
+  biomeSwamp(r, area) {
+    // mud is bog here, and there's more of it
+    for (let i = 0; i < GW * GH; i++) if (this.terrain[i] === T_MUD) this.set(i % GW, (i / GW) | 0, T_BOG);
+    for (let k = 0, n = Math.round((2 + r()) * area); k < n; k++) {
+      const t = this.bioPick(r, 48);
+      if (!t) break;
+      const cx = t[0] * 4 + 2, cy = t[1] * 4 + 2, rad = 3 + r() * 2.5;
+      for (let y = Math.floor(cy - rad); y <= cy + rad; y++) for (let x = Math.floor(cx - rad); x <= cx + rad; x++) {
+        if (Math.hypot(x + 0.5 - cx, y + 0.5 - cy) > rad || this.get(x, y) !== T_EMPTY || this.nearBase(x, y, 40) || y < 8) continue;
+        if (PLAYER_SPAWN.some(([sx, sy]) => overlap(x * 4, y * 4, 4, 4, sx - 4, sy - 4, 24, 24))) continue;
+        this.set(x, y, T_BOG);
+      }
+    }
+    // reeds along the shores (8px blocks next to water, fewer by the bog), and in place of some of the trees
+    const blk = (bx, by, v) => [0, 1, 2, 3].every(k => this.get(bx * 2 + (k & 1), by * 2 + (k >> 1)) === v);
+    const reeds = [];
+    for (let by = 2; by < GH / 2 - 1; by++) for (let bx = 0; bx < GW / 2; bx++) {
+      if (!blk(bx, by, T_EMPTY) || this.nearBase(bx * 2, by * 2, 36)) continue;
+      if (PLAYER_SPAWN.concat(ENEMY_SPAWNS).some(([sx, sy]) => overlap(bx * 8, by * 8, 8, 8, sx, sy, 16, 16))) continue;
+      let wet = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) wet = Math.max(wet, blk(bx + dx, by + dy, T_WATER) ? 0.55 : this.get((bx + dx) * 2, (by + dy) * 2) === T_BOG ? 0.3 : 0);
+      if (wet && r() < wet) reeds.push([bx, by]);
+    }
+    for (const [bx, by] of reeds) this.setBlock(bx, by, T_REEDS);
+    for (let by = 0; by < GH / 2; by++) for (let bx = 0; bx < GW / 2; bx++) if (blk(bx, by, T_FOREST) && r() < 0.35) this.setBlock(bx, by, T_REEDS);
+    // pockets of gas on the bog
+    const bogs = [];
+    for (let by = 0; by < GH / 2; by++) for (let bx = 0; bx < GW / 2; bx++) if (blk(bx, by, T_BOG)) bogs.push([bx, by]);
+    for (let k = 0, n = Math.round((2 + r() * 2) * area); k < n && bogs.length; k++) {
+      const [bx, by] = bogs.splice(Math.floor(r() * bogs.length), 1)[0];
+      this.setBlock(bx, by, T_GAS);
+    }
+  },
+
+  biomeCity(r, area) {
+    // many walls are concrete; parks are rubble
+    for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+      let brick = 0, tree = 0;
+      for (let cy = ty * 4; cy < ty * 4 + 4; cy++) for (let cx = tx * 4; cx < tx * 4 + 4; cx++) { const v = this.get(cx, cy); if (v === T_BRICK) brick++; else if (v === T_FOREST) tree++; }
+      if (brick && r() < 0.45 && !this.nearBase(tx * 4 + 2, ty * 4 + 2, 40)) {
+        for (let cy = ty * 4; cy < ty * 4 + 4; cy++) for (let cx = tx * 4; cx < tx * 4 + 4; cx++) if (this.get(cx, cy) === T_BRICK) this.set(cx, cy, T_CONC);
+      }
+      if (tree && r() < 0.5) for (let cy = ty * 4; cy < ty * 4 + 4; cy++) for (let cx = tx * 4; cx < tx * 4 + 4; cx++) if (this.get(cx, cy) === T_FOREST) this.set(cx, cy, T_RUBBLE);
+    }
+    // fuel drums in ones, twos and threes
+    for (let k = 0, n = Math.round((2 + r()) * area); k < n; k++) this.drumTile(r, 64);
+    // manholes: one pair (two on a big field), one each side
+    for (let k = 0, pairs = area > 2 ? 2 : 1; k < pairs; k++) {
+      const a = this.bioPick(r, 48, tx => tx < COLS / 2 - 1), b = a && this.bioPick(r, 48, tx => tx > COLS / 2);
+      if (!a || !b) break;
+      const i = this.pads.length;
+      this.pads.push({ x: a[0] * 16, y: a[1] * 16, pair: i + 1, kind: 'hole' }, { x: b[0] * 16, y: b[1] * 16, pair: i, kind: 'hole' });
+    }
+    // street lamps beside the walls, and rubble here and there
+    const wall = v => v === T_BRICK || isConc(v) || v === T_STEEL;
+    const lampOk = (bx, by) => [0, 1, 2, 3].every(k => this.get(bx * 2 + (k & 1), by * 2 + (k >> 1)) === T_EMPTY) && by >= 4 && !this.nearBase(bx * 2, by * 2, 44)
+      && !PLAYER_SPAWN.concat(ENEMY_SPAWNS).some(([sx, sy]) => overlap(bx * 8, by * 8, 8, 8, sx - 8, sy - 8, 32, 32))
+      && !this.pads.some(p => overlap(bx * 8, by * 8, 8, 8, p.x, p.y, 16, 16));
+    for (let k = 0, placed = 0, n = Math.round(5 * area); k < 400 && placed < n; k++) {
+      const bx = Math.floor(r() * GW / 2), by = Math.floor(r() * GH / 2);
+      if (!lampOk(bx, by) || !DXY.some(([dx, dy]) => wall(this.get((bx + dx) * 2, (by + dy) * 2)))) continue;
+      if (this.terrain.some((v, i) => v === T_LAMP && Math.abs((i % GW) - bx * 2) + Math.abs(((i / GW) | 0) - by * 2) < 12)) continue;
+      this.setBlock(bx, by, T_LAMP); placed++;
+    }
+    for (let k = 0, n = Math.round(6 * area); k < n; k++) {
+      const bx = Math.floor(r() * GW / 2), by = Math.floor(r() * GH / 2);
+      if (lampOk(bx, by)) this.setBlock(bx, by, T_RUBBLE);
+    }
+  },
+
+  // a tile with one to three barrels in it
+  drumTile(r, near) {
+    const t = this.bioPick(r, near);
+    if (!t) return;
+    const n = 1 + Math.floor(r() * 3), ks = [0, 1, 2, 3];
+    for (let k = 0; k < n; k++) { const q = ks.splice(Math.floor(r() * ks.length), 1)[0]; this.setBlock(t[0] * 2 + (q & 1), t[1] * 2 + (q >> 1), T_DRUM); }
+  },
+
+  // the elements for any stage (terrain.js: after mud, pads and belts, from the same dice)
+  addBioExtras(num, r, area) {
+    if (num >= 4 && r() < 0.7) for (let k = 0, n = Math.max(1, Math.round(area)); k < n; k++) { const t = this.bioPick(r, 48); if (t) this.fillTile(t[0], t[1], T_CRATE); }
+    if (num >= 6 && r() < 0.55) for (let k = 0, n = Math.max(1, Math.round(1.5 * area)); k < n; k++) this.drumTile(r, 64);
+    if (num >= 10 && r() < 0.5) {
+      for (let k = 0, n = Math.max(1, Math.round(area)); k < n; k++) {
+        const t = this.bioPick(r, 48);
+        if (!t) break;
+        // a diagonal across the tile: '/' or '\'
+        const [tx, ty] = t, back = r() < 0.5;
+        this.setBlock(tx * 2 + (back ? 0 : 1), ty * 2, T_DEFL + (back ? 1 : 0));
+        this.setBlock(tx * 2 + (back ? 1 : 0), ty * 2 + 1, T_DEFL + (back ? 1 : 0));
+      }
+    }
+  },
+
+  // a card for each new kind of ground on the field, the first time ever
+  bioCards() {
+    const has = new Set(this.terrain);
+    for (const [v, ...alt] of [[T_LAVA], [T_BASALT, T_BASALT2], [T_VENT], [T_BOG], [T_REEDS], [T_GAS], [T_CONC, T_CONC + 1, T_CONC + 2], [T_DRUM], [T_CRATE], [T_DEFL, T_DEFL + 1]]) {
+      if (has.has(v) || alt.some(a => has.has(a))) this.encounter('t' + v);
+    }
+    if (this.pads.some(p => p.kind === 'hole')) this.encounter('t' + MANHOLE_CARD);
+  },
+
+  // ------------------------------------------------------------ every frame
+  updateBio() {
+    if (!this.bioCarded) { this.bioCarded = true; this.bioCards(); }
+    if (this.blackout > 0) this.blackout--;
+    if (this.booms.length) this.updateBooms();
+    this.updateVents();
+    for (const t of this.tanks) if (t.alive) this.bioTank(t);
+  },
+
+  // lava, bog, and the terrain types' own tanks
+  bioTank(t) {
+    const kind = t.isPlayer ? '' : kindOf(t), air = t.hopT > 0 || t.burrow > 0 || t.mirage, c = this.cellUnder(t);
+    t.lavaNear = false;
+    if (!air && kind !== 'magma' && !t.boost.ghost) {
+      if (c === T_LAVA) { this.lavaDeath(t); return; }
+      if (t.isPlayer) t.lavaNear = this.underTank(t, T_LAVA);
+    }
+    // the bog: still, you sink; moving, you work your way back up
+    // (a slow tank in the bog doesn't get a pixel further every frame: trying to drive counts)
+    const bog = c === T_BOG && !t.hover && !t.boost.ghost && !air;
+    const moved = t.x !== t.lx || t.y !== t.ly || (t.isPlayer ? t.moving : !(t.hold > 0) && !(t.blocked > 4));
+    t.lx = t.x; t.ly = t.y;
+    const held = t.frozen > 0 || t.stun > 0 || (t.isPlayer ? this.freezeP > 0 : this.freezeE > 0);
+    if (bog && !held) {
+      t.sink = Math.max(0, (t.sink || 0) + (moved ? -2 : 1));
+      if (t.isPlayer && t.sink === 90) this.popups.push({ x: t.x + 8, y: t.y - 4, text: 'SINKING!', label: true, color: '#A8C850', t: 0, delay: 0, life: 60 });
+      if (t.sink >= SINK_MAX) {
+        t.sink = 60;
+        this.popups.push({ x: t.x + 8, y: t.y - 4, text: 'GLUG!', label: true, color: '#A8C850', t: 0, delay: 0, life: 60 });
+        Sound.play('sink');
+        if (t.isPlayer) this.hitPlayer(t); else this.hitEnemy(t, null);
+      }
+    } else if (!bog && t.sink > 0) t.sink = Math.max(0, t.sink - 4);
+    if (kind === 'magma') this.magmaTrail(t);
+    else if (kind === 'gator') this.gatorStep(t);
+  },
+
+  // is there a cell of v under the tank (its body, not the very edge)?
+  underTank(t, v) {
+    for (let cy = (t.y + 1) >> 2; cy <= (t.y + 14) >> 2; cy++) for (let cx = (t.x + 1) >> 2; cx <= (t.x + 14) >> 2; cx++) if (this.get(cx, cy) === v) return true;
+    return false;
+  },
+
+  // into the lava: gone, whatever armour you had
+  lavaDeath(t) {
+    this.addFx(t.x + 8, t.y + 8, BIG_EXPLOSION(), 5);
+    this.popups.push({ x: t.x + 8, y: t.y - 4, text: 'MELTED!', label: true, color: '#F87800', t: 0, delay: 0, life: 70 });
+    Sound.play('lava');
+    if (t.isPlayer) {
+      t.shield = 0; t.plates = 0;
+      if (t.ship) { t.ship = false; if (t.player) t.player.ship = false; }
+      this.hitPlayer(t);
+    } else this.killEnemy(t, null, false);
+  },
+
+  // magma: every few steps the ground it has just left catches fire for a while (it burns only you: foe)
+  magmaTrail(t) {
+    if (!this.fires || Math.abs(t.x - (t.mx || 0)) + Math.abs(t.y - (t.my || 0)) < 8) return;
+    t.mx = t.x; t.my = t.y;
+    const [dx, dy] = DXY[t.dir], x = (t.x + 8 - dx * 10) >> 2, y = (t.y + 8 - dy * 10) >> 2;
+    for (const [ox, oy] of [[0, 0], [dy, dx]]) {
+      const i = (y + oy) * GW + x + ox;
+      if (this.get(x + ox, y + oy) < 0) continue;
+      this.ignite(i, true);
+      const f = this.fires.get(i);
+      if (f) f.foe = true;
+    }
+  },
+
+  // ------------------------------------------------------------ gator
+  // in the water it's under (shells pass over it); it waits for a tank to come in line, surfaces, lunges and bites
+  gatorAct(t) {
+    if (t.snap > 0 || t.lunge > 0 || t.hold > 0) return;
+    if ((t.cd = (t.cd || 0) - 1) > 0) return;
+    for (const o of this.tanks) {
+      if (!o.isPlayer || !o.alive || o.boost.smoke) continue;
+      const dx = o.x - t.x, dy = o.y - t.y, d = Math.abs(dx) + Math.abs(dy);
+      if ((Math.abs(dx) > 6 && Math.abs(dy) > 6) || d > LUNGE_RANGE || d < 4 || !this.sightLine(t.x + 8, t.y + 8, o.x + 8, o.y + 8)) continue;
+      this.faceTarget(t, o.x + 8, o.y + 8);
+      t.snap = 30; t.hold = 30; t.reveal = 60; t.sub = false;
+      Sound.play('gator');
+      return;
+    }
+    t.cd = 8;
+  },
+
+  gatorStep(t) {
+    t.hover = true;
+    t.sub = !(t.snap > 0) && !(t.lunge > 0) && this.cellUnder(t) === T_WATER;
+    if (this.freezeE > 0 || t.stun > 0) return;
+    if (t.snap > 0 && --t.snap === 0) t.lunge = LUNGE_TIME;
+    if (!(t.lunge > 0)) return;
+    t.lunge--;
+    t.hold = Math.max(t.hold, 2);
+    for (let k = 0; k < 3; k++) {
+      const prey = this.tanks.find(o => o.alive && o.isPlayer && overlap(t.x - 2, t.y - 2, 20, 20, o.x, o.y, 16, 16));
+      if (prey) { this.gatorBite(t, prey); return; }
+      if (!this.canStep(t, t.dir)) { t.lunge = 0; t.cd = 90; return; }
+      t.x += DXY[t.dir][0]; t.y += DXY[t.dir][1];
+    }
+    if (!t.lunge) t.cd = 120;
+  },
+
+  gatorBite(t, o) {
+    const armoured = o.shield > 0 || o.plates > 0 || o.ship;
+    this.hitPlayer(o);
+    this.popups.push({ x: o.x + 8, y: o.y, text: 'CHOMP!', label: true, color: '#B8F818', t: 0, delay: 0, life: 60 });
+    Sound.play('chomp');
+    t.lunge = 0; t.cd = 150; t.hold = 30;
+    if (armoured) this.turn(t, (t.dir + 2) % 4);   // it bit on armour: it lets go
+  },
+
+  // ------------------------------------------------------------ rocket truck
+  // it remembers where it last saw you and sends three rockets there; the spot is marked while they fly
+  truckAct(t) {
+    for (const o of this.tanks) {
+      if (!o.isPlayer || !o.alive || o.boost.smoke || Math.hypot(o.x - t.x, o.y - t.y) > TRUCK_SIGHT) continue;
+      if (this.sightLine(t.x + 8, t.y + 8, o.x + 8, o.y + 8)) { t.seen = [o.x + 8, o.y + 8, this.frame]; break; }
+    }
+    if (t.hold > 0 || (t.cd = (t.cd || 0) - 1) > 0) return;
+    const s = t.seen;
+    if (!s || this.frame - s[2] > 360 || Math.hypot(s[0] - t.x - 8, s[1] - t.y - 8) < 40) { t.cd = 20; return; }
+    this.faceTarget(t, s[0], s[1]);
+    t.hold = 40; t.reveal = 60;
+    for (let k = 0; k < 3; k++) {
+      const x = Math.max(6, Math.min(FW - 6, s[0] + rnd(25) - 12)), y = Math.max(6, Math.min(FH - 6, s[1] + rnd(25) - 12));
+      this.booms.push({ key: 'r' + this.frame + k, kind: 'rocket', x, y, t: SALVO_TIME + k * 10, sx: t.x + 8, sy: t.y + 8, by: t });
+    }
+    t.cd = Math.round((300 + rnd(120)) / Config.scale('enemyFire') / Config.skill().fire);
+    Sound.play('salvo');
+  },
+
+  // ------------------------------------------------------------ vents
+  // the 16px tiles with a vent in them (from a list of vent cells)
+  ventsOf(cells) {
+    const seen = new Set(), out = [];
+    for (const i of cells) {
+      const tx = (i % GW) >> 2, ty = ((i / GW) | 0) >> 2, k = ty * COLS + tx;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({ x: tx * 16, y: ty * 16, off: ((tx * 73 + ty * 151) % 9) * 37 });
+    }
+    return out;
+  },
+
+  ventTiles() {
+    if (this.vents && this.ventFor === this.terrainVer) return this.vents;
+    const cells = [];
+    for (let i = 0; i < GW * GH; i++) if (this.terrain[i] === T_VENT) cells.push(i);
+    this.vents = this.ventsOf(cells); this.ventFor = this.terrainVer;
+    return this.vents;
+  },
+
+  // where a vent is in its cycle: quiet, then VENT_WARN frames of bubbling, then VENT_FIRE frames of fire
+  ventPhase(v) { return (this.frame + v.off) % VENT_PERIOD; },
+
+  updateVents() {
+    const vs = this.ventTiles(), fire0 = VENT_PERIOD - VENT_FIRE;
+    let roar = false;
+    for (const v of vs) {
+      const ph = this.ventPhase(v);
+      if (ph < fire0) continue;
+      if (ph === fire0) { roar = true; this.bioHeat(v.x + 8, v.y + 8, 14, null); }
+      const key = v.x + ',' + v.y + ',' + Math.floor((this.frame + v.off) / VENT_PERIOD);
+      for (const t of this.tanks.slice()) {
+        if (!t.alive || t.hopT > 0 || t.burrow > 0 || t.mirage || t.sub || t.ventHit === key || (!t.isPlayer && kindOf(t) === 'magma')) continue;
+        if (!overlap(t.x + 2, t.y + 2, 12, 12, v.x + 2, v.y + 2, 12, 12)) continue;
+        t.ventHit = key;
+        if (t.isPlayer) this.hitPlayer(t); else this.hitEnemy(t, null);
+      }
+    }
+    if (roar) Sound.play('vent');
+  },
+
+  // fire nearby: reeds catch, gas and barrels go
+  bioHeat(x, y, r, by) {
+    for (let cy = Math.floor((y - r) / 4); cy <= Math.floor((y + r) / 4); cy++) for (let cx = Math.floor((x - r) / 4); cx <= Math.floor((x + r) / 4); cx++) {
+      const v = this.get(cx, cy);
+      if (v === T_REEDS && this.fires) this.ignite(cy * GW + cx, false);
+      else if (v === T_GAS || v === T_DRUM) this.bioIgnite(cx, cy, by);
+    }
+  },
+
+  // ------------------------------------------------------------ explosions: barrels, gas, bombs, rockets
+  bioIgnite(cx, cy, by) {
+    const v = this.get(cx, cy);
+    if (v === T_GAS) this.igniteGas(cx, cy, by);
+    else if (v === T_DRUM) this.lightDrum(cx, cy, by, DRUM_FUSE);
+  },
+
+  // a barrel (an 8px block) set to blow in a few frames (by: whose shot it was)
+  lightDrum(cx, cy, by, delay = DRUM_FUSE) {
+    const bx = cx >> 1, by8 = cy >> 1, key = 'd' + bx + ',' + by8;
+    if (this.booms.some(q => q.key === key)) return;
+    this.booms.push({ key, kind: 'drum', x: bx * 8 + 4, y: by8 * 8 + 4, t: Math.max(1, delay), by });
+  },
+
+  // the whole pocket of gas goes: each 8px block a moment after the one before, outward from the spark
+  igniteGas(cx, cy, by) {
+    if (this.booms.some(q => q.key === 'g' + (cx >> 1) + ',' + (cy >> 1))) return;
+    const start = cy * GW + cx, seen = new Set([start]), q = [start], blocks = new Map();
+    for (let k = 0; k < q.length; k++) {
+      const i = q[k], x = i % GW, y = (i / GW) | 0;
+      blocks.set('g' + (x >> 1) + ',' + (y >> 1), [x >> 1, y >> 1]);
+      for (const [dx, dy] of DXY) {
+        const nx = x + dx, ny = y + dy, n = ny * GW + nx;
+        if (nx < 0 || ny < 0 || nx >= GW || ny >= GH || seen.has(n) || this.terrain[n] !== T_GAS) continue;
+        seen.add(n); q.push(n);
+      }
+    }
+    for (const [key, [bx, by8]] of blocks) {
+      if (this.booms.some(b => b.key === key)) continue;
+      const d = Math.abs(bx - (cx >> 1)) + Math.abs(by8 - (cy >> 1));
+      this.booms.push({ key, kind: 'gas', x: bx * 8 + 4, y: by8 * 8 + 4, t: GAS_FUSE + d * 3, by });
+    }
+    Sound.play('gas');
+  },
+
+  updateBooms() {
+    for (const q of this.booms) {
+      if (q.done || --q.t > 0) continue;
+      q.done = true;
+      if (q.kind === 'drum' || q.kind === 'gas') {
+        // whatever of it is still there goes up
+        const bx = (q.x - 4) >> 3, by = (q.y - 4) >> 3, v = q.kind === 'drum' ? T_DRUM : T_GAS;
+        let n = 0;
+        for (let k = 0; k < 4; k++) {
+          const cx = bx * 2 + (k & 1), cy = by * 2 + (k >> 1);
+          if (this.get(cx, cy) === v) { this.set(cx, cy, v === T_GAS && this.theme === 'swamp' ? T_BOG : T_EMPTY); n++; }
+        }
+        if (n) this.bioBoom(q.x, q.y, v === T_DRUM ? DRUM_R : GAS_R, q.by, true);
+      } else if (q.kind === 'bomb') this.bioBoom(q.x, q.y, BOMB_R, null, false, true);
+      else if (q.kind === 'rocket') this.bioBoom(q.x, q.y, SALVO_R, q.by, false, false, true);
+    }
+    this.booms = this.booms.filter(q => !q.done);
+  },
+
+  // an explosion out of the ground: it breaks bricks, sets off what's near and hurts every tank in reach, both sides.
+  // base: it can take the eagle (a barrel can); fire: the ground burns after (a lava bomb); foe: only players (rockets)
+  bioBoom(x, y, r, by, base, fire, foe) {
+    const pl = by && by.isPlayer ? by : null, wrecked = { brick: 0, steel: 0 };
+    for (let cy = Math.floor((y - r) / 4); cy <= Math.floor((y + r) / 4); cy++) for (let cx = Math.floor((x - r) / 4); cx <= Math.floor((x + r) / 4); cx++) {
+      if (Math.hypot(cx * 4 + 2 - x, cy * 4 + 2 - y) > r) continue;
+      const v = this.get(cx, cy);
+      if (v === T_BRICK) { this.set(cx, cy, T_EMPTY); wrecked.brick++; }
+      else if (v >= T_LAVA) this.bioBlastCell(cx, cy, v, false, pl, wrecked);
+    }
+    if (pl) this.wreckPoints(pl, wrecked, x, y);
+    this.explosionHeat(x, y, r + 4);
+    if (fire && this.fires) this.igniteAt(x, y, 7, true);
+    const reaches = (tx, ty, w, h) => Math.hypot(Math.max(tx, Math.min(x, tx + w)) - x, Math.max(ty, Math.min(y, ty + h)) - y) < r - 2;
+    for (const t of this.tanks.slice()) {
+      if (!t.alive || t.burrow > 0 || t.hopT > 0 || t.sub || !reaches(t.x, t.y, 16, 16)) continue;
+      if (t.isPlayer) this.hitPlayer(t, pl && pl !== t ? pl : undefined);
+      else if (!foe && !(fire && kindOf(t) === 'magma')) this.hitEnemy(t, pl, true);
+    }
+    if (base && !this.noBase && this.baseAlive && reaches(BASE_X, BASE_Y, 16, 16)) this.destroyBase();
+    this.addFx(x, y, BIG_EXPLOSION(), 4);
+    Sound.play(base ? 'barrel' : 'explode');
+  },
+
+  // what a blast does to one cell of the new ground
+  bioBlastCell(cx, cy, v, power, pl, wrecked) {
+    if (isConc(v)) { this.crackConcrete(cx, cy, v, power ? 2 : 1); if (wrecked) wrecked.brick++; }
+    else if (isBasalt(v)) { if (power && !this.hardSteel) this.crackBasalt(cx, cy, v); }
+    else if (v === T_DRUM) this.lightDrum(cx, cy, pl, DRUM_FUSE);
+    else if (v === T_GAS) this.igniteGas(cx, cy, pl);
+    else if (v === T_CRATE) this.breakCrate(cx, cy, pl);
+    else if (v === T_LAMP) this.lampDown(cx, cy);
+    else if (v === T_REEDS && this.fires) this.ignite(cy * GW + cx, false);
+  },
+
+  crackConcrete(cx, cy, v, dmg) { const n = v + dmg; this.set(cx, cy, n > T_CONC + 2 ? T_RUBBLE : n); },
+
+  // basalt cracks, then breaks
+  crackBasalt(cx, cy) { const v = this.get(cx, cy); if (isBasalt(v)) this.set(cx, cy, v === T_BASALT ? T_BASALT2 : T_EMPTY); },
+
+  lampDown(cx, cy) {
+    const bx = cx & ~1, by = cy & ~1;
+    for (let y = by; y < by + 2; y++) for (let x = bx; x < bx + 2; x++) if (this.get(x, y) === T_LAMP) this.set(x, y, T_RUBBLE);
+    this.addFx(bx * 4 + 4, by * 4 + 4, [Sprites.sparkle[1], Sprites.sparkle[0]], 3);
+  },
+
+  // a crate (a whole 16px tile) splinters; a player's shot gets what was in it: a power-up or points
+  breakCrate(cx, cy, pl) {
+    const tx = cx >> 2, ty = cy >> 2;
+    let n = 0;
+    for (let y = ty * 4; y < ty * 4 + 4; y++) for (let x = tx * 4; x < tx * 4 + 4; x++) if (this.get(x, y) === T_CRATE) { this.set(x, y, T_EMPTY); n++; }
+    if (!n) return;
+    const x = tx * 16, y = ty * 16;
+    this.addFx(x + 8, y + 8, Sprites.smallExp, 3);
+    Sound.play('crate');
+    if (!pl || !pl.player) return;
+    if (!this.powerup && !this.vs && Math.random() < 0.4) {
+      this.spawnPowerup();
+      if (this.powerup) { this.powerup.x = Math.min(FW - 16, x); this.powerup.y = Math.min(FH - 16, y); }
+      return;
+    }
+    const pts = [100, 200, 300, 500][rnd(4)];
+    this.addScore(pl.player, pts);
+    this.popups.push({ x: x + 8, y: y + 8, text: String(pts), t: 0, delay: 0 });
+  },
+
+  // ------------------------------------------------------------ shells
+  // every step of a shell: deflectors turn it, gas catches (once it's clear of the gun)
+  bioShell(b, dist) {
+    b.trav = (b.trav || 0) + dist;
+    const cx = Math.floor((b.x + 2) / 4), cy = Math.floor((b.y + 2) / 4), v = this.get(cx, cy);
+    if (isDefl(v)) {
+      const key = (cy >> 1) * GW + (cx >> 1);
+      if (b.defl === key) return false;
+      b.defl = key;
+      b.dir = (v === T_DEFL ? [1, 0, 3, 2] : [3, 2, 1, 0])[b.dir];
+      b.x = (cx >> 1) * 8 + 2; b.y = (cy >> 1) * 8 + 2;
+      Sound.play('deflect');
+    } else if (v === T_GAS && b.trav > 10) this.igniteGas(cx, cy, b.owner);
+    return false;
+  },
+
+  // a shell hitting a cell of the new ground (true: something broke)
+  bioHitCell(cx, cy, v, b, n) {
+    const pl = b.isPlayer ? b.owner : null;
+    if (isConc(v)) { this.crackConcrete(cx, cy, v, b.power ? 2 : 1); n.brick++; return true; }
+    if (isBasalt(v)) { if (b.power && !this.hardSteel) { this.crackBasalt(cx, cy); return true; } return false; }
+    if (v === T_DRUM) { this.lightDrum(cx, cy, b.owner, 1); return true; }
+    if (v === T_CRATE) { this.breakCrate(cx, cy, pl); return true; }
+    if (v === T_LAMP) { this.lampDown(cx, cy); return true; }
+    if (v === T_REEDS && b.cutter) { this.clearGroup(cx, cy, T_REEDS); n.tree++; return true; }
+    return false;
+  },
+
+  // a piercing shell punches through concrete, crates and lamps
+  bioPierceCell(cx, cy, v, b, n) {
+    if (isConc(v)) { this.set(cx, cy, T_RUBBLE); n.brick++; }
+    else if (v === T_CRATE) this.breakCrate(cx, cy, b.isPlayer ? b.owner : null);
+    else if (v === T_LAMP) this.lampDown(cx, cy);
+    else if (v === T_REEDS && b.cutter) { this.clearGroup(cx, cy, T_REEDS); n.tree++; }
+  },
+
+  // a laser beam meets a cell (true: it stops there)
+  bioBeam(cx, cy, v, att, cut) {
+    if (v === T_GAS) { this.igniteGas(cx, cy, att); return false; }
+    if (v === T_DRUM) { this.lightDrum(cx, cy, att, 1); return true; }
+    if (v === T_CRATE) { this.breakCrate(cx, cy, att); return true; }
+    if (v === T_LAMP) { this.lampDown(cx, cy); return true; }
+    if (isConc(v)) { if (cut) this.crackConcrete(cx, cy, v, 1); return true; }
+    return bioSolid(v);
+  },
+
+  // a flame (yours, the flamer's) on reeds, gas or a barrel
+  bioFlame(cx, cy, v, att, safe) {
+    if (v === T_REEDS) { if (this.fires) this.ignite(cy * GW + cx, false, safe); else this.set(cx, cy, T_EMPTY); }
+    else this.bioIgnite(cx, cy, att);
+  },
+
+  // can t drive onto a cell of v?
+  bioBlocks(t, v) {
+    if (v === T_LAVA) return (!t.isPlayer && kindOf(t) !== 'magma') || !!t.ally || !!(t.player && t.player.bot);
+    if (isBasalt(v) || isDefl(v)) return true;
+    if (v === T_CRATE || v === T_LAMP) return !t.boost.ghost && !t.crusher;
+    if (isConc(v) || v === T_DRUM) return !t.boost.ghost;
+    return false;
+  },
+
+  // a sapper's blade: crates and lamps go under it
+  bioCrush(cx, cy, v) { if (v === T_CRATE) this.breakCrate(cx, cy, null); else if (v === T_LAMP) this.lampDown(cx, cy); },
+
+  // ------------------------------------------------------------ the twists
+  bioEvent(s) {
+    if (s === 'volcanic') { this.lavaBombs(); this.seaT = 900 + rnd(700); return true; }
+    if (s === 'swamp') { this.marshGas(); this.seaT = 700 + rnd(600); return true; }
+    if (s === 'city') { this.blackout = BLACKOUT_TIME; this.seaT = BLACKOUT_TIME + 1500 + rnd(1200); this.seasonNote('BLACKOUT!', '#F8D878'); Sound.play('blackout'); return true; }
+    return false;
+  },
+
+  // bombs out of the volcano: one near each of you, the rest anywhere on the screen
+  lavaBombs() {
+    const ps = this.tanks.filter(t => t.isPlayer && t.alive && !t.ally), n = 3 + rnd(3) + (FW * FH > 208 * 208 * 2 ? 2 : 0), spots = [];
+    for (let tries = 0; spots.length < n && tries < 100; tries++) {
+      const p = ps[spots.length];
+      const x = p ? p.x + 8 + rnd(25) - 12 : (this.camX || 0) + 16 + rnd(VIEW_W - 32), y = p ? p.y + 8 + rnd(25) - 12 : (this.camY || 0) + 16 + rnd(VIEW_H - 32);
+      if (x < 8 || y < 8 || x > FW - 8 || y > FH - 8 || Math.hypot(x - BASE_X - 8, y - BASE_Y - 8) < 44) continue;
+      if (spots.some(q => Math.hypot(q[0] - x, q[1] - y) < 24)) continue;
+      spots.push([x, y]);
+    }
+    spots.forEach(([x, y], k) => this.booms.push({ key: 'b' + this.frame + k, kind: 'bomb', x, y, t: BOMB_TIME + k * 12, by: null }));
+    this.seasonNote('ERUPTION!', '#F87800');
+    Sound.play('rumble');
+  },
+
+  // new gas bubbles up out of the bog
+  marshGas() {
+    let gas = 0;
+    for (const v of this.terrain) if (v === T_GAS) gas++;
+    if (gas >= 48) return;
+    const spots = [];
+    for (let by = 0; by < GH / 2; by++) for (let bx = 0; bx < GW / 2; bx++) {
+      if (![0, 1, 2, 3].every(k => this.get(bx * 2 + (k & 1), by * 2 + (k >> 1)) === T_BOG)) continue;
+      if (!this.tanks.some(t => t.alive && overlap(t.x, t.y, 16, 16, bx * 8 - 4, by * 8 - 4, 16, 16))) spots.push([bx, by]);
+    }
+    for (let k = 0; k < 2 && spots.length; k++) {
+      const [bx, by] = spots.splice(rnd(spots.length), 1)[0];
+      this.setBlock(bx, by, T_GAS);
+      if (!k) { this.seasonNote('MARSH GAS', '#A8E040', bx * 8 + 4, by * 8); this.encounter('t' + T_GAS); }
+    }
+  },
+
+  // a blackout with the lights flickering as they go and as they come back
+  lightsOut() {
+    const b = this.blackout;
+    if (!(b > 0)) return false;
+    if (b > BLACKOUT_TIME - 40 || b < 40) return ((this.frame >> 2) * 7 + (b >> 3)) % 3 !== 0;
+    return true;
+  },
+
+  // the corridor moved everything down S pixels
+  bioShift(S) {
+    for (const q of this.booms) { q.y += S; if (q.sy !== undefined) q.sy += S; }
+    this.booms = this.booms.filter(q => q.y < FH);
+  },
+
+  // ------------------------------------------------------------ online
+  bioView() {
+    const K = { drum: 0, gas: 1, bomb: 2, rocket: 3 };
+    return this.booms.length || this.blackout ? [this.booms.map(q => [K[q.kind], q.x, q.y, q.t, q.sx || 0, q.sy || 0]), this.blackout] : null;
+  },
+
+  applyBioView(bz) {
+    const K = ['drum', 'gas', 'bomb', 'rocket'];
+    this.booms = bz ? bz[0].map(a => ({ kind: K[a[0]], x: a[1], y: a[2], t: a[3], sx: a[4], sy: a[5] })) : [];
+    this.blackout = bz ? bz[1] : 0;
+  },
+
+  // ------------------------------------------------------------ drawing
+  // one cell into the terrain layers (buildLayers / redrawCells); the moving ones are listed for every frame
+  bioCell(bg, fo, v, cx, cy, tex) {
+    const L = this.bioL, i = cy * GW + cx, dx = cx * 4, dy = cy * 4;
+    const draw = (ctx, im, big) => ctx.drawImage(im, (cx & (big ? 3 : 1)) * 4, (cy & (big ? 3 : 1)) * 4, 4, 4, dx, dy, 4, 4);
+    if (v === T_LAVA) { if (L) L.lava.push(i); }
+    else if (v === T_GAS) { draw(bg, tex.bog); if (L) L.gas.push(i); }
+    else if (v === T_VENT) { draw(bg, tex.vent, true); if (L) L.vent.push(i); }
+    else if (v === T_BOG) { draw(bg, tex.bog); if (L) L.bog.push(i); }
+    else if (v === T_LAMP) { draw(bg, tex.lamp); if (L) L.lamp.push(i); }
+    else if (v === T_REEDS) draw(fo, tex.reeds);
+    else if (v === T_CRATE) draw(bg, tex.crate, true);
+    else if (BIO_TEX[v]) draw(bg, tex[BIO_TEX[v]]);
+  },
+
+  // the glowing rim round the lava, on the open ground beside it (worked out once per drawing of the layers)
+  lavaEdges() {
+    const L = this.bioL;
+    if (L.edges) return L.edges;
+    const e = [];
+    for (const i of L.lava) {
+      const cx = i % GW, cy = (i / GW) | 0, x = cx * 4, y = cy * 4;
+      const out = (nx, ny) => { const v = nx >= 0 && ny >= 0 && nx < GW && ny < GH ? this.terrain[ny * GW + nx] : T_LAVA; return v !== T_LAVA && v !== T_BRICK && v !== T_STEEL && !bioSolid(v); };
+      if (out(cx, cy - 1)) e.push([x, y - 1, 4, 1, x, y - 2, 4, 1]);
+      if (out(cx, cy + 1)) e.push([x, y + 4, 4, 1, x, y + 5, 4, 1]);
+      if (out(cx - 1, cy)) e.push([x - 1, y, 1, 4, x - 2, y, 1, 4]);
+      if (out(cx + 1, cy)) e.push([x + 4, y, 1, 4, x + 5, y, 1, 4]);
+    }
+    L.edges = e;
+    return e;
+  },
+
+  // on the ground, under the tanks: lava and its rim, bubbling bog, vents, gas, lamps' light, manholes are pads
+  renderBio(ctx) {
+    const L = this.bioL;
+    if (!L) return;
+    const f = this.frame, tex = themeTex(this.theme);
+    if (L.lava.length) {
+      const lt = tex[(f >> 4) & 1 ? 'lava1' : 'lava0'];
+      for (const i of L.lava) { const cx = i % GW, cy = (i / GW) | 0; ctx.drawImage(lt, (cx & 1) * 4, (cy & 1) * 4, 4, 4, cx * 4, cy * 4, 4, 4); }
+      const E = this.lavaEdges(), hot = (f >> 3) & 1;
+      ctx.fillStyle = hot ? '#F8B800' : '#F87800';
+      for (const q of E) ctx.fillRect(q[0], q[1], q[2], q[3]);
+      ctx.fillStyle = hot ? 'rgba(248,88,0,0.6)' : 'rgba(200,40,0,0.45)';
+      for (const q of E) ctx.fillRect(q[4], q[5], q[6], q[7]);
+    }
+    for (const i of L.bog) {
+      const h = (i * 2654435761) >>> 0;
+      if ((((h >> 4) + (f >> 3)) % 41) > 1) continue;
+      const x = (i % GW) * 4 + (h & 3), y = ((i / GW) | 0) * 4 + ((h >> 2) & 3);
+      ctx.fillStyle = (((h >> 4) + (f >> 3)) % 41) ? '#7C8C44' : '#A8B868';
+      ctx.fillRect(x, y, 1, 1);
+      if (h & 16) ctx.fillRect(x + 1, y, 1, 1);
+    }
+    if (L.vent.length) {
+      if (!L.vents) L.vents = this.ventsOf(L.vent);
+      const fire0 = VENT_PERIOD - VENT_FIRE, warn0 = fire0 - VENT_WARN;
+      for (const v of L.vents) {
+        const ph = this.ventPhase(v), cx = v.x + 8, cy = v.y + 8;
+        if (ph >= fire0) { ctx.fillStyle = '#F8D878'; ctx.fillRect(cx - 4, cy - 4, 8, 8); ctx.fillStyle = '#FCF8E8'; ctx.fillRect(cx - 2, cy - 2, 4, 4); }
+        else if (ph >= warn0) {
+          // bubbling: the core swells and flashes, drops of lava jump out
+          const k = (ph - warn0) / VENT_WARN, s = 2 + Math.round(k * 3);
+          ctx.fillStyle = (f >> 2) & 1 ? '#F83800' : '#F8B800'; ctx.fillRect(cx - s, cy - s, s * 2, s * 2);
+          ctx.fillStyle = '#F8D878';
+          for (let n = 0; n < 3; n++) { const a = (f * 0.4 + n * 2.1 + v.off), d = 3 + ((f + n * 5) % 6); ctx.fillRect(Math.round(cx + Math.cos(a) * d), Math.round(cy + Math.sin(a) * d - ((f + n * 3) % 4)), 1, 1); }
+        } else { ctx.fillStyle = (f >> 5) & 1 ? '#881400' : '#A81C00'; ctx.fillRect(cx - 2, cy - 2, 4, 4); }
+      }
+    }
+    if (L.gas.length) {
+      const lit = new Set(this.booms.filter(q => q.kind === 'gas').map(q => q.x + ',' + q.y));
+      for (const i of L.gas) {
+        const cx = i % GW, cy = (i / GW) | 0, x = cx * 4, y = cy * 4, h = cx * 7 + cy * 13;
+        const hot = lit.has(((cx >> 1) * 8 + 4) + ',' + ((cy >> 1) * 8 + 4));
+        // a bubble per cell, swelling and shrinking on its own; lit, they flash
+        const big = ((f >> 4) + h) % 3 !== 0, bob = ((f >> 3) + h) & 1;
+        ctx.fillStyle = hot ? ((f >> 1) & 1 ? '#F8F8B0' : '#F87800') : '#2C5410';
+        if (big) { ctx.fillRect(x, y + bob, 4, 3); ctx.fillRect(x + 1, y - 1 + bob, 2, 5); } else ctx.fillRect(x + 1, y + 1, 3, 3);
+        ctx.fillStyle = hot ? '#F8D838' : '#8CD848';
+        if (big) { ctx.fillRect(x + 1, y + bob, 2, 3); ctx.fillRect(x, y + 1 + bob, 4, 1); } else ctx.fillRect(x + 2, y + 2, 1, 1);
+        ctx.fillStyle = '#E8F8B8';
+        if (big) ctx.fillRect(x + 1, y + bob, 1, 1);
+      }
+    }
+    if (L.lamp.length && this.weather && !this.lightsOut()) {
+      // a pool of light under each lamp
+      ctx.fillStyle = 'rgba(248,216,120,0.07)';
+      for (const i of L.lamp) {
+        const cx = i % GW, cy = (i / GW) | 0;
+        if (cx & 1 || cy & 1) continue;
+        const x = cx * 4 + 4, y = cy * 4 + 4;
+        for (const rr of [16, 11, 6]) for (let dy = -rr; dy < rr; dy += 2) { const w = Math.round(Math.sqrt(rr * rr - dy * dy)); ctx.fillRect(x - w, y + dy, w * 2, 2); }
+      }
+    }
+    for (const q of this.booms) {
+      if (q.kind !== 'drum' || !((f >> 1) & 1)) continue;
+      ctx.fillStyle = '#F8F8F8';
+      ctx.fillRect(q.x - 5, q.y - 5, 10, 1); ctx.fillRect(q.x - 5, q.y + 4, 10, 1); ctx.fillRect(q.x - 5, q.y - 5, 1, 10); ctx.fillRect(q.x + 4, q.y - 5, 1, 10);
+    }
+  },
+
+  // a tank as the new ground sees it: under the water (a gator), sinking in the bog, about to bite (false: as usual)
+  drawBioTank(ctx, t) {
+    const f = this.frame;
+    if (t.sub) {
+      // only the eyes and the ripples show
+      ctx.fillStyle = 'rgba(200,232,255,0.5)';
+      const r = 5 + ((f >> 3) % 4);
+      ctx.fillRect(t.x + 8 - r, t.y + 8, 1, 1); ctx.fillRect(t.x + 8 + r, t.y + 8, 1, 1); ctx.fillRect(t.x + 8, t.y + 8 - r, 1, 1); ctx.fillRect(t.x + 8, t.y + 8 + r, 1, 1);
+      const [ex, ey] = [[0, -3], [3, 0], [0, 3], [-3, 0]][t.dir], side = (t.dir & 1) ? [0, 2] : [2, 0];
+      ctx.fillStyle = '#D8F878';
+      ctx.fillRect(t.x + 7 + ex - side[0], t.y + 7 + ey - side[1], 2, 2); ctx.fillRect(t.x + 7 + ex + side[0], t.y + 7 + ey + side[1], 2, 2);
+      return true;
+    }
+    const depth = t.sink > 0 ? Math.min(5, 1 + Math.floor(t.sink / 36)) : 0;
+    if (!depth && !(t.snap > 0)) return false;
+    this.drawTank(ctx, t);
+    if (depth) {
+      // the bog closes in from every side
+      ctx.fillStyle = 'rgba(44,52,24,0.9)';
+      ctx.fillRect(t.x, t.y, 16, depth); ctx.fillRect(t.x, t.y + 16 - depth, 16, depth);
+      ctx.fillRect(t.x, t.y + depth, depth, 16 - depth * 2); ctx.fillRect(t.x + 16 - depth, t.y + depth, depth, 16 - depth * 2);
+      ctx.fillStyle = '#A8B868';
+      for (let k = 0; k < 2; k++) { const a = f * 0.3 + k * 3; ctx.fillRect(Math.round(t.x + 8 + Math.cos(a) * 8), Math.round(t.y + 8 + Math.sin(a) * 8), 1, 1); }
+    }
+    if (t.snap > 0) {
+      // jaws open: teeth at the front, and a warning
+      const [fx, fy] = [[7, -2], [16, 7], [7, 16], [-2, 7]][t.dir];
+      ctx.fillStyle = '#F8F8F8';
+      ctx.fillRect(t.x + fx, t.y + fy, (t.dir & 1) ? 2 : 1, (t.dir & 1) ? 1 : 2); ctx.fillRect(t.x + fx + ((t.dir & 1) ? 0 : 2), t.y + fy + ((t.dir & 1) ? 2 : 0), (t.dir & 1) ? 2 : 1, (t.dir & 1) ? 1 : 2);
+      if ((f >> 2) & 1) Font.draw(ctx, '!', t.x + 5, t.y - 10, '#F83800');
+    }
+    return true;
+  },
+
+  // over everything on the ground: fire columns, bombs and rockets on the way, mist, the lava warning
+  renderBioOver(ctx, camX, camY) {
+    const f = this.frame, fire = ['#F8F8F8', '#F8D878', '#F87830', '#D82800'], L = this.bioL;
+    if (L && L.vents) {
+      const fire0 = VENT_PERIOD - VENT_FIRE;
+      for (const v of L.vents) {
+        const ph = this.ventPhase(v);
+        if (ph < fire0) continue;
+        // a column of fire, tallest in the middle of the eruption
+        const k = Math.sin(Math.PI * (ph - fire0) / VENT_FIRE), hgt = 6 + Math.round(k * 18);
+        for (let n = 0; n < 26; n++) {
+          const px = v.x + 2 + ((n * 37 + f * 11) % 12), py = v.y + 14 - ((n * 53 + f * 7) % (hgt + 10));
+          ctx.fillStyle = fire[(n + (f >> 1)) & 3];
+          ctx.fillRect(px - 1, py - 1, 3, 3);
+        }
+      }
+    }
+    for (const q of this.booms) {
+      if (q.kind === 'bomb') {
+        // a shadow that grows where it'll land, the bomb coming down on it
+        const k = Math.max(0, Math.min(1, 1 - q.t / BOMB_TIME)), r = Math.round(2 + k * (BOMB_R - 2));
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillRect(q.x - r, q.y - (r >> 1), r * 2, r);
+        if (q.t < 40 && (f >> 2) & 1) { ctx.fillStyle = '#F83800'; ctx.fillRect(q.x - BOMB_R, q.y, BOMB_R * 2, 1); ctx.fillRect(q.x, q.y - (BOMB_R >> 1), 1, BOMB_R); }
+        if (q.t < 60) {
+          const by = q.y - q.t * 2;
+          ctx.fillStyle = '#F87800'; ctx.fillRect(q.x - 2, by - 2, 4, 4);
+          ctx.fillStyle = '#F8D878'; ctx.fillRect(q.x - 1, by - 1, 2, 2);
+          ctx.fillStyle = 'rgba(248,120,0,0.5)'; ctx.fillRect(q.x - 1, by - 8, 2, 6);
+        }
+      } else if (q.kind === 'rocket') {
+        // the marked spot, and the rocket on its way to it
+        if (q.t > 24 || (f >> 1) & 1) {
+          ctx.fillStyle = q.t < 24 ? '#F83800' : '#F8B800';
+          const r = SALVO_R - 3;
+          ctx.fillRect(q.x - r, q.y - r, 3, 1); ctx.fillRect(q.x - r, q.y - r, 1, 3); ctx.fillRect(q.x + r - 2, q.y - r, 3, 1); ctx.fillRect(q.x + r, q.y - r, 1, 3);
+          ctx.fillRect(q.x - r, q.y + r, 3, 1); ctx.fillRect(q.x - r, q.y + r - 2, 1, 3); ctx.fillRect(q.x + r - 2, q.y + r, 3, 1); ctx.fillRect(q.x + r, q.y + r - 2, 1, 3);
+          ctx.fillRect(q.x, q.y, 1, 1);
+        }
+        const p = 1 - q.t / SALVO_TIME;
+        if (p > 0) {
+          const x = q.sx + (q.x - q.sx) * p, y = q.sy + (q.y - q.sy) * p - Math.sin(Math.PI * p) * 28;
+          ctx.fillStyle = 'rgba(180,180,180,0.6)'; ctx.fillRect(Math.round(x) - 1, Math.round(y) + 2, 2, 2);
+          ctx.fillStyle = '#F8F8F8'; ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2);
+          ctx.fillStyle = '#F83800'; ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
+        }
+      }
+    }
+    // swamp mist: wide pale banks drifting by, thicker in the middle
+    if ((THEMES[this.theme] || {}).mist) {
+      ctx.fillStyle = 'rgba(190,210,170,0.035)';
+      for (let k = 0; k < 4; k++) {
+        const w = 90 + k * 30, x = Math.round(camX + ((f * (0.15 + k * 0.05) + k * 97) % (VIEW_W + w)) - w), y = camY + ((k * 61 + 20) % VIEW_H);
+        for (let s = 0; s < 4; s++) ctx.fillRect(x + s * 8, y - s * 3, w - s * 16, 6 + s * 6);
+      }
+    }
+    // at the lava's edge: your tank glows red
+    for (const t of this.tanks) {
+      if (!t.alive || !t.lavaNear || !((f >> 2) & 1)) continue;
+      ctx.fillStyle = '#F83800';
+      ctx.fillRect(t.x - 1, t.y - 1, 18, 1); ctx.fillRect(t.x - 1, t.y + 16, 18, 1); ctx.fillRect(t.x - 1, t.y, 1, 16); ctx.fillRect(t.x + 16, t.y, 1, 16);
+    }
+  },
+
+  // in the dark: lamps (not in a blackout), lava, erupting vents and incoming bombs give light too (terrain.js)
+  bioLights(light) {
+    const L = this.bioL;
+    if (!L) return;
+    if (!this.lightsOut()) for (const i of L.lamp) { const cx = i % GW, cy = (i / GW) | 0; if (!(cx & 1) && !(cy & 1)) light(cx * 4 + 4, cy * 4 + 4, 46); }
+    for (const i of L.lava) { const cx = i % GW, cy = (i / GW) | 0; if (!(cx & 3) && !(cy & 3)) light(cx * 4 + 8, cy * 4 + 8, 14); }
+    if (L.vents) for (const v of L.vents) if (this.ventPhase(v) >= VENT_PERIOD - VENT_FIRE - VENT_WARN) light(v.x + 8, v.y + 8, 26);
+    for (const q of this.booms) if (q.kind === 'bomb' || q.kind === 'rocket') light(q.x, q.y, 16);
+  },
+});
+
+// bits of a tank's state an online guest needs to draw it (net.js)
+function bioTankBits(t) {
+  return (t.sink > 0 ? Math.min(7, 1 + Math.floor(t.sink / 36)) : 0) | (t.sub ? 8 : 0) | (t.snap > 0 ? 16 : 0) | (t.lavaNear ? 32 : 0);
+}
+function bioTankFrom(b) {
+  b = b || 0;
+  return { sink: b & 7 ? (b & 7) * 36 - 18 : 0, sub: !!(b & 8), snap: b & 16 ? 1 : 0, lavaNear: !!(b & 32) };
+}
 
 </script>
   <script>
@@ -8745,7 +9901,7 @@ Object.assign(Stage.prototype, {
 
   // who a player's weapon can hurt: enemy tanks, and in versus the other players
   weaponFoes(att) {
-    return this.tanks.filter(o => o.alive && o !== att && !(o.burrow > 0) && !(o.hopT > 0)
+    return this.tanks.filter(o => o.alive && o !== att && !(o.burrow > 0) && !(o.hopT > 0) && !o.sub
       && (!o.isPlayer || (this.vs && !o.ally && o.player !== att.player)));
   },
 
@@ -8821,6 +9977,7 @@ Object.assign(Stage.prototype, {
         const qx = Math.floor((nx + (dy ? k : 0)) / 4), qy = Math.floor((ny + (dx ? k : 0)) / 4), v = this.get(qx, qy);
         if (v === T_STEEL) stop = true;
         else if (v === T_BRICK) { if (s.cut) this.set(qx, qy, T_EMPTY); else stop = true; }
+        else if (v >= T_LAVA && this.bioBeam(qx, qy, v, t, s.cut)) stop = true;   // concrete, barrels, crates (biomes.js)
       }
       if (!stop && !this.noBase && overlap(nx - 2, ny - 2, 4, 4, BASE_X, BASE_Y, 16, 16)) stop = true;
       if (!stop && this.qblocks && this.qblocks.length && this.qblockAt(nx - 2, ny - 2, 4, 4)) { this.bulletQBlock({ x: nx - 2, y: ny - 2, isPlayer: true, owner: t, alive: true, free: true }); stop = true; }
@@ -8848,9 +10005,11 @@ Object.assign(Stage.prototype, {
     if (this.frame % 6) return;
     for (const foe of this.weaponFoes(t)) if (overlap(x, y, fw, fh, foe.x, foe.y, 16, 16)) this.weaponHit(t, foe, s.dmg, { dir: t.dir });
     this.weaponBosses(t, x, y, fw, fh, s.dmg);
-    // it burns trees away (and sets them alight in summer)
+    // it burns trees away (and sets them alight in summer); reeds catch, gas and barrels go up (biomes.js)
     for (let cy = Math.max(0, y >> 2); cy <= (y + fh - 1) >> 2; cy++) for (let cx = Math.max(0, x >> 2); cx <= (x + fw - 1) >> 2; cx++) {
-      if (this.get(cx, cy) !== T_FOREST) continue;
+      const v = this.get(cx, cy);
+      if (v === T_REEDS || v === T_GAS || v === T_DRUM) { this.bioFlame(cx, cy, v, t, true); continue; }
+      if (v !== T_FOREST) continue;
       if (this.seasonFx === 'summer' && this.fires) this.ignite(cy * GW + cx, false, true); else this.set(cx, cy, T_EMPTY);
     }
     if (this.frame % 24 === 0) Sound.play('flame');
@@ -9004,7 +10163,7 @@ Object.assign(Stage.prototype, {
 // =====================================================================
 //  Game modes (picked on the title screen's MODE row)
 //    CLASSIC      the game as always
-//    SURVIVAL     endless waves on one map, each bigger and stronger; a breather between waves
+//    SURVIVAL     100 waves on one map with no eagle; enemies from every edge hunt you (survival.js)
 //    TIME ATTACK  clear stages 1-5 as fast as you can (the clock runs from the first stage)
 //    BIG MAPS     every stage is a big scrolling map with outposts to hold or factories to destroy (bigmap.js)
 //    VS EAGLES    2-4 players, each with an eagle: defend yours, destroy theirs; best of 3 rounds
@@ -9015,7 +10174,7 @@ Object.assign(Stage.prototype, {
 const MODES = [
   { key: 'classic', name: 'CLASSIC', desc: 'THE GAME AS ALWAYS' },
   { key: 'custom', name: 'CUSTOM LEVELS', desc: 'YOUR OWN LEVELS, IN TURN' },   // editor.js
-  { key: 'survival', name: 'SURVIVAL', desc: 'ENDLESS WAVES, HOW LONG?' },
+  { key: 'survival', name: 'SURVIVAL', desc: 'HOLD OUT FOR 100 WAVES' },
   { key: 'timeattack', name: 'TIME ATTACK', desc: 'CLEAR 5 STAGES FAST' },
   { key: 'bigmaps', name: 'BIG MAPS', desc: 'HUGE SCROLLING BATTLEFIELDS' },
   { key: 'sides', name: 'ANY SIDE', desc: 'YOUR EAGLE ON ANOTHER EDGE' },   // the map turned: eagle left, right or top
@@ -9332,7 +10491,7 @@ Object.assign(Stage.prototype, {
       let bad = false;
       for (let cy = y >> 2; cy < (y + 40) >> 2 && !bad; cy++) for (let cx = x >> 2; cx < (x + 32) >> 2; cx++) {
         const t = this.get(cx, cy);
-        if (t === T_STEEL || t === T_WATER) { bad = true; break; }
+        if (t === T_STEEL || t === T_WATER || (t >= T_LAVA && bioBad(t))) { bad = true; break; }
       }
       if (!bad && !this.factories.some(f => overlap(x, y, 32, 40, f.x - 16, f.y - 16, 64, 72))) return [x, y];
     }
@@ -9505,7 +10664,7 @@ Object.assign(Stage.prototype, {
       this.miniMap = this.miniMap && this.miniMap.width === mw && this.miniMap.height === mh ? this.miniMap : makeCanvas(mw, mh);
       this.miniAt = this.frame;
       const c = this.miniMap.getContext('2d'), img = c.createImageData(mw, mh);
-      const COLS4 = { [T_BRICK]: [168, 72, 16], [T_STEEL]: [180, 180, 188], [T_WATER]: [32, 64, 200], [T_FOREST]: [28, 108, 28], [T_ICE]: [168, 200, 232], [T_MUD]: [108, 72, 32], [T_BRIDGE]: [140, 100, 50] };
+      const COLS4 = Object.assign({ [T_BRICK]: [168, 72, 16], [T_STEEL]: [180, 180, 188], [T_WATER]: [32, 64, 200], [T_FOREST]: [28, 108, 28], [T_ICE]: [168, 200, 232], [T_MUD]: [108, 72, 32], [T_BRIDGE]: [140, 100, 50] }, BIO_MINI);
       for (let py = 0; py < mh; py++) for (let px = 0; px < mw; px++) {
         const o = (py * mw + px) * 4;
         const col = this.maze ? null : COLS4[this.get(Math.floor((px + 0.5) / s / 4), Math.floor((py + 0.5) / s / 4))];
@@ -10865,10 +12024,10 @@ const Seen = {
   reset() { this.keys = new Set(); STORE.set(SEEN_KEY, []); },
 };
 
-// "NEW: <name> - <what it does>" for e<type>, b<boss>, p<power-up>
+// "NEW: <name> - <what it does>" for e<type>, b<boss>, p<power-up>, t<tile> (biomes.js)
 function cardText(key) {
   const i = +key.slice(1);
-  const src = key[0] === 'e' ? ENEMY[i] : key[0] === 'b' ? BOSSES[i] : POWERUPS[i];
+  const src = key[0] === 'e' ? ENEMY[i] : key[0] === 'b' ? BOSSES[i] : key[0] === 't' ? BIO_CARDS[i] : POWERUPS[i];
   if (!src) return null;
   const name = key[0] === 'e' && i < 4 ? src.name + ' TANK' : key[0] === 'b' ? 'BOSS ' + src.name : src.name;
   return 'NEW: ' + name + (src.desc ? ' - ' + src.desc : '');
@@ -11301,7 +12460,7 @@ Object.assign(Stage.prototype, {
       let solid = false;
       for (let cy = y >> 2; cy < (y + 16) >> 2 && !solid; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) {
         const v = this.get(cx, cy);
-        if (v === T_BRICK || v === T_STEEL || v === T_WATER) { solid = true; break; }
+        if (v === T_BRICK || v === T_STEEL || v === T_WATER || (v >= T_LAVA && bioBad(v))) { solid = true; break; }
       }
       if (!solid && !busy(x, y)) return [x, y];
     }
@@ -13732,7 +14891,7 @@ const Net = {
       df: st.netDiff || [],
       tk: st.tanks.filter(t => t.alive).map(t => [t.x, t.y, t.dir, t.isPlayer ? 1 : 0, t.player ? t.player.i : -1, t.type, t.hp,
         t.bonus ? 1 : 0, t.shield > 0 ? 1 : 0, t.frozen > 0 ? 1 : 0, t.ship ? 1 : 0, t.anim, t.boost.ghost ? 1 : 0, t.plates, t.glow, t.reveal, t.ai, t.vet, t.segs ? t.segs.map(p => p[0] + ',' + p[1]).join(';') : 0,
-        t.ally ? 1 : 0, t.boost.smoke ? 1 : 0, (t.burrow > 0 ? 1 : 0) | (t.mirage ? 2 : 0) | (t.blowing ? 4 : 0) | (t.iced > 0 ? 8 : 0) | (t.titan ? 16 : 0), t.hopT || 0]),
+        t.ally ? 1 : 0, t.boost.smoke ? 1 : 0, (t.burrow > 0 ? 1 : 0) | (t.mirage ? 2 : 0) | (t.blowing ? 4 : 0) | (t.iced > 0 ? 8 : 0) | (t.titan ? 16 : 0), t.hopT || 0, bioTankBits(t)]),
       bu: st.bullets.filter(b => b.alive).map(b => [r(b.x), r(b.y), b.dir, b.rocket ? 1 : 0, b.pierce ? 1 : 0, b.light ? 1 : 0]),
       // player weapons: beams and smoke, mortar shells and missiles, flamethrower cones (weapons.js)
       wp: st.wfx.length || st.wshots.length || st.tanks.some(t => t.flame) ? [st.wfx.map(f => (f.kind === 'smoke' ? [r(f.x), r(f.y), f.t] : [f.pts, f.t, f.color, f.w, f.zig ? 1 : 0])),
@@ -13775,11 +14934,12 @@ const Net = {
       rc: st.race || null,
       nv: st.nightVision || 0,
       th: st.theme,
+      bz: st.bioView(),   // barrels and gas about to go, lava bombs and rockets on the way, a blackout (biomes.js)
       gx: st.galaxy ? st.galaxyView() : null,
     };
     st.netDiff = [];
     // the corridor moved down a section: the whole terrain goes again
-    if (full || st.netFull) sv.tf = Array.from(st.terrain).join('');
+    if (full || st.netFull) sv.tf = terrainCode(st.terrain);
     st.netFull = false;
     if (st.bosses.length) {
       sv.bo = st.bosses.map(b => { const o = Object.assign({}, b); delete o.bullets; return o; });
@@ -13915,13 +15075,13 @@ const Net = {
     st.twoP = G.players.length > 1;
     st.frame = sv.fr; st.over = sv.ov; st.overTimer = sv.ot; st.baseAlive = sv.ba; st.bossDefeated = !!sv.bd;
     st.queue = new Array(sv.q).fill(0);
-    st.tanks = sv.tk.map(a => new Tank({
+    st.tanks = sv.tk.map(a => new Tank(Object.assign({
       x: a[0], y: a[1], dir: a[2], isPlayer: !!a[3], player: a[4] >= 0 ? G.players.find(p => p.i === a[4]) : null,
       type: a[5], hp: a[6], bonus: !!a[7], shield: a[8], frozen: a[9], ship: !!a[10], anim: a[11], boost: Object.assign(a[12] ? { ghost: 1 } : {}, a[20] ? { smoke: 1 } : {}),
       plates: a[13] || 0, glow: a[14] || 0, reveal: a[15] || 0, ai: a[16] || 0, vet: a[17] || 0, stealth: a[5] === 7,
       segs: a[18] ? a[18].split(';').map(p => p.split(',').map(Number)) : null, ally: !!a[19],
       burrow: a[21] & 1 ? 1 : 0, mirage: a[21] & 2 ? 1 : 0, blowing: !!(a[21] & 4), iced: a[21] & 8 ? 2 : 0, titan: !!(a[21] & 16), hopT: a[22] || 0,
-    }));
+    }, bioTankFrom(a[23]))));
     if (sv.ea) { st.eagleArmor = sv.ea[0]; st.eagleFlash = sv.ea[1]; st.gunDir = sv.ea[2]; st.teslaT = sv.ea[4]; st.zaps = sv.ea[5] || []; st.base = Object.assign(newBase(), G.base || {}); }
     st.turrets = (sv.tu || []).map(a => ({ x: a[0], y: a[1], dir: a[2], hp: a[3], owner: G.players.find(p => p.i === a[4]) || null, enemy: !!a[5] }));
     st.claudes = (sv.cl || []).map(a => ({ x: a[0], y: a[1], t: a[2], lv: a[3] || 0 }));
@@ -13940,6 +15100,7 @@ const Net = {
     st.race = sv.rc || null;
     st.nightVision = sv.nv || 0;
     if (sv.th && st.theme !== sv.th) { st.theme = sv.th; st.dirty = true; }
+    st.applyBioView(sv.bz);
     if (sv.cr) {
       // the host's world moved down: so does this screen's window
       if (st.corridor && sv.cr[0] > st.corridor.shifts && st.camY !== undefined) st.camY += (sv.cr[0] - st.corridor.shifts) * st.sectionPx();
@@ -15028,6 +16189,13 @@ const Game = {
       setFieldSize(SX * SECTOR, SY * SECTOR, vc, vr);
       blocks = bigWorldBlocks(this.stageNum, SX, SY);
       objective = Math.floor(this.stageNum / (this.mode === 'bigmaps' ? 1 : 4)) % 2 ? 'outposts' : 'factories';
+    } else if (!custom && this.mode === 'survival') {
+      // SURVIVAL: one map a little bigger than the screen for the whole run, the same after a reload (survival.js)
+      const [vc, vr] = this.desiredField(), sv = resume && resume.sv;
+      this.svRun = sv ? { seed: sv.seed, map: sv.map, theme: sv.theme } : svNewRun();
+      setFieldSize(sv ? sv.cols : vc + SV_GROW, sv ? sv.rows : vr + SV_GROW, vc, vr);
+      map = LEVELS[this.svRun.map % LEVELS.length];
+      if (this.svRun.theme) theme = this.svRun.theme;
     } else if (!custom && this.mode === 'sides') {
       // ANY SIDE: the classic field, turned so the eagle's edge is the chosen one
       const side = this.nextSide || 'left';
@@ -15035,7 +16203,7 @@ const Game = {
       blocks = turnBlocks(mapToBlocks(map), side);
     } else if (!custom) this.applyLayout();
     this.stage = new Stage(this.stageNum, map, this.players, {
-      custom, boss, base: vs || corridor || maze || fortress || galaxy || this.mode === 'race' ? newBase() : this.base, corridor, maze, fortress, galaxy, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
+      custom, boss, base: vs || corridor || maze || fortress || galaxy || this.mode === 'race' || this.mode === 'survival' ? newBase() : this.base, corridor, maze, fortress, galaxy, cpu: this.mode === 'cpu' && !custom ? this.stageNum : 0,
       race: this.mode === 'race' && !custom ? { target: this.raceTarget, round: this.round } : null, vs, survival: this.mode === 'survival', timeAttack: this.mode === 'timeattack',
       blocks, big: objective, theme,
     });
@@ -15096,7 +16264,7 @@ const Game = {
       if (Config.on('shop') && this.players.some(p => !p.out)) this.toShop(); else this.toCurtain(false);
       return;
     }
-    if (r === 'tdwin') { this.saveHi(); this.toModeResult(true); return; }
+    if (r === 'tdwin' || r === 'svwin') { this.saveHi(); this.toModeResult(true); return; }   // FORTRESS held, SURVIVAL's 100 waves
     if (this.stage.result) {
       // beating a boss earns 25% off in the next shop
       this.shopDiscount = this.stage.result === 'clear' && this.stage.bossIdx !== undefined;
@@ -15377,8 +16545,9 @@ const Game = {
     const res = { mode: this.mode, done, score, newBest: false };
     if (this.mode === 'survival') {
       res.wave = this.stage.wave;
-      const b = rec.survival;
-      if (!b || res.wave > b.wave || (res.wave === b.wave && score > b.score)) { rec.survival = { wave: res.wave, score }; res.newBest = true; }
+      // all 100 waves held beats getting to wave 100
+      const b = rec.survival, lvl = o => o.wave + (o.won ? 1 : 0);
+      if (!b || lvl(res) > lvl(b) || (lvl(res) === lvl(b) && score > b.score)) { rec.survival = { wave: res.wave, won: done, score }; res.won = done; res.newBest = true; }
       res.best = rec.survival;
     } else if (this.mode === 'cpu') {
       res.rounds = this.stageNum - 1;
@@ -15491,9 +16660,9 @@ const Game = {
     ctx.fillRect(0, 0, SW, SH);
     Font.drawCenter(ctx, modeInfo(r.mode).name, SW / 2, 40, COL.red);
     if (r.mode === 'survival') {
-      Font.drawCenter(ctx, 'YOU HELD OUT TO WAVE ' + r.wave, SW / 2, 80, COL.white);
+      Font.drawCenter(ctx, r.done ? 'ALL ' + r.wave + ' WAVES HELD!' : 'YOU HELD OUT TO WAVE ' + r.wave, SW / 2, 80, r.done ? COL.gold : COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
-      Font.drawCenter(ctx, 'BEST: WAVE ' + r.best.wave + '  ' + r.best.score, SW / 2, 124, COL.lgrey);
+      Font.drawCenter(ctx, 'BEST: ' + (r.best.won ? 'ALL ' + r.best.wave + ' WAVES' : 'WAVE ' + r.best.wave) + '  ' + r.best.score, SW / 2, 124, COL.lgrey);
     } else if (r.mode === 'cpu') {
       Font.drawCenter(ctx, r.rounds === 1 ? 'YOU WON 1 ROUND' : 'YOU WON ' + r.rounds + ' ROUNDS', SW / 2, 80, COL.white);
       Font.drawCenter(ctx, 'SCORE ' + r.score, SW / 2, 100, COL.white);
@@ -16253,7 +17422,9 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 // =====================================================================
 //  Construction: the level editor, and the levels you make with it.
 //    8 save slots, each a level and its season (AUTO: whatever the stage would have); every change is saved at once.
-//    A tile palette on the right (every terrain: brick, steel, water, trees, ice, mud, bridges, belts, teleporters),
+//    A tile palette on the right (every terrain: brick, steel, water, trees, ice, mud, bridges, belts, teleporters, and
+//    the terrain types' tiles: lava, basalt, vents, bog, reeds, gas, concrete, rubble, lamps, barrels, crates,
+//    deflectors, manholes),
 //    and a random level generator: a symmetric map like the classic ones, checked so every entry point and both
 //    players can reach the eagle.
 //    CUSTOM LEVELS (on the title screen's MODE row) plays the slots you've filled, one after another, as a normal game
@@ -16266,7 +17437,8 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 
 const CUSTOM_KEY = 'tank1990_customs', CUSTOM_SLOTS = 8;
 const EDIT_THEMES = ['auto', 'classic'].concat(THEME_ORDER);
-const EDIT_THEME_TAGS = { auto: 'ANY', classic: 'BLK', spring: 'SPR', summer: 'SUM', autumn: 'AUT', winter: 'WIN', nuclear: 'NUC', desert: 'DES' };
+const EDIT_THEME_TAGS = { auto: 'ANY', classic: 'BLK', spring: 'SPR', summer: 'SUM', autumn: 'AUT', winter: 'WIN', nuclear: 'NUC', desert: 'DES',
+  volcanic: 'VOL', swamp: 'SWP', city: 'CTY' };
 
 // the palette: the 14 patterns of the original editor (as 2x2 blocks), then the newer terrain
 const CONSTRUCT_PATS = [
@@ -16276,6 +17448,10 @@ const CONSTRUCT_PATS = [
   // mud, a bridge, conveyor belts (up, right, down, left) and a teleporter pad (pads pair up in the order placed)
   ['mm', 'mm'], ['==', '=='], ['^^', '^^'], ['>>', '>>'], ['vv', 'vv'], ['<<', '<<'], ['TT', 'TT'],
   ['..', '..'],
+  // the second page, the terrain types' (biomes.js): lava, basalt, a fire vent, bog, reeds, swamp gas, concrete, rubble,
+  // a street lamp, barrels, a crate, deflectors (/ and \) and a manhole (they pair up like pads)
+  ['ll', 'll'], ['kk', 'kk'], ['ff', 'ff'], ['bb', 'bb'], ['rr', 'rr'], ['gg', 'gg'], ['cc', 'cc'], ['uu', 'uu'], ['i.', '..'],
+  ['dd', 'dd'], ['xx', 'xx'], ['./', '/.'], ['\\.', '.\\'], ['OO', 'OO'],
 ];
 const PAT_BRICK = 4;
 
@@ -16380,13 +17556,18 @@ function randomLevel(rnd01 = Math.random) {
 // a pattern drawn small (palette) or large (preview): s = size of one block
 function drawPattern(ctx, p, x, y, s, theme) {
   const tex = themeTex(theme || 'classic');
-  const src = { '#': tex.brick, '@': tex.steel, '~': tex.water0, '%': tex.forest, '_': tex.ice, m: Sprites.mudTex, '=': Sprites.bridgeTex };
+  const src = { '#': tex.brick, '@': tex.steel, '~': tex.water0, '%': tex.forest, '_': tex.ice, m: Sprites.mudTex, '=': Sprites.bridgeTex,
+    l: tex.lava0, k: tex.basalt, b: tex.bog, r: tex.reeds, g: tex.bog, c: tex.conc, u: tex.rubble, i: tex.lamp, d: tex.drum, '/': tex.defl, '\\': tex.defl2 };
   ctx.fillStyle = COL.black;
   ctx.fillRect(x, y, s * 2, s * 2);
   for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) {
     const c = p[j][i], im = src[c];
     if (im) ctx.drawImage(im, 0, 0, 8, 8, x + i * s, y + j * s, s, s);
   }
+  // 16px pictures: a vent, a crate; gas bubbles on its bog; a manhole
+  const big = { f: tex.vent, x: tex.crate, O: manholeSprite() }[p[0][0]];
+  if (big) ctx.drawImage(big, x, y, s * 2, s * 2);
+  if (p[0][0] === 'g') { ctx.fillStyle = '#88D848'; for (const [i, j] of [[0.3, 0.4], [1.1, 0.2], [0.8, 1.1], [1.4, 1.3]]) ctx.fillRect(Math.round(x + i * s), Math.round(y + j * s), Math.max(1, s >> 1), Math.max(1, s >> 1)); }
   const arrow = { '^': [0, -1], '>': [1, 0], v: [0, 1], '<': [-1, 0] }[p[0][0]];
   if (arrow) {
     ctx.fillStyle = '#383838'; ctx.fillRect(x, y, s * 2, s * 2);
@@ -16401,6 +17582,8 @@ function drawPattern(ctx, p, x, y, s, theme) {
 // side panel layout (screen coordinates)
 const ED_PANEL_X = () => FX + VIEW_W + 4;
 const ED_PAL_Y = 6, ED_PAL_STEP = 10;
+// the palette has pages of 21 tiles; the last slot of a page (bottom right) turns it
+const ED_PAGE = 21, edPage = i => Math.floor(i / ED_PAGE);
 const ED_ROWS = { rnd: 122, theme: 136, slot: 150, help: 192, go: 206 };
 
 Object.assign(Game, {
@@ -16529,8 +17712,9 @@ Object.assign(Game, {
       return;
     }
     if (drag || x < px - 2) return;
-    const i = Math.floor((y - ED_PAL_Y) / ED_PAL_STEP) * 2 + (x >= px + 12 ? 1 : 0);
-    if (y >= ED_PAL_Y && i >= 0 && i < CONSTRUCT_PATS.length) { ed.pat = i; ed.last = null; Sound.play('select'); return; }
+    const k = Math.floor((y - ED_PAL_Y) / ED_PAL_STEP) * 2 + (x >= px + 12 ? 1 : 0), i = edPage(ed.pat) * ED_PAGE + k;
+    if (y >= ED_PAL_Y && k === ED_PAGE) { ed.pat = edPage(ed.pat) ? 0 : ED_PAGE; ed.last = null; Sound.play('select'); return; }
+    if (y >= ED_PAL_Y && k >= 0 && k < ED_PAGE && i < CONSTRUCT_PATS.length) { ed.pat = i; ed.last = null; Sound.play('select'); return; }
     const near = r => Math.abs(y - (r + 3)) <= 6;
     if (near(ED_ROWS.rnd)) this.edRandom();
     else if (near(ED_ROWS.theme)) this.edTheme(1);
@@ -16555,6 +17739,7 @@ Object.assign(Game, {
     }
     st.frame = this.t;
     st.renderBelts(ctx);
+    st.renderBio(ctx);   // lava, vents, gas, bog (biomes.js)
     st.renderPads(ctx);
     ctx.drawImage(Sprites.eagle, BASE_X, BASE_Y);
     ctx.drawImage(st.forestLayer, 0, 0);
@@ -16562,11 +17747,13 @@ Object.assign(Game, {
     ctx.restore();
     // the side panel: palette, then RND, the season, the slot, help and play
     const px = ED_PANEL_X();
-    CONSTRUCT_PATS.forEach((p, i) => {
-      const x = px + (i & 1) * 12, y = ED_PAL_Y + (i >> 1) * ED_PAL_STEP;
-      drawPattern(ctx, p, x, y, 4, th);
+    const page = edPage(ed.pat);
+    for (let k = 0; k < ED_PAGE && page * ED_PAGE + k < CONSTRUCT_PATS.length; k++) {
+      const i = page * ED_PAGE + k, x = px + (k & 1) * 12, y = ED_PAL_Y + (k >> 1) * ED_PAL_STEP;
+      drawPattern(ctx, CONSTRUCT_PATS[i], x, y, 4, th);
       if (i === ed.pat) { ctx.strokeStyle = (this.t >> 3) & 1 ? COL.white : COL.gold; ctx.strokeRect(x - 0.5, y - 0.5, 9, 9); }
-    });
+    }
+    Font.draw(ctx, page ? '<' : '>', px + 12, ED_PAL_Y + (ED_PAGE >> 1) * ED_PAL_STEP, COL.gold);   // the page turner
     Font.draw(ctx, 'RND', px, ED_ROWS.rnd, COL.gold);
     const tt = THEMES[this.customTheme] || {};
     Font.draw(ctx, EDIT_THEME_TAGS[this.customTheme], px, ED_ROWS.theme, this.customTheme === 'auto' ? COL.black : tt.color || COL.white);
@@ -16741,15 +17928,12 @@ const INTRO_SCENES = {
     }
   },
 
-  // the last stand: your eagle behind steel, wave after wave closing in under a red sky
+  // the last stand: your tank alone in the middle, wave after wave closing in from every side under a red sky
   survival(c, t) {
     Pix.bands(c, 0, INTRO_H, ['#280000', '#3C0800', '#501000', '#3C0800', '#280000']);
     const r = seeded(7);
     for (let k = 0; k < 40; k++) Pix.rect(c, Math.floor(r() * INTRO_W), Math.floor(r() * INTRO_H), 2, 1, '#180000');
-    const tex = Sprites.tex;
-    Pix.tiles(c, tex.steel, 40, 12, 32, 8); Pix.tiles(c, tex.steel, 40, 44, 32, 8);
-    Pix.tiles(c, tex.steel, 40, 20, 8, 24); Pix.tiles(c, tex.steel, 64, 20, 8, 24);
-    c.drawImage(Sprites.eagle, 48, 24);
+    c.drawImage(Sprites.tank('p0', (t >> 3) & 1, [0, 1, 2, 3][(t >> 5) & 3], Config.playerPal(0)), 48, 24);
     // eight tanks close in from all sides; each wave is a little nearer before it goes up in smoke
     const cyc = t % 150, wave = 1 + Math.floor(t / 150);
     for (let k = 0; k < 8; k++) {
@@ -24708,6 +25892,517 @@ Object.assign(Game, {
     Music.want(gxaFinal(won) ? 'ending' : 'victory', Music.skillLevel(), s === 'play' && this.paused && !tuning);
   },
 });
+
+</script>
+  <script>
+'use strict';
+// =====================================================================
+//  SURVIVAL: hold out for 100 waves on one map
+//    - no eagle: you start in the middle of a map a little bigger than the screen, and the enemy comes in from
+//      every edge to hunt you down
+//    - a wave grows to 28 tanks (more with more players), then the tanks get tougher instead: more armour, more
+//      hunters, more of them on the field at once (4 rising to 8), faster spawns, the newer enemy types
+//    - every third wave has a twist (night, a swarm, an armoured column, rocket rain, a blitz ...), announced
+//      a wave ahead
+//    - between waves: 10-60% of the wrecked terrain is rebuilt and a few power-ups are dropped around the map;
+//      a perfect wave (no tank lost) pays a bonus and one more power-up; every 5 waves pick 1 of 3 perks
+//    Replaces the old survival rules in modes.js (setupSurvival / nextWave).
+// =====================================================================
+
+const SV_WAVES = 100, SV_BREAK = 300, SV_GROW = 4, SV_CAP = 28, SV_DROP_LIFE = 1800, SV_TWIST_EVERY = 3;
+
+// the twists; type: the enemy the wave is made of (every: only every n-th tank), count: wave size factor
+const SV_TWISTS = {
+  night: { name: 'NIGHT WAVE', desc: 'THEY COME IN THE DARK', from: 3, weather: 'night' },
+  swarm: { name: 'SWARM', desc: 'A HORDE OF FAST LIGHT TANKS', from: 3, type: 1, count: 1.5, light: true, maxOn: 3, spawn: 0.5 },
+  column: { name: 'ARMOURED COLUMN', desc: 'HEAVY ARMOUR ONLY', from: 6, type: 3, count: 0.6, rank: 1 },
+  sappers: { name: 'SAPPERS', desc: 'BLADES AND MINES', from: 6, type: 6, count: 0.8 },
+  blitz: { name: 'BLITZ', desc: 'DOUBLE-SPEED ENEMIES', from: 9, speed: 2 },
+  rockets: { name: 'ROCKET RAIN', desc: 'WATCH THE SKY', from: 9, type: 4, every: 3, rain: true },
+  fog: { name: 'FOG', desc: 'CAN YOU SEE THEM?', from: 12, weather: 'fog' },
+  shields: { name: 'SHIELD WALL', desc: 'HIT THEM FROM THE SIDE', from: 12, type: 5, count: 0.8 },
+  shades: { name: 'SHADOWS', desc: 'NEARLY INVISIBLE HUNTERS', from: 15, type: 7, count: 0.6 },
+  snakes: { name: 'SNAKE PIT', desc: 'THEY EAT TANKS', from: 24, type: 17, every: 5 },
+  final: { name: 'THE LAST WAVE', desc: 'EVERYTHING THEY HAVE LEFT', rank: 2, count: 1.4 },
+};
+
+// perks: one of three every 5 waves, for the whole team, for the rest of the run
+const SV_PERKS = [
+  { key: 'plate', name: 'ARMOUR PLATE', desc: 'A PLATE, REGROWN EACH WAVE', max: 3 },
+  { key: 'reload', name: 'QUICK RELOAD', desc: 'FIRE 25% FASTER', max: 2 },
+  { key: 'shells', name: 'HOT SHELLS', desc: 'SHELLS FLY 25% FASTER', max: 2 },
+  { key: 'twin', name: 'TWIN GUN', desc: 'ONE MORE SHELL IN THE AIR', max: 2 },
+  { key: 'engine', name: 'BIG ENGINE', desc: 'DRIVE 12% FASTER', max: 2 },
+  { key: 'lives', name: 'SPARE TANKS', desc: 'TWO MORE LIVES, NOW', max: 99 },
+  { key: 'scav', name: 'SCAVENGER', desc: 'ONE MORE DROP EACH WAVE', max: 3 },
+  { key: 'fuse', name: 'LONG FUSE', desc: 'POWER-UPS LAST 50% LONGER', max: 2 },
+  { key: 'star', name: 'VETERAN CREW', desc: 'RESPAWN WITH A STAR MORE', max: 3 },
+  { key: 'bounty', name: 'BOUNTY', desc: '25% MORE POINTS', max: 2 },
+  { key: 'ap', name: 'AP SHELLS', desc: 'YOUR SHELLS BREAK STEEL', max: 1 },
+  { key: 'shield', name: 'FIELD SHIELD', desc: 'LONGER SHIELD ON RESPAWN', max: 2 },
+];
+const svPerkInfo = key => SV_PERKS.find(p => p.key === key);
+
+// a new run: its map, its season (when they cycle) and the seed for its twists
+function svNewRun() {
+  const s = Config.get('seasons');
+  return { seed: 1 + rnd(1e9), map: rnd(LEVELS.length), theme: s === 'CYCLE' ? THEME_ORDER[rnd(THEME_ORDER.length)] : undefined };
+}
+// a player's perk level (survival only)
+function svPerkOf(p, key) {
+  return p && p.svPerks && typeof Game !== 'undefined' && Game.mode === 'survival' ? p.svPerks[key] || 0 : 0;
+}
+
+Object.assign(Stage.prototype, {
+  setupSurvival() {
+    const run = (typeof Game !== 'undefined' && Game.svRun) || {};
+    this.survival = true;
+    this.noBase = true;
+    this.baseAlive = false;   // no eagle, and no light where it would be on a night wave
+    this.svSeed = run.seed || 1;
+    this.svMap = run.map || 0;
+    this.svDrops = []; this.svRockets = []; this.svNotes = []; this.svLost = 0; this.svPlan = null;
+    this.svWeather0 = this.weather;
+    this.setBaseWalls(T_EMPTY);
+    // the crates, barrels, mud, belts and teleporters of a later stage
+    if (Config.on('terrainExtras')) this.addTerrainExtras(10 + this.svMap % 7);
+    // enemies come in from every edge, at entry points three tiles apart (each one cleared)
+    const pts = [], xs = [], ys = [];
+    for (let x = 0; x < FW - 16; x += 48) xs.push(x);
+    xs.push(FW - 16);
+    for (let y = 48; y < FH - 48; y += 48) ys.push(y);
+    for (const x of xs) pts.push([x, 0, 2], [x, FH - 16, 0]);
+    for (const y of ys) pts.push([0, y, 1], [FW - 16, y, 3]);
+    this.svSpawns = pts;
+    for (const [x, y] of pts) this.clearArea(x, y, 16, 16);
+    // you start in the middle
+    const cx = Math.round(FW / 16) * 8, cy = Math.round(FH / 16) * 8;
+    this.vsSpawn = [[cx - 24, cy - 16], [cx + 8, cy - 16], [cx - 24, cy + 16], [cx + 8, cy + 16]];
+    this.clearArea(cx - 32, cy - 24, 64, 64);
+    this.wave = 0;
+    this.waveBreak = 0;
+    this.total = 0;
+    this.svStartWave(1);
+  },
+
+  // ------------------------------------------------------------ waves
+  // which twist wave w has (null: none); the same for the whole run (from its seed)
+  svTwist(w) {
+    if (!this.svPlan) {
+      const r = seeded(this.svSeed * 31 + 5), used = {}, plan = [];
+      let last = null;
+      for (let v = 1; v <= SV_WAVES; v++) {
+        if (v === SV_WAVES) { plan[v] = 'final'; continue; }
+        if (v % SV_TWIST_EVERY) continue;
+        const ok = Object.keys(SV_TWISTS).filter(k => k !== 'final' && k !== last && SV_TWISTS[k].from <= v
+          && (SV_TWISTS[k].type === undefined || Config.get('e' + SV_TWISTS[k].type + 'On') !== 'OFF'));
+        if (!ok.length) continue;
+        const wt = ok.map(k => 1 / (1 + (used[k] || 0) * 2)), sum = wt.reduce((a, b) => a + b, 0);
+        let x = r() * sum, k = 0;
+        while (k < ok.length - 1 && x >= wt[k]) { x -= wt[k]; k++; }
+        plan[v] = last = ok[k];
+        used[last] = (used[last] || 0) + 1;
+      }
+      this.svPlan = plan;
+    }
+    return this.svPlan[w] || null;
+  },
+
+  // the tanks of wave w
+  svQueue(w, key) {
+    const tw = key ? SV_TWISTS[key] : null, coop = 1 + 0.35 * this.extraPlayers;
+    let count = Math.min(SV_CAP, 4 + 2 * w) * coop * (tw && tw.count || 1);
+    count = Math.max(4, Math.min(Math.round(45 * coop), Math.round(count)));
+    const q = buildQueue(Math.min(60, 1 + Math.round(w * 0.6)), count);
+    if (tw && tw.type !== undefined) q.forEach((e, i) => { if (!tw.every || i % tw.every === tw.every - 1) e.type = tw.type; });
+    else if (!tw) this.seasonEnemies(q);
+    const r = seeded(this.svSeed + w * 977), sk = Config.skill().aggr;
+    for (const e of q) {
+      if (tw && tw.light) e.rank = 0;
+      if (tw && tw.rank) e.rank = Math.max(e.rank || 0, tw.rank);
+      const vr = ENEMY_RANKS[e.rank || 0];
+      let hp = Config.enemy(e.type).hp + (vr ? vr.hp : 0);
+      // past the size cap they get more armour instead
+      if (!(tw && tw.light)) {
+        if (r() < Math.min(0.75, Math.max(0, (w - 12) * 0.009))) hp++;
+        if (r() < Math.min(0.5, Math.max(0, (w - 40) * 0.008))) hp++;
+      }
+      e.hp = hp;
+      // ... and more of them hunt you (none go for an eagle: there isn't one)
+      const wt = [Math.max(0.15, 1 - w * 0.012) / sk, 0, (1 + w * 0.025) * sk, 0.4 + w * 0.004];
+      let x = r() * (wt[0] + wt[2] + wt[3]);
+      e.ai = x < wt[0] ? AI.WANDER : x < wt[0] + wt[2] ? AI.HUNT : AI.SNIPE;
+      if (tw && tw.speed) e.extra = { speedMul: tw.speed };
+    }
+    return q;
+  },
+
+  svStartWave(w) {
+    const key = this.svTwist(w), tw = key ? SV_TWISTS[key] : null;
+    this.wave = w;
+    this.svTwistNow = key;
+    this.queue = this.svQueue(w, key);
+    this.total += this.queue.length;
+    const sk = Config.skill(), extra = this.extraPlayers;
+    this.maxEnemies = Math.max(2, Config.get('maxOnScreen') + Math.min(4, Math.floor((w - 1) / 18)) + sk.maxOn + extra + (tw && tw.maxOn || 0));
+    this.spawnInterval = Math.round(Math.max(36, 150 - (w - 1) * 1.15) * (1 - 0.08 * extra) * (tw && tw.spawn || 1) / Config.scale('spawnRate') / sk.spawn);
+    this.spawnTimer = 30;
+    this.svLost = 0;
+    this.weather = tw && tw.weather ? tw.weather : this.svWeather0;
+    this.svRainT = 150;
+    this.svNotes = [];
+    if (tw) this.svNotes.push({ text: tw.name + '!', color: COL.red, t: 0, life: 180 });
+    const next = this.svTwist(w + 1);
+    if (next) this.svNotes.push({ text: 'NEXT WAVE: ' + SV_TWISTS[next].name, color: COL.gold, t: -200, life: 180 });
+  },
+
+  // called every frame while the field is empty: the wave was beaten, the breather, then the next one
+  nextWave() {
+    if (this.svWon) { if (++this.svWinT >= 300 && !this.result) this.result = 'svwin'; return; }
+    if (this.waveBreak > 0) {
+      if (--this.waveBreak === 0) this.svStartWave(this.wave + 1);
+      return;
+    }
+    const w = this.wave, live = this.players.filter(p => !p.out);
+    this.svRockets = [];
+    this.weather = this.svWeather0;
+    for (const p of live) this.addXp(p, 10 + w * 2);
+    // a perfect wave: points and a power-up beside each of you
+    if (this.svLost === 0) {
+      const pts = 1000 + w * 100;
+      for (const p of live) this.addScore(p, pts);
+      this.svPerfect = { pts, t: 150 };
+      for (const p of live) if (p.tank) this.svDrop(p.tank);
+    } else this.svPerfect = null;
+    if (w % 10 === 0) for (const p of live) if (!Config.infiniteLives()) p.lives++;
+    Sound.play('bonus');
+    if (w >= SV_WAVES) { this.svWon = true; this.svWinT = 0; return; }
+    // the map partly rebuilt, power-ups around it, armour plates regrown
+    this.svRebuild();
+    const n = 2 + rnd(2) + this.extraPlayers + svPerkOf(this.players[0], 'scav');
+    for (let k = 0; k < n; k++) this.svDrop();
+    const plates = svPerkOf(this.players[0], 'plate');
+    for (const t of this.tanks) if (t.isPlayer && !t.ally && t.alive) t.plates = Math.max(t.plates, plates);
+    this.waveBreak = SV_BREAK;
+    if (w % 5 === 0) this.svOfferPerks();
+  },
+
+  // put back a random 10-60% of the wrecked terrain (not under a tank, a mine or a power-up)
+  svRebuild() {
+    const orig = this.svOrig;
+    if (!orig || orig.length !== this.terrain.length) return;
+    const frac = 0.1 + Math.random() * 0.5;
+    const gone = i => orig[i] !== T_EMPTY && this.terrain[i] !== orig[i] && this.terrain[i] !== T_BRIDGE;
+    const busy = (x, y) => this.tanks.some(t => t.alive && overlap(t.x - 2, t.y - 2, 20, 20, x, y, 8, 8))
+      || this.spawns.some(s => overlap(s.x, s.y, 16, 16, x, y, 8, 8))
+      || this.svDrops.some(d => overlap(d.x, d.y, 16, 16, x, y, 8, 8))
+      || this.mines.some(m => overlap(m.x - 4, m.y - 4, 8, 8, x, y, 8, 8));
+    let n = 0;
+    for (let by = 0; by < GH / 2; by++) for (let bx = 0; bx < GW / 2; bx++) {
+      const cells = [[bx * 2, by * 2], [bx * 2 + 1, by * 2], [bx * 2, by * 2 + 1], [bx * 2 + 1, by * 2 + 1]].filter(([x, y]) => gone(y * GW + x));
+      if (!cells.length || Math.random() >= frac || busy(bx * 8, by * 8)) continue;
+      for (const [x, y] of cells) this.set(x, y, orig[y * GW + x]);
+      n++;
+    }
+    if (n) {
+      Sound.play('build');
+      this.svNotes.push({ text: 'MAP REBUILT ' + Math.round(frac * 100) + '%', color: COL.lgrey, t: -60, life: 150 });
+    }
+  },
+
+  // a power-up left on the ground for 30 s: anywhere, or near a tank
+  svDrop(near) {
+    const nextKey = this.svTwist(this.wave + 1), dark = nextKey && SV_TWISTS[nextKey].weather;
+    const weights = POWERUPS.map((pu, i) => (Config.get('pu' + i) === 'OFF' || i === PU.SHOVEL || (i === PU.NIGHT && !dark) ? 0 : pu.weight));
+    const total = weights.reduce((a, b) => a + b, 0);
+    if (!total) return;
+    let r = rnd(total), type = 0;
+    while (r >= weights[type]) { r -= weights[type]; type++; }
+    const OPEN = [T_EMPTY, T_FOREST, T_ICE, T_MUD, T_BRIDGE];
+    const free = (x, y) => {
+      if (x < 0 || y < 0 || x > FW - 16 || y > FH - 16) return false;
+      for (let cy = y >> 2; cy < (y + 16) >> 2; cy++) for (let cx = x >> 2; cx < (x + 16) >> 2; cx++) if (!OPEN.includes(this.get(cx, cy))) return false;
+      return !this.tanks.some(t => t.alive && overlap(t.x, t.y, 16, 16, x, y, 16, 16)) && !this.svDrops.some(d => overlap(d.x, d.y, 16, 16, x - 8, y - 8, 32, 32));
+    };
+    let x = -1, y = -1;
+    for (let k = 0; k < 120 && x < 0; k++) {
+      const cx = near ? Math.round((near.x + rnd(81) - 40) / 8) * 8 : rnd((FW - 16) / 8 + 1) * 8;
+      const cy = near ? Math.round((near.y + rnd(81) - 40) / 8) * 8 : rnd((FH - 16) / 8 + 1) * 8;
+      if (free(cx, cy) && (near || !this.svSpawns.some(([sx, sy]) => overlap(sx - 16, sy - 16, 48, 48, cx, cy, 16, 16)))) { x = cx; y = cy; }
+    }
+    if (x < 0) return;
+    const d = { type, x, y, t: 0 };
+    if (type === PU.WEAPON) d.weapon = this.crateWeapon();
+    this.svDrops.push(d);
+    Sound.play('puAppear');
+  },
+
+  // ------------------------------------------------------------ perks
+  svOfferPerks() {
+    const have = this.players[0].svPerks || {};
+    const pool = SV_PERKS.filter(p => (have[p.key] || 0) < p.max && !(p.key === 'lives' && Config.infiniteLives()));
+    const opts = [];
+    while (opts.length < 3 && pool.length) opts.push(pool.splice(rnd(pool.length), 1)[0].key);
+    if (opts.length) this.svPick = { opts, idx: 0, t: 0 };
+  },
+
+  svPickInput() {
+    const pk = this.svPick;
+    if (++pk.t < 30) return;   // a moment before it takes your fire button, so you don't pick by accident
+    const m = Input.menu();
+    if (m.up || m.left) { pk.idx = (pk.idx + pk.opts.length - 1) % pk.opts.length; Sound.play('select'); }
+    if (m.down || m.right) { pk.idx = (pk.idx + 1) % pk.opts.length; Sound.play('select'); }
+    if (m.fire) this.svTakePerk(pk.opts[pk.idx]);
+  },
+
+  svTakePerk(key) {
+    this.svPick = null;
+    for (const p of this.players) {
+      p.svPerks = Object.assign({}, p.svPerks);
+      p.svPerks[key] = (p.svPerks[key] || 0) + 1;
+    }
+    if (key === 'lives') for (const p of this.players) { p.lives += 2; if (p.out) this.revive(p, null); }
+    for (const t of this.tanks) if (t.isPlayer && !t.ally && t.alive) {
+      if (key === 'plate') t.plates++;
+      t.applyLevel();
+    }
+    Sound.play('levelUp');
+    this.svNotes.push({ text: svPerkInfo(key).name + '!', color: COL.gold, t: 0, life: 120 });
+  },
+
+  // ------------------------------------------------------------ every frame
+  svTick() {
+    // power-ups on the ground: yours to take (the enemy leaves them alone)
+    for (const d of this.svDrops) {
+      d.t++;
+      const t = this.tanks.find(t => t.alive && t.isPlayer && !t.ally && overlap(t.x, t.y, 16, 16, d.x + 2, d.y + 2, 12, 12));
+      if (t) { d.gone = true; this.applyPowerup(t, d); }
+      else if (d.t >= SV_DROP_LIFE) d.gone = true;
+    }
+    this.svDrops = this.svDrops.filter(d => !d.gone);
+    for (const n of this.svNotes) n.t++;
+    this.svNotes = this.svNotes.filter(n => n.t < n.life);
+    if (this.svPerfect && --this.svPerfect.t <= 0) this.svPerfect = null;
+    // rocket rain: shells from the sky land near you, a shadow marks the spot first
+    const tw = this.svTwistNow && SV_TWISTS[this.svTwistNow];
+    if (tw && tw.rain && !this.waveBreak && !this.over && !this.freezeE) {
+      const ps = this.tanks.filter(t => t.alive && t.isPlayer && !t.ally);
+      if (--this.svRainT <= 0 && ps.length) {
+        this.svRainT = Math.max(50, 130 - this.wave) + rnd(40);
+        const p = ps[rnd(ps.length)];
+        this.svRockets.push({ x: Math.max(8, Math.min(FW - 8, p.x + 8 + rnd(65) - 32)), y: Math.max(8, Math.min(FH - 8, p.y + 8 + rnd(65) - 32)), t: 75 });
+      }
+    }
+    for (const k of this.svRockets) {
+      if (--k.t > 0) continue;
+      k.done = true;
+      this.blast(k.x, k.y, 16, false, null, false);
+      this.addFx(k.x, k.y, BIG_EXPLOSION(), 4);
+      Sound.play('explode');
+    }
+    this.svRockets = this.svRockets.filter(k => !k.done);
+  },
+
+  // ------------------------------------------------------------ checkpoints
+  svCheckpoint() {
+    return { seed: this.svSeed, map: this.svMap, theme: this.theme, cols: COLS, rows: ROWS, terrain: terrainCode(this.terrain) };
+  },
+  svResume(at) {
+    if (!this.svOrig) this.svOrig = this.terrain.slice();
+    const sv = at.sv;
+    if (sv && typeof sv.terrain === 'string' && sv.terrain.length === this.terrain.length) {
+      for (let i = 0; i < this.terrain.length; i++) this.terrain[i] = sv.terrain.charCodeAt(i) - 48;
+      this.dirty = true;
+      this.terrainVer = (this.terrainVer || 0) + 1;
+    }
+    this.total = 0;
+    this.svStartWave(Math.max(1, Math.min(SV_WAVES, at.wave | 0)));
+  },
+
+  // ------------------------------------------------------------ drawing
+  // in the field's coordinates: power-ups on the ground, rocket shadows and the rockets coming down
+  svRenderWorld(ctx) {
+    for (const d of this.svDrops || []) {
+      if (d.t > SV_DROP_LIFE - 180 && (d.t >> 3) & 1) continue;
+      drawPowerup(ctx, d, d.x, d.y);
+    }
+    for (const k of this.svRockets || []) {
+      const s = Math.round(4 + (75 - k.t) / 8);
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(k.x - s, k.y - s / 2, s * 2, s);
+      if (k.t < 30 && (k.t >> 2) & 1) {
+        ctx.fillStyle = '#F83800';
+        ctx.fillRect(k.x - 6, k.y, 13, 1); ctx.fillRect(k.x, k.y - 6, 1, 13);
+      }
+      // the rocket on its way down
+      const ry = k.y - k.t * 3;
+      ctx.fillStyle = '#F8F8F8'; ctx.fillRect(k.x - 1, ry - 6, 3, 6);
+      ctx.fillStyle = (k.t >> 1) & 1 ? '#F8B800' : '#F83800'; ctx.fillRect(k.x - 1, ry - 10, 3, 4);
+    }
+  },
+
+  // on the screen: the wave announcements, the perk pick, the end
+  svRenderBanner(ctx) {
+    const cx = VIEW_W / 2, cy = VIEW_H / 2;
+    this.svNotes.forEach((n, i) => { if (n.t >= 0) Font.drawCenter(ctx, n.text, cx, VIEW_H - 14 - i * 10, n.color); });   // low: the cards and season news are at the top
+    if (this.svWon) {
+      Font.drawCenter(ctx, 'ALL ' + SV_WAVES + ' WAVES HELD!', cx, cy - 12, COL.gold);
+      if ((this.frame >> 4) & 1) Font.drawCenter(ctx, 'VICTORY!', cx, cy + 4, COL.white);
+      return;
+    }
+    if (this.svPick) { this.svRenderPick(ctx); return; }
+    if (!this.waveBreak) return;
+    if (this.svPerfect) {
+      Font.drawCenter(ctx, 'PERFECT WAVE!', cx, cy - 40, COL.gold);
+      Font.drawCenter(ctx, '+' + this.svPerfect.pts + ' AND A POWER-UP', cx, cy - 30, COL.white);
+    }
+    const w = this.wave + 1, key = this.svTwist(w);
+    if ((this.waveBreak >> 4) & 1) Font.drawCenter(ctx, 'WAVE ' + w + ' OF ' + SV_WAVES, cx, cy - 4, COL.gold);
+    if (key) {
+      Font.drawCenter(ctx, SV_TWISTS[key].name, cx, cy + 10, COL.red);
+      Font.drawCenter(ctx, SV_TWISTS[key].desc, cx, cy + 20, COL.white);
+    }
+  },
+
+  svRenderPick(ctx) {
+    const pk = this.svPick, cx = VIEW_W / 2, y0 = Math.round(VIEW_H / 2 - 52), have = this.players[0].svPerks || {};
+    ctx.fillStyle = 'rgba(0,0,0,0.78)';
+    ctx.fillRect(0, y0 - 6, VIEW_W, 104);
+    Font.drawCenter(ctx, 'WAVE ' + this.wave + ' HELD: PICK A PERK', cx, y0, COL.gold);
+    pk.opts.forEach((key, i) => {
+      const pi = svPerkInfo(key), y = y0 + 20 + i * 26, on = i === pk.idx, lv = (have[key] || 0) + 1;
+      Font.drawCenter(ctx, (on ? '> ' : '') + pi.name + (lv > 1 && pi.max > 1 && pi.max < 99 ? ' ' + lv : '') + (on ? ' <' : ''), cx, y, on ? COL.gold : COL.white);
+      Font.drawCenter(ctx, pi.desc, cx, y + 10, on ? COL.white : COL.lgrey);
+    });
+  },
+
+  // online: what a guest needs to see
+  svView() {
+    return { s: this.svSeed, k: this.svPick, d: this.svDrops.map(d => [d.type, d.x, d.y, d.t, d.weapon || 0]), r: this.svRockets.map(k => [k.x, k.y, k.t]),
+      n: this.svNotes, pf: this.svPerfect || null, w: this.svWon ? 1 : 0, tn: this.svTwistNow || null };
+  },
+  applySvView(v) {
+    if (!v) return;
+    if (this.svSeed !== v.s) { this.svSeed = v.s; this.svPlan = null; }
+    this.svPick = v.k || null;
+    this.svDrops = v.d.map(a => ({ type: a[0], x: a[1], y: a[2], t: a[3], weapon: a[4] || undefined }));
+    this.svRockets = v.r.map(a => ({ x: a[0], y: a[1], t: a[2] }));
+    this.svNotes = v.n || []; this.svPerfect = v.pf; this.svWon = !!v.w; this.svTwistNow = v.tn;
+  },
+});
+
+// ------------------------------------------------------------ hooks into the stage
+(() => {
+  const P = Stage.prototype;
+  const update = P.update;
+  P.update = function () {
+    if (!this.survival || this.galaxy) return update.call(this);
+    if (!this.svOrig) this.svOrig = this.terrain.slice();   // the map as it began: what gets rebuilt
+    if (this.svPick) { this.frame++; this.svPickInput(); return; }   // everything waits for the perk
+    update.call(this);
+    this.svTick();
+  };
+
+  // enemies come in from any edge, away from you if they can
+  const spawning = P.updateSpawning;
+  P.updateSpawning = function () {
+    if (!this.survival || !this.svSpawns) return spawning.call(this);
+    if (!this.queue.length) return;
+    if (this.spawnTimer > 0) { this.spawnTimer--; return; }
+    const onField = this.tanks.filter(t => !t.isPlayer).length + this.spawns.filter(s => s.enemy).length;
+    if (onField >= this.maxEnemies) return;
+    const ps = this.tanks.filter(t => t.isPlayer && t.alive);
+    const free = this.svSpawns.filter(([x, y]) => !this.tanks.some(t => t.alive && overlap(t.x, t.y, 16, 16, x, y, 16, 16)) && !this.spawns.some(s => overlap(s.x, s.y, 16, 16, x, y, 16, 16)));
+    if (!free.length) return;
+    const far = free.filter(([x, y]) => ps.every(t => Math.hypot(t.x - x, t.y - y) >= 96));
+    const pool = far.length ? far : free, [x, y, dir] = pool[rnd(pool.length)];
+    const item = this.queue.shift();
+    item.extra = Object.assign({}, item.extra, { dir });
+    this.spawns.push({ x, y, t: SPARKLE_TIME, enemy: item });
+    if (item.bonus) this.powerup = null;
+    this.spawnTimer = this.spawnInterval;
+  };
+
+  // a perfect wave is one where nobody loses a tank
+  const hitPlayer = P.hitPlayer;
+  P.hitPlayer = function (t, by) {
+    const was = t.alive;
+    hitPlayer.call(this, t, by);
+    if (this.survival && was && !t.alive && t.isPlayer && !t.ally) this.svLost = (this.svLost || 0) + 1;
+  };
+
+  // perks: LONG FUSE stretches timed power-ups, BOUNTY the points
+  const applyPowerup = P.applyPowerup;
+  P.applyPowerup = function (t, pu) {
+    applyPowerup.call(this, t, pu);
+    const f = this.survival && t.isPlayer ? svPerkOf(t.player, 'fuse') : 0;
+    if (!f) return;
+    const k = TIMED_BOOSTS[pu.type];
+    if (k && t.boost[k]) t.boost[k] = Math.round(t.boost[k] * (1 + 0.5 * f));
+    if (pu.type === PU.HELMET) t.shield = Math.round(t.shield * (1 + 0.5 * f));
+  };
+  const addScore = P.addScore;
+  P.addScore = function (p, n) {
+    const b = this.survival ? svPerkOf(p, 'bounty') : 0;
+    return addScore.call(this, p, b ? Math.round(n * (1 + 0.25 * b)) : n);
+  };
+
+  const banner = P.renderModeBanner;
+  P.renderModeBanner = function (ctx) {
+    if (this.survival && this.svNotes) { this.svRenderBanner(ctx); return; }
+    banner.call(this, ctx);
+  };
+  const world = P.renderBigMap;
+  P.renderBigMap = function (ctx) {
+    world.call(this, ctx);
+    if (this.survival) this.svRenderWorld(ctx);
+  };
+
+  // the perks on a player's tank
+  const applyLevel = Tank.prototype.applyLevel;
+  Tank.prototype.applyLevel = function () {
+    const p = this.player, star = svPerkOf(p, 'star');
+    if (star && p.level < Math.min(3, star)) p.level = Math.min(3, star);
+    applyLevel.call(this);
+    if (!p || !p.svPerks || Game.mode !== 'survival') return;
+    this.speed *= Math.pow(1.12, svPerkOf(p, 'engine'));
+    this.bulletSpeed *= Math.pow(1.25, svPerkOf(p, 'shells'));
+    this.reload = Math.max(4, Math.round(this.reload * Math.pow(0.75, svPerkOf(p, 'reload'))));
+    this.maxBullets += svPerkOf(p, 'twin');
+    if (svPerkOf(p, 'ap')) this.power = true;
+    if (!this.svInit) {   // a fresh tank: its plates and its spawn shield
+      this.svInit = true;
+      this.plates = Math.max(this.plates, svPerkOf(p, 'plate'));
+      this.shield = Math.round(this.shield * (1 + svPerkOf(p, 'shield')));
+    }
+  };
+
+  // ------------------------------------------------------------ the game around it
+  const ckAt = Game.ckAt;
+  Game.ckAt = function (st) {
+    if (st.survival && st.svSpawns) return { wave: st.wave, sv: st.svCheckpoint() };
+    return ckAt.call(this, st);
+  };
+  const ckApply = Game.ckApply;
+  Game.ckApply = function (at) {
+    const st = this.stage;
+    if (st && st.survival && st.svSpawns && at && (at.wave > 1 || at.sv)) { st.svResume(at); return; }
+    return ckApply.call(this, at);
+  };
+
+  // online: drops, rockets, notes and the perk pick go to the guests
+  const stageView = Net.stageView;
+  Net.stageView = function (st, full) {
+    const v = stageView.call(this, st, full);
+    if (st.survival && st.svSpawns) v.svx = st.svView();
+    return v;
+  };
+  const applyStage = Net.applyStage;
+  Net.applyStage = function (sv) {
+    applyStage.call(this, sv);
+    if (sv.svx && Game.stage) Game.stage.applySvView(sv.svx);
+  };
+})();
 
 </script>
 </body>
