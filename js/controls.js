@@ -11,12 +11,15 @@ const CTL_DIRS = [['ARROWS', ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
 const CTL_W = 22;   // characters a value may take
 
 // what B does in each mode (the stage's own B otherwise: mines and turrets when you have them, else a shot)
-const CTL_ALT = { cs: 'GRENADE/MINE', galaxy: 'SWAP / FOCUS', fortress: 'BUILD MENU', rally: 'DROP: MINE/OIL/SMOKE' };
+const CTL_ALT = { cs: 'GRENADE/MINE', galaxy: 'SWAP / FOCUS', fortress: 'BUILD MENU', rally: 'DROP: MINE/OIL/SMOKE', rts: 'CANCEL / DESELECT' };
 // what a mode adds to the keys
 const CTL_EXTRA = {
   cs: n => [['B STILL', 'PLANT/DEFUSE'], [n > 1 ? '123 / 890' : '1 2 3', 'BOT ORDERS'], ['Q', 'NEXT ORDER'], [n > 2 ? 'EMPTY' : n > 1 ? 'R / 7' : 'R', 'RELOAD'], ['TAB', 'SCOREBOARD']],
   galaxy: () => [['B TWICE', 'BOMB']],
   rally: () => [['FIRE', 'FORWARD WEAPON'], ['FIRE + B', 'BOOST']],
+  rts: () => [['MOUSE', 'CLICK SELECT, ORDER'], ['DRAG', 'SELECT A GROUP'], ['RIGHT CLICK', 'DESELECT / CANCEL'], ['ARROWS EDGE', 'SCROLL THE MAP'],
+    ['FIRE', 'CLICK AT THE CURSOR'], ['B + MOVE', 'PAN'], ['TAB / PAD X', 'CURSOR TO SIDEBAR'], ['H', 'HOME'], ['G S A', 'GUARD STOP ATT-MOVE'],
+    ['CTRL+1-9', 'MAKE GROUP, 1-9 PICK'], ['DEL / R', 'SELL / REPAIR']],
 };
 
 // the keys a player uses with n players at the keyboard (as Input.player reads them)
