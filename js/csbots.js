@@ -202,14 +202,16 @@ Object.assign(Stage.prototype, {
       return out;
     }
     // down the field; a tank in the way: round it, by the free way that loses least, for a moment
-    if (ai.sideT > 0) { ai.sideT--; out.dir = ai.side; ai.want = true; return out; }
+    if (ai.sideT > 0) { ai.sideT--; out.dir = ai.side; ai.want = true; if (!ai.sideT) ai.pastT = 40; return out; }
+    // then on past it the way it was going (straight back to the field would only lead into the tank again)
+    if (ai.pastT > 0) { ai.pastT--; if (this.canStep(t, ai.past)) { out.dir = ai.past; ai.want = true; return out; } ai.pastT = 0; }
     let k = (t.x & 7) === 0 && (t.y & 7) === 0 ? this.csStep(t, d) : t.dir;
     const blocker = k >= 0 && !this.canStep(t, k) ? this.tankAhead(Object.assign({}, t, { dir: k, alive: true })) : null;
     if (blocker) {
       // sideways, away from the middle of the tank in the way (the other side if that's shut)
       const off = k & 1 ? blocker.y - t.y : blocker.x - t.x, away = k & 1 ? (off > 0 ? 0 : 2) : (off > 0 ? 3 : 1);
       const alt = [away, (away + 2) % 4].find(j => this.canStep(t, j));
-      if (alt !== undefined) { k = alt; ai.side = alt; ai.sideT = 12 + rnd(12); }
+      if (alt !== undefined) { ai.past = k; k = alt; ai.side = alt; ai.sideT = 22 + rnd(8); }
     }
     if (k >= 0) { out.dir = k; ai.want = true; }
     return out;
