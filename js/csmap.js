@@ -39,6 +39,8 @@ const CS_TILE_ART = {};
 const CS_THUMB_COL = {};
 // floor kinds past sand, stone and tunnel: fn(g, x, y, tx, ty, P, r) draws one tile of it (P its palette, r seeded)
 const CS_FLOOR_ART = {};
+// each map's walls as a round starts, drawn once (csBuildLayers)
+const CS_LAYER_CACHE = {}, CS_GROUND_CACHE = {};
 
 csAddMap('dust2', {
   name: 'DUST 2', label: 'DE_DUST2',
@@ -180,6 +182,8 @@ Object.assign(Stage.prototype, {
   // the ground, drawn once: sand, stone and boards, the shadows the walls throw, the painted bombsite letters
   csGround() {
     if (this.ground && this.groundFor === 'cs:' + CS_MAPKEY && this.ground.width === FW) return this.ground;
+    const was = CS_GROUND_CACHE[CS_MAPKEY];
+    if (was && was.width === FW && was.height === FH) { this.ground = was; this.groundFor = 'cs:' + CS_MAPKEY; return was; }
     const c = makeCanvas(FW, FH), g = c.getContext('2d'), r = seeded(2002);
     for (let ty = 0; ty < CS_H; ty++) for (let tx = 0; tx < CS_W; tx++) {
       const k = csFloorOf(tx, ty), P = CS_PAL[k], x = tx * 16, y = ty * 16;
@@ -222,7 +226,7 @@ Object.assign(Stage.prototype, {
       Font.big(g, s, Math.round(x + w / 2 - (s.length * 8 - 2)), Math.round(y + h / 2 - 7), 2, s === 'T' ? '#7C3810' : '#1C3C7C');
       g.globalAlpha = 1;
     }
-    this.ground = c; this.groundFor = 'cs:' + CS_MAPKEY;
+    this.ground = c; this.groundFor = 'cs:' + CS_MAPKEY; CS_GROUND_CACHE[CS_MAPKEY] = c;
     return c;
   },
 
@@ -286,6 +290,14 @@ Object.assign(Stage.prototype, {
     bg.clearRect(0, 0, FW, FH); this.forestLayer.getContext('2d').clearRect(0, 0, FW, FH);
     this.waterCells = []; this.beltCells = [];
     this.bioL = { lava: [], vent: [], gas: [], lamp: [], bog: [] };
+    // the map as it starts every round is drawn once and kept (a tile picture each made a round start stall)
+    const fresh = this.origTerrain && this.terrain.length === this.origTerrain.length && this.terrain.every((v, i) => v === this.origTerrain[i]);
+    const kept = CS_LAYER_CACHE[CS_MAPKEY];
+    if (fresh && kept && kept.width === FW && kept.height === FH) {
+      bg.drawImage(kept, 0, 0);
+      this.dirty = false; this.dirtyCells = []; this.layerOf = this.terrain.slice();
+      return;
+    }
     const art = new Map();
     for (let cy = 0; cy < GH; cy++) for (let cx = 0; cx < GW; cx++) {
       const t = this.terrain[cy * GW + cx];
@@ -294,6 +306,7 @@ Object.assign(Stage.prototype, {
       if (!art.has(k)) art.set(k, this.csTileArt(tx, ty));
       bg.drawImage(art.get(k), (cx & 3) * 4, (cy & 3) * 4, 4, 4, cx * 4, cy * 4, 4, 4);
     }
+    if (fresh) { const c = makeCanvas(FW, FH); c.getContext('2d').drawImage(this.bgLayer, 0, 0); CS_LAYER_CACHE[CS_MAPKEY] = c; }
     this.dirty = false;
     this.dirtyCells = [];
     this.layerOf = this.terrain.slice();
