@@ -66,9 +66,15 @@ const ENEMY = [
   { name: 'MAGMA', kind: 'magma', speed: 0.6, bullet: 2.5, hp: 3, pts: 500, xp: 30, ai: [2, 4, 3, 1], pal: 'magma', season: 'volcanic', desc: 'CROSSES LAVA, LEAVES FIRE' },
   { name: 'GATOR', kind: 'gator', speed: 0.9, bullet: 2.5, hp: 2, pts: 400, xp: 25, ai: [1, 1, 7, 1], pal: 'gator', season: 'swamp', desc: 'SWIMS UNDER, LUNGES AND BITES' },
   { name: 'ROCKET TRUCK', kind: 'truck', speed: 0.9, bullet: 2.5, hp: 2, pts: 500, xp: 30, ai: [1, 0, 2, 7], pal: 'truck', season: 'city', desc: 'SHELLS WHERE IT LAST SAW YOU' },
+  // the maze's own, found only there (mazefoes.js)
+  { name: 'MINOTAUR', kind: 'minotaur', speed: 0.42, bullet: 3, hp: 12, pts: 5000, xp: 150, ai: [0, 0, 1, 0], pal: 'minotaur', maze: true, desc: 'HUNTS YOU THROUGH THE MAZE' },
+  { name: 'CRAWLER', kind: 'crawler', speed: 1, bullet: 3, hp: 2, pts: 500, xp: 30, ai: [0, 0, 1, 0], pal: 'crawler', maze: true, desc: 'HIDES IN BRICK WALLS' },
+  { name: 'SENTRY', kind: 'sentry', speed: 0, bullet: 3, hp: 4, pts: 600, xp: 35, ai: [1, 0, 0, 0], pal: 'sentry', maze: true, desc: 'TURNS AND FIRES ON A BEAT' },
+  { name: 'LOCKSMITH', kind: 'locksmith', speed: 1.35, bullet: 2.5, hp: 2, pts: 700, xp: 40, ai: [0, 0, 1, 0], pal: 'locksmith', maze: true, desc: 'STEALS A KEY AND RUNS' },
+  { name: 'MIRROR', kind: 'mirror', speed: 1, bullet: 2.5, hp: 2, pts: 800, xp: 45, ai: [0, 0, 0, 0], pal: 'mirror', maze: true, desc: 'COPIES YOUR MOVES MIRRORED' },
 ];
 // types that can join a line-up, and every non-classic type (the tally's NEW row)
-const NEW_TYPES = ENEMY.map((e, i) => i).filter(i => i >= 4 && !ENEMY[i].mini && !ENEMY[i].season);   // the seasons' own come their own way
+const NEW_TYPES = ENEMY.map((e, i) => i).filter(i => i >= 4 && !ENEMY[i].mini && !ENEMY[i].season && !ENEMY[i].maze);   // the seasons' and the maze's own come their own way
 const ALL_NEW = ENEMY.map((e, i) => i).filter(i => i >= 4);
 const kindOf = t => ENEMY[t.type].kind;
 // Veteran and elite enemies (later stages): extra hits, faster shells and engine, more XP; they wear rank stripes

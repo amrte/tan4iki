@@ -277,6 +277,21 @@ NEW ENEMY TYPES: OFF / FEW / NORMAL / MANY. The score tally adds a NEW row for t
 a bit faster, fire more, 1.5× XP), and from stage 20 some are elites (gold stripes and a turret star: +2 hits,
 shells 50% faster, 20% faster, fire more, 2× XP). Both grow more common in later stages. VETERANS + ELITES: on / off.
 
+### Maze enemies
+
+MAZE mode has five enemies of its own, found nowhere else (each has a page under ENEMY TYPES; NEW ENEMY TYPES
+FEW / MANY / OFF and the skill change how many there are, and so does the number of players). None of them is ever
+right by the start.
+
+| Enemy | From | Look | What it does | Hits / Points |
+|---|---|---|---|---|
+| **Minotaur** | maze 3, in some mazes (more often in the dungeon) | a huge horned war machine, twice a tank's size | slow, but it never stops hunting the nearest of you, along the passages and straight through brick walls; its bulk crushes any tank it touches and it fires heavy shells down the corridor; it comes faster when it sees you. You hear it before you see it: footfalls, louder as it nears, a snort, a roar; while it's close but out of sight the edge of the screen it's behind glows red: *IT'S COMING...* A grenade or Claude only wounds it. Destroyed, it opens the maze's vault. A destroyed tank never comes back right under its nose | 12 (+3 a player; fewer on easier skills, more on harder) / 5000 |
+| **Minotaur, the lair's boss** | every 5th maze | crimson and gold, a bar of its own at the bottom of the screen | asleep in its arena until you come in; tougher; straight down a clear line it paws the ground (a *!*) and charges, flattening bricks and anything in the way (its own side too); into a wall and it reels, *DAZED!*, taking double damage. Get close and it rears up (a ring shows how far) and stomps: everyone in the ring is hit and the screen shakes. Beat it and everyone gets 3000 | 24 (+6 a player) / 5000 |
+| **Crawler** | maze 2 (most in the dungeon) | a red beetle with mandibles | hides inside brick walls: a glint now and then, red eyes when you're near. Pass close and the bricks shiver, then it bursts out and fights; after a while (or once hurt) it slips back into another wall. Shells hit the brick, not it: shoot its wall away and out it comes. No arrow or minimap dot while it hides | 2 / 500 |
+| **Sentry** | maze 2 (most in the machine works) | a twin-barrelled turret on a hazard-striped plate | stands in a corner of a junction and swings to each open way in turn, takes aim (a dotted line down the corridor, its muzzles blinking faster) and fires twice down both lanes, then rests: time your dash. It only wakes when someone is near | 4 / 600 |
+| **Locksmith** | maze 3 | a slim fast tank with a big key for a gun and a swag bag | patrols, then hunts you; touching you it steals one of the team's keys (*KEY STOLEN!*) and runs, always away from you (a key in its colour at the edge of the screen shows where it went); destroy it and the key drops. With no key to take it's a fast hunter | 2 / 700 |
+| **Mirror** | maze 2, in open rooms | your own tank in glass | copies the nearest of you in its room, left for right, a moment late; fires when you fire, so its shells meet yours head on. Catch it out of step, or meet it in the middle and fire first: a hit makes it reel | 2 / 800 |
+
 ## Online play
 
 Play with friends over the internet, peer-to-peer: the game data goes directly between your computers, with no
@@ -966,6 +981,7 @@ the browser, and **RESET TO DEFAULTS** (top level) restores the classic game.
 | Enemies | tanks per stage (20, from 1 to 99), max on screen (4, up to 20, +2 in 2P), spawn rate, fire rate, base hunting (all 100%), flashing bonus tanks (on), AI personalities (mixed), show AI type (off), new enemy types (normal), veterans + elites (on) |
 | Rocket / shield / sapper / shade tank | speed (100%), shell speed (100%), hits to destroy (1 / 2 / 1 / 1), appears (on) |
 | Mason, mortar, skimmer, flamer, splitter, medic, jammer, spotter, snake | speed (100%), hits to destroy, appears (on) |
+| Minotaur, crawler, sentry, locksmith, mirror (the maze's own) | speed (100%; not the sentry or mirror), hits to destroy (12 / 2 / 4 / 2 / 2), appears (on) |
 | Basic / fast / power / armor tank | speed (100%), shell speed (100%), hits to destroy (1 / 1 / 1 / 4) |
 | Power-ups | helmet time (10 s), clock time (10 s), shovel time (20 s), new power-up time (15 s), mines per pickup (3) |
 | Who can collect | for each of the 16 power-ups: **ANYONE** (you and enemies, default), **PLAYER** (only you) or **OFF** (never appears). Presets: *classic power-ups only* and *all power-ups on*. The selected power-up's icon and effect are shown at the bottom of the screen. |
@@ -1011,6 +1027,7 @@ js/reach.js       no dead ends: a way opened from every walled-in entry point; s
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go
 js/maze.js        maze mode: the maze generator, patrols, reinforcements, the exit
+js/mazefoes.js    maze mode's own enemies: the minotaur (and the lair's boss), crawlers, sentries, locksmiths, mirrors
 js/fortress.js    fortress mode (tower defense): towers, upgrades and specialisations, waves, gold, the build menu, maps
 js/galaxy.js      galaxy mode (a shoot-'em-up): sectors, waves, weapons, pickups, the hangar, its bosses
 js/galaxy2.js     galaxy sectors 7-11 and 14: their bosses, the newer enemies and waves, skies and music
