@@ -672,8 +672,25 @@ for 1-3 stars (by the eagle's HP left); the best per map is kept, and the title 
 ## Mode title screens and music
 
 Starting a game shows its mode's own pixel-art title screen before the first stage (Enter to go on, Esc back to the
-title; Settings → GAME → MODE TITLE SCREENS). Every mode has its own chiptune too, played on an NES-style band of two
-pulse leads, a triangle bass and noise drums, and every skill plays it differently:
+title; Settings → GAME → MODE TITLE SCREENS).
+
+**The soundtrack** comes in two styles (Settings → MUSIC STYLE):
+
+- **ROCK** (the default): hard rock and heavy metal in the manner of the 80s and 90s, every tune written for this
+  game — galloping riffs, palm-muted chugs, power chords, twin-guitar harmony leads, double-kick drums and shred
+  solos, arranged in intros, verses, choruses, solos and breakdowns. Two distorted rhythm guitars left and right, a
+  lead guitar with bends, vibrato and an echo, a bass and a full kit (crashes, rides, tom fills), all synthesised
+  live. Where it fits the lead plays the chiptune's theme (re-arranged), and the folk tunes Korobeiniki and Shchedryk
+  get metal versions. Classic: STEEL EAGLE (a galloping anthem); Survival: LAST MAN STANDING (thrash); Time Attack:
+  RED LINE (speed metal); Big Maps: WIDE FRONT (a hard rock shuffle); Any Side: TURNED AROUND (prog metal in 7/8);
+  Corridor: THE CLIMB (power metal); Maze: LABYRINTH OF STEEL (doom); Fortress: HOLD THE WALLS; Kill Race: NITRO
+  (boogie); VS CPU and Co-op: MACHINE WAR (industrial); Eagles: EAGLE DUEL; Deathmatch: NO MERCY; Flags: BRING IT
+  HOME; Custom levels: BRICK BY BRICK; the tank bosses: IRON FIST, DEEP WATERS, WAR MACHINE, CLOSE ENCOUNTER; Baba
+  Galya: SHCHEDRYK (METAL); Galaxy: STARFIGHTER, ALIEN OVERLORD, HYPERSPACE, ALL YOUR BASE, KOROBEINIKI, LEVEL 9,
+  UPBEAT CORPORATE ROCK 4 and STOCK MUSIC.EXE in metal; plus WARNING!, VICTORY! and THE EARTH IS SAVED. A boss's
+  last phase plays faster; the easier skills play lighter drums and a touch slower.
+- **CHIPTUNE**: every mode's own chiptune, played on an NES-style band of two pulse leads, a triangle bass and noise
+  drums, and every skill plays it differently:
 
 | Mode | Tune | Feel |
 |---|---|---|
@@ -834,6 +851,7 @@ js/gfx.js         palettes, font, sprite rendering and caching
 js/config.js      settings: definitions, defaults, saving, tank color presets
 js/audio.js       NES-style Web Audio synth (SFX, jingles, engine)
 js/music.js       the soundtrack: a song per mode, a version per skill, and the sequencer that plays it
+js/rock.js        the ROCK soundtrack: hard rock and metal versions of every tune, and the guitars, bass and drums that play them
 js/input.js       keyboard / gamepad / touch
 js/stage.js       gameplay: terrain, movement, enemy types, bullets, power-ups, XP, rendering
 js/ai.js          enemy personalities (wander / rush / hunt / snipe) and path finding

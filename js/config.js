@@ -356,6 +356,8 @@ const SETTINGS_DEF = [
   { key: 'engineSound', label: 'ENGINE SOUND', values: ONOFF, def: 'ON' },
   // music.js: a chiptune for every mode, in a version for every skill; intro.js: the mode's title picture
   { key: 'music', label: 'MUSIC', values: ONOFF, def: 'ON' },
+  // rock.js: hard rock and heavy metal versions of every tune, or the chiptunes
+  { key: 'musicStyle', label: 'MUSIC STYLE', values: ['ROCK', 'CHIPTUNE'], def: 'ROCK' },
   { key: 'musicVol', label: 'MUSIC VOLUME', values: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 50, fmt: fmtPct },
   { key: 'modeIntro', label: 'MODE TITLE SCREENS', values: ONOFF, def: 'ON' },
   { key: 'bossScreens', label: 'BOSS SCREENS', values: ONOFF, def: 'ON' },

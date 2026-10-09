@@ -511,8 +511,8 @@ Object.assign(Game, {
     if (t < 16) { ctx.fillStyle = 'rgba(0,0,0,' + [0.75, 0.5, 0.25, 0][t >> 2] + ')'; ctx.fillRect(INTRO_X, INTRO_Y, INTRO_W * 2, INTRO_H * 2); }
     const y = INTRO_Y + INTRO_H * 2 + 8;
     Font.drawCenter(ctx, info.desc, SW / 2, y, '#F8F8F8');
-    const lv = Music.skillLevel(), song = SONGS[mode] || SONGS.classic;
-    Font.drawCenter(ctx, 'MUSIC: ' + song.name, SW / 2, y + 11, SKILL_TAGS[lv][1]);
+    const lv = Music.skillLevel();
+    Font.drawCenter(ctx, 'MUSIC: ' + musicName(mode), SW / 2, y + 11, SKILL_TAGS[lv][1]);
     if ((t >> 4) & 1 || t < 20) Font.drawCenter(ctx, 'PRESS ENTER', SW / 2, y + 23, COL.red);
   },
 

@@ -3,6 +3,15 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.49
+
+- **A hard rock and heavy metal soundtrack** (Settings → MUSIC STYLE: ROCK, the default, or CHIPTUNE): 30 tunes in
+  the manner of 80s and 90s rock and metal, all written for this game — galloping riffs, palm-muted chugs, power
+  chords, twin-guitar harmony leads, double kick, shred solos — for every mode, every boss, every galaxy sector and
+  the warning, victory and ending themes. Two distorted rhythm guitars, a lead guitar with bends, vibrato and echo, a
+  bass and a full drum kit, synthesised live. Thrash for Survival, speed metal for Time Attack, doom for the Maze,
+  prog in 7/8 for Any Side, boogie for Kill Race, metal versions of the galaxy themes, Korobeiniki and Shchedryk.
+
 ## 0.48
 
 - **Galaxy: two new sectors before the last one** (14 sectors now; CATS is still the final boss):

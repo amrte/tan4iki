@@ -251,7 +251,7 @@ Object.assign(Game, {
     const y = INTRO_Y + INTRO_H * 2 + 8, t = this.t, run = this.gxRun || gxdRun(), best = gxdBest(run);
     ctx.fillStyle = COL.black; ctx.fillRect(0, y - 2, SW, SH - y + 2);
     Font.drawCenter(ctx, modeInfo('galaxy').desc, SW / 2, y, '#F8F8F8');
-    Font.drawCenter(ctx, 'MUSIC: ' + (SONGS.galaxy || SONGS.classic).name, SW / 2, y + 10, SKILL_TAGS[Music.skillLevel()][1]);
+    Font.drawCenter(ctx, 'MUSIC: ' + musicName('galaxy'), SW / 2, y + 10, SKILL_TAGS[Music.skillLevel()][1]);
     Font.drawCenter(ctx, '< ' + GXD_NAMES[run] + ' >', SW / 2, y + 21, COL.gold);
     Font.drawCenter(ctx, best && (t >> 7) & 1 ? 'BEST ' + best : GXD_BLURB[run], SW / 2, y + 31, COL.lgrey);
     if ((t >> 4) & 1 || t < 20) Font.drawCenter(ctx, 'PRESS ENTER', SW / 2, y + 41, COL.red);
