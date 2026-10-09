@@ -3,6 +3,20 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.57
+
+- **Counter-Strike: orders to the bots** (csorders.js): **1 FOLLOW ME**, **2 HOLD HERE** (stay round where you are
+  and defend it), **3 GO ON** (their own plan again). Q, a stick click on a gamepad or the ORDER button on a touch
+  screen goes round them; player II has 8 9 0; online friends order their own team. Shown at the bottom of the field.
+- **You start with the bomb** when you play a terrorist (a bot only has it when no player is on that side), and the
+  terrorist bots go where you go: the site you head for, in once you're close to it.
+- **Smarter bots.** The terrorists no longer sit at their gathering points for most of a minute (the "everyone's
+  there" check never came true, so they only went in on a late timer): they go in after 6-18 seconds. The
+  counter-terrorists no longer just stand on their posts: the two nearest go after a terrorist seen or heard near
+  them, and in quiet spells each takes a turn looking out further up its way in. Bots make way for a player pushing
+  past them. Bots against bots, the sides now win about as often as each other (was 2 to 1 for the terrorists), with
+  twice the fighting before the bomb is down.
+
 ## 0.56.2
 
 - **Fixed: Counter-Strike lagging badly and going black.** The map's picture was being redrawn from scratch on every

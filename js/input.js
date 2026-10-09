@@ -65,7 +65,7 @@ const HELP = {
 const ACTIONS = ['up', 'down', 'left', 'right', 'fire', 'alt'];
 const PAD_ACTIONS = ['fire', 'alt', 'start', 'back'];
 const PAD_DEFAULT = { fire: [0, 2, 5, 7], alt: [1, 3, 4, 6], start: [9], back: [8] };
-const TOUCH_CODES = new Set(['TUp', 'TRight', 'TDown', 'TLeft', 'TFire', 'TFire2', 'TStart']);
+const TOUCH_CODES = new Set(['TUp', 'TRight', 'TDown', 'TLeft', 'TFire', 'TFire2', 'TStart', 'TRadio']);
 
 const Keymap = {
   players: [null, null, null, null],

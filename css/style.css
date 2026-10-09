@@ -118,6 +118,9 @@ body.touch #touch {
 }
 
 .btns button.on { filter: brightness(1.6); }
+/* COUNTER-STRIKE's orders to the bots: only in a match */
+.btns button.radio { display: none; }
+body.csmode .btns button.radio { display: inline-block; }
 
 @media (orientation: landscape) and (max-height: 500px) {
   body.touch { flex-direction: row; }

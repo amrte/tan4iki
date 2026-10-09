@@ -197,9 +197,9 @@ Object.assign(Stage.prototype, {
       this.vsSpawn[p.i] = [t.x, t.y];
       this.tanks.push(t);
     }
-    // the bomb goes to one of the terrorists
-    const ts = players.filter(p => p.csTeam === 'T');
-    const carrier = ts.length ? ts[rnd(ts.length)] : null;
+    // the bomb goes to one of the terrorists: a player's if there's one on the side (the bots go where it goes)
+    const ts = players.filter(p => p.csTeam === 'T'), hs = ts.filter(p => !p.bot), from = hs.length ? hs : ts;
+    const carrier = from.length ? from[rnd(from.length)] : null;
     this.cs.bomb = { state: carrier ? 'carried' : 'none', carrier: carrier ? carrier.i : -1, x: 0, y: 0, site: '', timer: 0, plant: 0, planter: -1, defuse: 0, defuser: -1, beep: 0 };
     for (const p of players) if (p.bot) this.csBotBuy(p);   // csbots.js
     // the half's last round, match point, half time

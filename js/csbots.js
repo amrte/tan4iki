@@ -5,10 +5,12 @@
 //      for the terrorists; they save up on a poor round
 //    - terrorists pick a site each round and a way in for each of them (A by long or by the catwalk, B through the
 //      tunnels, or a lurker through mid and the lower tunnels), gather short of the site, go in together, plant,
-//      then hold round the bomb; one of them fetches a dropped bomb; with little time left they all rush
+//      then hold round the bomb; one of them fetches a dropped bomb; with little time left they all rush. When a
+//      player carries the bomb the bots go where the player goes: the site they're heading for, in once they're near
 //    - counter-terrorists spread over the map (the car at A, A site, CT mid, B site, the B window), hold their
 //      spot facing the way in, and rotate to a site when the enemy is seen or heard there or the bomb is down;
-//      then the nearest goes for the bomb and defuses while the rest cover him
+//      then the nearest goes for the bomb and defuses while the rest cover him. The two nearest go after an enemy
+//      seen or heard near them, and in a quiet spell each takes a turn looking out further up its way in
 //    - in a fight: the nearest enemy the team can see; line up with it (tanks fire only straight), take a moment to
 //      aim (quicker on harder skills) and fire, never through a teammate
 //    - routes: distance fields on the 8 px grid (crates, doors and windows are walls to them), worked out once a
@@ -28,6 +30,11 @@ const CSB_POST = { A: ['goose', 'aCar', 'aPlat', 'aRamp'], B: ['backPlat', 'bCar
 // where the CTs go when the terrorists show up at a site: the ways in from their side, and the site
 const CSB_ROT = { A: ['ctRamp', 'goose', 'aSite'], B: ['bDoors', 'bWindow', 'backPlat'] };
 const CSB_CT = [['aCar', 2], ['bSite', 2], ['ctMid', 2], ['aSite', 3], ['bWindow', 3]];
+// where a CT on a post looks out from now and then (further up the way in), and for how long out of how long
+const CSB_PEEK = { aCar: 'longA', bSite: 'bTunnels', ctMid: 'xbox', aSite: 'catwalk', bWindow: 'lowerTunnels' };
+const CSB_PEEK_ON = 7, CSB_PEEK_EVERY = 26;
+// how far (px) the CTs go after an enemy seen or heard, and how long they keep at it once it's gone
+const CSB_HUNT_R = 400, CSB_HUNT_KEEP = 300;
 // the buy: guns from the dearest a bot would go for down
 const CSB_GUNS = ['missile', 'tesla', 'mortar', 'mg', 'flame'];
 // where the terrorists guard a planted bomb from (tiles off it: in line with it, so a defuser is in line with them)
@@ -84,6 +91,8 @@ Object.assign(Stage.prototype, {
       if (v + N.NX < n && d[v + N.NX] < 0 && N.pass[v + N.NX]) { d[v + N.NX] = nd; q[tl++] = v + N.NX; }
     }
     cache.set(goal, { d, at: this.frame, fixed: !urgent });
+    // chases leave a trail of goals behind them: the old ones go
+    if (cache.size > 48) for (const [k, e] of cache) if (!e.fixed && (this.frame - e.at > 120 || this.frame < e.at)) cache.delete(k);
     return d;
   },
   // the way to go down a field from where the tank is (-1: there already, or no way)
@@ -131,11 +140,30 @@ Object.assign(Stage.prototype, {
     const site = Math.random() < 0.5 ? 'A' : 'B';
     const rush = Math.random() < 0.2;
     // a rush goes straight in; otherwise they take their time at the gathering points, as a team would
-    C.plan = { site, exec: false, rush, execAt: rush ? 0 : (15 + rnd(30)) * 60, rotate: null };
-    const ways = site === 'A' ? ['long', 'short', 'long', 'long', 'short'] : ['tunnels', 'tunnels', 'lurk', 'tunnels', 'tunnels'];
-    T.forEach((p, k) => { p.csAiPlan = { role: ways[k % ways.length], k: 0 }; });
+    C.plan = { site, exec: false, rush, execAt: rush ? 0 : (6 + rnd(12)) * 60, rotate: null };
+    this.csBotWays(site);
     const posts = CSB_CT.slice(0, Math.max(3, CT.length));
     CT.forEach((p, k) => { const [spot, dir] = posts[k % posts.length]; p.csAiPlan = { role: 'hold', spot, dir }; });
+  },
+
+  // the terrorist bots' ways in to a site
+  csBotWays(site) {
+    const ways = site === 'A' ? ['long', 'short', 'long', 'long', 'short'] : ['tunnels', 'tunnels', 'lurk', 'tunnels', 'tunnels'];
+    this.players.filter(p => p.bot && p.csTeam === 'T').forEach((p, k) => { p.csAiPlan = { role: ways[k % ways.length], k: 0 }; });
+  },
+
+  // a player carrying the bomb leads: the site they're heading for (the nearer by the road, once it's clearly
+  // nearer) is the bots' site; returns the player's tank (null: a bot has it, or nobody)
+  csBotLead() {
+    const C = this.cs, P = C.plan, B = C.bomb, c = B.state === 'carried' ? this.csP(B.carrier) : null, t = c && !c.bot ? this.csTankOf(c) : null;
+    if (!t) return null;
+    if (P.leadAt !== undefined && this.frame - P.leadAt < 30 && this.frame >= P.leadAt) return t;
+    P.leadAt = this.frame;
+    const far = k => { const v = this.csDist(t, this.csField(this.csNode(...this.csSpotXY(k)))); return v < 0 ? 1e4 : v; };
+    const dA = far('aSite'), dB = far('bSite'), want = dA < dB ? 'A' : 'B';
+    if (want !== P.site && Math.abs(dA - dB) > 16) { P.site = want; P.exec = false; this.csBotWays(want); }
+    P.leadD = P.site === 'A' ? dA : dB;
+    return t;
   },
 
   // ------------------------------------------------------------ every frame: what a bot presses
@@ -158,7 +186,7 @@ Object.assign(Stage.prototype, {
       if (d !== undefined) { out.dir = d; ai.want = true; return out; }
     }
     // a teammate stuck behind us: make way
-    const behind = this.tanks.find(o => o !== t && o.alive && o.player && o.player.csTeam === p.csTeam && o.csAi && o.csAi.stuck > 8 && this.tankAhead(o) === t);
+    const behind = this.tanks.find(o => o !== t && o.alive && o.player && o.player.csTeam === p.csTeam && (o.player.bot ? o.csAi && o.csAi.stuck > 8 : o.csDir >= 0 && o.dir === o.csDir) && this.tankAhead(o) === t);
     if (behind) {
       const d = [(behind.dir + 1) % 4, (behind.dir + 3) % 4, behind.dir].find(k => this.canStep(t, k));
       if (d !== undefined) { out.dir = d; ai.want = true; return out; }
@@ -214,7 +242,8 @@ Object.assign(Stage.prototype, {
     if (ai.tgt !== tgt) { ai.tgt = tgt; ai.aim = 0; }
     // a moment to aim: longer on the move, shorter for one holding still on its post (the defender's edge)
     const dx = tgt.x + 8 - cx, dy = tgt.y + 8 - cy, w = p.weapon || 'cannon';
-    const delay = Math.round(26 / Math.max(0.3, Config.skill().aggr) * (ai.holding ? 0.5 : t.moving ? 1.4 : 1));
+    // (the edge is the same few frames on every skill: scaled with it, it decided every duel on the easy ones)
+    const delay = Math.max(4, Math.round(26 / Math.max(0.3, Config.skill().aggr)) + (ai.holding ? -10 : t.moving ? 10 : 0));
     // the guns that find their own target: fire once it's in reach (aiming starts once it is)
     const reach = w === 'tesla' ? 58 : w === 'missile' ? 150 : 0, inReach = reach && Math.hypot(dx, dy) < reach;
     if (inReach && ++ai.aim > delay) { out.fire = true; out.firePressed = true; }
@@ -283,9 +312,14 @@ Object.assign(Stage.prototype, {
       }
       const R = CSB_ROUTES[pl.role] || CSB_ROUTES.long;
       // everyone at their gathering point (or 25 s gone, or a rush, or time running out): go in
-      if (!P.exec) {
-        const ready = this.csAlive('T').filter(o => o.player.bot).every(o => { const r = CSB_ROUTES[o.player.csAiPlan && o.player.csAiPlan.role]; if (!r) return true; const dd = this.csDist(o, this.csField(spot(r.stage, false))); return dd >= 0 && dd < 10; });
-        if ((ready && C.t > P.execAt) || P.rush || C.t > P.execAt + 20 * 60 || C.clock < 45 * 60) P.exec = true;
+      const lead = this.csBotLead();
+      if (!P.exec && lead) {
+        // with a player carrying the bomb: in once they're close to the site (or time's running out)
+        if (P.leadD < 48 || C.clock < 40 * 60) P.exec = true;
+      } else if (!P.exec) {
+        // everyone at the end of their way to the gathering point and settled there
+        const ready = this.csAlive('T').filter(o => o.player.bot).every(o => { const q = o.player.csAiPlan, r = q && CSB_ROUTES[q.role]; return !r || (q.k >= r.path.length - 1 && o.csAi && o.csAi.holding); });
+        if ((ready && C.t > P.execAt) || P.rush || C.t > P.execAt + 10 * 60 || C.clock < 45 * 60) P.exec = true;
       }
       const path = P.exec ? R.go : R.path;
       if (!P.exec && pl.k >= path.length) pl.k = path.length - 1;
@@ -309,6 +343,9 @@ Object.assign(Stage.prototype, {
       const posts = CSB_POST[B.site];
       return { node: spot(posts[(p.i + 1) % posts.length], true), near: 3 };
     }
+    // an enemy seen or heard close by: the two nearest go after it
+    const hunt = this.csBotHunt(t);
+    if (hunt) return hunt;
     // rotate: Ts seen or heard at a site, or the bomb seen on the way to one
     if (!P.rotate || C.t - P.rotateAt > 900) {
       let site = null;
@@ -321,7 +358,43 @@ Object.assign(Stage.prototype, {
       const posts = CSB_ROT[P.rotate];
       return { node: spot(posts[p.i % posts.length], true), near: 2, dir: undefined };
     }
+    // a quiet spell: now and then a look further up the way in (each in turn), then back to the post
+    const k = this.players.filter(q => q.bot && q.csTeam === 'CT').indexOf(p), peek = CSB_PEEK[pl.spot];
+    if (peek && C.t > 8 * 60 && (Math.floor(C.t / 60) + k * 11) % CSB_PEEK_EVERY < CSB_PEEK_ON) return { node: spot(peek, true), near: 2 };
     return { node: spot(pl.spot, true), near: 1, dir: pl.dir, mine: !!pl.spot };
+  },
+
+  // where the CTs last saw or heard a terrorist, and which two bots go there: { node, hunters } or null
+  csBotContact() {
+    const C = this.cs;
+    if (C.contactAt === this.frame) return C.contact;
+    C.contactAt = this.frame;
+    let c = null;
+    for (const o of this.tanks) if (o.alive && o.player && o.player.csTeam === 'T' && this.csSees('CT', o)) { c = { x: o.x, y: o.y }; break; }
+    const gh = C.ghosts.CT || [];
+    if (!c && gh.length) c = { x: gh[gh.length - 1].x, y: gh[gh.length - 1].y };
+    if (!c) for (const n of C.noise) if (n.team === 'T') c = { x: n.x - 8, y: n.y - 8 };
+    const L = C.lastContact;
+    if (c) {
+      // the same fight (near the last one): the same hunters, the goal moved along on a 2-tile grid
+      const same = L && this.frame - L.at < CSB_HUNT_KEEP && Math.abs(L.x - c.x) + Math.abs(L.y - c.y) < 96;
+      const gx = Math.round(c.x / 32) * 32, gy = Math.round(c.y / 32) * 32;
+      C.lastContact = { x: c.x, y: c.y, at: this.frame, node: this.csNode(gx, gy), hunters: same ? L.hunters.filter(i => this.csTankOf(this.csP(i))) : [] };
+      if (C.lastContact.hunters.length < 2) {
+        const free = this.csAlive('CT').filter(o => o.player.bot && !C.lastContact.hunters.includes(o.player.i) && Math.abs(o.x - c.x) + Math.abs(o.y - c.y) < CSB_HUNT_R);
+        free.sort((a, b) => Math.abs(a.x - c.x) + Math.abs(a.y - c.y) - Math.abs(b.x - c.x) - Math.abs(b.y - c.y));
+        for (const o of free.slice(0, 2 - C.lastContact.hunters.length)) C.lastContact.hunters.push(o.player.i);
+      }
+    }
+    C.contact = C.lastContact && this.frame - C.lastContact.at < CSB_HUNT_KEEP && this.frame >= C.lastContact.at ? C.lastContact : null;
+    return C.contact;
+  },
+  csBotHunt(t) {
+    const c = this.csBotContact();
+    if (!c || !c.hunters.includes(t.player.i)) return null;
+    // there and nothing to see: the trail's gone cold
+    if (this.csDist(t, this.csField(c.node, true)) <= 3 && this.frame - c.at > 60) { c.hunters = c.hunters.filter(i => i !== t.player.i); return null; }
+    return { node: c.node, near: 2 };
   },
 
   // the site a point is close to (the way in to it), or ''

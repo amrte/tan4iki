@@ -162,7 +162,7 @@ the south (T spawn) and the counter-terrorists in the north (CT spawn, between t
   BORIS ...) fill both teams up to the size.
 - **A round:** the first 10 seconds are the **buy time**: the tanks hold still in their spawn and the buy menu is up
   (up/down to choose, FIRE to buy, READY to start early; with several players at one computer each has a cursor of
-  their own). Then 1:55 on the clock (the line above the field). One terrorist carries the **bomb** (his team sees it
+  their own). Then 1:55 on the clock (the line above the field). One terrorist carries the **bomb**: a player, when there's one on that side, else a bot (his team sees it
   over his tank, in the side panel and on the minimap); it drops where he's destroyed and any terrorist picks it up by
   driving over it. On a bombsite, **hold B and keep still for 3 seconds** to plant it (moving or letting go starts
   over). Planted, it beeps faster and faster for 40 seconds; a counter-terrorist on it holds B still for **10 seconds
@@ -179,6 +179,17 @@ the south (T spawn) and the counter-terrorists in the north (CT spawn, between t
   No saving in a match (like versus); RESTART ROUND in the pause menu plays the round again.
 - **Scoreboard:** hold **Tab** (it's also up at the end of every round): both teams, kills, deaths, MVP stars and your
   own team's money.
+- **Orders to the bots** on your team: **1 FOLLOW ME** (they come along behind you), **2 HOLD HERE** (they take up
+  places round where you stand and defend them, looking the way you look), **3 GO ON** (back to their own plan).
+  **Q**, a stick click on a gamepad or the **ORDER** button on a touch screen goes round the three; player II on the
+  same keyboard has **8 9 0**; online friends order their own team's bots. An order lasts the round, or until the one
+  who gave it is out; it shows at the bottom of the field. A bot under orders still plants when it's on a site with
+  the bomb, and defuses the bomb it's on.
+- **The bots:** the terrorists gather short of a site, then go in together (sooner than before), plant and hold round
+  the bomb; when a player carries the bomb they go where the player goes: the site the player is heading for, in once
+  the player is close to it. The counter-terrorists hold posts round both sites, the two nearest going after any
+  terrorist seen or heard near them; in a quiet spell each takes a turn looking out further up its way in, and they
+  rotate to a site the terrorists show up at. Bots make way for a teammate (a player too) pushing past them.
 - **Combat** as in versus: a hit destroys a tank, an armour plate soaks one; friendly fire is off (a teammate's shell
   stops on you and does nothing); no power-ups on the map (everything is bought); every tank drives and reloads alike
   (no XP perks in a match). **B** throws a smoke grenade if you have one, else drops a mine, else fires; on a site with
@@ -1380,6 +1391,7 @@ js/worldart.js    ENDLESS WORLD's title picture
 js/csmap.js       COUNTER-STRIKE's map: DE_DUST2 tile by tile, its zones and call-outs, its look (sand, sandstone, crates)
 js/cs.js          COUNTER-STRIKE: the team screen, rounds, the bomb, buying and money, the fog of war, its HUD, online
 js/csbots.js      COUNTER-STRIKE's bots: buying, the terrorists' and counter-terrorists' plans, routes, fighting
+js/csorders.js    COUNTER-STRIKE's orders to the bots: FOLLOW ME, HOLD HERE, GO ON (keys, pads, touch, online)
 js/csart.js       COUNTER-STRIKE's title picture
 js/reach.js       no dead ends: a way opened from every walled-in entry point; stuck enemies come in again
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
