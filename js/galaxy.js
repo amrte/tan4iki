@@ -17,7 +17,7 @@
 //  Co-op for 1-4 players, here or online.
 // =====================================================================
 
-const GX_WAVES = 6;
+const GX_WAVES = 7;   // waves in a usual sector (galaxy_waves.js adds a 4th: a mini-boss or a challenge stage); a sector plays its plan's length
 const GX_SECTORS = [
   { name: 'MOON ORBIT', sky: '#000010', dust: '#28284C', planet: ['#BCBCBC', '#7C7C7C', '#4C4C4C'] },
   { name: 'RED PLANET', sky: '#100004', dust: '#4C1810', planet: ['#F87858', '#C83C14', '#7C1C00'] },
@@ -188,10 +188,11 @@ Object.assign(Stage.prototype, {
     const g = this.galaxy;
     g.wave++;
     g.phase = 'wave'; g.t = 0; g.spawnQ = []; g.diveT = 160;
-    if (g.wave > GX_WAVES) { this.gxBossStart(); return; }
-    const kind = (g.plan || GX_PLAN[g.sec])[g.wave - 1];
+    const plan = g.plan || GX_PLAN[g.sec];
+    if (g.wave > plan.length) { this.gxBossStart(); return; }
+    const kind = plan[g.wave - 1];
     g.kind = kind;
-    g.banner = { text: 'WAVE ' + g.wave + '/' + GX_WAVES + ': ' + (GX_WAVE_NAMES[kind] || kind.toUpperCase()), t: 110 };
+    g.banner = { text: 'WAVE ' + g.wave + '/' + plan.length + ': ' + (GX_WAVE_NAMES[kind] || kind.toUpperCase()), t: 110 };
     const types = Object.keys(GX_TYPES).filter(k => !k.startsWith('rock') && !GX_TYPES[k].special && GX_TYPES[k].from <= g.sec + g.loop * GX_SECTORS.length);
     const more = Math.min(1.6, 1 + 0.08 * (g.d ?? g.sec) + 0.2 * g.loop) * (1 + 0.25 * (this.players.length - 1));
     const add = (type, o) => g.spawnQ.push(Object.assign({ type }, o));
@@ -1091,7 +1092,7 @@ Object.assign(Stage.prototype, {
   renderGalaxyHud(ctx) {
     const g = this.galaxy, H = HUD_X;
     this.renderSkillTag(ctx, H);
-    const top = 'SECTOR ' + g.level + '  ' + (g.phase === 'boss' || g.phase === 'clear' ? 'BOSS' : 'WAVE ' + Math.max(1, g.wave) + '/' + GX_WAVES);
+    const top = 'SECTOR ' + g.level + '  ' + (g.phase === 'boss' || g.phase === 'clear' ? 'BOSS' : 'WAVE ' + Math.max(1, g.wave) + '/' + (g.plan ? g.plan.length : GX_WAVES));
     Font.drawCenter(ctx, top, FX + VIEW_W / 2, 0, COL.black);
     this.players.forEach((p, i) => {
       const y = 20 + i * 34, gp = gxPlayer(p), W = GX_WEAPONS[gp.weapon];

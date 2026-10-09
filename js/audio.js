@@ -383,6 +383,27 @@ const Sound = {
       case 'teleport':
         this.seq([72, 79, 84, 91, 96], 0.035, t, { vol: 0.12, decayTo: 0.4, wave: 'p25' });
         break;
+      case 'gxTractor': // the captor's tractor beam: a wobbling hum
+        this.note(330, t, 0.45, { vol: 0.07, slideTo: 440, wave: 'p25', flat: true });
+        this.note(349, t + 0.05, 0.4, { vol: 0.05, slideTo: 262, wave: 'tri', flat: true });
+        break;
+      case 'gxCaptured': // your ship is taken
+        this.seq([76, 72, 69, 64, 60, 57], 0.1, t, { vol: 0.13, wave: 'p25', decayTo: 0.5 });
+        break;
+      case 'gxRescue': // your ship is free
+        this.seq([67, 72, 76, 79, 84], 0.06, t, { vol: 0.13, decayTo: 0.5 });
+        break;
+      case 'gxChallenge': // the challenge stage's jingle
+        this.seq([72, 76, 79, 72, 76, 79, 84, 0, 83, 84], 0.08, t, { vol: 0.12, wave: 'p25', decayTo: 0.45 });
+        this.seq([48, 0, 55, 0, 48, 0, 55, 0, 60], 0.08, t, { vol: 0.16, wave: 'tri' });
+        break;
+      case 'gxPerfect': // 40 out of 40
+        this.seq([72, 76, 79, 84, 79, 84, 88, 91, 96], 0.07, t, { vol: 0.14, decayTo: 0.5 });
+        this.seq([60, 64, 67, 72, 67, 72, 76, 79, 84], 0.07, t, { vol: 0.08, wave: 'p25', decayTo: 0.5 });
+        break;
+      case 'gxMedal': // a wave medal
+        this.seq([84, 88, 91, 96], 0.05, t, { vol: 0.1, wave: 'p12', decayTo: 0.5 });
+        break;
       case 'bossDie':
         this.noise(2000, t, [[0, 0.7], [0.5, 0.6], [1.6, 0]], 120);
         this.seq([72, 67, 64, 60, 55, 48], 0.12, t + 0.2, { vol: 0.15, decayTo: 0.5 });
