@@ -411,7 +411,7 @@ const SETTINGS_DEF = [
   // music.js: a chiptune for every mode, in a version for every skill
   { key: 'music', label: 'MUSIC', values: ONOFF, def: 'ON' },
   // rock.js: hard rock and heavy metal versions of every tune, or the chiptunes
-  { key: 'musicStyle', label: 'MUSIC STYLE', values: ['ROCK', 'CHIPTUNE'], def: 'ROCK' },
+  { key: 'musicStyle', label: 'MUSIC STYLE', values: ['ROCK', 'SYNTHWAVE', 'CHIPTUNE'], def: 'ROCK' },
   { key: 'musicVol', label: 'MUSIC VOLUME', values: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100], def: 50, fmt: fmtPct },
 
   { action: 'reset', label: 'RESET TO DEFAULTS' },

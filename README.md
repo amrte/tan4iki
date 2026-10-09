@@ -451,7 +451,7 @@ The climb is planned from the run's seed: every section has its place in it, so 
 | Sky fortress | 400 m | steel walkways over a long drop: off the edge is a tank lost (FELL!); landings right across where sections and bands meet; no water up there | gusts (they never blow you off an edge, or into lava) | guster | wall of fire | Starfighter |
 
   The band changes when the front-runner reaches it: its name comes up with its twist, and the look, weather,
-  enemy and music follow (the tunes are other modes' own; with MUSIC STYLE: ROCK, their rock versions). Where two bands meet, their ground blends over a few pixels. The band's own enemy comes
+  enemy and music follow (the tunes are other modes' own; with MUSIC STYLE: ROCK or SYNTHWAVE, their rock or synthwave versions). Where two bands meet, their ground blends over a few pixels. The band's own enemy comes
   more often than a season's would.
 - **Set pieces**, every third section (each of the six once in every 18 sections, in the run's own order; the name
   comes up as it scrolls into view):
@@ -1156,7 +1156,7 @@ light, tanks driving and firing, smoke, sparks and explosions:
 - **Counter-Strike**: noon on Dust 2: the long doors and a red A on the wall; a terrorist plants the bomb, a
   counter-terrorist comes in behind smoke to defuse it, or (every other time) is shot and the bomb goes off.
 
-**The soundtrack** comes in two styles (Settings → MUSIC STYLE):
+**The soundtrack** comes in three styles (Settings → MUSIC STYLE):
 
 - **ROCK** (the default): hard rock and heavy metal in the manner of the 80s and 90s, every tune written for this
   game — galloping riffs, palm-muted chugs, power chords, twin-guitar harmony leads, double-kick drums and shred
@@ -1171,6 +1171,42 @@ light, tanks driving and firing, smoke, sparks and explosions:
   Galya: SHCHEDRYK (METAL); Galaxy: STARFIGHTER, ALIEN OVERLORD, HYPERSPACE, ALL YOUR BASE, KOROBEINIKI, LEVEL 9,
   UPBEAT CORPORATE ROCK 4 and STOCK MUSIC.EXE in metal; plus WARNING!, VICTORY! and THE EARTH IS SAVED. A boss's
   last phase plays faster; the easier skills play lighter drums and a touch slower.
+- **SYNTHWAVE**: 80s synthwave, outrun and darksynth versions of every tune, written for this game: sunset pads for
+  the calm modes, outrun drive for the racing ones, darksynth for the tense modes and the bosses, in intros, verses,
+  choruses, breakdowns (with risers) and lead breaks. Big detuned saw pads through a filter that opens with the song,
+  with a stereo chorus; a pulsing arpeggiator and an octave-bouncing analog bass, both pumping with the kick
+  (sidechain); a bright lead with slides, vibrato and a ping-pong echo; FM bells and brass stabs; a LinnDrum/808 kit
+  with a gated-reverb snare and clap, gated tom fills and a hall reverb, all synthesised live. Where it fits the lead
+  (or the bells) plays the chiptune's theme, Korobeiniki and Shchedryk included. A boss's last phase plays faster; the
+  easier skills play lighter hats and arps and a touch slower:
+
+| Mode | Synthwave tune | Feel |
+|---|---|---|
+| Classic | Neon Eagle | classic outrun, the chiptune march as its verse |
+| Custom levels | Grid Builder | bouncy, brass stabs, dorian |
+| Survival | Night Siege | darksynth, a driven 16th bass |
+| Time attack | Overdrive 88 | flat-out outrun |
+| Big maps | Horizon Line | a slow, wide sunset |
+| Any side | Mirror City | restless, in 7/8 |
+| Corridor | Skyline Ascent | climbing arpeggios |
+| Maze | VHS Labyrinth | eerie bells, half time, harmonic minor |
+| Endless world | Endless Highway | a road trip at dusk |
+| Fortress | Laser Walls | a heroic siege |
+| Kill race | Turbo Sunset | bright outrun |
+| VS eagles | Twin Neon | a stand-off |
+| Deathmatch | Chrome and Blood | darksynth |
+| Flags | Capture the Night | a heroic run |
+| Counter-Strike | Dust After Dark | darksynth, the bomb ticking |
+| VS CPU and Co-op | Machine Dreams | robots in love |
+| Galaxy | Starfighter 1986 (bosses: Overlord Protocol); sectors 7-11 and 14: Hyperspace Highway (bosses: All Your Base Are Neon); The Well: Korobeiniki 1984 (the Stack: Level 9 Overdrive); The Slop Feed: Corporate Sunset 4 (the Slop Machine: Corrupted.vhs) | outrun; darksynth for the bosses |
+| a boss's picture | Red Alert | an alarm |
+| Iron Bear, Mole, Harvester, Armored Train | Steel Terminator | half-time darksynth |
+| Hydra, Phantom, Scorpion | Abyssal Grid | slow, deep, menacing |
+| Gunship, Dreadnought | Armored Protocol | a half-time war march |
+| UFO | Signal from Beyond | eerie, lydian |
+| ??? | Carol of the Neon Bells | an old folk song on FM bells |
+| a boss beaten / the UFO beaten | Sunrise Victory / New Dawn | the fanfare, the anthem at sunrise |
+
 - **CHIPTUNE**: every mode's own chiptune, played on an NES-style band of two pulse leads, a triangle bass and noise
   drums, and every skill plays it differently:
 
@@ -1364,6 +1400,7 @@ js/config.js      settings: definitions, defaults, saving, tank color presets
 js/audio.js       NES-style Web Audio synth (SFX, jingles, engine)
 js/music.js       the soundtrack: a song per mode, a version per skill, and the sequencer that plays it
 js/rock.js        the ROCK soundtrack: hard rock and metal versions of every tune, and the guitars, bass and drums that play them
+js/synthwave.js   the SYNTHWAVE soundtrack: synthwave, outrun and darksynth versions of every tune, and the synths and drum machine that play them
 js/input.js       keyboard / gamepad / touch
 js/stage.js       gameplay: terrain, movement, enemy types, bullets, power-ups, XP, rendering
 js/ai.js          enemy personalities (wander / rush / hunt / snipe) and path finding
