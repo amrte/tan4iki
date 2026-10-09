@@ -1238,7 +1238,9 @@ class AstroWorld {
         const b = this.boss;
         if (b && !b.dying && !w.hitBoss && b.hit && this.near(w.x, w.y, b.x, b.y).d < w.r + (b.r || 20)) {
           w.hitBoss = true;
-          try { b.hit(b.x, b.y, (b.r || 20) + 4, Math.max(4, Math.round((b.maxHp || 40) * 0.08))); } catch (e) { console.error(e); }
+          const dmg = Math.max(4, Math.round((b.maxHp || 40) * 0.08));
+          // the blast goes past armour and shields (astroboss.js's bosses take it straight off their health)
+          try { if (b.fx && typeof astroBossDamage === 'function') { if (!(b.enter > 0) && !(b.trans > 0)) astroBossDamage(b, dmg); } else b.hit(b.x, b.y, (b.r || 20) + 4, dmg); } catch (e) { console.error(e); }
         }
         this.rocks = this.rocks.filter(r => !r.dead);
       }
