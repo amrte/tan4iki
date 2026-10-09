@@ -1215,8 +1215,11 @@ In the classic game, Any side, Big maps, Survival, Time attack, Maze, Kill race,
 - **? blocks**: now and then (about one stage in three) a golden question block takes a brick block's place. It's
   solid; shoot it:
   - **coin block**: every hit pops a spinning coin (200 points), up to 8; then it's an empty brown block
-  - **mushroom block**: one hit and a mushroom grows out of it, walks the route to your eagle and stands guard beside
-    it until the end of the stage, bouncing every shell aimed at the eagle (only where there is an eagle)
+  - **mushroom block**: one hit and a mushroom grows out of it and walks the route to your eagle. There it stands
+    guard until the end of the stage, running back and forth round the eagle (over the walls, on a ring just outside
+    the fort) to stay between the eagle and the danger: a shell flying at the eagle first, otherwise the nearest enemy.
+    Enemy shells (rockets too) that hit it are soaked up — BLOCKED!. It doesn't make the eagle untouchable: a shot that
+    gets past it hits the eagle as usual (only where there is an eagle)
   Enemy shells just stop on a ? block.
 
 Not in versus, Fortress or boss stages. Settings → GAME → SECRETS turns them off.

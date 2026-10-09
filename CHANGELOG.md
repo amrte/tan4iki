@@ -3,6 +3,23 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.56
+
+- **New mode: COUNTER-STRIKE** (cs*.js), on a top-down DUST 2: the T and CT spawns, long A with its doors and pit,
+  catwalk, mid and the xbox, the B tunnels, both bombsites — sandstone walls that never break, wooden crates and doors
+  that do. Pick a side, 3v3 to 5v5 with bots filling the teams, first to 5, 8 or 13 rounds, sides swap at half time.
+  - *A round:* 10 s to buy (armour plates, stars, smoke, mines, a defuse kit, the guns), then 1:55. One T carries
+    the bomb (it drops where he falls); plant it on A or B (hold B still for 3 s), 40 s to go off; the CTs defuse it
+    (10 s, 5 with a kit). Rounds end as in the original: a team wiped out, the bomb going off, defused, or time out.
+  - *Money* as in the original: pay per kill by weapon, round wins, loss streak bonus, plant and defuse.
+  - *Fog of war:* you see only what your team sees — walls, crates and smoke block sight; explored ground stays dim,
+    enemies there are hidden; unexplored ground is black.
+  - *Bots* buy, take routes (long, catwalk, tunnels, the lurk), plant, hold, rotate, retake and defuse.
+  - Tab shows the scoreboard; records: matches and rounds won. 1-4 players, online too (each guest sees their own
+    team's fog).
+- **The mushroom guard moves:** it runs back and forth round the eagle to stay between it and the danger and soaks up
+  the shells aimed at it (BLOCKED!) — but a shot that gets past it now hits the eagle.
+
 ## 0.55
 
 - **New mode: ENDLESS WORLD** (world*.js): a land without end, made as you drive — the same land every time for its

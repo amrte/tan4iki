@@ -5,7 +5,8 @@
 //                      Watch for the odd glint on a wall.
 //    ? BLOCKS          a golden question block takes the place of a brick block now and then. It's solid; shoot it:
 //                      COIN      every hit pops a coin (200 points), up to 8, then it's an empty block
-//                      MUSHROOM  one hit and a mushroom grows out, walks to your eagle and stands guard there until
+//                      MUSHROOM  one hit and a mushroom grows out, walks to your eagle and guards it (running round it to put
+//                                itself between the eagle and the enemy, soaking up the shells aimed at it) until
 //                                the end of the stage, bouncing every shell aimed at the eagle
 //  In the modes where they make sense: the classic game, any side, big maps, survival, time attack, maze, kill race,
 //  custom levels and VS CPU (no mushrooms where there's no eagle). Not in versus, fortress or boss stages.
@@ -13,6 +14,7 @@
 // =====================================================================
 
 const QB_COINS = 8, QB_COIN_PTS = 200, MUSH_SPEED = 0.5;
+const MUSH_GUARD_SPEED = 1.6, MUSH_RING = 22;   // on guard: how fast it shuffles round the eagle, and how far out
 // the ? block (16 x 16): gold with a darker rim and the question mark; the used block is plain brown
 const QBLOCK_ROWS = ['DDDDDDDDDDDDDDDD', 'DGGGGGGGGGGGGGGD', 'DGRGGGGGGGGGGRGD', 'DGGGGWWWWWGGGGGD', 'DGGGWWDDDWWGGGGD', 'DGGGWWDGGWWDGGGD',
   'DGGGGDDGGWWDGGGD', 'DGGGGGGGWWDDGGGD', 'DGGGGGGWWDDGGGGD', 'DGGGGGGWWDGGGGGD', 'DGGGGGGGDDGGGGGD', 'DGGGGGGWWGGGGGGD',
@@ -123,6 +125,7 @@ Object.assign(Stage.prototype, {
       if (--m.rise <= 0) { m.state = 'walk'; m.y -= 16; this.popups.push({ x: m.x + 8, y: m.y - 4, text: 'TO THE EAGLE!', label: true, color: '#F83800', t: 0, delay: 0, life: 70 }); }
       return;
     }
+    if (m.state === 'guard') { this.mushroomPatrol(m); return; }
     if (m.state !== 'walk' || !this.baseAlive) return;
     const ex = BASE_X, ey = BASE_Y;
     if (Math.abs(m.x - ex) + Math.abs(m.y - ey) <= 20) {
@@ -153,14 +156,52 @@ Object.assign(Stage.prototype, {
     m.hop = (m.hop + 1) % 16;
   },
 
-  // the mushroom on guard catches a hit on the eagle (true: caught)
-  mushroomGuards() {
-    const m = this.mushroom;
-    if (!m || m.state !== 'guard') return false;
-    m.bounce = 12;
-    Sound.play('boing');
-    return true;
+  // On guard: it runs round the eagle (a ring just outside the fort, over the walls) to stand between the eagle and
+  // the danger: a shell flying at the eagle first, otherwise the nearest enemy. Enemy shells that hit it bounce off it.
+  mushroomPatrol(m) {
+    if (!this.baseAlive) return;
+    const ecx = BASE_X + 8, ecy = BASE_Y + 8;
+    let tx = null, ty = null, best = Infinity;
+    for (const b of this.bullets) {
+      if (!b.alive || b.isPlayer) continue;
+      const [dx, dy] = DXY[b.dir], rx = ecx - (b.x + 2), ry = ecy - (b.y + 2), ahead = rx * dx + ry * dy, side = Math.abs(dx ? ry : rx);
+      if (ahead > 0 && side < 14 && ahead < best) { best = ahead; tx = b.x + 2; ty = b.y + 2; }   // coming straight for the eagle
+    }
+    if (tx === null) {
+      for (const t of this.tanks) {
+        if (!t.alive || t.isPlayer || t.mirage) continue;
+        const d = Math.hypot(t.x + 8 - ecx, t.y + 8 - ecy);
+        if (d < best && d < 220) { best = d; tx = t.x + 8; ty = t.y + 8; }
+      }
+    }
+    // the spot on the ring towards the danger (the ring is square, like the fort round the eagle)
+    const ddx = tx === null ? m.gx || 0 : tx - ecx, ddy = tx === null ? m.gy || -1 : ty - ecy, k = MUSH_RING / (Math.max(Math.abs(ddx), Math.abs(ddy)) || 1);
+    m.gx = ddx; m.gy = ddy;
+    const gx = Math.max(0, Math.min(FW - 16, ecx + ddx * k - 8)), gy = Math.max(0, Math.min(FH - 16, ecy + ddy * k - 8));
+    const mx = gx - m.x, my = gy - m.y, d = Math.hypot(mx, my);
+    if (d > 0.5) {
+      // round the ring, not through the eagle: go along one side first when the way across would cross it
+      const step = Math.min(MUSH_GUARD_SPEED, d);
+      if (Math.abs(mx) > Math.abs(my) && Math.abs(m.y + 8 - ecy) < 12 && Math.sign(mx) !== Math.sign(m.x + 8 - ecx) && Math.abs(m.x + 8 - ecx) < MUSH_RING + 2) m.y += (m.y + 8 <= ecy ? -1 : 1) * step;
+      else if (Math.abs(my) >= Math.abs(mx) && Math.abs(m.x + 8 - ecx) < 12 && Math.sign(my) !== Math.sign(m.y + 8 - ecy) && Math.abs(m.y + 8 - ecy) < MUSH_RING + 2) m.x += (m.x + 8 <= ecx ? -1 : 1) * step;
+      else { m.x += mx / d * step; m.y += my / d * step; }
+      m.hop = (m.hop + 1) % 16;
+      m.dir = Math.abs(mx) > Math.abs(my) ? (mx > 0 ? 1 : 3) : (my > 0 ? 2 : 0);
+    }
+    m.x = Math.max(0, Math.min(FW - 16, m.x)); m.y = Math.max(0, Math.min(FH - 16, m.y));
+    // enemy shells that hit it are soaked up (a rocket too: it doesn't get to go off)
+    for (const b of this.bullets) {
+      if (!b.alive || b.isPlayer || !overlap(b.x, b.y, 4, 4, m.x, m.y, 16, 16)) continue;
+      b.alive = false;
+      m.bounce = 12;
+      m.saved = (m.saved || 0) + 1;
+      Sound.play('boing');
+      this.popups.push({ x: m.x + 8, y: m.y - 2, text: 'BLOCKED', label: true, color: COL.gold, t: 0, delay: 0, life: 40 });
+    }
   },
+
+  // a hit on the eagle itself: the mushroom doesn't make it untouchable any more (it has to be in the way)
+  mushroomGuards() { return false; },
 
   // ------------------------------------------------------------ drawing
   renderSecrets(ctx) {
@@ -184,7 +225,7 @@ Object.assign(Stage.prototype, {
         const h = 16 - m.rise;
         ctx.drawImage(secretSprite('mushroom'), 0, 0, 16, h, m.x, m.y - h, 16, h);
       } else {
-        const squash = m.bounce > 0 ? Math.round(Math.sin(Math.PI * m.bounce / 12) * 3) : 0, hop = m.state === 'walk' && m.hop < 8 ? 1 : 0;
+        const squash = m.bounce > 0 ? Math.round(Math.sin(Math.PI * m.bounce / 12) * 3) : 0, hop = m.state !== 'rise' && m.hop < 8 ? 1 : 0;
         ctx.drawImage(secretSprite('mushroom'), m.x - squash, m.y + squash - hop, 16 + squash * 2, 16 - squash);
         if (m.state === 'guard' && (f >> 4) & 1) { ctx.fillStyle = COL.gold; ctx.fillRect(m.x + 7, m.y - 4, 2, 2); }
       }
