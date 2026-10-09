@@ -631,18 +631,18 @@ Object.assign(Stage.prototype, {
 
 // ------------------------------------------------------------------ bosses: one at the end of every sector
 const GX_BOSSES = [
-  { key: 'mothership', name: 'MOTHERSHIP', w: 76, h: 34, hp: 243, pts: 12000, move: 'sway',
+  { key: 'mothership', name: 'MOTHERSHIP', w: 56, h: 26, hp: 243, pts: 12000, move: 'sway',
     phases: [['fan5', 'spawnDrones', 'aimed3'], ['ring12', 'aimed5', 'spawnDrones'], ['spiral', 'fan7', 'spawnBugs', 'aimed5']] },
-  { key: 'crab', name: 'WAR CRAB', w: 76, h: 42, hp: 324, pts: 14400, move: 'swayFast',
+  { key: 'crab', name: 'WAR CRAB', w: 56, h: 32, hp: 324, pts: 14400, move: 'swayFast',
     phases: [['claws', 'fan5'], ['claws', 'charge', 'ring12'], ['claws', 'ring16', 'charge', 'spiral', 'claws']] },
-  { key: 'titan', name: 'ROCK TITAN', w: 66, h: 56, hp: 351, pts: 16800, move: 'sway',
+  { key: 'titan', name: 'ROCK TITAN', w: 52, h: 44, hp: 351, pts: 16800, move: 'sway',
     phases: [['rocks', 'fan5'], ['rocks', 'aimed5', 'ring12'], ['spiral', 'rocks', 'fan9', 'ring16']] },
-  { key: 'frost', name: 'FROST QUEEN', w: 62, h: 52, hp: 446, pts: 19200, move: 'hover',
+  { key: 'frost', name: 'FROST QUEEN', w: 48, h: 40, hp: 446, pts: 19200, move: 'hover',
     phases: [['shards', 'fan7'], ['freezeBeam', 'shards', 'aimed3'], ['icestorm', 'spiral', 'freezeBeam', 'shards']] },
-  { key: 'eye', name: 'ELDER EYE', w: 62, h: 52, hp: 378, pts: 21600, move: 'sway', eye: true,
+  { key: 'eye', name: 'ELDER EYE', w: 48, h: 40, hp: 378, pts: 21600, move: 'sway', eye: true,
     phases: [['stare', 'spawnBugs', 'fan5'], ['stare', 'ring12', 'spawnWasps'], ['stare', 'spiral', 'ring16', 'fan7']],
     frame: (b, fr) => (b.open ? 0 : 1) + 2 * ((fr >> 3) & 1) },
-  { key: 'overmind', name: 'OVERMIND', w: 72, h: 52, hp: 513, pts: 30000, move: 'sway', orbs: 4,
+  { key: 'overmind', name: 'OVERMIND', w: 56, h: 40, hp: 513, pts: 30000, move: 'sway', orbs: 4,
     phases: [['aimed5', 'orbFire', 'fan7'], ['spiral', 'orbFire', 'spawnWasps'], ['spiral2', 'ring16', 'aimed5', 'spawnWasps', 'orbFire']] },
 ];
 const GX_BOSS_PALS = {
@@ -714,173 +714,171 @@ function gxGem(P, cx, top, mid, bot, hw, c = [1, 2, 6, 3], edge = 4) {
 const GX_BOSS_DRAW = {
   // a saucer seen from the side: the crew under its dome, windows, a ring of chasing lights, the tractor emitter under it
   mothership(f, ph) {
-    const P = bossPainter(76, 34);
-    gxBall(P, 38, 13, 13, 12, [4, 5, 5, 2, 3]);   // the dome
-    for (const x of [33, 43]) { P.disc(x, 9, 2.2, 3); P.rect(x - 2, 11, x + 2, 13, 3); P.px(x - 1, 9, f ? 6 : 5); P.px(x + 1, 9, f ? 6 : 5); }   // two aliens inside
-    P.line(29, 4, 32, 2, 4); P.line(28, 6, 28, 7, 4);
-    gxBall(P, 38, 25, 31, 8, [0, 2, 2, 3, 7]);   // the underside
-    for (let x = 12; x < 66; x += 4) if (Math.abs(x - 38) > 7) { P.rect(x, 27, x, 29, 7); P.px(x + 1, 27, 2); }   // vents
-    P.disc(38, 29.5, 5, 3); P.ring(38, 29.5, 4.5, 7); P.disc(38, 29.5, 3, f ? 6 : 4); P.disc(38, 29.5, 1.5, f ? 4 : 6);   // the emitter
-    gxBall(P, 38, 21, 37.5, 9, [4, 1, 1, 2, 3]); for (let x = 0; x < 76; x++) for (let y = 12; y < 22; y++) if (P.g[y][x] === 4 && (x < 26 || x > 50 || y > 15)) P.g[y][x] = 1;   // the upper hull
-    for (let x = 1; x < 75; x++) { const e = Math.sqrt(Math.max(0, 1 - ((x - 37.5) / 37.5) ** 2)); if (e > 0.25) { P.px(x, Math.round(21 - 4.6 * e), 3); P.px(x, Math.round(22 - 4.6 * e), 1); } }   // a ring seam
-    for (let k = -4; k <= 4; k++) if (k) { P.line(38 + k * 5, Math.round(16.5 + Math.abs(k) * 0.4), 38 + k * 8.4, 21, 2); P.px(38 + k * 8.4 + 1, 21, 3); }   // panel seams
-    for (let k = -5; k <= 5; k++) if (Math.abs(k) > 1) P.rect(37 + k * 6, 13 + Math.round(Math.abs(k) * 0.5), 38 + k * 6, 13 + Math.round(Math.abs(k) * 0.5), (k + f) % 3 ? 5 : 4);   // windows
-    P.rect(1, 21, 74, 24, 2); P.rect(2, 21, 73, 21, 1); P.rect(1, 25, 74, 25, 3); P.rect(1, 24, 74, 24, 3);   // the rim
-    for (let x = 3; x < 74; x += 3) P.px(x, 21, 4);   // rivets
-    for (let k = 0; k < 12; k++) { const x = 4 + k * 6; P.rect(x, 22, x + 2, 23, 7); P.rect(x, 22, x + 1, 22, (k + f * 2) % 4 < 2 ? 6 : 4); P.px(x, 23, (k + f * 2) % 4 < 2 ? 6 : 5); }   // lights
-    P.rect(36, 1, 39, 1, 3); P.px(37, 0, 6); P.px(38, 0, f ? 4 : 6);   // a beacon on top
-    if (ph >= 2) { P.line(44, 4, 47, 9, 3); P.line(47, 9, 46, 12, 3); }   // the dome cracks
-    P.wear(ph, 21); gxScars(P, ph, 21, 3, 6, f, (x, y) => y > 14); P.outline(); return P.g;
+    const P = bossPainter(56, 26);
+    gxBall(P, 28, 10, 9.5, 9, [4, 5, 5, 2, 3]);   // the dome
+    for (const x of [24, 32]) { P.rect(x - 1, 6, x + 1, 9, 3); P.px(x, 7, f ? 6 : 5); }   // two aliens inside
+    P.line(21, 4, 23, 2, 4); P.px(20, 6, 4);
+    gxBall(P, 28, 19, 23, 5.5, [0, 2, 2, 3, 7]);   // the underside
+    for (let x = 9; x < 48; x += 4) if (Math.abs(x - 28) > 5) { P.rect(x, 20, x, 21, 7); P.px(x + 1, 20, 2); }   // vents
+    P.disc(28, 22, 3.6, 3); P.ring(28, 22, 3.3, 7); P.disc(28, 22, 2.2, f ? 6 : 4); P.disc(28, 22, 1, f ? 4 : 6);   // the emitter
+    gxBall(P, 28, 15.5, 27.5, 7, [4, 1, 1, 2, 3]); for (let x = 0; x < 56; x++) for (let y = 8; y < 16; y++) if (P.g[y][x] === 4 && (x < 19 || x > 37 || y > 11)) P.g[y][x] = 1;   // the upper hull
+    for (let x = 1; x < 55; x++) { const e = Math.sqrt(Math.max(0, 1 - ((x - 27.5) / 27.5) ** 2)); if (e > 0.3) { P.px(x, Math.round(15.5 - 3.4 * e), 3); P.px(x, Math.round(16.5 - 3.4 * e), 1); } }   // a ring seam
+    for (let k = -4; k <= 4; k++) if (k) P.line(28 + k * 3.6, Math.round(12.5 + Math.abs(k) * 0.3), 28 + k * 6.2, 15, 2);   // panel seams
+    for (let k = -4; k <= 4; k++) if (Math.abs(k) > 1) P.px(28 + k * 4.4, 10 + Math.round(Math.abs(k) * 0.4), (k + f) % 3 ? 5 : 4);   // windows
+    P.rect(1, 16, 54, 18, 2); P.rect(2, 16, 53, 16, 1); P.rect(1, 18, 54, 18, 3);   // the rim
+    for (let x = 3; x < 54; x += 3) P.px(x, 16, 4);   // rivets
+    for (let k = 0; k < 9; k++) { const x = 4 + k * 6; P.rect(x - 1, 17, x + 2, 17, 7); P.rect(x, 17, x + 1, 17, (k + f * 2) % 4 < 2 ? 6 : 4); }   // lights
+    P.rect(27, 1, 29, 1, 3); P.px(28, 0, f ? 4 : 6);   // a beacon on top
+    if (ph >= 2) { P.line(32, 3, 34, 6, 3); P.line(34, 6, 33, 8, 3); }   // the dome cracks
+    P.wear(ph, 21); gxScars(P, ph, 21, 2, 6, f, (x, y) => y > 10); P.outline(); return P.g;
   },
   // f: claws open (0) or shut (1), eyes left or right
   crab(f, ph) {
-    const P = bossPainter(76, 42);
+    const P = bossPainter(56, 32);
     for (let k = 0; k < 3; k++) for (const s of [-1, 1]) {   // legs: three a side, jointed, tapping
-      const x0 = 38 + s * (8 + k * 5), kx = 38 + s * (12 + k * 6), ky = 33 + k + ((k + f) % 2), x1 = 38 + s * (11 + k * 7), y1 = 40 + ((k + f) % 2 ? -1 : 0);
-      P.line(x0, 28, kx, ky, 3); P.line(x0 + s, 28, kx + s, ky, 6); P.line(kx, ky, x1, y1, 3); P.line(kx + s, ky, x1 + s, y1 - 1, 6); P.px(kx, ky, 2); P.px(x1, y1, 7);
+      const x0 = 28 + s * (6 + k * 4), kx = 28 + s * (9 + k * 4.5), ky = 24 + k + ((k + f) % 2), x1 = 28 + s * (8 + k * 5), y1 = 30 - ((k + f) % 2);
+      P.line(x0, 21, kx, ky, 3); P.line(x0 + s, 21, kx + s, ky, 6); P.line(kx, ky, x1, y1, 3); P.px(kx, ky, 2); P.px(x1, y1, 7);
     }
     for (const s of [-1, 1]) {   // arms: shoulder, elbow, wrist
-      P.line(38 + s * 16, 24, 38 + s * 23, 17, 3); P.line(38 + s * 16, 23, 38 + s * 23, 16, 6); P.line(38 + s * 16, 22, 38 + s * 23, 15, 2);
-      gxBall(P, 38 + s * 23.5, 16, 3.2, 3.2, [1, 1, 2, 6, 3]);
-      P.line(38 + s * 23, 15, 38 + s * 27, 18, 2); P.line(38 + s * 23, 17, 38 + s * 27, 20, 3);
+      P.line(28 + s * 12, 18, 28 + s * 17, 13, 3); P.line(28 + s * 12, 17, 28 + s * 17, 12, 2);
+      gxBall(P, 28 + s * 17.5, 12, 2.4, 2.4, [1, 1, 2, 6, 3]);
     }
-    for (const s of [-1, 1]) {   // the claws: a heavy shell, two fingers with teeth
-      const cx = 38 + s * 28.5;
-      for (const side of [-1, 1]) for (let y = 24; y <= 41; y++) {   // two curved fingers: tips apart (open) or touching (shut)
-        const t = (y - 24) / 17, x = cx + side * (2 + 4.4 * Math.sin(Math.PI * t * 0.85) + (f ? -3.4 : 1.4) * t), hw = 3.2 * (1 - t) + 0.7;
+    for (const s of [-1, 1]) {   // the claws: a heavy shell, two curved fingers with teeth, tips apart (open) or touching (shut)
+      const cx = 28 + s * 21;
+      for (const side of [-1, 1]) for (let y = 18; y <= 31; y++) {
+        const t = (y - 18) / 13, x = cx + side * (1.5 + 3.3 * Math.sin(Math.PI * t * 0.85) + (f ? -2.4 : 1.1) * t), hw = 2.3 * (1 - t) + 0.6;
         for (let xx = Math.round(x - hw); xx <= Math.round(x + hw); xx++) P.px(xx, y, xx === Math.round(x - side * hw) ? 3 : side < 0 ? (xx < x ? 1 : 2) : (xx < x ? 2 : 6));
         if (y % 2 === 0 && t > 0.25 && t < 0.9) P.px(Math.round(x - side * hw), y, 4);   // teeth
-        if (y === 41) P.px(Math.round(x), y, 3);
       }
-      gxBall(P, cx, 19, 9.5, 8.5, [1, 1, 2, 6, 3]); for (const [dx, dy] of [[-8, 14], [-8, 19], [8, 14], [8, 19], [-4, 8], [3, 8]]) P.px(cx + dx * (dx * s < 0 ? 1.06 : 1), dy, dx * s < 0 ? 3 : 1);
-      P.line(cx - 6, 16, cx - 3, 13, 4); P.px(cx - 7, 18, 4); P.line(cx - 3, 26, cx + 3, 26, 6);
-      for (const [dx, dy] of [[-4, 20], [3, 16], [1, 22], [-1, 15]]) { P.px(cx + dx, dy, 6); P.px(cx + dx + 1, dy, 6); }   // shell spots
+      gxBall(P, cx, 14, 7, 6.5, [1, 1, 2, 6, 3]);
+      for (const [dx, dy] of [[-6, 11], [-6, 15], [6, 11], [6, 15]]) P.px(cx + dx * (dx * s < 0 ? 1.1 : 1), dy, dx * s < 0 ? 3 : 1);   // knobs
+      P.line(cx - 4, 12, cx - 2, 9, 4); P.line(cx - 2, 19, cx + 2, 19, 6);
+      for (const [dx, dy] of [[-3, 15], [2, 12], [0, 16]]) P.px(cx + dx, dy, 6);   // shell spots
     }
-    for (const s of [-1, 1]) { P.line(38 + s * 4, 9, 38 + s * 7, 3, 3); P.line(38 + s * 5, 9, 38 + s * 8, 3, 2); }   // eye stalks
-    gxBall(P, 38, 19, 19, 13, [4, 1, 2, 6, 3]);   // the shell
-    for (let k = -4; k <= 4; k++) { const x = 38 + k * 4, y = Math.round(19 - 13 * Math.sqrt(1 - (k * 4 / 19) ** 2)); P.px(x, y - 1, 1); P.px(x, y - 2, k ? 3 : 2); }   // spikes along the top
-    P.line(26, 15, 32, 12, 6); P.line(44, 12, 50, 15, 6); P.line(30, 19, 46, 19, 6);   // ridges
-    for (const [x, y] of [[32, 15], [44, 15], [38, 13], [28, 21], [48, 21]]) { P.px(x, y, 6); P.px(x + 1, y, 3); P.px(x, y - 1, 1); }
-    P.rect(28, 26, 48, 29, 3); P.rect(29, 26, 47, 26, 6);   // the mouth: mandibles and teeth
-    for (let x = 30; x < 47; x += 2) { P.px(x, 27, 4); P.px(x + 1, 28, 4); }
-    for (const s of [-1, 1]) { P.line(38 + s * 3, 30, 38 + s * (5 + f), 33, 2); P.px(38 + s * (5 + f), 33, 5); }   // feelers
-    for (const s of [-1, 1]) { const ex = 38 + s * 8, look = f ? 1 : -1; P.disc(ex + 0.5, 2.5, 2.7, 4); P.ring(ex + 0.5, 2.5, 2.5, 3); P.px(ex + look * 0.6 + (look > 0 ? 0 : 0), 3, 7); P.px(ex + look * 0.6, 2, 7); P.px(ex - 1, 1, 4); }   // eyes
-    P.wear(ph, 22); gxScars(P, ph, 22, 4, 5, f, (x, y) => y > 6);
-    if (ph >= 3) { P.rect(0, 35, 8, 41, 0); P.px(6, 34, 5); }   // a finger broken off
+    for (const s of [-1, 1]) { P.line(28 + s * 3, 7, 28 + s * 5, 3, 3); P.line(28 + s * 4, 7, 28 + s * 6, 3, 2); }   // eye stalks
+    gxBall(P, 28, 14.5, 14, 10, [4, 1, 2, 6, 3]);   // the shell
+    for (let k = -3; k <= 3; k++) { const x = 28 + k * 3.5, y = Math.round(14.5 - 10 * Math.sqrt(1 - (k * 3.5 / 14) ** 2)); P.px(x, y - 1, k ? 3 : 2); }   // spikes along the top
+    P.line(19, 11, 24, 9, 6); P.line(32, 9, 37, 11, 6); P.line(22, 14, 34, 14, 6);   // ridges
+    for (const [x, y] of [[24, 11], [32, 11], [28, 10]]) { P.px(x, y, 6); P.px(x + 1, y, 3); P.px(x, y - 1, 1); }
+    P.rect(21, 19, 35, 21, 3); P.rect(22, 19, 34, 19, 6);   // the mouth: mandibles and teeth
+    for (let x = 22; x < 35; x += 2) { P.px(x, 20, 4); P.px(x + 1, 21, 4); }
+    for (const s of [-1, 1]) { P.line(28 + s * 2, 22, 28 + s * (4 + f), 24, 2); P.px(28 + s * (4 + f), 24, 5); }   // feelers
+    for (const s of [-1, 1]) { const ex = 28 + s * 5.5; P.disc(ex, 2, 2.1, 4); P.px(ex - (f ? 0 : 1), 2, 7); P.px(ex - 1, 1, 4); }   // eyes
+    P.wear(ph, 22); gxScars(P, ph, 22, 3, 5, f, (x, y) => y > 4);
+    if (ph >= 3) { P.rect(0, 26, 5, 31, 0); P.px(4, 25, 5); }   // a finger broken off
     P.outline(); return P.g;
   },
   // a boulder with a face and a heart of magma that breaks out more every phase
   titan(f, ph) {
-    const P = bossPainter(66, 56);
+    const P = bossPainter(52, 44);
     const r = seeded(303);
-    for (let k = 0; k < 11; k++) { const a = k * 0.571 + 0.2, rr = 5 + (k % 3) * 1.5; gxBall(P, 33 + Math.cos(a) * 24, 28 + Math.sin(a) * 21, rr, rr * 0.9, [1, 1, 2, 6, 3]); }   // rocks round its edge
-    gxBall(P, 33, 28, 28, 25, [4, 1, 2, 6, 3]);
-    for (let y = 0; y < 56; y++) for (let x = 0; x < 66; x++) { const v = P.g[y][x], q = r(); if (v === 1 && q < 0.1) P.g[y][x] = 4; else if ((v === 1 || v === 2) && q > 0.9) P.g[y][x] = 6; else if (v === 6 && q > 0.92) P.g[y][x] = 3; }   // grit
-    for (const [x0, y0, x1, y1] of [[10, 22, 18, 20], [48, 36, 56, 33], [14, 38, 20, 42], [40, 8, 47, 11]]) { P.line(x0, y0, x1, y1, 3); P.line(x0, y0 - 1, x1, y1 - 1, 1); }   // strata
-    for (const [x, y, rr] of [[15, 13, 4], [50, 14, 3], [52, 30, 2.5], [13, 32, 3], [46, 46, 3.5], [22, 47, 2.5], [33, 6, 2]]) gxCrater(P, x, y, rr);
+    for (let k = 0; k < 10; k++) { const a = k * 0.628 + 0.2, rr = 4 + (k % 3) * 1.2; gxBall(P, 26 + Math.cos(a) * 19, 22 + Math.sin(a) * 16.5, rr, rr * 0.9, [1, 1, 2, 6, 3]); }   // rocks round its edge
+    gxBall(P, 26, 22, 22, 20, [4, 1, 2, 6, 3]);
+    for (let y = 0; y < 44; y++) for (let x = 0; x < 52; x++) { const v = P.g[y][x], q = r(); if (v === 1 && q < 0.1) P.g[y][x] = 4; else if ((v === 1 || v === 2) && q > 0.9) P.g[y][x] = 6; else if (v === 6 && q > 0.92) P.g[y][x] = 3; }   // grit
+    for (const [x0, y0, x1, y1] of [[8, 17, 14, 16], [38, 29, 44, 26], [11, 31, 16, 34], [32, 6, 37, 9]]) { P.line(x0, y0, x1, y1, 3); P.line(x0, y0 - 1, x1, y1 - 1, 1); }   // strata
+    for (const [x, y, rr] of [[12, 10, 3], [40, 11, 2.5], [42, 23, 2], [9, 25, 2.5], [36, 36, 3], [17, 37, 2], [26, 4, 1.5]]) gxCrater(P, x, y, rr);
     // the brow, the eyes, the magma heart
-    P.line(19, 17, 28, 19, 3); P.line(38, 19, 47, 17, 3); P.line(19, 16, 28, 18, 1); P.line(38, 18, 47, 16, 1);
-    P.line(19, 18, 28, 20, 3); P.line(38, 20, 47, 18, 3);
-    for (const x of [24, 42]) { P.rect(x - 3, 21, x + 3, 23, 7); P.rect(x - 2, 22, x + 2, 22, 5); P.px(x - 1, 21, 7); P.px(x + 1, 21, 7); P.px(x + (x < 33 ? 1 : -1), 22, f ? 4 : 5); P.rect(x - 2, 24, x + 2, 24, 6); }
-    const cr = [5, 7, 8.5][ph - 1];
-    P.disc(33, 34, cr + 1.5, 3); P.disc(33, 34, cr, 5); P.disc(33, 34, cr * 0.55, f ? 4 : 5); P.ring(33, 34, cr * 0.75, f ? 5 : 4);
-    if (ph < 3) for (const dy of ph < 2 ? [-2, 2] : [0]) P.line(33 - cr, 34 + dy, 33 + cr, 34 + dy, 6);   // rock plates still across it
+    for (const s of [-1, 1]) { P.line(26 + s * 3, 15, 26 + s * 10, 13, 3); P.line(26 + s * 3, 16, 26 + s * 10, 14, 3); P.line(26 + s * 3, 14, 26 + s * 10, 12, 1); }
+    for (const x of [19, 33]) { P.rect(x - 2, 17, x + 2, 19, 7); P.rect(x - 1, 18, x + 1, 18, 5); P.px(x + (x < 26 ? 1 : -1), 18, f ? 4 : 5); P.rect(x - 1, 20, x + 1, 20, 6); }
+    const cr = [4, 5.5, 6.5][ph - 1];
+    P.disc(26, 28, cr + 1.3, 3); P.disc(26, 28, cr, 5); P.disc(26, 28, cr * 0.55, f ? 4 : 5); P.ring(26, 28, cr * 0.75, f ? 5 : 4);
+    if (ph < 3) for (const dy of ph < 2 ? [-1, 1] : [0]) P.line(26 - cr, 28 + dy, 26 + cr, 28 + dy, 6);   // rock plates still across it
     // magma veins: more every phase
-    const veins = [[33, 34, 20, 44], [33, 34, 47, 41], [33, 34, 39, 24], [33, 34, 14, 28], [33, 34, 52, 24], [33, 34, 31, 52], [33, 34, 8, 40]];
-    veins.slice(0, [2, 4, 7][ph - 1]).forEach(([x0, y0, x1, y1], k) => { const mx = (x0 + x1) / 2 + (k % 2 ? 3 : -3), my = (y0 + y1) / 2; P.line(x0, y0, mx, my, 5); P.line(mx, my, x1, y1, 5); if (ph >= 2) P.px(mx, my, f ? 4 : 5); });
-    if (ph >= 3) for (const [x, y, rr] of [[7, 16, 5], [60, 38, 4.5]]) for (let j = -6; j <= 6; j++) for (let i = -6; i <= 6; i++) {   // chunks blown off: magma inside
+    const veins = [[26, 28, 16, 36], [26, 28, 37, 34], [26, 28, 31, 20], [26, 28, 11, 22], [26, 28, 41, 19], [26, 28, 25, 42], [26, 28, 6, 32]];
+    veins.slice(0, [2, 4, 7][ph - 1]).forEach(([x0, y0, x1, y1], k) => { const mx = (x0 + x1) / 2 + (k % 2 ? 2 : -2), my = (y0 + y1) / 2; P.line(x0, y0, mx, my, 5); P.line(mx, my, x1, y1, 5); if (ph >= 2) P.px(mx, my, f ? 4 : 5); });
+    if (ph >= 3) for (const [x, y, rr] of [[6, 12, 4], [47, 30, 3.5]]) for (let j = -5; j <= 5; j++) for (let i = -5; i <= 5; i++) {   // chunks blown off: magma inside
       const d = Math.hypot(i, j); if (!P.g[y + j] || !P.g[y + j][x + i]) continue;
       if (d <= rr) P.g[y + j][x + i] = 0; else if (d <= rr + 1.3) P.g[y + j][x + i] = (i + j) % 3 ? 5 : 4;
     }
-    gxScars(P, ph, 23, 3, 5, f, (x, y) => Math.hypot(x - 33, y - 34) > cr + 3);
+    gxScars(P, ph, 23, 3, 5, f, (x, y) => Math.hypot(x - 26, y - 28) > cr + 3);
     P.outline(); return P.g;
   },
   // a crystal queen: a crown of spires, facets, wing shards, a frozen heart that pulses
   frost(f, ph) {
-    const P = bossPainter(62, 52);
-    for (const s of [-1, 1]) { gxGem(P, 31 + s * 25, 26, 33, 45, 4, [1, 2, 6, 3], 4); gxGem(P, 31 + s * 20, 14, 26, 47, 7, [1, 2, 6, 3], 4); }   // wing shards
-    gxGem(P, 31, 9, 28, 51, 17, [1, 2, 6, 3], 4);   // the body
-    gxGem(P, 31, 18, 28, 44, 9, [4, 1, 2, 6], 0);   // its inner face
-    for (const s of [-1, 1]) { P.line(31 + s * 9, 28, 31 + s * 17, 28, 3); P.line(31 + s * 17, 28, 31, 51, 6); P.line(31 + s * 9, 28, 31 + s * 4, 12, 4); P.line(31 + s * 20, 26, 31 + s * 20, 46, s < 0 ? 4 : 3); }   // facet edges
-    for (const [x, y] of [[23, 44], [27, 47], [35, 47], [39, 44]]) P.line(x, y, x, y + 3, 6);   // icicles
+    const P = bossPainter(48, 40);
+    for (const s of [-1, 1]) { gxGem(P, 24 + s * 20, 20, 25, 35, 3, [1, 2, 6, 3], 4); gxGem(P, 24 + s * 15.5, 11, 20, 36, 5.5, [1, 2, 6, 3], 4); }   // wing shards
+    gxGem(P, 24, 7, 21, 39, 13, [1, 2, 6, 3], 4);   // the body
+    gxGem(P, 24, 13, 21, 34, 7, [4, 1, 2, 6], 0);   // its inner face
+    for (const s of [-1, 1]) { P.line(24 + s * 7, 21, 24 + s * 13, 21, 3); P.line(24 + s * 13, 21, 24, 39, 6); P.line(24 + s * 7, 21, 24 + s * 3, 10, 4); P.line(24 + s * 15.5, 20, 24 + s * 15.5, 35, s < 0 ? 4 : 3); }   // facet edges
+    for (const [x, y] of [[18, 34], [21, 36], [27, 36], [30, 34]]) P.line(x, y, x, y + 2, 6);   // icicles
     // the crown: a band of gems and five spires
-    for (const [x, top] of [[23, 5], [27, 2], [31, 0], [35, 2], [39, 5]]) for (let y = top; y <= 10; y++) { const hw = Math.floor((y - top) / 4); P.rect(x - hw, y, x, y, 1); P.rect(x + 1, y, x + 1 + hw, y, 2); if (y === top) P.px(x, y, (x + f * 4) % 8 < 4 ? 4 : 5); }
-    P.rect(21, 10, 41, 12, 6); P.rect(21, 10, 41, 10, 4); P.rect(21, 12, 41, 12, 3);
-    for (let x = 23; x <= 39; x += 4) P.px(x, 11, x === 31 ? 5 : (x + f) % 8 < 4 ? 1 : 5);
+    for (const [x, top] of [[18, 4], [21, 2], [24, 0], [27, 2], [30, 4]]) for (let y = top; y <= 7; y++) { const hw = Math.floor((y - top) / 3); P.rect(x - hw, y, x, y, 1); P.rect(x + 1, y, x + 1 + hw, y, 2); if (y === top) P.px(x, y, (x + f * 3) % 6 < 3 ? 4 : 5); }
+    P.rect(16, 7, 32, 9, 6); P.rect(16, 7, 32, 7, 4); P.rect(16, 9, 32, 9, 3);
+    for (let x = 18; x <= 30; x += 3) P.px(x, 8, x === 24 ? 5 : (x + f) % 6 < 3 ? 1 : 5);
     // her face: narrow eyes and a cold mouth
-    for (const s of [-1, 1]) { P.line(31 + s * 2, 16, 31 + s * 7, 15, 3); P.rect(Math.min(31 + s * 3, 31 + s * 6), 18, Math.max(31 + s * 3, 31 + s * 6), 19, 7); P.px(31 + s * 4, 18, 5); P.px(31 + s * 5, 18, f ? 4 : 5); P.px(31 + s * 7, 18, 7); }
-    P.rect(30, 23, 32, 23, 3); P.px(31, 24, 6);
+    for (const s of [-1, 1]) { P.line(24 + s * 2, 12, 24 + s * 5, 11, 3); P.line(24 + s * 2, 14, 24 + s * 5, 14, 7); P.px(24 + s * 3, 14, f ? 4 : 5); }
+    P.rect(23, 18, 25, 18, 3);
     // the frozen heart
-    gxGem(P, 31, 29, 33, 39, f ? 5 : 4, [5, 5, 3, 3], 0); P.px(30, 31, 4); P.px(30, 32, 4); if (f) { P.px(25, 33, 5); P.px(37, 33, 5); }
-    P.line(31, 13, 31, 17, 4); P.line(17, 28, 21, 28, 4); P.line(41, 28, 45, 28, 4);   // glints on its edges
-    if (ph >= 3) { for (let y = 33; y <= 46; y++) for (let x = 0; x < 8; x++) P.px(x, y, 0); P.line(4, 34, 8, 30, 7); }   // a wing shard snapped off
-    P.wear(ph, 24); gxScars(P, ph, 24, 3, 5, f, (x, y) => y > 12 && Math.abs(x - 31) + Math.abs(y - 34) > 6);
+    gxGem(P, 24, 22, 25, 31, f ? 4 : 3, [5, 5, 3, 3], 0); P.px(23, 24, 4); if (f) { P.px(19, 25, 5); P.px(29, 25, 5); }
+    P.line(13, 21, 16, 21, 4); P.line(32, 21, 35, 21, 4);   // glints on its edges
+    if (ph >= 3) { for (let y = 25; y <= 36; y++) for (let x = 0; x < 7; x++) P.px(x, y, 0); P.line(3, 26, 6, 23, 7); }   // a wing shard snapped off
+    P.wear(ph, 24); gxScars(P, ph, 24, 3, 5, f, (x, y) => y > 9 && Math.abs(x - 24) + Math.abs(y - 26) > 5);
     P.outline(); return P.g;
   },
   // f bit 0: open (0) or shut (1); bit 1: the tentacles' sway
   eye(f, ph) {
-    const P = bossPainter(62, 52), shut = f & 1, sw = f >> 1;
+    const P = bossPainter(48, 40), shut = f & 1, sw = f >> 1;
     for (let k = 0; k < 6; k++) {   // tentacles, suckers on them
-      const bx = 10 + k * 8.4;
-      for (let t = 0; t <= 17; t++) {
-        const x = Math.round(bx + Math.sin(t / 3 + k * 1.7 + sw * 1.6) * 2.2 * (t / 17) + (k - 2.5) * t * 0.12), y = 34 + t, wd = t < 6 ? 2 : t < 12 ? 1 : 0;
+      const bx = 7 + k * 6.8;
+      for (let t = 0; t <= 12; t++) {
+        const x = Math.round(bx + Math.sin(t / 2.5 + k * 1.7 + sw * 1.6) * 1.8 * (t / 12) + (k - 2.5) * t * 0.14), y = 27 + t, wd = t < 3 ? 2 : t < 8 ? 1 : 0;
         P.rect(x - wd, y, x + wd, y, 2); P.px(x - wd, y, 1); P.px(x + wd, y, 3);
-        if (t > 3 && t < 15 && t % 3 === 0) P.px(x, y, 4);
+        if (t > 2 && t < 11 && t % 3 === 0) P.px(x, y, 4);
       }
     }
-    gxBall(P, 31, 24, 29, 21, [4, 1, 1, 2, 3]);
-    const L = bossPainter(62, 52); gxBall(L, 31, 24, 29, 21, [1, 1, 2, 3, 3]);
-    const lid = (x, up) => 24 + (up ? -1 : 1) * 14 * (1 - ((x + 0.5 - 31) / 25) ** 2);   // the almond the lids leave open
-    for (let y = 0; y < 52; y++) for (let x = 0; x < 62; x++) {
-      const v = P.g[y][x]; if (!v || Math.hypot((x + 0.5 - 31) / 29, (y + 0.5 - 24) / 21) > 1) continue;
-      const open = !shut && Math.abs(x + 0.5 - 31) < 25 && y > lid(x, 1) && y < lid(x, 0);
+    gxBall(P, 24, 18, 22, 15.5, [4, 1, 1, 2, 3]);
+    const L = bossPainter(48, 40); gxBall(L, 24, 18, 22, 15.5, [1, 1, 2, 3, 3]);
+    const lid = (x, up) => 18 + (up ? -1 : 1) * 10 * (1 - ((x + 0.5 - 24) / 19) ** 2);   // the almond the lids leave open
+    for (let y = 0; y < 40; y++) for (let x = 0; x < 48; x++) {
+      if (!P.g[y][x] || Math.hypot((x + 0.5 - 24) / 22, (y + 0.5 - 18) / 15.5) > 1) continue;
+      const open = !shut && Math.abs(x + 0.5 - 24) < 19 && y > lid(x, 1) && y < lid(x, 0);
       if (!open) P.g[y][x] = L.g[y][x];   // the lids' skin
     }
-    for (let x = 7; x < 56; x++) { const a = Math.round(lid(x, 1)), c = Math.round(lid(x, 0)); if (shut) { P.px(x, 24, 7); P.px(x, 25, 3); if (x % 3 === 0) P.px(x, 26, 7); } else { P.px(x, a, 7); P.px(x, a - 1, 3); P.px(x, c, 3); if (x % 3 === 1) P.px(x - 1, a - 2, 7); } }   // lid edges, lashes
-    for (let x = 9; x < 54; x++) { P.px(x, Math.round(24 - 19 * (1 - ((x + 0.5 - 31) / 23) ** 2)) + (shut ? 4 : 0), 3); P.px(x, Math.round(lid(x, 0)) + 4, 3); }   // creases
-    if (shut) for (const [x0, y0, x1, y1] of [[14, 12, 20, 16], [20, 16, 22, 21], [44, 10, 40, 16], [40, 16, 41, 20], [24, 33, 27, 30]]) P.line(x0, y0, x1, y1, 3);   // veins under the skin
+    for (let x = 5; x < 43; x++) { const a = Math.round(lid(x, 1)), c = Math.round(lid(x, 0)); if (shut) { P.px(x, 18, 7); P.px(x, 19, 3); if (x % 3 === 0) P.px(x, 20, 7); } else { P.px(x, a, 7); P.px(x, a - 1, 3); P.px(x, c, 3); if (x % 3 === 1) P.px(x - 1, a - 2, 7); } }   // lid edges, lashes
+    for (let x = 7; x < 41; x++) { P.px(x, Math.round(18 - 14 * (1 - ((x + 0.5 - 24) / 17.5) ** 2)) + (shut ? 3 : 0), 3); P.px(x, Math.round(lid(x, 0)) + 3, 3); }   // creases
+    if (shut) for (const [x0, y0, x1, y1] of [[10, 9, 15, 12], [15, 12, 16, 16], [34, 8, 31, 12], [31, 12, 32, 15], [18, 25, 21, 23]]) P.line(x0, y0, x1, y1, 3);   // veins under the skin
     if (!shut) {
       const vr = seeded(25 + ph);
-      for (let k = 0; k < 4 + ph * 3; k++) {   // veins, more and more bloodshot
-        const left = k % 2 === 0, x0 = left ? 8 + vr() * 4 : 54 - vr() * 4, y0 = 20 + vr() * 8, x1 = 31 + (left ? -1 : 1) * (11 + vr() * 3), y1 = 18 + vr() * 12;
-        P.line(x0, y0, (x0 + x1) / 2, y0 + (vr() - 0.5) * 6, 5); P.line((x0 + x1) / 2, y0 + (vr() - 0.5) * 6, x1, y1, 5);
+      for (let k = 0; k < 3 + ph * 2; k++) {   // veins, more and more bloodshot
+        const left = k % 2 === 0, x0 = left ? 6 + vr() * 3 : 41 - vr() * 3, y0 = 15 + vr() * 6, x1 = 24 + (left ? -1 : 1) * (8.5 + vr() * 2), y1 = 14 + vr() * 9, my = y0 + (vr() - 0.5) * 4;
+        P.line(x0, y0, (x0 + x1) / 2, my, 5); P.line((x0 + x1) / 2, my, x1, y1, 5);
       }
-      P.disc(31, 24, 11, 3); P.disc(31, 24, 10, 6);   // the iris
-      for (let k = 0; k < 16; k++) { const a = k * 0.39 + sw * 0.2; P.line(31 + Math.cos(a) * 5, 24 + Math.sin(a) * 5, 31 + Math.cos(a) * 9, 24 + Math.sin(a) * 9, k % 2 ? 3 : 4); }
-      P.disc(31, 24, 6, 6); P.ring(31, 24, 9.6, 3);
-      const pr = sw ? 3 : 4.2; P.disc(31, 24, pr, 7); P.rect(30, 24 - pr - 2, 31, 24 + pr + 1, 7);   // the pupil, a slit through it
-      P.rect(26, 19, 27, 20, 4); P.px(35, 28, 4);
+      P.disc(24, 18, 8.5, 3); P.disc(24, 18, 7.8, 6);   // the iris
+      for (let k = 0; k < 14; k++) { const a = k * 0.449 + sw * 0.2; P.line(24 + Math.cos(a) * 4, 18 + Math.sin(a) * 4, 24 + Math.cos(a) * 7, 18 + Math.sin(a) * 7, k % 2 ? 3 : 4); }
+      P.disc(24, 18, 4.6, 6); P.ring(24, 18, 7.6, 3);
+      const pr = sw ? 2.3 : 3.2; P.disc(24, 18, pr, 7); P.rect(23, Math.round(18 - pr - 1.5), 24, Math.round(18 + pr + 1), 7);   // the pupil, a slit through it
+      P.rect(20, 14, 21, 15, 4); P.px(27, 21, 4);
     }
-    P.wear(ph, 25); gxScars(P, ph, 25, 3, 5, f, (x, y) => y < 44 && (shut || Math.hypot(x - 31, y - 24) > 13));
+    P.wear(ph, 25); gxScars(P, ph, 25, 3, 5, f, (x, y) => y < 33 && (shut || Math.hypot(x - 24, y - 18) > 10));
     P.outline(); return P.g;
   },
   // a brain on a machine: folds, electrodes sparking, tubes, the machine's two glowing lenses
   overmind(f, ph) {
-    const P = bossPainter(72, 52);
-    for (let y = 33; y <= 51; y++) { const in_ = Math.round((y - 33) * 0.5); P.rect(10 + in_, y, 61 - in_, y, y === 33 ? 4 : y > 47 ? 3 : 6); }   // the machine
-    P.rect(12, 35, 59, 36, 4); P.rect(12, 37, 59, 37, 7);
-    for (let x = 16; x <= 55; x += 3) if (x < 26 || x > 45) { P.rect(x, 40, x, 45, 7); P.px(x + 1, 40, 4); }   // vents
-    for (const x of [27, 45]) { P.disc(x, 43, 4.5, 7); P.disc(x, 43, 3.5, 3); P.disc(x, 43, 2.5, 5); P.px(x - 1, 42, 4); if (f) P.px(x, 43, 4); }   // lenses
-    for (let k = 0; k < 6; k++) P.px(31 + k * 2, 47, (k + f * 3) % 6 < 3 ? 5 : 3);   // a row of lights
-    P.rect(33, 49, 39, 51, 7); P.rect(34, 50, 38, 50, f ? 5 : 3);
-    for (const s of [-1, 1]) { for (let t = 0; t <= 12; t++) { const x = 36 + s * (25 + Math.sin(t / 4) * 4), y = 22 + t; P.rect(x - 1, y, x + 1, y, 6); P.px(x - s, y, 4); } }   // tubes
-    gxBall(P, 36, 19, 31, 18, [1, 1, 2, 3, 3]);   // the brain
-    const lr = seeded(26), inB = (x, y) => Math.hypot((x + 0.5 - 36) / 30, (y + 0.5 - 19) / 17) < 0.93 && Math.abs(x - 35.5) > 1.2;
+    const P = bossPainter(56, 40);
+    for (let y = 26; y <= 37; y++) { const in_ = Math.round((y - 26) * 0.5); P.rect(8 + in_, y, 47 - in_, y, y === 26 ? 4 : y > 35 ? 3 : 6); }   // the machine
+    P.rect(10, 27, 45, 27, 4); P.rect(10, 28, 45, 28, 7);
+    for (let x = 12; x <= 43; x += 3) if (x < 17 || x > 38) { P.rect(x, 30, x, 33, 7); P.px(x + 1, 30, 4); }   // vents
+    for (const x of [21, 35]) { P.disc(x, 31.5, 3.6, 7); P.disc(x, 31.5, 2.7, 3); P.disc(x, 31.5, 1.9, 5); P.px(x - 1, 30, 4); if (f) P.px(x, 31, 4); }   // lenses
+    for (let k = 0; k < 5; k++) P.px(24 + k * 2, 35, (k + f * 3) % 6 < 3 ? 5 : 3);   // a row of lights
+    P.rect(25, 37, 31, 38, 7); P.rect(26, 38, 30, 38, f ? 5 : 3);
+    for (const s of [-1, 1]) for (let t = 0; t <= 9; t++) { const x = 28 + s * (20 + Math.sin(t / 3) * 3), y = 17 + t; P.rect(x - 1, y, x + 1, y, 6); P.px(x - s, y, 4); }   // tubes
+    gxBall(P, 28, 15, 24, 13.5, [1, 1, 2, 3, 3]);   // the brain
+    const lr = seeded(26), inB = (x, y) => Math.hypot((x + 0.5 - 28) / 23, (y + 0.5 - 15) / 12.5) < 0.93 && Math.abs(x - 27.5) > 1.2;
     const groove = new Set(), near = (x, y) => { for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) if (groove.has((x + i) + ',' + (y + j))) return true; return false; };
-    for (let k = 0; k < 600; k++) {   // its folds: long curling grooves that keep apart, each lit along its top
-      let x = 6 + lr() * 60, y = 2 + lr() * 33, a = lr() * 6.3, c = (lr() < 0.5 ? -1 : 1) * (0.15 + lr() * 0.2);
+    for (let k = 0; k < 500; k++) {   // its folds: long curling grooves that keep apart, each lit along its top
+      let x = 5 + lr() * 46, y = 2 + lr() * 26, a = lr() * 6.3, c = (lr() < 0.5 ? -1 : 1) * (0.18 + lr() * 0.2);
       const w = [];
-      for (let i = 0; i < 40; i++) {
+      for (let i = 0; i < 30; i++) {
         const rx = Math.round(x), ry = Math.round(y), last = w[w.length - 1];
         if (!last || last[0] !== rx || last[1] !== ry) { if (!inB(rx, ry) || near(rx, ry)) break; w.push([rx, ry]); }
-        a += c + (lr() - 0.5) * 0.3; if (i % 9 === 8) c = -c; x += Math.cos(a) * 0.8; y += Math.sin(a) * 0.65;
+        a += c + (lr() - 0.5) * 0.3; if (i % 8 === 7) c = -c; x += Math.cos(a) * 0.8; y += Math.sin(a) * 0.65;
       }
-      if (w.length >= 7) for (const [wx, wy] of w) groove.add(wx + ',' + wy);
+      if (w.length >= 6) for (const [wx, wy] of w) groove.add(wx + ',' + wy);
     }
-    for (const q of groove) { const [x, y] = q.split(',').map(Number); P.px(x, y, 3); if (inB(x, y - 1) && !groove.has(x + ',' + (y - 1))) P.px(x, y - 1, y < 15 && x < 42 ? 4 : 1); }
-    P.line(36, 2, 36, 35, 3); P.line(35, 2, 35, 34, 2);   // the fissure
-    for (const dx of [-14, 0, 14]) { const x = 36 + dx; P.rect(x - 1, 31, x + 1, 34, 4); P.rect(x, 28, x, 33, 6); P.px(x + (f ? 1 : -1), 28, 5); P.px(x, 27, f ? 4 : 5); }   // electrodes
-    P.wear(ph, 26); gxScars(P, ph, 26, 3, 5, f, (x, y) => y > 36 || y < 30);
+    for (const q of groove) { const [x, y] = q.split(',').map(Number); P.px(x, y, 3); if (inB(x, y - 1) && !groove.has(x + ',' + (y - 1))) P.px(x, y - 1, y < 11 && x < 32 ? 4 : 1); }
+    P.line(28, 2, 28, 27, 3); P.line(27, 2, 27, 26, 2);   // the fissure
+    for (const dx of [-11, 0, 11]) { const x = 28 + dx; P.rect(x - 1, 24, x + 1, 26, 4); P.rect(x, 21, x, 25, 6); P.px(x + (f ? 1 : -1), 21, 5); P.px(x, 20, f ? 4 : 5); }   // electrodes
+    P.wear(ph, 26); gxScars(P, ph, 26, 3, 5, f, (x, y) => y > 28 || y < 23);
     P.outline(); return P.g;
   },
 };
@@ -968,7 +966,7 @@ Object.assign(Stage.prototype, {
         Sound.play('teleport'); done(60); return;
       }
       case 'claws': {
-        if (a.t % 10 === 1) for (const dx of [-b.w / 2 + 9.5, b.w / 2 - 9.5]) shoot(b.x + dx, b.y + b.h - 2, toward(b.x + dx, b.y + b.h), 1.7);
+        if (a.t % 10 === 1) for (const dx of [-b.w / 2 + 7, b.w / 2 - 7]) shoot(b.x + dx, b.y + b.h - 2, toward(b.x + dx, b.y + b.h), 1.7);
         if (a.t >= 30) done(40);
         return;
       }
@@ -980,7 +978,7 @@ Object.assign(Stage.prototype, {
       case 'stare':
         // only while it's open: a line from the eye to you, then a burning beam along it
         if (!b.open) { done(20); return; }
-        if (a.t === 1) { const tx = near ? near.x + 8 : b.x, ty = near ? near.y + 8 : FH; b.beams.push({ x: b.x, y0: b.y + 24, tx, ty, t: 0, warn: 40, dur: 24, kind: 'stare' }); Sound.play('charge'); }
+        if (a.t === 1) { const tx = near ? near.x + 8 : b.x, ty = near ? near.y + 8 : FH; b.beams.push({ x: b.x, y0: b.y + 18, tx, ty, t: 0, warn: 40, dur: 24, kind: 'stare' }); Sound.play('charge'); }
         if (a.t > 64) done(30);
         return;
       case 'orbFire': for (const o of b.orbs) if (o.hp > 0) { const [ox, oy] = this.gxOrbPos(b, o); shoot(ox, oy, toward(ox, oy), 1.6); } done(50); return;
