@@ -1654,7 +1654,7 @@ class Stage {
     ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
     ctx.fillStyle = COL.black;
     ctx.fillRect(FX, FY, VIEW_W, VIEW_H);
-    if (this.dirty || this.layerLook !== Config.get('look')) this.buildLayers();   // the look changed: once (blocks.js)
+    if (this.dirty || this.layerLook !== Config.get('look')) { this.buildLayers(); this.layerLook = Config.get('look'); }   // the look changed: once (blocks.js; set here too, as modes with their own buildLayers don't)
     else if (this.dirtyCells && this.dirtyCells.length) this.redrawCells();
 
     ctx.save();

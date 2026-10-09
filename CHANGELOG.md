@@ -3,6 +3,13 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.56.2
+
+- **Fixed: Counter-Strike lagging badly and going black.** The map's picture was being redrawn from scratch on every
+  frame (about 250 ms a frame, 4 fps on the buy screen), making thousands of little canvases a second until the
+  browser gave up and the field went black after the countdown. It's drawn once again (about 1 ms a frame). The same
+  slip could cost Corridor and Endless World time too; it's fixed for every mode at once.
+
 ## 0.56.1
 
 - **Galaxy: the Frost Queen is no pushover any more** (gxfrost.js): more life (560, was 446), she follows you faster

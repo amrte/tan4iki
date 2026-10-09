@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.56.1</title>
+  <title>tanb4iki_v0.56.2</title>
   <style>
 :root {
   --bg: #000;
@@ -221,7 +221,7 @@ body.touch #touch {
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.56.1';
+const APP_VERSION = '0.56.2';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -6408,7 +6408,7 @@ class Stage {
     ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
     ctx.fillStyle = COL.black;
     ctx.fillRect(FX, FY, VIEW_W, VIEW_H);
-    if (this.dirty || this.layerLook !== Config.get('look')) this.buildLayers();   // the look changed: once (blocks.js)
+    if (this.dirty || this.layerLook !== Config.get('look')) { this.buildLayers(); this.layerLook = Config.get('look'); }   // the look changed: once (blocks.js; set here too, as modes with their own buildLayers don't)
     else if (this.dirtyCells && this.dirtyCells.length) this.redrawCells();
 
     ctx.save();
