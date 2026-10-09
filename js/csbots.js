@@ -18,20 +18,7 @@
 // =====================================================================
 
 const CSB_SEE = 168, CSB_ARRIVE = 2, CSB_FIELDS = 3;
-// the ways in: call-outs in order (csmap.js CS_SPOTS), the last one the site; stage: where they gather
-const CSB_ROUTES = {
-  long: { site: 'A', path: ['outsideLong', 'longDoors', 'long'], stage: 'long', go: ['longA', 'aCar', 'aSite'] },
-  short: { site: 'A', path: ['tRamp', 'topMid', 'midTop'], stage: 'midTop', go: ['catBottom', 'catwalk', 'aShort', 'aSite'] },
-  tunnels: { site: 'B', path: ['outsideTunnels', 'upperTunnels', 'tunnelJunction'], stage: 'tunnelJunction', go: ['bTunnelsIn', 'bTunnels', 'bSite'] },
-  lurk: { site: 'B', path: ['tRamp', 'topMid', 'midTop', 'lowerMid'], stage: 'lowerMid', go: ['lowerTunnels', 'tunnelJunction', 'bTunnelsIn', 'bTunnels', 'bSite'] },
-};
-// after the plant: where the terrorists hold round each site; the CTs' posts and which way they look
-const CSB_POST = { A: ['goose', 'aCar', 'aPlat', 'aRamp'], B: ['backPlat', 'bCar', 'bTunnels', 'bDoors'] };
-// where the CTs go when the terrorists show up at a site: the ways in from their side, and the site
-const CSB_ROT = { A: ['ctRamp', 'goose', 'aSite'], B: ['bDoors', 'bWindow', 'backPlat'] };
-const CSB_CT = [['aCar', 2], ['bSite', 2], ['ctMid', 2], ['aSite', 3], ['bWindow', 3]];
-// where a CT on a post looks out from now and then (further up the way in), and for how long out of how long
-const CSB_PEEK = { aCar: 'longA', bSite: 'bTunnels', ctMid: 'xbox', aSite: 'catwalk', bWindow: 'lowerTunnels' };
+// (the ways in, the posts, the rotations and the CTs' posts are the map's: CSB_ROUTES ... CSB_WAYS, set by csUseMap)
 const CSB_PEEK_ON = 7, CSB_PEEK_EVERY = 26;
 // how far (px) the CTs go after an enemy seen or heard, and how long they keep at it once it's gone
 const CSB_HUNT_R = 400, CSB_HUNT_KEEP = 300;
@@ -148,7 +135,7 @@ Object.assign(Stage.prototype, {
 
   // the terrorist bots' ways in to a site
   csBotWays(site) {
-    const ways = site === 'A' ? ['long', 'short', 'long', 'long', 'short'] : ['tunnels', 'tunnels', 'lurk', 'tunnels', 'tunnels'];
+    const ways = CSB_WAYS[site];
     this.players.filter(p => p.bot && p.csTeam === 'T').forEach((p, k) => { p.csAiPlan = { role: ways[k % ways.length], k: 0 }; });
   },
 
@@ -310,7 +297,7 @@ Object.assign(Stage.prototype, {
         const [ox, oy] = CSB_GUARD[(k + C.round) % CSB_GUARD.length];
         return { node: at(B.x - 8 + ox * 16, B.y - 8 + oy * 16), near: 2 };
       }
-      const R = CSB_ROUTES[pl.role] || CSB_ROUTES.long;
+      const R = CSB_ROUTES[pl.role] || Object.values(CSB_ROUTES)[0];
       // everyone at their gathering point (or 25 s gone, or a rush, or time running out): go in
       const lead = this.csBotLead();
       if (!P.exec && lead) {

@@ -13,7 +13,37 @@
 //    w  a window: tanks can't get through, shells and sight can (water underneath, drawn as glass and bars)
 // =====================================================================
 
-const CS_MAP = [
+// every map (the others in their own files: csmap_<name>.js); csUseMap points the CS_* names below at one of them
+const CS_MAPS = {}, CS_MAP_ORDER = [];
+let CS_MAP, CS_W, CS_H, CS_ZONES, CS_STARTS, CS_FLOORS, CS_SPOTS, CS_PAL, CS_MAPKEY = '';
+// and the bots' tables for it (csbots.js)
+let CSB_ROUTES, CSB_POST, CSB_ROT, CSB_CT, CSB_PEEK, CSB_WAYS;
+
+// a map: { name, label (the team screen's DE_ name), theme ({ name, ground, specks }), rows, zones, starts, floors,
+// spots, pal (palettes over CS_PAL_BASE), mini (minimap colours), bots: { routes, post, rot, ct, peek, ways } }
+function csAddMap(key, m) { CS_MAPS[key] = m; if (!CS_MAP_ORDER.includes(key)) CS_MAP_ORDER.push(key); THEMES['cs_' + key] = m.theme; }
+function csUseMap(key) {
+  const m = CS_MAPS[key] || CS_MAPS.dust2;
+  CS_MAPKEY = CS_MAPS[key] ? key : 'dust2';
+  CS_MAP = m.rows; CS_W = m.rows[0].length; CS_H = m.rows.length;
+  CS_ZONES = m.zones; CS_STARTS = m.starts; CS_FLOORS = m.floors; CS_SPOTS = m.spots;
+  CS_PAL = Object.assign({}, CS_PAL_BASE, m.pal || {});
+  const b = m.bots;
+  CSB_ROUTES = b.routes; CSB_POST = b.post; CSB_ROT = b.rot; CSB_CT = b.ct; CSB_PEEK = b.peek || {}; CSB_WAYS = b.ways;
+  return m;
+}
+// tiles past the four of Dust 2 (#, ., x, d, w): their block (a BLOCK_TYPE letter: @ steel, # brick, ~ water, . floor),
+// their picture (fn(g, tx, ty, R) on a 16 x 16 canvas; R seeded per tile) and their colour on the team screen's map
+const CS_TILE_BLOCK = { '#': '@', '.': '.', x: '#', d: '#', w: '~' };
+const CS_TILE_ART = {};
+const CS_THUMB_COL = {};
+// floor kinds past sand, stone and tunnel: fn(g, x, y, tx, ty, P, r) draws one tile of it (P its palette, r seeded)
+const CS_FLOOR_ART = {};
+
+csAddMap('dust2', {
+  name: 'DUST 2', label: 'DE_DUST2',
+  theme: { name: 'DUST 2', ground: '#B08C58', specks: ['#A07C48', '#C09C68'] },
+  rows: [
   '################################################################',
   '################################################################',
   '##...................######.............##..................####',
@@ -74,38 +104,56 @@ const CS_MAP = [
   '#######################.....................####################',
   '################################################################',
   '################################################################',
-];
-const CS_W = CS_MAP[0].length, CS_H = CS_MAP.length;
+  ],
 
-// places on the map, in tiles [x, y, w, h]: the spawns (and their buy zones) and the two bombsites
-const CS_ZONES = {
+  // places on the map, in tiles [x, y, w, h]: the spawns (and their buy zones) and the two bombsites
+  zones: {
   T: [23, 48, 21, 10],
   CT: [24, 2, 16, 8],
   A: [45, 3, 14, 10],
   B: [3, 3, 15, 12],
-};
-// where each side's five tanks start (tiles), and which way they face
-const CS_STARTS = {
+  },
+  // where each side's five tanks start (tiles), and which way they face
+  starts: {
   T: { dir: 0, at: [[30, 50], [33, 52], [36, 50], [30, 55], [36, 55]] },
   CT: { dir: 2, at: [[26, 4], [33, 3], [37, 4], [27, 7], [34, 8]] },
-};
-// the floor: boards in the tunnels and the window room (indoors, darker), stone slabs on the sites; sand elsewhere
-const CS_FLOORS = [
+  },
+  // the floor: boards in the tunnels and the window room (indoors, darker), stone slabs on the sites; sand elsewhere
+  floors: [
   ['tunnel', 8, 19, 5, 30], ['tunnel', 13, 35, 9, 3], ['tunnel', 21, 26, 4, 12], ['tunnel', 25, 26, 5, 3], ['tunnel', 22, 11, 4, 4],
   ['stone', 42, 2, 20, 12], ['stone', 2, 2, 19, 16],
-];
-// call-outs (tiles): where the bots go, hold and look
-const CS_SPOTS = {
+  ],
+  // call-outs (tiles): where the bots go, hold and look (every map has tSpawn, ctSpawn, aSite and bSite)
+  spots: {
   tSpawn: [33, 50], outsideLong: [48, 47], longDoors: [49, 41], long: [54, 34], pit: [58, 44], longA: [56, 24], aCar: [57, 17],
   aRamp: [57, 13], aSite: [51, 8], aPlat: [47, 6], goose: [58, 6], aShort: [41, 13], catwalk: [39, 18], catBottom: [37, 22], xbox: [33, 24],
   midTop: [32, 30], topMid: [32, 37], tRamp: [33, 43], midDoors: [32, 17], ctMid: [31, 12], ctSpawn: [32, 5], ctRamp: [40, 5],
   bDoors: [22, 7], bWindow: [24, 13], bSite: [9, 11], backPlat: [4, 4], bCar: [16, 6], bTunnels: [10, 19], bTunnelsIn: [10, 26],
   upperTunnels: [10, 40], tunnelJunction: [10, 36], lowerTunnels: [22, 31], lowerMid: [27, 27], outsideTunnels: [15, 52],
-};
+  },
+  // the minimap's colours: floor, the sites
+  mini: { floor: [200, 170, 120], site: [214, 150, 110] },
+  // the bots (csbots.js): the terrorists' ways in, call-outs in order, the last one the site (stage: where they
+  // gather; go: on in from there); where they hold round a planted bomb; where the CTs rotate to; the CTs' posts
+  // and which way they look; where each post looks out from now and then; which ways the five take to each site
+  bots: {
+    routes: {
+      long: { site: 'A', path: ['outsideLong', 'longDoors', 'long'], stage: 'long', go: ['longA', 'aCar', 'aSite'] },
+      short: { site: 'A', path: ['tRamp', 'topMid', 'midTop'], stage: 'midTop', go: ['catBottom', 'catwalk', 'aShort', 'aSite'] },
+      tunnels: { site: 'B', path: ['outsideTunnels', 'upperTunnels', 'tunnelJunction'], stage: 'tunnelJunction', go: ['bTunnelsIn', 'bTunnels', 'bSite'] },
+      lurk: { site: 'B', path: ['tRamp', 'topMid', 'midTop', 'lowerMid'], stage: 'lowerMid', go: ['lowerTunnels', 'tunnelJunction', 'bTunnelsIn', 'bTunnels', 'bSite'] },
+    },
+    post: { A: ['goose', 'aCar', 'aPlat', 'aRamp'], B: ['backPlat', 'bCar', 'bTunnels', 'bDoors'] },
+    rot: { A: ['ctRamp', 'goose', 'aSite'], B: ['bDoors', 'bWindow', 'backPlat'] },
+    ct: [['aCar', 2], ['bSite', 2], ['ctMid', 2], ['aSite', 3], ['bWindow', 3]],
+    peek: { aCar: 'longA', bSite: 'bTunnels', ctMid: 'xbox', aSite: 'catwalk', bWindow: 'lowerTunnels' },
+    ways: { A: ['long', 'short', 'long', 'long', 'short'], B: ['tunnels', 'tunnels', 'lurk', 'tunnels', 'tunnels'] },
+  },
+});
 
 // the map as a block map for Stage.load (2 x 2 blocks a tile)
 function csMapBlocks() {
-  const BL = { '#': '@', '.': '.', x: '#', d: '#', w: '~' }, out = [];
+  const BL = CS_TILE_BLOCK, out = [];
   for (const row of CS_MAP) {
     let r = '';
     for (const ch of row) r += (BL[ch] || '.').repeat(2);
@@ -121,8 +169,8 @@ function csFloorOf(tx, ty) {
 }
 
 // the look: the season's slot for it (no twist, no weather of its own)
-THEMES.dust = { name: 'DUST 2', ground: '#B08C58', specks: ['#A07C48', '#C09C68'] };
-const CS_PAL = {
+THEMES.dust = CS_MAPS.dust2.theme;
+const CS_PAL_BASE = {
   sand: ['#B8925A', '#A8824C', '#C8A46C', '#9C7840'], stone: ['#C4AC80', '#B09870', '#D4BC90', '#9C8460'], tunnel: ['#5C4830', '#4C3C28', '#6C5638', '#3C2C1C'],
   roof: ['#E2C896', '#D0B07A', '#F2DCAC', '#B89058'], face: ['#8C6434', '#74502A', '#A07848'], deep: ['#9C7A4C', '#8C6A40', '#A88658'],
   crate: ['#B87C34', '#8C5820', '#5C3810', '#D8A458'], door: ['#4C7488', '#36586C', '#203848', '#6C94A8'],
@@ -131,11 +179,12 @@ const CS_PAL = {
 Object.assign(Stage.prototype, {
   // the ground, drawn once: sand, stone and boards, the shadows the walls throw, the painted bombsite letters
   csGround() {
-    if (this.ground && this.groundFor === 'cs' && this.ground.width === FW) return this.ground;
+    if (this.ground && this.groundFor === 'cs:' + CS_MAPKEY && this.ground.width === FW) return this.ground;
     const c = makeCanvas(FW, FH), g = c.getContext('2d'), r = seeded(2002);
     for (let ty = 0; ty < CS_H; ty++) for (let tx = 0; tx < CS_W; tx++) {
       const k = csFloorOf(tx, ty), P = CS_PAL[k], x = tx * 16, y = ty * 16;
       g.fillStyle = P[0]; g.fillRect(x, y, 16, 16);
+      if (CS_FLOOR_ART[k]) { CS_FLOOR_ART[k](g, x, y, tx, ty, P, r); continue; }
       if (k === 'stone') {
         // big slabs, worn at the joints
         g.fillStyle = P[1]; g.fillRect(x, y + 15, 16, 1); g.fillRect(x + ((ty & 1) ? 0 : 8), y, 1, 15);
@@ -173,7 +222,7 @@ Object.assign(Stage.prototype, {
       Font.big(g, s, Math.round(x + w / 2 - (s.length * 8 - 2)), Math.round(y + h / 2 - 7), 2, s === 'T' ? '#7C3810' : '#1C3C7C');
       g.globalAlpha = 1;
     }
-    this.ground = c; this.groundFor = 'cs';
+    this.ground = c; this.groundFor = 'cs:' + CS_MAPKEY;
     return c;
   },
 
@@ -181,6 +230,7 @@ Object.assign(Stage.prototype, {
   csTileArt(tx, ty) {
     const ch = csTile(tx, ty), c = makeCanvas(16, 16), g = c.getContext('2d'), wall = (x, y) => csTile(x, y) === '#';
     const R = seeded(tx * 131 + ty * 977 + 5);
+    if (CS_TILE_ART[ch]) { CS_TILE_ART[ch](g, tx, ty, R); return c; }
     if (ch === '#') {
       // far from any floor: the flat roofs of the town; next to one: sandstone blocks, a face on the south side
       let near = false;
@@ -257,3 +307,5 @@ Object.assign(Stage.prototype, {
   const build = P.buildLayers;
   P.buildLayers = function () { if (this.cs) this.csBuildLayers(); else build.call(this); };
 })();
+
+csUseMap('dust2');

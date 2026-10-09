@@ -67,7 +67,8 @@ Object.assign(Game, {
     const local = this.players.filter(p => !Input.remote[p.i]).map(p => p.i), groups = [];
     if (local.length) groups.push({ members: local, side: o.side === 'CT' ? 'CT' : 'T', ready: false, local: true });
     for (const p of this.players) if (Input.remote[p.i]) groups.push({ members: [p.i], side: groups.length % 2 ? 'CT' : 'T', ready: false });
-    this.curtain.cs = { groups, row: 0, target: [5, 8, 13].includes(o.target) ? o.target : 8, size: [3, 4, 5].includes(o.size) ? o.size : 5 };
+    this.curtain.cs = { groups, row: 0, target: [5, 8, 13].includes(o.target) ? o.target : 8, size: [3, 4, 5].includes(o.size) ? o.size : 5,
+      map: CS_MAP_ORDER.includes(o.map) || o.map === 'random' ? o.map : 'dust2' };
   },
 
   csTeamsUpdate() {
@@ -75,11 +76,12 @@ Object.assign(Game, {
     for (const g of C.groups) {
       const r = g.local ? m : (Input.remote[g.members[0]] || {}).menu || {};
       if (g.local && m.back) { this.toTitle(); return; }
-      if (g.local && (m.up || m.down)) { C.row = (C.row + (m.down ? 1 : 2)) % 3; Sound.play('select'); }
+      if (g.local && (m.up || m.down)) { C.row = (C.row + (m.down ? 1 : 3)) % 4; Sound.play('select'); }
       const dir = r.left ? -1 : r.right ? 1 : 0;
       if (dir && !g.ready) {
         if (!g.local || C.row === 0) g.side = csOther(g.side);
-        else if (C.row === 1) C.target = [5, 8, 13][([5, 8, 13].indexOf(C.target) + dir + 3) % 3];
+        else if (C.row === 1) { const all = CS_MAP_ORDER.concat('random'); C.map = all[(all.indexOf(C.map) + dir + all.length) % all.length]; }
+        else if (C.row === 2) C.target = [5, 8, 13][([5, 8, 13].indexOf(C.target) + dir + 3) % 3];
         else C.size = 3 + ((C.size - 3 + dir + 3) % 3);
         Sound.play('select');
       }
@@ -95,8 +97,9 @@ Object.assign(Game, {
     for (const g of C.groups) for (const i of g.members) side[i] = g.side;
     const n0 = humans.filter(p => side[p.i] !== 'CT').length, size = Math.max(C.size, n0, humans.length - n0);
     const local = C.groups.find(g => g.local);
-    STORE.set(CS_KEY, { target: C.target, size: C.size, side: local ? local.side : 'T' });
-    this.csMatch = { target: C.target, size, round: 1, half: 0, score: [0, 0], streak: [0, 0], hist: [], id: 1 + rnd(1e6) };
+    STORE.set(CS_KEY, { target: C.target, size: C.size, side: local ? local.side : 'T', map: C.map || 'dust2' });
+    const map = C.map === 'random' ? CS_MAP_ORDER[rnd(CS_MAP_ORDER.length)] : CS_MAPS[C.map] ? C.map : 'dust2';
+    this.csMatch = { target: C.target, size, round: 1, half: 0, score: [0, 0], streak: [0, 0], hist: [], id: 1 + rnd(1e6), map };
     this.csSeen = {};
     for (const p of humans) p.csSquad = side[p.i] === 'CT' ? 1 : 0;
     let k = 0;
@@ -122,9 +125,10 @@ Object.assign(Game, {
     this.roundSave = { players: this.players.map(p => keep(Object.assign({}, p, { tank: null }))), base: keep(this.base), customPending: false, taFrames: 0, taCleared: 0, resume: null, csM: keep(M) };
     this.ck = null;
     const [vc, vr] = this.desiredField();
+    csUseMap(M.map);
     setFieldSize(CS_W, CS_H, Math.min(vc, CS_W), Math.min(vr, CS_H));
     this.stageNum = M.round;
-    const st = new Stage(M.round, LEVELS[0], [], { blocks: csMapBlocks(), custom: true, theme: 'dust', base: newBase() });
+    const st = new Stage(M.round, LEVELS[0], [], { blocks: csMapBlocks(), custom: true, theme: 'cs_' + CS_MAPKEY, base: newBase() });
     st.csSetup(this.players, M);
     this.stage = st;
     this.paused = false;
@@ -662,7 +666,7 @@ Object.assign(Stage.prototype, {
   // the minimap: what the team has explored, the sites, the team, the enemies in sight, where the bomb is
   csMinimap(ctx, camX, camY) {
     if (!Config.on('minimap')) return;
-    const C = this.cs, V = this.csViewer(), mw = CS_W, mh = CS_H, x0 = VIEW_W - mw - 3, y0 = 3, BW = COLS * 2;
+    const C = this.cs, V = this.csViewer(), mw = CS_W, mh = CS_H, x0 = VIEW_W - mw - 3, y0 = 3, BW = COLS * 2, MC = CS_MAPS[CS_MAPKEY].mini;
     if (!C.mini || this.frame - C.miniAt >= 12 || this.frame < C.miniAt) {
       C.miniAt = this.frame;
       if (!C.mini) { C.mini = makeCanvas(mw, mh); C.miniImg = C.mini.getContext('2d').createImageData(mw, mh); }
@@ -670,7 +674,7 @@ Object.assign(Stage.prototype, {
       for (let ty = 0; ty < mh; ty++) for (let tx = 0; tx < mw; tx++) {
         const o = (ty * mw + tx) * 4, b = (ty * 2) * BW + tx * 2, v = this.terrain[(ty * 4 + 1) * GW + tx * 4 + 1];
         let col = v === T_STEEL ? [92, 72, 44] : v === T_BRICK ? [150, 96, 40] : v === T_WATER ? [40, 60, 90]
-          : csInZone('A', tx * 16 + 8, ty * 16 + 8) || csInZone('B', tx * 16 + 8, ty * 16 + 8) ? [214, 150, 110] : [200, 170, 120];
+          : csInZone('A', tx * 16 + 8, ty * 16 + 8) || csInZone('B', tx * 16 + 8, ty * 16 + 8) ? MC.site : MC.floor;
         if (seen && !seen[b] && !seen[b + 1] && !seen[b + BW] && !seen[b + BW + 1]) col = [0, 0, 0];
         else if (g && !g[b] && !g[b + 1] && !g[b + BW] && !g[b + BW + 1]) col = col.map(c => c * 0.55);
         d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = 235;
@@ -861,7 +865,7 @@ Object.assign(Stage.prototype, {
   // online: what a guest needs on top of the stage view (tanks, shells and terrain come with it)
   csView() {
     const C = this.cs, B = C.bomb;
-    return { ph: C.phase, t: C.t, ck: C.clock, fl: C.flash, w: C.winner, why: C.why, mvp: C.mvp, rd: C.round, hf: C.half, sc: C.score, tg: C.target, id: C.id,
+    return { mp: CS_MAPKEY, ph: C.phase, t: C.t, ck: C.clock, fl: C.flash, w: C.winner, why: C.why, mvp: C.mvp, rd: C.round, hf: C.half, sc: C.score, tg: C.target, id: C.id,
       b: [B.state, B.carrier, Math.round(B.x), Math.round(B.y), B.site, B.timer, B.plant, B.planter, B.defuse, B.defuser],
       fd: C.feed, nt: C.notes, sm: C.smokes.map(s => [Math.round(s.x), Math.round(s.y), s.t]), nz: C.noise.map(n => [n.x, n.y, n.team, n.t]),
       by: Object.keys(C.buy).map(i => [+i, C.buy[i].idx, C.buy[i].ready ? 1 : 0, C.buy[i].msgT > 0 ? C.buy[i].msg : '']),
@@ -870,6 +874,7 @@ Object.assign(Stage.prototype, {
   },
   applyCsView(v) {
     const C = this.cs || (this.cs = { vis: {}, ghosts: { T: [], CT: [] } });
+    if (v.mp) csUseMap(v.mp);
     Object.assign(C, { phase: v.ph, t: v.t, clock: v.ck, flash: v.fl, winner: v.w, why: v.why, mvp: v.mvp, round: v.rd, half: v.hf, score: v.sc, target: v.tg, id: v.id,
       feed: v.fd, notes: v.nt, smokes: v.sm.map(a => ({ x: a[0], y: a[1], t: a[2] })), noise: v.nz.map(a => ({ x: a[0], y: a[1], team: a[2], t: a[3] })) });
     const b = v.b;
@@ -889,15 +894,16 @@ Object.assign(Stage.prototype, {
 Object.assign(Game, {
   // DE_DUST2 small (a pixel a tile), for the team screen
   csThumb() {
-    if (this.csThumbC) return this.csThumbC;
+    const all = this.csThumbs || (this.csThumbs = {});
+    if (all[CS_MAPKEY]) return all[CS_MAPKEY];
     const c = makeCanvas(CS_W, CS_H), g = c.getContext('2d');
     for (let ty = 0; ty < CS_H; ty++) for (let tx = 0; tx < CS_W; tx++) {
       const ch = CS_MAP[ty][tx], x = tx * 16 + 8, y = ty * 16 + 8;
-      g.fillStyle = ch === '#' ? '#3C2C18' : ch === 'x' || ch === 'd' ? '#8C5820' : csInZone('A', x, y) || csInZone('B', x, y) ? '#D89870' : csInZone('T', x, y) ? '#C8A060' : csInZone('CT', x, y) ? '#A8B0B8' : '#B89458';
+      g.fillStyle = CS_THUMB_COL[ch] || ch === '#' ? CS_THUMB_COL[ch] || '#3C2C18' : ch === 'x' || ch === 'd' ? '#8C5820' : csInZone('A', x, y) || csInZone('B', x, y) ? '#D89870' : csInZone('T', x, y) ? '#C8A060' : csInZone('CT', x, y) ? '#A8B0B8' : 'rgb(' + CS_MAPS[CS_MAPKEY].mini.floor + ')';
       g.fillRect(tx, ty, 1, 1);
     }
     for (const k of ['A', 'B']) { const [zx, zy, zw, zh] = CS_ZONES[k]; g.drawImage(csMiniLetter(k), zx + zw / 2 - 2, zy + zh / 2 - 3); }
-    return (this.csThumbC = c);
+    return (all[CS_MAPKEY] = c);
   },
 
   csTeamsRender(ctx) {
@@ -905,10 +911,14 @@ Object.assign(Game, {
     ctx.fillStyle = '#140E08'; ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
     ctx.save(); ctx.translate(ox, oy);
     Font.drawCenter(ctx, 'COUNTER-STRIKE', SW / 2, 8, COL.gold);
-    Font.drawCenter(ctx, 'DE_DUST2', SW / 2, 19, COL.lgrey);
+    const rand = C.map === 'random';
+    if (!rand) csUseMap(C.map);
+    Font.drawCenter(ctx, rand ? 'A MAP AT RANDOM' : CS_MAPS[CS_MAPKEY].label, SW / 2, 19, COL.lgrey);
     // the map between the two teams
-    ctx.fillStyle = '#5C4428'; ctx.fillRect(95, 37, CS_W + 2, CS_H + 2);
-    ctx.drawImage(this.csThumb(), 96, 38);
+    const mx = 96 + ((64 - (rand ? 64 : CS_W)) >> 1);
+    ctx.fillStyle = '#5C4428'; ctx.fillRect(mx - 1, 37, (rand ? 64 : CS_W) + 2, (rand ? 60 : CS_H) + 2);
+    if (rand) { ctx.fillStyle = '#2C2014'; ctx.fillRect(mx, 38, 64, 60); Font.big(ctx, '?', mx + 24, 56, 2, COL.gold); }
+    else ctx.drawImage(this.csThumb(), mx, 38);
     const guest = Net.role === 'client' ? Net.slot : -1;
     ['T', 'CT'].forEach((side, k) => {
       const x = k ? 168 : 8, col = CS_COL[side];
@@ -930,9 +940,10 @@ Object.assign(Game, {
     });
     // the options (the players at the host's computer set them)
     const local = C.groups.find(g => g.local);
-    const rows = [['SIDE', local ? (local.side === 'T' ? 'TERRORISTS' : 'COUNTER-T.') : '-'], ['ROUNDS TO WIN', String(C.target)], ['TEAM SIZE', C.size + ' V ' + C.size]];
+    const rows = [['SIDE', local ? (local.side === 'T' ? 'TERRORISTS' : 'COUNTER-T.') : '-'], ['MAP', rand ? 'RANDOM' : CS_MAPS[CS_MAPKEY].name],
+      ['ROUNDS TO WIN', String(C.target)], ['TEAM SIZE', C.size + ' V ' + C.size]];
     rows.forEach(([label, val], r) => {
-      const y = 148 + r * 12, sel = guest < 0 && r === C.row;
+      const y = 142 + r * 12, sel = guest < 0 && r === C.row;
       if (sel) Font.draw(ctx, '>', 24, y, COL.gold);
       Font.draw(ctx, label, 36, y, COL.white);
       Font.draw(ctx, (sel ? '<' : ' ') + val + (sel ? '>' : ''), 148, y, r === 0 && local ? CS_COL[local.side] : COL.gold);
@@ -1141,6 +1152,7 @@ Object.assign(Game, {
   };
   const applyStage = Net.applyStage;
   Net.applyStage = function (sv) {
+    if (sv.csx && sv.csx.mp) csUseMap(sv.csx.mp);   // the map's size and look before the stage is built
     applyStage.call(this, sv);
     if (sv.csx && Game.stage) Game.stage.applyCsView(sv.csx);
     else if (Game.stage) Game.stage.cs = null;
