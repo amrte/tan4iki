@@ -3,6 +3,13 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.67
+
+- **The boss gallery has the other modes' bosses** (bookextra.js, bookextra2.js): ASTRO TANKS' CINDER COLOSSUS, VOID
+  MATRIARCH and COMET WYRM, the MAZE's MINOTAUR, TANK RALLY's BARON KRAGG and DESERT DOMINION's REGENT, each with a
+  warning picture and a victory picture, added when you meet them (bosses already beaten are filled in from the
+  records). ASTRO TANKS now shows the boss's warning picture as it arrives (Settings → BOSS SCREENS).
+
 ## 0.66.1
 
 - **Fixed: missiles didn't hurt bosses** (classic boss rounds, and bosses in other modes). They only chased tanks and
