@@ -3,6 +3,19 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## Unreleased
+
+- **Cheat code** (cheat.js): UP UP DOWN DOWN LEFT RIGHT LEFT RIGHT B A on the title screen (keyboard, gamepad or the
+  touch pad; or 7 quick taps on the logo) turns CHEAT MODE on: "ALL UNLOCKED". Every stage of the classic picker
+  (to BABA GALYA's stage 101; hold a direction to run through them), every Fortress map and Tank Rally tank, the
+  whole boss gallery (every boss met and beaten, galaxy ones included however many there are). The first curtain
+  picks where to start: Survival's wave, Time attack's stage, Any side's stage and edge, Corridor's height (bands,
+  depots, boss gates), the Maze, VS CPU's round, Custom levels, Astro Tanks' wave, Galaxy's sector / boss / endless
+  stage, Kill race's round; Tank Rally's world and division (to the champion race), Desert Dominion's campaign
+  mission (to the Regent). A later start brings a matching kit (Galaxy power, bombs and upgrades; Astro Tanks
+  upgrades and crystals; Survival perks; Tank Rally money). Records, the gallery, careers and saves are kept apart
+  while it's on, so the real ones are never touched. The code again turns it off. README: *Cheat code*.
+
 ## 0.67
 
 - **The boss gallery has the other modes' bosses** (bookextra.js, bookextra2.js): ASTRO TANKS' CINDER COLOSSUS, VOID

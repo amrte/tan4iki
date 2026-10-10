@@ -1502,6 +1502,56 @@ In the classic game, Any side, Big maps, Survival, Time attack, Maze, Kill race,
 
 Not in versus, Fortress or boss stages. Settings → GAME → SECRETS turns them off.
 
+## Cheat code
+
+On the title screen, enter the Konami code: **UP UP DOWN DOWN LEFT RIGHT LEFT RIGHT B A**.
+
+- **Keyboard**: the arrows (or WASD), then player I's **B** button (B / C / N / Left Shift, or your own key) and
+  **A** (fire: Space / Z / X / J / K / F, or your own key). The letter keys **B** and **A** work too.
+- **Gamepad**: the d-pad (or the stick), then **B** and **A**.
+- **Touch**: the on-screen d-pad, then **B** and **A**; or tap the **TANЬ4IKI** logo **7 times** quickly.
+
+"ALL UNLOCKED" pops up with a jingle and stays at the top of the title screen while cheat mode is on. It's remembered
+after a reload. Enter the code again (or tap the logo 7 times again) to turn it off: "CHEAT MODE OFF".
+
+While it's on:
+
+- **Every stage, map and boss is open.** The classic (and Big maps) stage picker goes to the end, BABA GALYA's
+  secret stage included (stage 101 with a boss every 10 stages); hold a direction to run through the stages. Every
+  Fortress map can be picked. Every Tank Rally tank is on sale. The **boss gallery** lists every boss as met and
+  beaten: the tank bosses and BABA GALYA, every Galaxy boss, and the Astro Tanks, Maze, Tank Rally and Desert
+  Dominion bosses.
+- **Pick where to start.** The first curtain of a mode with rounds says CHEAT: PICK THE START. Left/right go one at a
+  time (hold to run), up/down ten; Enter starts there, Esc goes back.
+
+  | Mode | What you pick |
+  |---|---|
+  | Classic, Big maps | the stage, 1 to 101 (the usual stage picker) |
+  | Survival | the wave, 1-100 |
+  | Time attack | which of the 5 stages to start on |
+  | Any side | the stage and the eagle's edge (up/down choose the line) |
+  | Corridor | the height: the start, each 100 m band, each depot, each boss gate (you start just below it) |
+  | Maze | the maze, 1-50 (every 5th is a lair) |
+  | Fortress | any map (left/right as always) |
+  | Galaxy | up/down the sector (campaign, daily), the boss (boss rush) or the stage (endless); left/right the run |
+  | Kill race | up/down the round; left/right the points to win as always |
+  | VS CPU, Co-op vs CPU | the round, 1-30 |
+  | Custom levels | which of your levels to start with |
+  | Astro Tanks | the wave, 1-60 (the boss waves 5, 10, 15 ... name their boss) |
+  | Tank Rally | after START CAREER: the world and the division (division B, A or the champion race against BARON KRAGG) |
+  | Desert Dominion | on CHOOSE YOUR HOUSE, up/down: the campaign mission, 1-9 (9: THE REGENT); skirmish has every tech level anyway |
+
+  Endless world and Counter-Strike have no rounds to pick; Deathmatch, Flags and VS Eagles are single matches.
+- **A kit to match.** Starting later brings what you'd have built up by then: Galaxy power, bombs and hangar
+  upgrades; Astro Tanks upgrades and crystals; a Survival perk for every 5 waves; $500000 for each Tank Rally driver.
+- **Your real records are safe.** Records, best scores and the hi-score, the boss gallery, the stage you've reached,
+  the Tank Rally career, the Desert Dominion campaign and the saved games (CONTINUE) are kept apart while cheat mode
+  is on: the cheat runs have their own, and the real ones aren't touched. Turn it off and everything is as you left
+  it (the cheat runs' records and saves wait for the next time it's on).
+
+Online, the host's cheat mode counts: guests see the picker and follow. A guest's own cheat mode only changes their
+boss gallery.
+
 ## Terrain: mud, conveyor belts, teleporters, crates, barrels, deflectors; night and fog
 
 - **Mud** (brown, lumpy): any tank on it moves at half speed; shells pass over it; hovering skimmers glide across.
@@ -1699,6 +1749,7 @@ js/rtsart_title.js DESERT DOMINION's title picture
 js/netstream.js   online for the modes that draw themselves (Tank Rally, Astro Tanks, Desert Dominion): the host's screen as pictures
 js/csart.js       COUNTER-STRIKE's title picture
 js/reach.js       no dead ends: a way opened from every walled-in entry point; stuck enemies come in again
+js/cheat.js       the cheat code: everything unlocked, the start pickers and kits, the full boss gallery, records kept apart
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories
 js/corridor.js    corridor mode: the endless climb, sections added on top as you go
 js/corridor2.js   corridor: the rising hazard, the climb combo, biome bands, set pieces, splits, depots, boss gates, medals
