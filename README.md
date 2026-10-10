@@ -1149,8 +1149,8 @@ up. 1-4 players together, here or online.
 - **Controls:** hold FIRE to fire. **Tap B** to swap to your other weapon, **hold B** for FOCUS (half speed, your tiny
   hitbox shown as a dot), **double-tap B** for a bomb (damage to everything on screen, their shots gone).
 - **Runs** (GALAXY RUN, picked with left/right on the galaxy title screen or the first curtain, or in Settings → GAME):
-  - *Campaign*: the fourteen sectors, then round again.
-  - *Boss rush*: the fourteen bosses back to back, from power 4 and 3 bombs; the hangar after every third boss; the
+  - *Campaign*: the twenty sectors, then round again.
+  - *Boss rush*: the twenty bosses back to back, from power 4 and 3 bombs; the hangar after every third boss; the
     clock runs. Best: most bosses, then the fastest full clear.
   - *Endless*: random waves forever, getting harder every wave; a boss every 6 waves, the hangar every 12, a new sky
     each boss. Best: the furthest wave.
@@ -1186,11 +1186,12 @@ up. 1-4 players together, here or online.
 - **The bosses** are bigger and more detailed, show their damage phase by phase (cracks, sparks, holes, broken
   parts), and have about a third more hit points and one more attack in their last phase.
 
-- **Sectors:** fourteen, each with six waves and a boss: Moon Orbit, Red Planet, Asteroid Belt, Ice Giant, Nebula,
+- **Sectors:** twenty, each with six waves and a boss: Moon Orbit, Red Planet, Asteroid Belt, Ice Giant, Nebula,
   The Core, Earth Orbit, Time Vortex (a swirling tunnel), Saturn Rings, Cyberspace (a green grid and falling code),
   Dark Star, The Well (a Tetris well: a faint grid, brick walls, tetrominoes falling in the dark, lines flashing as
   they clear), The Slop Feed (an uncanny pastel haze, melting stars, garbled watermarks drifting by, sparkles and
-  glitches) and The Last Base. Then round again, tougher, with each sector's waves shuffled and a couple of surprises.
+  glitches), Rainbow Rift, Disco Moon, The Ghost Sea, North Pole, Mars Highway, The Desktop and The Last Base. Then
+  round again, tougher, with each sector's waves shuffled and a couple of surprises.
 - **Waves:**
   - *formation*: they fly in to a grid, sway, and break off to dive at you
   - *swarm*: streams weaving across the screen
@@ -1250,7 +1251,7 @@ up. 1-4 players together, here or online.
   - **Frost Queen**: shards; volleys of icicles dropping in the columns round you; a blizzard wall coming down with one gap to slip through; three freezing beams at once (one on you), then three more in the gaps; frost novas (two rings of shards); she blinks away in a flurry of snow and comes back over you; an ice storm. She follows you faster the more she's hurt
   - **Elder Eye**: hit it only while it's open; it stares a beam at you
   - **Overmind**: four orbiting orbs shield it until they're shot down; spirals
-  - The bosses of sectors 7-11 and 14 are after flying things from 90s films and games:
+  - The bosses of sectors 7-11 and 20 are after flying things from 90s films and games:
     - **City Killer** (sector 7): a saucer the size of a city behind a shield that soaks up nearly all damage. Catch
       the floppy disk it drops to upload a virus (9 s without a shield, and it takes extra damage), or hit it while
       its dish is open charging the beam that levels cities. Also fighters and rim turrets.
@@ -1263,7 +1264,7 @@ up. 1-4 players together, here or online.
       it hasn't adapted to. Tractor beam then a cutting beam, a cage of shots, little cubes that hunt you.
     - **Giant Head** (sector 11): two hands slam down where you are (a red mark shows where) and shield the head
       while they're alive. It breathes you in and spits tiles. In its last phase, its brain shows.
-    - **CATS** (sector 14, the last): "HOW ARE YOU GENTLEMEN !!" "ALL YOUR BASE ARE BELONG TO US." Time bombs counting down
+    - **CATS** (sector 20, the last): "HOW ARE YOU GENTLEMEN !!" "ALL YOUR BASE ARE BELONG TO US." Time bombs counting down
       from 3 (shoot them to defuse), "MAIN SCREEN TURN ON." and its beam, fighters. FOR GREAT JUSTICE.
   - Sectors 12 and 13 have bosses of their own:
     - **The Stack** (sector 12): a living Tetris playfield, a scowling face in its blocks, a NEXT box showing the piece
@@ -1278,6 +1279,32 @@ up. 1-4 players together, here or online.
       it; shoot the bar (or bomb it) within 4 s or it heals some of its health back. In its last phase, MODEL
       COLLAPSE: it jitters, glitches into the wrong colours, scrambles its words and sprays letters every way.
       "CERTAINLY! HERE IS YOUR BOSS FIGHT." "YOU'RE ABSOLUTELY RIGHT!"
+  - Sectors 14-19 (each with its own sky, enemies, waves, a gimmick and two tunes in all three styles):
+    - **Cosmic Unicorn** (14, RAINBOW RIFT: candy nebula, pony stampedes, a rainbow road with gaps, glitter mines,
+      wishing stars that grant power, bombs or shields): gallops across leaving a solid rainbow you can't cross, sweeps
+      its horn beam, charges along a sparkle line; in phase 3 it turns NIGHTMARE (a mane of fire, rainbow fans).
+    - **The Mirrorball** (15, DISCO MOON: everything moves to the beat, and a kill on the beat scores double; conga
+      lines, a dance floor whose lit tiles zap on the beat, tracking spotlights, a soul train, bass-drop rings): swings
+      on its chain, sweeping mirror lasers in time with its song; in phase 3 it cracks into little mirrorballs.
+    - **Ghost of the Titanic** (16, THE GHOST SEA: icebergs, fog you see through only round your ship, phantom
+      lifeboats, a CURRENT that pushes you sideways): a translucent liner gliding across, broadsides from its ports,
+      ghost smoke from its funnels, a ghost band whose waltz bends your shots, "ICEBERG, RIGHT AHEAD!"; in phase 3 it
+      breaks in two and the bow plunges at you; it sinks bow first.
+    - **Santa on his Sledge** (17, NORTH POLE: aurora and snow, toy parades, presents that open (a jack-in-the-box, a
+      bomb or a gift), snowball fights, an aurora curtain that bounces shots, the NAUGHTY LIST's homing coal; FROST:
+      sit still and you ice up): loops with his reindeer team (don't touch them), present bombs, HO HO HO rings, a sack
+      of elves, a red-nose laser, a coal shotgun, a turbo sledge in a blizzard; beaten, he drops you a present.
+    - **Elon on the Cybercab** (18, MARS HIGHWAY: lanes of robotaxis changing lanes without signalling, cones,
+      boosters landing on the road, a tunnel): he drives his robotaxi himself (it can't): honks, posts that burst into
+      letters, IT'S NOT A FLAMETHROWER, FULL SELF-DRIVING (BETA) (he lets go of the wheel and careens about), mini
+      rockets, PLAID MODE; beaten, the cab breaks down and he phones a tow. Before this sector the hangar sells an
+      **FSD SUBSCRIPTION** for $99 ("FULL SELF-DRIVING (SUPERVISED)"): in the fight your ship flies and fires by
+      itself, dodging his shots (FSD ENGAGED); press a direction to take over, it engages again a second after you let go.
+    - **Windows 95** (19, THE DESKTOP: error dialogs you can only hit on OK, diving cursors, hourglasses that freeze
+      you, a pestering paperclip helper, pipes screensaver walls, DEFRAG, a MINESWEEPER field, DIAL-UP at half speed,
+      select-and-delete): a window dragged about by a cursor; its START MENU fires each item, CASCADE WINDOWS, BLUE
+      SCREEN walls with a gap, SOLITAIRE VICTORY; in phase 3 it's NOT RESPONDING (frozen, then everything at once).
+      Beaten: a blue screen of death (any key), then "IT IS NOW SAFE TO TURN OFF YOUR COMPUTER."
 - **The hangar** between sectors (the shop), per player, paid in credits (CR), not points — combos, medals and
   grazing raise your score but don't buy anything. A full set of upgrades costs about 18500 credits, around sector 10:
   - firepower (+15% damage a level, 7 levels), rapid fire (7), engine (3)
@@ -1763,6 +1790,9 @@ js/galaxy.js      galaxy mode (a shoot-'em-up): sectors, waves, weapons, pickups
 js/galaxy2.js     galaxy sectors 7-11 and 14: their bosses, the newer enemies and waves, skies and music
 js/gxfrost.js     galaxy: the Frost Queen's harder set of attacks (icicles, blizzard walls, triple beams, novas, blink)
 js/galaxy3.js     galaxy sectors The Well and The Slop Feed (12 and 13): their enemies, waves, bosses, skies and music
+js/galaxy4a.js    GALAXY sectors RAINBOW RIFT (COSMIC UNICORN) and DISCO MOON (THE MIRRORBALL)
+js/galaxy4b.js    GALAXY sectors THE GHOST SEA (GHOST OF THE TITANIC) and NORTH POLE (SANTA ON HIS SLEDGE)
+js/galaxy4c.js    GALAXY sectors MARS HIGHWAY (ELON ON THE CYBERCAB, the FSD subscription) and THE DESKTOP (WINDOWS 95)
 js/galaxy_feel.js galaxy controls and feel: B gestures, focus, two weapons, heat and the charge blast, combo, grazing, shake
 js/galaxy_prog.js galaxy progression and co-op: power cells back after a loss, perks, fair loot, escape pods
 js/galaxy_waves.js galaxy structure: mini-bosses, challenge stages, the captor and the twin fighter, medals

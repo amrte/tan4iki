@@ -3,7 +3,17 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
-## Unreleased
+## 0.68
+
+- **Galaxy: six more sectors and bosses** (galaxy4a.js, galaxy4b.js, galaxy4c.js), before THE LAST BASE (CATS stays
+  the last; twenty sectors now): RAINBOW RIFT (COSMIC UNICORN), DISCO MOON (THE MIRRORBALL, everything on the beat),
+  THE GHOST SEA (GHOST OF THE TITANIC), NORTH POLE (SANTA ON HIS SLEDGE), MARS HIGHWAY (ELON ON THE CYBERCAB) and THE
+  DESKTOP (WINDOWS 95). Each with its own sky, enemies, five new wave kinds, a gimmick, a song and a boss song in all
+  three styles; each boss with unique moves and attacks over three phases, a death of its own, warning and victory
+  pictures and a gallery page; in BOSS RUSH and ENDLESS too.
+  - The hangar before MARS HIGHWAY sells an **FSD SUBSCRIPTION** ($99): your ship flies and fires itself through the
+    Elon fight, dodging his shots.
+  - Beating WINDOWS 95 brings up a blue screen of death.
 
 - **Cheat code** (cheat.js): UP UP DOWN DOWN LEFT RIGHT LEFT RIGHT B A on the title screen (keyboard, gamepad or the
   touch pad; or 7 quick taps on the logo) turns CHEAT MODE on: "ALL UNLOCKED". Every stage of the classic picker
