@@ -41,8 +41,9 @@ function defaultCustomMap() {
 
 const TITLE_MENU_Y = 126;
 const ROMAN = ['I', 'II', 'III', 'IV'];
-// the pause menu; SKILL changes the difficulty on the spot (not in the daily challenge, where it's part of the rules)
-const pauseMenu = () => ['CONTINUE'].concat(Game.daily ? [] : ['SKILL'], Game.mode === 'fortress' ? ['SPEED'] : [], ['MUSIC', 'MUSIC VOL'], Game.mode === 'galaxy' ? [] : ['LOOK'],
+// the pause menu; SKILL changes the difficulty on the spot (not in the daily challenge, where it's part of the rules,
+// nor in DESERT DOMINION, whose computer Houses have their own skill; nor LOOK there, it has its own pictures)
+const pauseMenu = () => ['CONTINUE'].concat(Game.daily || Game.mode === 'rts' ? [] : ['SKILL'], Game.mode === 'fortress' ? ['SPEED'] : [], ['MUSIC', 'MUSIC VOL'], Game.mode === 'galaxy' || Game.mode === 'rts' ? [] : ['LOOK'],
   Game.daily ? [] : [Game.mode === 'fortress' ? 'RESTART WAVE' : 'RESTART ROUND'], ['SAVE GAME', 'CONTROLS'], Net.role ? ['ONLINE PLAYERS'] : [], ['QUIT']);
 // pause rows changed with left/right (or fire): the setting each one steps
 const PAUSE_STEP = { MUSIC: 'music', 'MUSIC VOL': 'musicVol', SPEED: 'tdSpeed', LOOK: 'look' };
