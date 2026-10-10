@@ -18,8 +18,8 @@ const CTL_EXTRA = {
   galaxy: () => [['B TWICE', 'BOMB']],
   rally: () => [['FIRE', 'FORWARD WEAPON'], ['FIRE + B', 'BOOST']],
   astro: () => [['< >', 'TURN'], ['UP / DOWN', 'THRUST / BRAKE'], ['HOLD FIRE', 'AUTO-FIRE'], ['HOLD B', 'BOMB IN THE RACK'], ['TOUCH PAD', 'POINT TO STEER']],
-  rts: () => [['MOUSE', 'CLICK, DRAG A BOX'], ['RIGHT BTN', 'DESELECT / CANCEL'], ['ARROWS', 'SCROLL THE MAP'], ['FIRE', 'CLICK AT CURSOR'],
-    ['B + MOVE', 'PAN'], ['TAB/PAD X', 'CURSOR TO SIDEBAR'], ['H', 'HOME'], ['G S A', 'GUARD/STOP/A-MOVE'], ['CTRL+1-9', 'GROUP, 1-9 PICK'],
+  rts: () => [['MOUSE', 'CLICK, DRAG A BOX'], ['RIGHT BTN', 'DESELECT / CANCEL'], ['ARROWS', 'SCROLL, H HOME'], ['+ - WHEEL', 'ZOOM (OR PINCH)'],
+    ['FIRE', 'CLICK AT CURSOR'], ['B + MOVE', 'PAN, LT/RT ZOOM'], ['TAB/PAD X', 'CURSOR TO SIDEBAR'], ['G S A', 'GUARD/STOP/A-MOVE'], ['CTRL+1-9', 'GROUP, 1-9 PICK'],
     ['DEL / R', 'SELL / REPAIR'], ['HOLD,DRAG', 'TOUCH: BOX SELECT']],
 };
 

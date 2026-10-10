@@ -4,6 +4,11 @@
 //  change are redrawn: glimmer dug, craters, concrete, rubble), the shroud into a second set of chunks over
 //  everything; buildings, wrecks, units (sorted by depth), shots, effects, aircraft with shadows, sandwyrms, then
 //  the shroud, selection marks, the placement ghost and the cursor.
+//  ZOOM: the world is 16 px a tile (cam, units, shots ... all in those "world px"); the view shows it at this.zoom
+//  screen px a tile (16, 24, 32, 48: k = zoom / 16). From 24 up the art is asked for at res 2 (32 px a tile, more
+//  detail) and the chunks are prerendered at that res; pictures are drawn at screen positions rounded to whole
+//  pixels, scaled nearest-neighbour (crisp). Art that doesn't draw res 2 yet (a res 2 canvas not twice the res 1
+//  one) is drawn scaled by 2. Marks, bars and lines are drawn in screen pixels; text and the UI don't scale.
 //  The pictures come from the art helpers (rtsart_units.js: rtsUnitArt ...; rtsart_world.js: rtsTileArt ...) when
 //  they're loaded; until then (or if one fails) simple shapes drawn here stand in. A tiny 3x5 font for the sidebar.
 // =====================================================================
@@ -47,6 +52,12 @@ function rtsTinyRight(ctx, s, xr, y, color) { rtsTiny(ctx, s, xr - rtsTinyWidth(
 // ------------------------------------------------------------------ the art helpers, or the stand-ins
 const RTS_ART_BAD = {};
 function rtsArtFail(name, e) { if (!RTS_ART_BAD[name]) { RTS_ART_BAD[name] = true; console.error('DESERT DOMINION art: ' + name, e); } }
+// res 2: a picture the art gives for res 2 is checked once against the same one at res 1 (a real res 2 picture is
+// exactly twice its size); the art of before ignores res and gives its res 1 picture, which is then drawn scaled by
+// 2. The answer stays on the canvas: canvas.rtsR = 2 (drawn at half its size in world px) or 1.
+// (callers: if (res > 1 && c.rtsR === undefined) rtsAtRes(c, <the same picture at res 1>))
+function rtsAtRes(c, a) { c.rtsR = a && a !== c && c.width === a.width * 2 && c.height === a.height * 2 ? 2 : 1; }
+const RTS_RES2 = {};   // the shroud's art: does it draw res 2 cells?
 const RTS_DEF_CACHE = new Map();
 function rtsDefCached(key, w, h, draw) {
   let c = RTS_DEF_CACHE.get(key);
@@ -84,22 +95,45 @@ function rtsDefTile(kind, mask, variant) {
     }
   });
 }
-function rtsTile(kind, mask, variant) {
-  if (typeof rtsTileArt === 'function' && !RTS_ART_BAD.tile) { try { const c = rtsTileArt(kind, mask, variant); if (c) return c; } catch (e) { rtsArtFail('tile', e); } }
+// a terrain tile at res (the caller draws it 16 * res square, so a res 1 picture is scaled up by itself)
+function rtsTile(kind, mask, variant, res) {
+  if (typeof rtsTileArt === 'function' && !RTS_ART_BAD.tile) { try { const c = rtsTileArt(kind, mask, variant, res || 1); if (c) return c; } catch (e) { rtsArtFail('tile', e); } }
   return rtsDefTile(kind, mask, variant);
 }
-function rtsShroudTile(g, x, y, mask) {
-  if (typeof rtsDrawShroud === 'function' && !RTS_ART_BAD.shroud) { try { rtsDrawShroud(g, x, y, mask); return; } catch (e) { rtsArtFail('shroud', e); } }
-  g.fillStyle = '#000'; g.fillRect(x, y, 16, 16);
+// the shroud's cell (16 * res px) at x, y of a chunk; the art of before draws 16 px cells, so it's drawn on a
+// scratch canvas and scaled up
+let RTS_SHROUD_SCRATCH = null;
+function rtsShroudRes2() {
+  if (RTS_RES2.shroud !== undefined) return RTS_RES2.shroud;
+  let ok = false;
+  try { const c = makeCanvas(32, 32), g = c.getContext('2d'); rtsDrawShroud(g, 0, 0, 0, 2); ok = g.getImageData(24, 24, 1, 1).data[3] > 0; } catch (e) { ok = false; }
+  return (RTS_RES2.shroud = ok);
+}
+function rtsShroudTile(g, x, y, mask, res) {
+  res = res || 1;
+  if (typeof rtsDrawShroud === 'function' && !RTS_ART_BAD.shroud) {
+    try {
+      if (res === 1) rtsDrawShroud(g, x, y, mask, 1);
+      else if (rtsShroudRes2()) rtsDrawShroud(g, x, y, mask, res);
+      else {
+        const t = RTS_SHROUD_SCRATCH || (RTS_SHROUD_SCRATCH = makeCanvas(16, 16)), tg = t.getContext('2d');
+        tg.clearRect(0, 0, 16, 16); rtsDrawShroud(tg, 0, 0, mask);
+        g.drawImage(t, x, y, 16 * res, 16 * res);
+      }
+      return;
+    } catch (e) { rtsArtFail('shroud', e); }
+  }
+  const S = 16 * res;
+  g.fillStyle = '#000'; g.fillRect(x, y, S, S);
   if (!mask) return;
   // a dithered fringe on the sides that face explored ground
-  g.fillStyle = 'rgba(0,0,0,0)';
   g.save(); g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000';
+  const d = (a, b) => g.fillRect(x + a * res, y + b * res, res, res);
   for (let k = 0; k < 16; k += 2) {
-    if (mask & 1) { g.fillRect(x + k, y, 1, 1); g.fillRect(x + k + 1, y + 1, 1, 1); g.fillRect(x + k, y + 2, 1, 1); }
-    if (mask & 4) { g.fillRect(x + k, y + 15, 1, 1); g.fillRect(x + k + 1, y + 14, 1, 1); g.fillRect(x + k, y + 13, 1, 1); }
-    if (mask & 8) { g.fillRect(x, y + k, 1, 1); g.fillRect(x + 1, y + k + 1, 1, 1); g.fillRect(x + 2, y + k, 1, 1); }
-    if (mask & 2) { g.fillRect(x + 15, y + k, 1, 1); g.fillRect(x + 14, y + k + 1, 1, 1); g.fillRect(x + 13, y + k, 1, 1); }
+    if (mask & 1) { d(k, 0); d(k + 1, 1); d(k, 2); }
+    if (mask & 4) { d(k, 15); d(k + 1, 14); d(k, 13); }
+    if (mask & 8) { d(0, k); d(1, k + 1); d(2, k); }
+    if (mask & 2) { d(15, k); d(14, k + 1); d(13, k); }
   }
   g.restore();
 }
@@ -178,6 +212,7 @@ function rtsWhiteOf(c) {
   let w = RTS_WHITE.get(c);
   if (!w) {
     w = makeCanvas(c.width, c.height);
+    w.rtsR = c.rtsR;
     const g = w.getContext('2d');
     g.drawImage(c, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, c.width, c.height);
     RTS_WHITE.set(c, w);
@@ -186,31 +221,58 @@ function rtsWhiteOf(c) {
 }
 // a unit's picture size (the art's own, else the stand-in's)
 function rtsUnitSize(key) { return (typeof RTS_U_SIZE !== 'undefined' && RTS_U_SIZE[key]) || RTS_DEF_SIZE[key] || 16; }
-function rtsPicUnit(key, h, dir, frame) {
-  if (typeof rtsUnitArt === 'function' && !RTS_ART_BAD.unit) { try { const c = rtsUnitArt(key, h, dir, frame); if (c) return c; } catch (e) { rtsArtFail('unit', e); } }
+// (res: 1 or 2, what the view wants; a res 2 picture says so in canvas.rtsR)
+function rtsPicUnit(key, h, dir, frame, res) {
+  if (typeof rtsUnitArt === 'function' && !RTS_ART_BAD.unit) {
+    try {
+      const c = rtsUnitArt(key, h, dir, frame, res || 1);
+      if (c) { if (res > 1 && c.rtsR === undefined) rtsAtRes(c, rtsUnitArt(key, h, dir, frame, 1)); return c; }
+    } catch (e) { rtsArtFail('unit', e); }
+  }
   return rtsDefUnit(key, h, dir, frame);
 }
-function rtsTurretPic(key, h, dir, firing) {
-  if (typeof rtsTurretArt === 'function' && !RTS_ART_BAD.turret) { try { return rtsTurretArt(key, h, dir, firing); } catch (e) { rtsArtFail('turret', e); } }
+function rtsTurretPic(key, h, dir, firing, res) {
+  if (typeof rtsTurretArt === 'function' && !RTS_ART_BAD.turret) {
+    try {
+      const c = rtsTurretArt(key, h, dir, firing, res || 1);
+      if (c && res > 1 && c.rtsR === undefined) rtsAtRes(c, rtsTurretArt(key, h, dir, firing, 1));
+      return c;
+    } catch (e) { rtsArtFail('turret', e); }
+  }
   return RTS_UNITS[key] && RTS_UNITS[key].turret ? rtsDefTurret(key, h, dir, firing) : null;
 }
-function rtsDeathPic(key, h, f) {
-  if (typeof rtsInfantryDeathArt === 'function' && !RTS_ART_BAD.death) { try { const c = rtsInfantryDeathArt(key, h, f); if (c) return c; } catch (e) { rtsArtFail('death', e); } }
+function rtsDeathPic(key, h, f, res) {
+  if (typeof rtsInfantryDeathArt === 'function' && !RTS_ART_BAD.death) {
+    try {
+      const c = rtsInfantryDeathArt(key, h, f, res || 1);
+      if (c) { if (res > 1 && c.rtsR === undefined) rtsAtRes(c, rtsInfantryDeathArt(key, h, f, 1)); return c; }
+    } catch (e) { rtsArtFail('death', e); }
+  }
   return rtsDefCached('dead' + h + Math.min(5, f), 16, 16, g => {
     g.fillStyle = '#8C1C10'; g.fillRect(6, 9, 4 + Math.min(3, f), 2);
     if (f < 5) { g.fillStyle = rtsPal(h)[1]; g.fillRect(6, 7 + Math.min(2, f), 4, 3); }
   });
 }
-function rtsPicWreck(key, f, dir) {
-  if (typeof rtsWreckArt === 'function' && !RTS_ART_BAD.wreck) { try { const c = rtsWreckArt(key, f, dir); if (c) return c; } catch (e) { rtsArtFail('wreck', e); } }
+function rtsPicWreck(key, f, dir, res) {
+  if (typeof rtsWreckArt === 'function' && !RTS_ART_BAD.wreck) {
+    try {
+      const c = rtsWreckArt(key, f, dir, res || 1);
+      if (c) { if (res > 1 && c.rtsR === undefined) rtsAtRes(c, rtsWreckArt(key, f, dir, 1)); return c; }
+    } catch (e) { rtsArtFail('wreck', e); }
+  }
   return rtsDefCached('wr' + (RTS_DEF_SIZE[key] || 16) + (f & 3), 20, 20, g => {
     g.fillStyle = '#2A2420'; g.fillRect(4, 5, 12, 10); g.fillStyle = '#463C34'; g.fillRect(6, 7, 7, 5);
     g.fillStyle = (f & 1) ? '#F07818' : '#F8C040'; g.fillRect(8 + (f & 1), 6, 2, 2);
   });
 }
 const RTS_SHOT_COL = { bullet: '#F8E870', shell: '#F8A040', heavy: '#F87830', rocket: '#F8F8F8', missile: '#F8F8F8', plasma: '#A8D8F8', sonic: '#88B8F8', gas: '#78E058', doomfist: '#F84020' };
-function rtsShotPic(kind, dir, f) {
-  if (typeof rtsShotArt === 'function' && !RTS_ART_BAD.shot) { try { const c = rtsShotArt(kind, dir, f); if (c) return c; } catch (e) { rtsArtFail('shot', e); } }
+function rtsShotPic(kind, dir, f, res) {
+  if (typeof rtsShotArt === 'function' && !RTS_ART_BAD.shot) {
+    try {
+      const c = rtsShotArt(kind, dir, f, res || 1);
+      if (c) { if (res > 1 && c.rtsR === undefined) rtsAtRes(c, rtsShotArt(kind, dir, f, 1)); return c; }
+    } catch (e) { rtsArtFail('shot', e); }
+  }
   return rtsDefCached('sh' + kind + dir + (f & 1), 12, 12, g => {
     g.translate(6, 6); g.rotate(dir * Math.PI / 4);
     g.fillStyle = RTS_SHOT_COL[kind] || '#FFF';
@@ -223,8 +285,13 @@ function rtsShotPic(kind, dir, f) {
     else { const s = kind === 'heavy' ? 3 : 2; g.fillRect(-s / 2, -s / 2, s, s); }
   });
 }
-function rtsFxPic(kind, f) {
-  if (typeof rtsFxArt === 'function' && !RTS_ART_BAD.fx) { try { const c = rtsFxArt(kind, f); if (c) return c; } catch (e) { rtsArtFail('fx', e); } }
+function rtsFxPic(kind, f, res) {
+  if (typeof rtsFxArt === 'function' && !RTS_ART_BAD.fx) {
+    try {
+      const c = rtsFxArt(kind, f, res || 1);
+      if (c) { if (res > 1 && c.rtsR === undefined) rtsAtRes(c, rtsFxArt(kind, f, 1)); return c; }
+    } catch (e) { rtsArtFail('fx', e); }
+  }
   const n = { hit: 3, boom: 6, bigboom: 8, smoke: 5, fire: 6, sand: 4, muzzle: 2, gasCloud: 8, sonicWave: 4, glimmerBurst: 8 }[kind] || 4;
   const S = kind === 'bigboom' ? 48 : kind === 'boom' || kind === 'glimmerBurst' || kind === 'gasCloud' ? 24 : 12;
   return rtsDefCached('fx' + kind + f, S, S, g => {
@@ -304,13 +371,34 @@ function rtsDefBuilding(key, h, st) {
     if (dmg) { g.fillStyle = 'rgba(20,12,8,0.45)'; for (let k = 0; k < dmg * 4; k++) { const r = rtsHash(k, W) ; g.fillRect(r % (W - 4), (r >> 8) % (H - 4), 4, 3); } }
   });
 }
-function rtsBuildingPic(key, h, st) {
-  if (key === 'wall' && typeof rtsWallArt === 'function' && !RTS_ART_BAD.wall) { try { const c = rtsWallArt(h, st.mask | 0); if (c) return c; } catch (e) { rtsArtFail('wall', e); } }
-  if (typeof rtsBuildingArt === 'function' && !RTS_ART_BAD.bld) { try { const c = rtsBuildingArt(key, h, st); if (c) return c; } catch (e) { rtsArtFail('bld', e); } }
+function rtsBuildingPic(key, h, st, res) {
+  if (key === 'wall' && typeof rtsWallArt === 'function' && !RTS_ART_BAD.wall) {
+    try {
+      const m = st.mask | 0, c = rtsWallArt(h, m, res || 1);
+      if (c) { if (res > 1 && c.rtsR === undefined) rtsAtRes(c, rtsWallArt(h, m, 1)); return c; }
+    } catch (e) { rtsArtFail('wall', e); }
+  }
+  if (typeof rtsBuildingArt === 'function' && !RTS_ART_BAD.bld) {
+    try {
+      st.res = res || 1;
+      const c = rtsBuildingArt(key, h, st);
+      if (c) { if (res > 1 && c.rtsR === undefined) rtsAtRes(c, rtsBuildingArt(key, h, Object.assign({}, st, { res: 1 }))); return c; }
+    } catch (e) { rtsArtFail('bld', e); }
+  }
   return rtsDefBuilding(key, h, st);
 }
-function rtsPicWorm(phase, f, dir) {
-  if (typeof rtsWormArt === 'function' && !RTS_ART_BAD.worm) { try { const c = rtsWormArt(phase, f, dir); if (c) return c; } catch (e) { rtsArtFail('worm', e); } }
+function rtsPicBloom(f, res) {
+  const c = rtsBloomArt(f, res || 1);
+  if (c && res > 1 && c.rtsR === undefined) rtsAtRes(c, rtsBloomArt(f, 1));
+  return c;
+}
+function rtsPicWorm(phase, f, dir, res) {
+  if (typeof rtsWormArt === 'function' && !RTS_ART_BAD.worm) {
+    try {
+      const c = rtsWormArt(phase, f, dir, res || 1);
+      if (c) { if (res > 1 && c.rtsR === undefined) rtsAtRes(c, rtsWormArt(phase, f, dir, 1)); return c; }
+    } catch (e) { rtsArtFail('worm', e); }
+  }
   return rtsDefCached('wm' + phase + f, 32, 32, g => {
     if (phase === 'under') {
       g.strokeStyle = 'rgba(150,100,50,0.7)'; g.lineWidth = 1;
@@ -361,48 +449,76 @@ Object.assign(RtsGame.prototype, {
     if (same(x - 1, y)) m |= 8;
     return m;
   },
+  // the ground and the shroud, prerendered in chunks of 16 x 16 tiles at the view's res: a chunk is painted whole
+  // when it's first wanted at a res (so a zoom that changes the res repaints only what comes into view), then only
+  // the tiles that change
   chunkInit() {
     const cw = this.chW = Math.ceil(this.W / 16), ch = this.chH = Math.ceil(this.H / 16);
     this.chunks = [];
-    for (let i = 0; i < cw * ch; i++) this.chunks.push({ t: makeCanvas(256, 256), s: makeCanvas(256, 256), sEmpty: false });
+    for (let i = 0; i < cw * ch; i++) this.chunks.push({ t: null, s: null, res: 0, dark: 0, kx: i % cw, ky: (i / cw) | 0 });
+    this.shOn = new Uint8Array(this.N);   // the shroud is drawn on this tile (a chunk with none isn't drawn)
     this.mm = makeCanvas(this.W, this.H);
     this.mmCtx = this.mm.getContext('2d');
     this.mmImg = this.mmCtx.createImageData(this.W, this.H);
     this.allDirty = true;
   },
+  chunkOf(i) { const x = i % this.W, y = (i / this.W) | 0; return this.chunks[((y >> 4) * this.chW) + (x >> 4)]; },
+  // a chunk painted at res (repainted whole if it was at another, or never)
+  chunkAt(kx, ky, res) {
+    const ck = this.chunks[ky * this.chW + kx];
+    if (ck.res === res) return ck;
+    const S = 256 * res;
+    if (!ck.t || ck.t.width !== S) { ck.t = makeCanvas(S, S); ck.s = makeCanvas(S, S); }
+    else { ck.t.getContext('2d').clearRect(0, 0, S, S); ck.s.getContext('2d').clearRect(0, 0, S, S); }
+    ck.t.getContext('2d').imageSmoothingEnabled = false; ck.s.getContext('2d').imageSmoothingEnabled = false;
+    ck.res = res; ck.dark = 0;
+    const W = this.W, x0 = kx * 16, y0 = ky * 16, x1 = Math.min(W, x0 + 16), y1 = Math.min(this.H, y0 + 16);
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = y * W + x; this.shOn[i] = 0; this.paintTile(ck, i); this.paintShroud(ck, i); }
+    return ck;
+  },
   drawTileAt(i) {
-    const W = this.W, x = i % W, y = (i / W) | 0;
-    const ck = this.chunks[((y >> 4) * this.chW) + (x >> 4)];
+    const ck = this.chunkOf(i);
+    if (ck.res) this.paintTile(ck, i);
+    this.mmPixel(i);
+  },
+  paintTile(ck, i) {
+    const W = this.W, x = i % W, y = (i / W) | 0, res = ck.res, T = 16 * res;
     const g = ck.t.getContext('2d');
     const k = this.map.t[i];
-    const pic = rtsTile(k, this.tileMask(x, y), rtsHash(x, y) & 3);
-    g.drawImage(pic, (x & 15) * 16, (y & 15) * 16, 16, 16);
+    const pic = rtsTile(k, this.tileMask(x, y), rtsHash(x, y) & 3, res);
+    g.drawImage(pic, (x & 15) * T, (y & 15) * T, T, T);
     // rubble: its piece of the ruin of the building that stood there
     if (k === RTS_T.RUBBLE && this.ruins && typeof rtsRubbleArt === 'function' && !RTS_ART_BAD.rubble) {
       for (let n = this.ruins.length - 1; n >= 0; n--) {
         const r = this.ruins[n];
         if (x < r.x || y < r.y || x >= r.x + r.w || y >= r.y + r.h) continue;
-        try { g.drawImage(rtsRubbleArt(r.w, r.h, r.seed), (x - r.x) * 16, (y - r.y) * 16, 16, 16, (x & 15) * 16, (y & 15) * 16, 16, 16); } catch (e) { rtsArtFail('rubble', e); }
+        try {
+          const c = rtsRubbleArt(r.w, r.h, r.seed, res), rr = Math.max(1, Math.round(c.width / (r.w * 16)));
+          g.drawImage(c, (x - r.x) * 16 * rr, (y - r.y) * 16 * rr, 16 * rr, 16 * rr, (x & 15) * T, (y & 15) * T, T, T);
+        } catch (e) { rtsArtFail('rubble', e); }
         break;
       }
     }
-    this.mmPixel(i);
   },
   drawShroudAt(i) {
-    const W = this.W, x = i % W, y = (i / W) | 0;
-    const ck = this.chunks[((y >> 4) * this.chW) + (x >> 4)];
-    const g = ck.s.getContext('2d'), px = (x & 15) * 16, py = (y & 15) * 16;
-    g.clearRect(px, py, 16, 16);
-    const exp = this.P.exp;
-    if (!exp[i]) {
+    const ck = this.chunkOf(i);
+    if (ck.res) this.paintShroud(ck, i);
+    this.mmPixel(i);
+  },
+  paintShroud(ck, i) {
+    const W = this.W, x = i % W, y = (i / W) | 0, res = ck.res, T = 16 * res;
+    const g = ck.s.getContext('2d'), px = (x & 15) * T, py = (y & 15) * T;
+    const exp = this.P.exp, on = exp[i] ? 0 : 1;
+    if (on || this.shOn[i]) g.clearRect(px, py, T, T);
+    ck.dark += on - this.shOn[i]; this.shOn[i] = on;
+    if (on) {
       let m = 0;
       if (y > 0 && exp[i - W]) m |= 1;
       if (x < W - 1 && exp[i + 1]) m |= 2;
       if (y < this.H - 1 && exp[i + W]) m |= 4;
       if (x > 0 && exp[i - 1]) m |= 8;
-      rtsShroudTile(g, px, py, m);
+      rtsShroudTile(g, px, py, m, res);
     }
-    this.mmPixel(i);
   },
   mmPixel(i) {
     const d = this.mmImg.data, k = this.map.t[i], o = i * 4;
@@ -415,7 +531,8 @@ Object.assign(RtsGame.prototype, {
     if (!this.chunks) this.chunkInit();
     if (this.allDirty) {
       this.allDirty = false;
-      for (let i = 0; i < this.N; i++) { this.drawTileAt(i); this.drawShroudAt(i); }
+      for (const ck of this.chunks) ck.res = 0;   // each painted again when it's next in view
+      for (let i = 0; i < this.N; i++) this.mmPixel(i);
       this.dirtyT.clear(); this.dirtyS.clear();
     } else {
       if (this.dirtyT.size) { for (const i of this.dirtyT) this.drawTileAt(i); this.dirtyT.clear(); }
@@ -460,35 +577,60 @@ Object.assign(RtsGame.prototype, {
     if (u.d.cls === 'air') return (u.anim >> 2) & 3;
     return u.mv ? (u.anim >> 2) & 3 : 0;
   },
+  // ---- drawing at the zoom: inside renderMap the context is moved so that world point (x, y) is at (x * k, y * k);
+  // pictures go at whole screen pixels (k: screen px per world px, this.rk; the art's res: this.rres)
+  // a picture centred on the world point wx, wy (a res 2 one, canvas.rtsR = 2, is drawn at half its size in world px)
+  blit(ctx, c, wx, wy) {
+    const k = this.rk, s = k / (c.rtsR || 1), w = c.width * s, h = c.height * s;
+    const X = Math.round(wx * k) - Math.round(w / 2), Y = Math.round(wy * k) - Math.round(h / 2);
+    if (s === 1) ctx.drawImage(c, X, Y); else ctx.drawImage(c, X, Y, Math.round(w), Math.round(h));
+  },
+  // ... with its top-left corner there
+  blitTL(ctx, c, wx, wy) {
+    const k = this.rk, s = k / (c.rtsR || 1), X = Math.round(wx * k), Y = Math.round(wy * k);
+    if (s === 1) ctx.drawImage(c, X, Y); else ctx.drawImage(c, X, Y, Math.round(c.width * s), Math.round(c.height * s));
+  },
+  // a rectangle given in world px, filled at whole screen pixels
+  fillW(ctx, x, y, w, h) {
+    const k = this.rk, X = Math.round(x * k), Y = Math.round(y * k);
+    ctx.fillRect(X, Y, Math.max(1, Math.round((x + w) * k) - X), Math.max(1, Math.round((y + h) * k) - Y));
+  },
   // the map view, inside the rectangle L.mx, L.my, L.mw, L.mh
   renderMap(ctx) {
     const L = this.L, cam = this.cam;
     this.flushDirty();
+    const k = this.rk = this.zk(), res = this.rres = this.viewRes(), t = k >= 2 ? 2 : 1;
     let sx = 0, sy = 0;
-    if (this.shake > 0) { sx = ((this.frame * 7) % 5) - 2; sy = ((this.frame * 3) % 5) - 2; }
-    const cx = Math.round(cam.x) + sx, cy = Math.round(cam.y) + sy;
+    if (this.shake > 0) { sx = (((this.frame * 7) % 5) - 2) * t; sy = (((this.frame * 3) % 5) - 2) * t; }
+    const ox = Math.round(cam.x * k) + sx, oy = Math.round(cam.y * k) + sy;
     ctx.save();
     ctx.beginPath(); ctx.rect(L.mx, L.my, L.mw, L.mh); ctx.clip();
     ctx.fillStyle = '#000'; ctx.fillRect(L.mx, L.my, L.mw, L.mh);
-    ctx.translate(L.mx - cx, L.my - cy);
-    const x0 = cx, y0 = cy, x1 = cx + L.mw, y1 = cy + L.mh;
+    ctx.translate(L.mx - ox, L.my - oy);
+    ctx.imageSmoothingEnabled = false;
+    // the world rectangle in view
+    const x0 = ox / k, y0 = oy / k, x1 = (ox + L.mw) / k, y1 = (oy + L.mh) / k;
     const inView = (x, y, m) => x > x0 - m && x < x1 + m && y > y0 - m && y < y1 + m;
+    const kx0 = Math.max(0, Math.floor(x0 / 256)), kx1 = Math.min(this.chW - 1, Math.floor(x1 / 256));
+    const ky0 = Math.max(0, Math.floor(y0 / 256)), ky1 = Math.min(this.chH - 1, Math.floor(y1 / 256));
+    const C = 256 * k;
+    const chunk = (c) => (cx, cy) => { if (k === res) ctx.drawImage(c, cx, cy); else ctx.drawImage(c, cx, cy, C, C); };
     // terrain chunks
-    for (let ky = Math.max(0, (y0 / 256) | 0); ky <= Math.min(this.chH - 1, (y1 / 256) | 0); ky++)
-      for (let kx = Math.max(0, (x0 / 256) | 0); kx <= Math.min(this.chW - 1, (x1 / 256) | 0); kx++) ctx.drawImage(this.chunks[ky * this.chW + kx].t, kx * 256, ky * 256);
+    for (let ky = ky0; ky <= ky1; ky++) for (let kx = kx0; kx <= kx1; kx++) chunk(this.chunkAt(kx, ky, res).t)(kx * C, ky * C);
     // animated blooms
     if (typeof rtsBloomArt === 'function' && !RTS_ART_BAD.bloom) {
       for (const [bx, by] of this.map.blooms) {
         if (!inView(bx * 16, by * 16, 16) || !this.P.exp[by * this.W + bx]) continue;
-        try { const c = rtsBloomArt((this.frame >> 3) & 7); if (c) ctx.drawImage(c, bx * 16 + 8 - c.width / 2, by * 16 + 8 - c.height / 2); } catch (e) { rtsArtFail('bloom', e); }
+        try { const c = rtsPicBloom((this.frame >> 3) & 7, res); if (c) this.blit(ctx, c, bx * 16 + 8, by * 16 + 8); } catch (e) { rtsArtFail('bloom', e); }
       }
     }
     // the rally line of the selected factory
     const sb = this.ui.selB;
     if (sb && !sb.dead && sb.rally && sb.h === this.player) {
-      ctx.strokeStyle = 'rgba(248,248,200,0.6)'; ctx.setLineDash([2, 2]); ctx.beginPath();
-      ctx.moveTo(sb.cx, sb.cy); ctx.lineTo(sb.rally.x * 16 + 8, sb.rally.y * 16 + 8); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = '#F8F8C8'; ctx.fillRect(sb.rally.x * 16 + 6, sb.rally.y * 16 + 6, 4, 4);
+      const rx = sb.rally.x * 16 + 8, ry = sb.rally.y * 16 + 8, o = t / 2;
+      ctx.strokeStyle = 'rgba(248,248,200,0.6)'; ctx.lineWidth = t; ctx.setLineDash([2 * t, 2 * t]); ctx.beginPath();
+      ctx.moveTo(Math.round(sb.cx * k) + o, Math.round(sb.cy * k) + o); ctx.lineTo(Math.round(rx * k) + o, Math.round(ry * k) + o); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1;
+      ctx.fillStyle = '#F8F8C8'; this.fillW(ctx, rx - 2, ry - 2, 4, 4);
     }
     // buildings
     const blds = this.buildings.filter(b => inView(b.x * 16, b.y * 16, b.w * 16 + 16) && this.bldVisible(b)).sort((a, b) => a.y + a.hh - b.y - b.hh);
@@ -496,16 +638,16 @@ Object.assign(RtsGame.prototype, {
     // wrecks and the fallen
     for (const w of this.wrecks) {
       if (!inView(w.x, w.y, 16) || !this.playerSees((w.x / 16) | 0, (w.y / 16) | 0)) continue;
-      const c = rtsPicWreck(w.key, w.t >> 3, w.dir);
+      const c = rtsPicWreck(w.key, w.t >> 3, w.dir, res);
       if (w.t > w.life - 60) ctx.globalAlpha = Math.max(0, (w.life - w.t) / 60);
-      ctx.drawImage(c, Math.round(w.x - c.width / 2), Math.round(w.y - c.height / 2));
+      this.blit(ctx, c, w.x, w.y);
       ctx.globalAlpha = 1;
     }
     for (const c0 of this.corpses) {
       if (!inView(c0.x, c0.y, 16) || !this.playerSees((c0.x / 16) | 0, (c0.y / 16) | 0)) continue;
-      const c = rtsDeathPic(c0.key, c0.h, c0.crushed ? 5 : Math.min(5, c0.t >> 3));
+      const c = rtsDeathPic(c0.key, c0.h, c0.crushed ? 5 : Math.min(5, c0.t >> 3), res);
       if (c0.t > 240) ctx.globalAlpha = Math.max(0, (300 - c0.t) / 60);
-      ctx.drawImage(c, Math.round(c0.x - c.width / 2), Math.round(c0.y - c.height / 2));
+      this.blit(ctx, c, c0.x, c0.y);
       ctx.globalAlpha = 1;
     }
     // sandwyrms under the sand (ripples), risen ones over everything on the ground
@@ -514,7 +656,7 @@ Object.assign(RtsGame.prototype, {
       if (w.phase === 'away' || !inView(w.x, w.y, 32)) continue;
       const tx = (w.x / 16) | 0, ty = (w.y / 16) | 0;
       if (!this.playerSees(tx, ty)) continue;
-      if (w.phase === 'roam' || w.phase === 'hunt') { const c = rtsPicWorm('under', (w.f >> 3) & 3, w.dir); ctx.drawImage(c, Math.round(w.x - c.width / 2), Math.round(w.y - c.height / 2)); }
+      if (w.phase === 'roam' || w.phase === 'hunt') this.blit(ctx, rtsPicWorm('under', (w.f >> 3) & 3, w.dir, res), w.x, w.y);
       else risen.push(w);
     }
     // ground units, by depth
@@ -529,8 +671,7 @@ Object.assign(RtsGame.prototype, {
     for (const w of risen) {
       const ph = w.phase === 'rise' ? (w.t < 16 ? 'rise' : 'eat') : 'dive';
       const f = ph === 'rise' ? Math.min(5, (w.t * 6 / 16) | 0) : ph === 'eat' ? ((w.t - 16) >> 3) & 3 : Math.min(5, w.t / 5 | 0);
-      const c = rtsPicWorm(ph, f, w.dir);
-      ctx.drawImage(c, Math.round(w.ex - c.width / 2), Math.round(w.ey - c.height / 2));
+      this.blit(ctx, rtsPicWorm(ph, f, w.dir, res), w.ex, w.ey);
     }
     // shots and effects
     for (const s of this.shots) {
@@ -541,32 +682,30 @@ Object.assign(RtsGame.prototype, {
         const p = 1 - s.n / s.n0, hgt = Math.sin(p * Math.PI);
         y -= hgt * s.arc;
         ctx.fillStyle = 'rgba(0,0,0,' + (0.18 + 0.2 * (1 - hgt)).toFixed(2) + ')';
-        ctx.beginPath(); ctx.ellipse(s.x + hgt * 10, s.y + hgt * 6, 3 + 3 * (1 - hgt), 2 + 1.5 * (1 - hgt), 0, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.ellipse((s.x + hgt * 10) * k, (s.y + hgt * 6) * k, (3 + 3 * (1 - hgt)) * k, (2 + 1.5 * (1 - hgt)) * k, 0, 0, 7); ctx.fill();
       }
       const tx = (s.x / 16) | 0, ty = (y / 16) | 0;
       if (this.inMap(tx, ty) && !this.playerSees(tx, ty) && s.k !== 'doomfist') continue;
       let dir = s.dir;
       if (s.k === 'doomfist') { const p = 1 - s.n / s.n0; dir = rtsDir8(s.vx, s.vy - Math.cos(p * Math.PI) * s.arc * Math.PI / s.n0); }
-      const c = rtsShotPic(s.k, dir, s.f >> 2);
-      ctx.drawImage(c, Math.round(s.x - c.width / 2), Math.round(y - c.height / 2));
+      this.blit(ctx, rtsShotPic(s.k, dir, s.f >> 2, res), s.x, y);
     }
     for (const e of this.fx) {
       if (e.f < 0 || !inView(e.x, e.y, 30)) continue;
       const n = this.fxFrames(e.k), sp = e.k === 'smoke' ? 6 : e.k === 'fire' ? 5 : 3;
-      const c = rtsFxPic(e.k, Math.min(n - 1, (e.f / sp) | 0));
+      const c = rtsFxPic(e.k, Math.min(n - 1, (e.f / sp) | 0), res);
       const rise = e.k === 'smoke' ? e.f * 0.15 : 0;
-      ctx.drawImage(c, Math.round(e.x - c.width / 2), Math.round(e.y - rise - c.height / 2));
+      this.blit(ctx, c, e.x, e.y - rise);
     }
     // aircraft, with their shadows
     for (const u of air) {
       const h = (u.alt || 1) * 10;
-      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(u.x + h * 0.4, u.y + h * 0.3, u.key === 'frigate' ? 14 : 6, u.key === 'frigate' ? 8 : 3, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse((u.x + h * 0.4) * k, (u.y + h * 0.3) * k, (u.key === 'frigate' ? 14 : 6) * k, (u.key === 'frigate' ? 8 : 3) * k, 0, 0, 7); ctx.fill();
       if (u.job && u.job.phase === 'carry' && u.job.unit) {
-        const v = u.job.unit, c = rtsPicUnit(v.key, v.h, u.dir, 0);
-        ctx.drawImage(c, Math.round(u.x - c.width / 2), Math.round(u.y - h + 6 - c.height / 2));
+        const v = u.job.unit;
+        this.blit(ctx, rtsPicUnit(v.key, v.h, u.dir, 0, res), u.x, u.y - h + 6);
       }
-      const c = rtsPicUnit(u.key, u.h, u.dir, this.unitFrame(u));
-      ctx.drawImage(c, Math.round(u.x - c.width / 2), Math.round(u.y - h - c.height / 2));
+      this.blit(ctx, rtsPicUnit(u.key, u.h, u.dir, this.unitFrame(u), res), u.x, u.y - h);
     }
     // fog: what was seen but isn't now goes dim (a pixel a tile, drawn smoothed: soft edges)
     if (this.fog) {
@@ -578,14 +717,12 @@ Object.assign(RtsGame.prototype, {
         for (let i = 0; i < this.N; i++) d[i * 4 + 3] = P.exp[i] && !P.see[i] ? 97 : 0;
         this.fogC.getContext('2d').putImageData(this.fogImg, 0, 0);
       }
-      const sm = ctx.imageSmoothingEnabled;
       ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(this.fogC, 0, 0, this.W * 16, this.H * 16);
-      ctx.imageSmoothingEnabled = sm;
+      ctx.drawImage(this.fogC, 0, 0, this.W * this.zoom, this.H * this.zoom);
+      ctx.imageSmoothingEnabled = false;
     }
-    // the shroud
-    for (let ky = Math.max(0, (y0 / 256) | 0); ky <= Math.min(this.chH - 1, (y1 / 256) | 0); ky++)
-      for (let kx = Math.max(0, (x0 / 256) | 0); kx <= Math.min(this.chW - 1, (x1 / 256) | 0); kx++) ctx.drawImage(this.chunks[ky * this.chW + kx].s, kx * 256, ky * 256);
+    // the shroud (chunks with none left aren't drawn)
+    for (let ky = ky0; ky <= ky1; ky++) for (let kx = kx0; kx <= kx1; kx++) { const ck = this.chunkAt(kx, ky, res); if (ck.dark) chunk(ck.s)(kx * C, ky * C); }
     // marks: selection, health, the order marker
     this.drawMarks(ctx, ground.concat(air), blds);
     this.drawGhost(ctx);
@@ -601,29 +738,31 @@ Object.assign(RtsGame.prototype, {
       st = { dmg, frame: b.anim >> 3, door: b.door ? Math.min(3, (40 - b.doorT) >> 2, b.doorT >> 2) : 0, build: b.rise, flash: b.flash > 3, working: active, active,
         fill: b.key === 'silo' || b.key === 'refinery' ? Math.max(0, Math.min(1, Hs ? Hs.credits / Math.max(1, Hs.storage) : 0)) : 0, mask: b.d.wall ? this.wallMask(b) : 0 };
     }
-    const c = rtsBuildingPic(b.key, b.h, st);
+    const k = this.rk, res = this.rres;
+    const c = rtsBuildingPic(b.key, b.h, st, res), r = c.rtsR || 1;
     const px = b.x * 16, py = b.y * 16, W = b.w * 16, H = b.hh * 16;
     if (b.rise < 1 && !(typeof rtsBuildingArt === 'function' && !RTS_ART_BAD.bld)) {
       // rising out of the scaffolding (the stand-in draws it in from the bottom)
       const h = Math.max(1, Math.round(H * b.rise));
-      ctx.drawImage(c, 0, H - h, W, h, px, py + H - h, W, h);
-      ctx.strokeStyle = '#C8A048'; ctx.strokeRect(px + 0.5, py + 0.5, W - 1, H - 1);
-    } else ctx.drawImage(c, px + (W - c.width) / 2, py + (H - c.height) / 2);
+      const X0 = Math.round(px * k), X1 = Math.round((px + W) * k), Yt = Math.round(py * k), Y0 = Math.round((py + H - h) * k), Y1 = Math.round((py + H) * k);
+      ctx.drawImage(c, 0, (H - h) * r, W * r, h * r, X0, Y0, X1 - X0, Y1 - Y0);
+      ctx.strokeStyle = '#C8A048'; ctx.strokeRect(X0 + 0.5, Yt + 0.5, X1 - X0 - 1, Y1 - Yt - 1);
+    } else this.blitTL(ctx, c, px + (W - c.width / r) / 2, py + (H - c.height / r) / 2);
     // a hit: the art flashes white itself; the stand-in gets a pale wash
-    if (b.flash > 3 && (typeof rtsBuildingArt !== 'function' || RTS_ART_BAD.bld)) { ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(px, py, W, H); }
+    if (b.flash > 3 && (typeof rtsBuildingArt !== 'function' || RTS_ART_BAD.bld)) { ctx.fillStyle = 'rgba(255,255,255,0.25)'; this.fillW(ctx, px, py, W, H); }
     // burning when badly hurt
     if (dmg && !b.d.wall) {
       const n = dmg === 2 ? 2 : 1;
-      for (let k = 0; k < n; k++) {
-        const r = rtsHash(b.id, k), fx = px + 4 + (r % Math.max(1, W - 8)), fy = py + 4 + ((r >> 8) % Math.max(1, H - 8));
+      for (let q = 0; q < n; q++) {
+        const rh = rtsHash(b.id, q), fx = px + 4 + (rh % Math.max(1, W - 8)), fy = py + 4 + ((rh >> 8) % Math.max(1, H - 8));
         const nf = this.fxFrames('fire');
-        const c2 = rtsFxPic('fire', ((this.frame >> 3) + k) % nf);
-        ctx.drawImage(c2, Math.round(fx - c2.width / 2), Math.round(fy - c2.height / 2));
+        this.blit(ctx, rtsFxPic('fire', ((this.frame >> 3) + q) % nf, res), fx, fy);
       }
     }
     if (b.repairing && b.h === this.player && (this.frame >> 4) & 1) {
-      ctx.fillStyle = '#000'; ctx.fillRect(px + W / 2 - 5, py + H / 2 - 4, 11, 9);
-      rtsTiny(ctx, 'R', px + W / 2 - 1, py + H / 2 - 2, '#F8E048');
+      const X = Math.round((px + W / 2) * k), Y = Math.round((py + H / 2) * k);
+      ctx.fillStyle = '#000'; ctx.fillRect(X - 5, Y - 4, 11, 9);
+      rtsTiny(ctx, 'R', X - 1, Y - 2, '#F8E048');
     }
   },
   // where a unit is drawn: where it is, or (docked) on its building's bay, sliding there and back
@@ -634,67 +773,75 @@ Object.assign(RtsGame.prototype, {
     return { x: u.x + (px - u.x) * k, y: u.y + (py - u.y) * k, dir: k > 0.6 ? a[2] : u.dir };
   },
   drawUnit(ctx, u) {
-    const fr = this.unitFrame(u);
-    const at = this.unitXY(u), x = Math.round(at.x), y = Math.round(at.y);
-    const c = rtsPicUnit(u.key, u.h, at.dir === undefined ? u.dir : at.dir, fr);
+    const fr = this.unitFrame(u), res = this.rres;
+    const at = this.unitXY(u), x = at.x, y = at.y;
+    const c = rtsPicUnit(u.key, u.h, at.dir === undefined ? u.dir : at.dir, fr, res);
     if (u.d.stealth && u.still > 60) ctx.globalAlpha = u.h === this.player || this.team(u.h) === this.P.team ? 0.55 : 0.35;
-    ctx.drawImage(c, x - c.width / 2, y - c.height / 2);
-    const t = u.d.turret ? rtsTurretPic(u.key, u.h, u.tdir, u.firing > 4) : null;
-    if (t) ctx.drawImage(t, x - t.width / 2, y - t.height / 2);
+    this.blit(ctx, c, x, y);
+    const t = u.d.turret ? rtsTurretPic(u.key, u.h, u.tdir, u.firing > 4, res) : null;
+    if (t) this.blit(ctx, t, x, y);
     ctx.globalAlpha = 1;
-    if (u.flash > 1 && u.d.cls !== 'inf') { const wc = rtsWhiteOf(c); ctx.globalAlpha = 0.55; ctx.drawImage(wc, x - wc.width / 2, y - wc.height / 2); if (t) ctx.drawImage(rtsWhiteOf(t), x - t.width / 2, y - t.height / 2); ctx.globalAlpha = 1; }
-    if (u.conv && (this.frame >> 3) & 1) { ctx.fillStyle = 'rgba(120,224,88,0.5)'; ctx.fillRect(x - 2, y - 9, 4, 2); }
-    if (u.order.k === 'boom') { ctx.fillStyle = (this.frame >> 2) & 1 ? '#F83818' : '#F8E048'; ctx.fillRect(x - 1, y - 12, 3, 3); }
+    if (u.flash > 1 && u.d.cls !== 'inf') { ctx.globalAlpha = 0.55; this.blit(ctx, rtsWhiteOf(c), x, y); if (t) this.blit(ctx, rtsWhiteOf(t), x, y); ctx.globalAlpha = 1; }
+    if (u.conv && (this.frame >> 3) & 1) { ctx.fillStyle = 'rgba(120,224,88,0.5)'; this.fillW(ctx, Math.round(x) - 2, Math.round(y) - 9, 4, 2); }
+    if (u.order.k === 'boom') { ctx.fillStyle = (this.frame >> 2) & 1 ? '#F83818' : '#F8E048'; this.fillW(ctx, Math.round(x) - 1, Math.round(y) - 12, 3, 3); }
   },
+  // selection corners, health and load bars, the order marker: in screen pixels (t thick: 2 from zoom 32 up)
   drawMarks(ctx, units, blds) {
-    const ui = this.ui, sel = new Set(ui.sel);
-    const bar = (x, y, w, k) => {
-      ctx.fillStyle = '#000'; ctx.fillRect(x - 1, y - 1, w + 2, 3);
-      ctx.fillStyle = k > 0.5 ? '#38D838' : k > 0.25 ? '#F8D038' : '#F83818';
-      ctx.fillRect(x, y, Math.max(1, Math.round(w * k)), 1);
+    const ui = this.ui, sel = new Set(ui.sel), k = this.rk, t = k >= 2 ? 2 : 1, S = v => Math.round(v * k);
+    const bar = (x, y, w, f) => {
+      ctx.fillStyle = '#000'; ctx.fillRect(x - 1, y - 1, w + 2, t + 2);
+      ctx.fillStyle = f > 0.5 ? '#38D838' : f > 0.25 ? '#F8D038' : '#F83818';
+      ctx.fillRect(x, y, Math.max(1, Math.round(w * f)), t);
     };
     for (const u of units) {
       const isSel = sel.has(u), hov = ui.hover === u;
       // your harvesters always show their load (it's what's paid when they get home)
       const load = u.d.harvester && u.h === this.player && u.cargo > 0;
       if (!isSel && !hov && !load) continue;
-      const r = u.d.cls === 'inf' ? 4 : u.key === 'frigate' ? 16 : rtsUnitSize(u.key) / 2 - 1;
-      const at = this.unitXY(u), x = Math.round(at.x), y = Math.round(at.y - (u.d.cls === 'air' ? (u.alt || 1) * 10 : 0));
+      const r = S(u.d.cls === 'inf' ? 4 : u.key === 'frigate' ? 16 : rtsUnitSize(u.key) / 2 - 1);
+      const at = this.unitXY(u), x = S(at.x), y = S(at.y - (u.d.cls === 'air' ? (u.alt || 1) * 10 : 0));
       if (isSel) {
         ctx.fillStyle = '#FFF';
-        const k = 2;
-        ctx.fillRect(x - r, y - r, k, 1); ctx.fillRect(x - r, y - r, 1, k); ctx.fillRect(x + r - k + 1, y - r, k, 1); ctx.fillRect(x + r, y - r, 1, k);
-        ctx.fillRect(x - r, y + r, k, 1); ctx.fillRect(x - r, y + r - k + 1, 1, k); ctx.fillRect(x + r - k + 1, y + r, k, 1); ctx.fillRect(x + r, y + r - k + 1, 1, k);
+        const n = 2 * t;
+        ctx.fillRect(x - r, y - r, n, t); ctx.fillRect(x - r, y - r, t, n); ctx.fillRect(x + r - n + t, y - r, n, t); ctx.fillRect(x + r, y - r, t, n);
+        ctx.fillRect(x - r, y + r, n, t); ctx.fillRect(x - r, y + r - n + t, t, n); ctx.fillRect(x + r - n + t, y + r, n, t); ctx.fillRect(x + r, y + r - n + t, t, n);
       }
-      if (isSel || hov) bar(x - r, y - r - 3, r * 2, u.hp / u.max);
-      if ((isSel || load) && u.d.harvester) { ctx.fillStyle = '#000'; ctx.fillRect(x - r - 1, y + r + 2, r * 2 + 2, 3); ctx.fillStyle = '#F89030'; ctx.fillRect(x - r, y + r + 3, Math.round(r * 2 * u.cargo / (u.d.cap || 700)), 1); }
+      if (isSel || hov) bar(x - r, y - r - 2 - t, r * 2, u.hp / u.max);
+      if ((isSel || load) && u.d.harvester) { ctx.fillStyle = '#000'; ctx.fillRect(x - r - 1, y + r + 1 + t, r * 2 + 2, t + 2); ctx.fillStyle = '#F89030'; ctx.fillRect(x - r, y + r + 2 + t, Math.round(r * 2 * u.cargo / (u.d.cap || 700)), t); }
     }
+    ctx.lineWidth = t;
+    const o = t / 2;
     for (const b of blds) {
       if (b !== ui.selB && ui.hover !== b) continue;
-      const px = b.x * 16, py = b.y * 16, W = b.w * 16, H = b.hh * 16;
-      if (b === ui.selB) { ctx.strokeStyle = '#FFF'; ctx.setLineDash([3, 3]); ctx.strokeRect(px + 0.5, py + 0.5, W - 1, H - 1); ctx.setLineDash([]); }
-      bar(px + 2, py - 3, W - 4, b.hp / b.max);
+      const X = S(b.x * 16), Y = S(b.y * 16), W = S((b.x + b.w) * 16) - X, H = S((b.y + b.hh) * 16) - Y;
+      if (b === ui.selB) { ctx.strokeStyle = '#FFF'; ctx.setLineDash([3 * t, 3 * t]); ctx.strokeRect(X + o, Y + o, W - t, H - t); ctx.setLineDash([]); }
+      bar(X + 2 * t, Y - 2 - t, W - 4 * t, b.hp / b.max);
     }
     // online guests' selections: their colour's corners
     for (const co of this.coList ? this.coList() : []) {
       ctx.fillStyle = RTS_CO_COL[co.who % 4];
       for (const u of co.sel) {
         if (u.dead || u.carried || !units.includes(u)) continue;
-        const r = u.d.cls === 'inf' ? 5 : rtsUnitSize(u.key) / 2;
-        const at = this.unitXY(u), x = Math.round(at.x), y = Math.round(at.y - (u.d.cls === 'air' ? (u.alt || 1) * 10 : 0));
-        ctx.fillRect(x - r, y + r, 3, 1); ctx.fillRect(x + r - 2, y + r, 3, 1); ctx.fillRect(x - r, y - r, 1, 2); ctx.fillRect(x + r, y - r, 1, 2);
+        const r = S(u.d.cls === 'inf' ? 5 : rtsUnitSize(u.key) / 2);
+        const at = this.unitXY(u), x = S(at.x), y = S(at.y - (u.d.cls === 'air' ? (u.alt || 1) * 10 : 0));
+        ctx.fillRect(x - r, y + r, 3 * t, t); ctx.fillRect(x + r - 2 * t, y + r, 3 * t, t); ctx.fillRect(x - r, y - r, t, 2 * t); ctx.fillRect(x + r, y - r, t, 2 * t);
       }
       const b = co.selB;
-      if (b && !b.dead) { ctx.strokeStyle = RTS_CO_COL[co.who % 4]; ctx.strokeRect(b.x * 16 + 1.5, b.y * 16 + 1.5, b.w * 16 - 3, b.hh * 16 - 3); }
-      if (co.drag && co.drag.active) { ctx.strokeStyle = RTS_CO_COL[co.who % 4]; const w0 = co.drag, w1 = this.toWorld(co.mx, co.my); ctx.strokeRect(Math.min(w0.wx0, w1.x) + 0.5, Math.min(w0.wy0, w1.y) + 0.5, Math.abs(w1.x - w0.wx0), Math.abs(w1.y - w0.wy0)); }
+      if (b && !b.dead) { ctx.strokeStyle = RTS_CO_COL[co.who % 4]; const X = S(b.x * 16), Y = S(b.y * 16); ctx.strokeRect(X + t + o, Y + t + o, S((b.x + b.w) * 16) - X - 3 * t, S((b.y + b.hh) * 16) - Y - 3 * t); }
+      if (co.drag && co.drag.active) {
+        ctx.strokeStyle = RTS_CO_COL[co.who % 4];
+        const w1 = this.toWorld(co.mx, co.my), ax = S(co.drag.wx0), ay = S(co.drag.wy0), bx = S(w1.x), by = S(w1.y);
+        ctx.strokeRect(Math.min(ax, bx) + o, Math.min(ay, by) + o, Math.abs(bx - ax), Math.abs(by - ay));
+      }
     }
     // where the last order went
     for (const m of [ui.mark].concat(this.coList ? this.coList().map(c => c.mark) : [])) {
       if (!m || this.frame - m.t >= 24) continue;
-      const k = (this.frame - m.t) / 24, r = 2 + k * 6;
+      const f = (this.frame - m.t) / 24, r = S(2 + f * 6);
       ctx.strokeStyle = m.attack ? '#F83818' : '#58F858';
-      ctx.strokeRect(m.x - r + 0.5, m.y - r + 0.5, r * 2, r * 2);
+      ctx.strokeRect(S(m.x) - r + o, S(m.y) - r + o, r * 2, r * 2);
     }
+    ctx.lineWidth = 1;
   },
   drawGhost(ctx) {
     this.drawGhostOf(ctx, this.ui);
@@ -704,18 +851,19 @@ Object.assign(RtsGame.prototype, {
     if (ui.mode !== 'place' || !ui.placeKey || !ui.overMap) return;
     const d = RTS_BUILDINGS[ui.placeKey], p = this.ghostPos();
     if (!p) return;
-    const ok = this.canPlace(this.player, ui.placeKey, p.x, p.y);
+    const ok = this.canPlace(this.player, ui.placeKey, p.x, p.y), Z = this.zoom, t = Z >= 32 ? 2 : 1;
     ctx.globalAlpha = 0.6;
-    if (!d.slab) { const c = rtsBuildingPic(ui.placeKey, this.player, { dmg: 0, frame: 0, build: 1, dir8: 4 }); ctx.drawImage(c, p.x * 16, p.y * 16); }
+    if (!d.slab) this.blitTL(ctx, rtsBuildingPic(ui.placeKey, this.player, { dmg: 0, frame: 0, build: 1, dir8: 4 }, this.rres), p.x * 16, p.y * 16);
     ctx.globalAlpha = 1;
     for (let y = 0; y < d.h; y++) for (let x = 0; x < d.w; x++) {
       const tx = p.x + x, ty = p.y + y;
       const good = ok || (this.inMap(tx, ty) && RTS_BUILDABLE[this.map.t[ty * this.W + tx]] && !this.bAt[ty * this.W + tx]);
       ctx.fillStyle = ok ? 'rgba(56,216,56,0.35)' : good ? 'rgba(248,200,56,0.3)' : 'rgba(248,56,24,0.45)';
-      ctx.fillRect(tx * 16, ty * 16, 16, 16);
+      ctx.fillRect(tx * Z, ty * Z, Z, Z);
     }
-    ctx.strokeStyle = ok ? '#58F858' : '#F83818';
-    ctx.strokeRect(p.x * 16 + 0.5, p.y * 16 + 0.5, d.w * 16 - 1, d.h * 16 - 1);
+    ctx.strokeStyle = ok ? '#58F858' : '#F83818'; ctx.lineWidth = t;
+    ctx.strokeRect(p.x * Z + t / 2, p.y * Z + t / 2, d.w * Z - t, d.h * Z - t);
+    ctx.lineWidth = 1;
   },
 });
 const RTS_MM_COL = [[212, 154, 80], [190, 134, 70], [128, 104, 80], [72, 54, 42], [232, 120, 24], [248, 152, 48], [248, 200, 96], [160, 158, 150], [180, 132, 72], [112, 92, 76], [112, 98, 86]];

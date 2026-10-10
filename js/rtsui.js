@@ -14,6 +14,9 @@
 //    drag = a selection box; on the build icons a drag scrolls them and a long press cancels (the right button).
 //    Hotkeys: H home, G guard, S stop, A attack-move, R repair, DEL sell, CTRL/SHIFT+1..9 make a group, 1..9 pick it
 //    (twice: go there).
+//    Zoom (16, 24, 32 or 48 screen px a tile; 32 to start, then the last one used): the wheel over the map (round the
+//    pointer), + / - (and = _ and the numpad's), the - + buttons in the top bar, pad LT / RT or LB / RB held with the
+//    right stick up / down (LB / RB alone still change the tab), a pinch. The camera (this.cam) stays in world px.
 //    Plus Game.rtsSkirmishSetup (the skirmish setup screen), the stand-in Game.rtsMenu / Game.rtsMissionOver (until
 //    the campaign's are loaded), and the mode's hooks into the game (title, curtain, pause, restart, music).
 // =====================================================================
@@ -27,6 +30,9 @@ const RTS_KEYS_DIR = { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft']
 const RTS_FIRE_KEYS = ['Space', 'KeyJ', 'KeyK', 'KeyZ', 'KeyX', 'KeyF', 'TFire'];
 const RTS_KEYMODS = { ctrl: false, shift: false };
 const RTS_CO_COL = ['#F8F8F8', '#F8D878', '#78F8F8', '#F878F8'];   // online guests' cursors and selections
+const RTS_ZOOMS = [16, 24, 32, 48];   // screen px a tile
+const RTS_ZOOM_KEY = 'tank1990_rts_zoom';
+function rtsZoomPref() { const z = STORE.get(RTS_ZOOM_KEY, 32); return RTS_ZOOMS.includes(z) ? z : 32; }
 
 // the set-up rows' height: ten pixels, closer when there are many
 function rtsSetupRowH(n) { return Math.max(8, Math.min(10, Math.floor((SH - 40) / Math.max(1, n)))); }
@@ -47,7 +53,8 @@ Object.assign(RtsGame.prototype, {
     const prefs = rtsSetupPrefs();
     this.ui = this.newUi(this.opts.clicks || prefs.clicks || 'CLASSIC');
     this.coUis = {};   // online: a guest's own cursor and selection (they command the same House)
-    this.cam = { x: 0, y: 0 };
+    this.cam = { x: 0, y: 0 };   // the view's top-left corner, in world px (16 a tile)
+    this.zoom = rtsZoomPref();
     rtsInstallInput();
   },
   newUi(clicks) {
@@ -84,20 +91,47 @@ Object.assign(RtsGame.prototype, {
       panel: { x: sx, y: py, w: side, h: panelH } };
     this.clampCam();
   },
-  centerOn(x, y) { this.cam.x = x - this.L.mw / 2; this.cam.y = y - this.L.mh / 2; this.clampCam(); },
+  // the zoom: k screen px a world px; the view's size in world px
+  zk() { return (this.zoom || 16) / 16; },
+  viewRes() { return (this.zoom || 16) >= 24 ? 2 : 1; },
+  viewW() { return this.L.mw / this.zk(); },
+  viewH() { return this.L.mh / this.zk(); },
+  // pans go a little faster on the screen when close, a little further over the ground when far
+  panK() { return Math.sqrt(16 / (this.zoom || 16)); },
+  centerOn(x, y) { this.cam.x = x - this.viewW() / 2; this.cam.y = y - this.viewH() / 2; this.clampCam(); },
   clampCam() {
     if (!this.L) return;
-    this.cam.x = Math.max(0, Math.min(this.W * 16 - this.L.mw, this.cam.x));
-    this.cam.y = Math.max(0, Math.min(this.H * 16 - this.L.mh, this.cam.y));
-    if (this.W * 16 < this.L.mw) this.cam.x = (this.W * 16 - this.L.mw) / 2;
-    if (this.H * 16 < this.L.mh) this.cam.y = (this.H * 16 - this.L.mh) / 2;
+    const vw = this.viewW(), vh = this.viewH();
+    this.cam.x = Math.max(0, Math.min(this.W * 16 - vw, this.cam.x));
+    this.cam.y = Math.max(0, Math.min(this.H * 16 - vh, this.cam.y));
+    if (this.W * 16 < vw) this.cam.x = (this.W * 16 - vw) / 2;
+    if (this.H * 16 < vh) this.cam.y = (this.H * 16 - vh) / 2;
+  },
+  // zoom a level in (d = 1) or out (-1), keeping the ground under the screen point sx, sy (the view's middle when
+  // it's not over the map) where it is; remembered for the next battle
+  zoomBy(d, sx, sy) {
+    const L = this.L, i = RTS_ZOOMS.indexOf(this.zoom), j = Math.max(0, Math.min(RTS_ZOOMS.length - 1, (i < 0 ? 2 : i) + d));
+    if (!L || RTS_ZOOMS[j] === this.zoom) return false;
+    if (sx === undefined || !this.inMapView(sx, sy)) { sx = L.mx + L.mw / 2; sy = L.my + L.mh / 2; }
+    const w = this.toWorld(sx, sy);
+    this.zoom = RTS_ZOOMS[j];
+    const k = this.zk();
+    this.cam.x = w.x - (sx - L.mx) / k; this.cam.y = w.y - (sy - L.my) / k;
+    this.clampCam();
+    STORE.set(RTS_ZOOM_KEY, this.zoom);
+    return true;
   },
   // is (x, y) on the player's screen? (sounds play only for what you can see)
   uiNear(x, y) {
     if (!this.L) return true;
-    return x > this.cam.x - 48 && x < this.cam.x + this.L.mw + 48 && y > this.cam.y - 48 && y < this.cam.y + this.L.mh + 48;
+    return x > this.cam.x - 48 && x < this.cam.x + this.viewW() + 48 && y > this.cam.y - 48 && y < this.cam.y + this.viewH() + 48;
   },
-  toWorld(x, y) { return { x: x - this.L.mx + this.cam.x, y: y - this.L.my + this.cam.y }; },
+  // screen <-> world, exactly as the map view is drawn (the camera at whole screen pixels)
+  toWorld(x, y) { const k = this.zk(); return { x: (x - this.L.mx + Math.round(this.cam.x * k)) / k, y: (y - this.L.my + Math.round(this.cam.y * k)) / k }; },
+  toScreen(wx, wy) { const k = this.zk(); return { x: wx * k - Math.round(this.cam.x * k) + this.L.mx, y: wy * k - Math.round(this.cam.y * k) + this.L.my }; },
+  // the - and + buttons in the top bar
+  zoomBtns() { const x = this.L.sx - 25; return [{ x, y: 1, w: 11, h: 8, d: -1 }, { x: x + 12, y: 1, w: 11, h: 8, d: 1 }]; },
+  zoomBtnAt(x, y) { return this.zoomBtns().find(b => this.inRect(x, y, b)) || null; },
   inMapView(x, y) { const L = this.L; return x >= L.mx && x < L.mx + L.mw && y >= L.my && y < L.my + L.mh; },
   inRect(x, y, r) { return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h; },
 
@@ -178,7 +212,14 @@ Object.assign(RtsGame.prototype, {
       return;
     }
     if (kind === 'wheel') {
-      if (x >= this.L.sx) this.scrollGrid(e.deltaY > 0 ? 1 : -1);
+      if (x >= this.L.sx) { this.scrollGrid(e.deltaY > 0 ? 1 : -1); return; }
+      if (!this.inMapView(x, y)) return;
+      // over the map it zooms round the pointer: a notch a level (a touchpad's little deltas add up; a level at most
+      // every 90 ms, so a flick doesn't race through them all)
+      const now = performance.now(), dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 300 : 1);
+      if (now - (ui.wheelT || 0) > 400) ui.wheelAcc = 0;
+      ui.wheelAcc = (ui.wheelAcc || 0) + dy; ui.wheelT = now;
+      if (Math.abs(ui.wheelAcc) >= 60 && now - (ui.wheelZ || 0) > 90) { this.zoomBy(ui.wheelAcc < 0 ? 1 : -1, x, y); ui.wheelAcc = 0; ui.wheelZ = now; }
       return;
     }
     if (e && e.pointerType === 'touch') { this.touchEvent(kind, x, y, e); return; }
@@ -191,7 +232,12 @@ Object.assign(RtsGame.prototype, {
   },
   pressAt(x, y, btn) {
     const ui = this.ui, L = this.L;
-    if (y < L.top) { if (x < 30 && !this.coActive) this.openMenu(); return; }
+    if (y < L.top) {
+      if (x < 30 && !this.coActive) this.openMenu();
+      const zb = this.zoomBtnAt(x, y);
+      if (zb && !this.coActive) this.zoomBy(zb.d);   // (online the guests watch the host's screen: its zoom is the host's)
+      return;
+    }
     if (x >= L.sx) { this.sideClick(x, y, btn); return; }
     if (!this.inMapView(x, y)) return;
     if (btn === 2) { this.mapClick(x, y, 2); return; }
@@ -213,8 +259,8 @@ Object.assign(RtsGame.prototype, {
     if (!this.inMapView(x, y) || this.ui.mode) return;
     const w = this.toWorld(x, y), t = this.pick(w.x, w.y, true);
     if (!t || !t.isU || t.h !== this.player) return;
-    const L = this.L, c = this.cam;
-    this.ui.sel = this.P.units.filter(u => !u.dead && !u.carried && u.key === t.key && u.x >= c.x && u.x < c.x + L.mw && u.y >= c.y && u.y < c.y + L.mh);
+    const L = this.L, a = this.toWorld(L.mx, L.my), c = this.toWorld(L.mx + L.mw, L.my + L.mh);
+    this.ui.sel = this.P.units.filter(u => !u.dead && !u.carried && u.key === t.key && u.x >= a.x && u.x < c.x && u.y >= a.y && u.y < c.y);
     this.ui.selB = null;
   },
   // touch: tap clicks, a drag pans, two fingers deselect; a finger held still a moment on the map starts a selection
@@ -222,8 +268,13 @@ Object.assign(RtsGame.prototype, {
   touchEvent(kind, x, y, e) {
     const ui = this.ui, T = ui.touches;
     if (kind === 'down') {
-      T.set(e.pointerId, { x0: x, y0: y, x, y, moved: false, t0: performance.now() });
-      if (T.size >= 2) { ui.twoFinger = true; if (ui.drag && ui.drag.touch) ui.drag = null; }
+      T.set(e.pointerId, { x0: x, y0: y, x, y, moved: false, t0: performance.now(), side: x >= this.L.sx });
+      if (T.size >= 2) {
+        ui.twoFinger = true; if (ui.drag && ui.drag.touch) ui.drag = null;
+        // two fingers on the map: a pinch zooms (round their middle), moving them together pans
+        const [a, b] = [...T.values()];
+        ui.pinch = T.size === 2 && !a.side && !b.side ? { d: Math.max(20, Math.hypot(a.x - b.x, a.y - b.y)), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, used: false, go: 0 } : null;
+      }
       ui.mx = x; ui.my = y;
       if (T.size === 1 && x >= this.L.sx) {
         const G = this.L.grid, t = T.get(e.pointerId);
@@ -244,7 +295,7 @@ Object.assign(RtsGame.prototype, {
       return;
     }
     if (kind === 'cancel') { if (!T.size) ui.twoFinger = false; return; }
-    if (ui.twoFinger) { if (!T.size) { ui.twoFinger = false; this.cancel(); } return; }
+    if (ui.twoFinger) { if (!T.size) { ui.twoFinger = false; if (!(ui.pinch && ui.pinch.used)) this.cancel(); ui.pinch = null; } return; }
     if (t.grid) {
       if (kind === 'up' && !t.moved && !ui.twoFinger) {
         const G = this.L.grid, c = Math.floor((t.x0 - G.x) / G.cw), r = Math.floor((t.y0 - G.y) / G.ch);
@@ -256,6 +307,7 @@ Object.assign(RtsGame.prototype, {
     if (t.side) { ui.mmDrag = false; return; }
     if (!t.moved && this.inMapView(t.x0, t.y0)) { ui.mx = t.x0; ui.my = t.y0; this.mapClick(t.x0, t.y0, 0); }
     else if (!t.moved && t.y0 < this.L.top && t.x0 < 30) this.openMenu();
+    else if (!t.moved && t.y0 < this.L.top && this.zoomBtnAt(t.x0, t.y0)) this.zoomBy(this.zoomBtnAt(t.x0, t.y0).d);
   },
   touchMove(x, y, e) {
     const t = this.ui.touches.get(e.pointerId);
@@ -264,12 +316,27 @@ Object.assign(RtsGame.prototype, {
       if (t.moved) { const ch = this.L.grid.ch; while (y - t.sy <= -ch / 2) { this.scrollGrid(1); t.sy -= ch / 2; } while (y - t.sy >= ch / 2) { this.scrollGrid(-1); t.sy += ch / 2; } }
       return;
     }
+    const pin = this.ui.pinch;
+    if (t && pin && this.ui.touches.size === 2) {
+      t.x = x; t.y = y;
+      const [a, b] = [...this.ui.touches.values()], d = Math.max(20, Math.hypot(a.x - b.x, a.y - b.y)), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, k = this.zk();
+      // the two together pan, the ground following their middle (a few pixels of wobble still make a two-finger tap)
+      pin.go += Math.abs(mx - pin.mx) + Math.abs(my - pin.my);
+      this.cam.x -= (mx - pin.mx) / k; this.cam.y -= (my - pin.my) / k; this.clampCam();
+      if (pin.go > 8) pin.used = true;
+      pin.mx = mx; pin.my = my;
+      // spread or squeezed by a third: a level in or out
+      if (d > pin.d * 1.3) { this.zoomBy(1, mx, my); pin.d = d; pin.used = true; }
+      else if (d < pin.d / 1.3) { this.zoomBy(-1, mx, my); pin.d = d; pin.used = true; }
+      return;
+    }
     if (!t || t.side || this.ui.touches.size > 1) return;
     if (t.box) { t.x = x; t.y = y; return; }
     if (!t.moved && Math.hypot(x - t.x0, y - t.y0) > 6) t.moved = true;
     if (t.moved) {
       if (this.ui.mode === 'place') return;
-      this.cam.x -= x - t.x; this.cam.y -= y - t.y; this.clampCam();
+      const k = this.zk();
+      this.cam.x -= (x - t.x) / k; this.cam.y -= (y - t.y) / k; this.clampCam();
     }
     t.x = x; t.y = y;
   },
@@ -413,7 +480,7 @@ Object.assign(RtsGame.prototype, {
     const G = this.L.grid, n = this.sideItems(this.ui.tab).length, rows = Math.ceil(n / G.cols);
     this.ui.scroll = Math.max(0, Math.min(Math.max(0, rows - G.rows), this.ui.scroll + d));
   },
-  minimapJump(x, y) {
+  minimapJump(x, y) {   // (centred there at the zoom)
     const m = this.mmRect();
     const wx = (x - m.x) / m.s * 16, wy = (y - m.y) / m.s * 16;
     this.centerOn(wx, wy);
@@ -565,27 +632,43 @@ Object.assign(RtsGame.prototype, {
         else { const m = ui.mapCur || { x: L.mx + L.mw / 2, y: L.my + L.mh / 2 }; ui.cx = m.x; ui.cy = m.y; }
       }
     } else {
-      // mouse: the arrow keys and WASD scroll, so does the screen's edge
-      this.cam.x += dx * 6; this.cam.y += dy * 6;
+      // mouse: the arrow keys and WASD scroll, so does the screen's edge (speeds in world px, by the zoom)
+      const sp = 6 * this.panK();
+      this.cam.x += dx * sp; this.cam.y += dy * sp;
       // the screen's edge (or past it, where the canvas doesn't fill the window) scrolls
       if (ui.inWin && !ui.drag && ui.rx !== undefined) {
         const e = 1.5;
-        if (ui.rx < e) this.cam.x -= 6; else if (ui.rx > L.W - e) this.cam.x += 6;
-        if (ui.ry < e) this.cam.y -= 6; else if (ui.ry > L.H - e) this.cam.y += 6;
+        if (ui.rx < e) this.cam.x -= sp; else if (ui.rx > L.W - e) this.cam.x += sp;
+        if (ui.ry < e) this.cam.y -= sp; else if (ui.ry > L.H - e) this.cam.y += sp;
       }
       if (cancelJ) this.cancel();
     }
-    // the right stick pans
-    for (const p of pads) {
-      const ax = (p.gp && p.gp.axes[2]) || 0, ay = (p.gp && p.gp.axes[3]) || 0;
-      if (Math.abs(ax) > 0.3) this.cam.x += ax * 8;
-      if (Math.abs(ay) > 0.3) this.cam.y += ay * 8;
+    // zoom: + / - (= _, the numpad's), round the keyboard / pad cursor when it's on the map, else the middle
+    const pivot = ui.kbd && !ui.side ? [ui.cx, ui.cy] : [];
+    if (!ctrl && (just('Equal') || just('NumpadAdd'))) this.zoomBy(1, pivot[0], pivot[1]);
+    if (!ctrl && (just('Minus') || just('NumpadSubtract'))) this.zoomBy(-1, pivot[0], pivot[1]);
+    // the pad: RT in, LT out; or LB / RB held with the right stick up (in) / down (out), a level a push
+    if (prJ(7)) this.zoomBy(1, pivot[0], pivot[1]);
+    if (prJ(6)) this.zoomBy(-1, pivot[0], pivot[1]);
+    const shoulder = pr(4) || pr(5);
+    let sy = 0;
+    for (const p of pads) { const v = (p.gp && p.gp.axes[3]) || 0; if (Math.abs(v) > Math.abs(sy)) sy = v; }
+    if (shoulder && Math.abs(sy) > 0.55) { if (!ui.stickZoom) { this.zoomBy(sy < 0 ? 1 : -1, pivot[0], pivot[1]); ui.stickZoom = true; ui.shoulderUsed = true; } }
+    else if (Math.abs(sy) < 0.3) ui.stickZoom = false;
+    // the right stick pans (not while a shoulder button holds it for the zoom)
+    if (!shoulder) for (const p of pads) {
+      const ax = (p.gp && p.gp.axes[2]) || 0, ay = (p.gp && p.gp.axes[3]) || 0, sp = 8 * this.panK();
+      if (Math.abs(ax) > 0.3) this.cam.x += ax * sp;
+      if (Math.abs(ay) > 0.3) this.cam.y += ay * sp;
     }
+    // pad Y home; LB / RB let go without zooming: the factory tab before / after
+    if (prJ(3)) this.goHome();
+    const relJ = n => pads.some((p, i) => p.raw && !p.raw[n] && ui.padPrev && ui.padPrev[i] && ui.padPrev[i][n]);
+    if ((relJ(4) || relJ(5)) && !ui.shoulderUsed) { const tabs = this.sideTabs(); if (tabs.length) { const k = tabs.indexOf(ui.tab); ui.tab = tabs[(k + (relJ(5) ? 1 : tabs.length - 1)) % tabs.length]; ui.scroll = 0; } }
+    if (!shoulder) ui.shoulderUsed = false;
     ui.fireWas = fireD; ui.cancelWas = cancelD;
     ui.padPrev = pads.map(p => p.raw ? p.raw.slice() : []);
     this.coUpdate();
-    if (prJ(3)) this.goHome();
-    if (prJ(4) || prJ(5)) { const tabs = this.sideTabs(); if (tabs.length) { const k = tabs.indexOf(ui.tab); ui.tab = tabs[(k + (prJ(5) ? 1 : tabs.length - 1)) % tabs.length]; ui.scroll = 0; } }
     // hotkeys
     if (just('KeyH')) this.goHome();
     if (just('KeyG')) for (const u of selOwn) this.cmdGuard(u);
@@ -631,7 +714,8 @@ Object.assign(RtsGame.prototype, {
     if (ui.overMap) { const w = this.toWorld(ui.mx, ui.my); ui.hover = this.pick(w.x, w.y, true); }
     else ui.hover = null;
     ui.cursor = this.cursorKind();
-    ui.tip = ui.mIn && ui.mx >= L.sx ? this.sideTip(ui.mx, ui.my) : '';
+    const zb = ui.mIn && ui.my < L.top ? this.zoomBtnAt(ui.mx, ui.my) : null;
+    ui.tip = ui.mIn && ui.mx >= L.sx ? this.sideTip(ui.mx, ui.my) : zb ? 'ZOOM ' + (zb.d > 0 ? 'IN' : 'OUT') + ' (' + (zb.d > 0 ? '+' : '-') + ' KEY OR THE WHEEL)' : '';
     // the credits counter rolls toward the real figure
     const c = Math.floor(this.P.credits), dc = c - ui.cred;
     if (Math.abs(dc) < 1) ui.cred = c;
@@ -643,14 +727,15 @@ Object.assign(RtsGame.prototype, {
     const ui = this.ui, L = this.L, mx = inp.mx, my = inp.my;
     if (mx || my) ui.holdT++; else ui.holdT = 0;
     const sp = Math.min(6, 1.2 + ui.holdT * 0.12);
-    if (inp.cancelD && (mx || my)) { this.cam.x += mx * 8; this.cam.y += my * 8; ui.panned = true; }
+    const pk = this.panK();
+    if (inp.cancelD && (mx || my)) { this.cam.x += mx * 8 * pk; this.cam.y += my * 8 * pk; ui.panned = true; }
     else {
       ui.cx = Math.max(0, Math.min(L.W - 1, ui.cx + mx * sp)); ui.cy = Math.max(0, Math.min(L.H - 1, ui.cy + my * sp));
       if (ui.cx < L.mw) {
-        if (ui.cx < L.mx + 6 && mx < 0) this.cam.x -= 5;
-        if (ui.cx > L.mx + L.mw - 6 && mx > 0) this.cam.x += 5;
-        if (ui.cy < L.my + 6 && my < 0) this.cam.y -= 5;
-        if (ui.cy > L.my + L.mh - 6 && my > 0) this.cam.y += 5;
+        if (ui.cx < L.mx + 6 && mx < 0) this.cam.x -= 5 * pk;
+        if (ui.cx > L.mx + L.mw - 6 && mx > 0) this.cam.x += 5 * pk;
+        if (ui.cy < L.my + 6 && my < 0) this.cam.y -= 5 * pk;
+        if (ui.cy > L.my + L.mh - 6 && my > 0) this.cam.y += 5 * pk;
       }
     }
     ui.mx = ui.cx; ui.my = ui.cy; ui.mIn = true;
@@ -721,8 +806,10 @@ Object.assign(RtsGame.prototype, {
     // the drag box
     if (ui.drag && ui.drag.active) {
       ctx.strokeStyle = '#FFF';
-      const x = Math.min(ui.drag.x0, ui.mx), y = Math.min(ui.drag.y0, ui.my);
-      ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(Math.abs(ui.mx - ui.drag.x0)), Math.round(Math.abs(ui.my - ui.drag.y0)));
+      // from where it started on the ground (the view may have moved since)
+      const a = this.toScreen(ui.drag.wx0, ui.drag.wy0), x0 = Math.max(L.mx, Math.min(L.mx + L.mw - 1, a.x)), y0 = Math.max(L.my, Math.min(L.my + L.mh - 1, a.y));
+      const x = Math.min(x0, ui.mx), y = Math.min(y0, ui.my);
+      ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(Math.abs(ui.mx - x0)), Math.round(Math.abs(ui.my - y0)));
       if (ui.drag.touch) { const c = rtsPicCursor('select', 0), hot = rtsHotOfCursor('select', c); ctx.drawImage(c, Math.round(ui.drag.x0) - hot[0], Math.round(ui.drag.y0) - hot[1]); }
     }
     this.renderTop(ctx);
@@ -766,8 +853,14 @@ Object.assign(RtsGame.prototype, {
       if (m && this.frame - m.t < 300) text = m.text;
       else if (ui.tab === 'starport' && this.portEta()) { text = this.portEta(); col = '#C8F8C8'; }
     }
-    const maxc = Math.floor((L.sx - 34) / 4);
+    const maxc = Math.floor((L.sx - 62) / 4);
     if (text) rtsTiny(ctx, text.slice(0, maxc), 32, 2, col);
+    // the zoom's - and + (dim at the ends)
+    for (const b of this.zoomBtns()) {
+      const can = b.d > 0 ? this.zoom < RTS_ZOOMS[RTS_ZOOMS.length - 1] : this.zoom > RTS_ZOOMS[0], hot = ui.mIn && !ui.kbd && this.inRect(ui.mx, ui.my, b);
+      ctx.fillStyle = hot && can ? '#5C4A34' : '#3C3024'; ctx.fillRect(b.x, b.y, b.w, b.h - 1);
+      rtsTinyCenter(ctx, b.d > 0 ? '+' : '-', b.x + b.w / 2, b.y + 1, can ? '#E8D8B0' : '#6C5C48');
+    }
     // the credits, rolling digits
     this.renderCredits(ctx, L.sx + 18, 1);
   },
@@ -852,9 +945,9 @@ Object.assign(RtsGame.prototype, {
       ctx.fillStyle = (this.frame >> 3) & 1 ? '#F8F8F8' : '#804020';
       ctx.fillRect(Math.floor(m.x + w.x / 16 * s), Math.floor(m.y + w.y / 16 * s), ds + 1, ds + 1);
     }
-    const L = this.L;
+    // the view: its size at the zoom
     ctx.strokeStyle = '#F8F8F8';
-    ctx.strokeRect(Math.round(m.x + this.cam.x / 16 * s) + 0.5, Math.round(m.y + this.cam.y / 16 * s) + 0.5, Math.round(L.mw / 16 * s), Math.round(L.mh / 16 * s));
+    ctx.strokeRect(Math.round(m.x + this.cam.x / 16 * s) + 0.5, Math.round(m.y + this.cam.y / 16 * s) + 0.5, Math.round(this.viewW() / 16 * s), Math.round(this.viewH() / 16 * s));
     void P;
   },
   renderGrid(ctx, tabs) {
