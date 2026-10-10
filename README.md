@@ -415,6 +415,13 @@ music (no names, characters, text or tunes from the real game or the books).
   rivals; each mission opens up more of the tech tree, as in the original. AQUILA fights beside the NOMADS from
   mission 7. Lose and you try again. Then an epilogue for your House and the credits. Progress is saved after every
   step (CONTINUE on the mode's menu).
+- **The computer commanders** play by the same rules as you: they can't see through the shroud (they scout, remember
+  what they saw and lose track of what leaves their sight), run their economy (harvesters, refineries, silos, power,
+  concrete, repairs, rebuilding), lay out a compact base with turrets on the approaches, build an army that answers
+  yours, attack in growing waves at your harvesters, refineries and power, pull back beaten waves, defend their base
+  and use their House's specials and palace. Five levels, from gentle to hard; in the campaign the game's **SKILL**
+  sets how hard the foes play (TOO YOUNG two levels gentler ... NIGHTMARE! one harder), and with two or three Houses
+  against you they take turns to attack.
 - **Skirmish:** your House, 1-3 computer opponents (each its House, including THE REGENT, and its skill from EASY to
   BRUTAL; allied or each for itself), the map's size (48 to 96 tiles square) and style (OPEN, CANYONS, ISLANDS,
   BASIN), starting credits, tech level, sandwyrms (0-3), fog of war, the orders scheme and the game speed.
@@ -1659,7 +1666,8 @@ js/rts.js         DESERT DOMINION's simulation: the map, Houses, power and stora
                   reinforcements, the end of a battle; Game.rtsStartMission; the stand-in map generator
 js/rtsunit.js     DESERT DOMINION's units: moving and paths, combat and shots, harvesting and docking, aircraft and frigates,
                   the doomfist, sandwyrms, blooms, captures; the command API
-js/rtsai.js       DESERT DOMINION's computer player
+js/rtsai.js       DESERT DOMINION's computer commanders: what they see and remember, economy, base layout
+js/rtsai_army.js  DESERT DOMINION's computer commanders: army, defence, attack waves, raids, specials, palace
 js/rtsui.js       DESERT DOMINION's screen and controls (mouse, keys, pads, touch), the sidebar, the skirmish set-up, its music
 js/rtsdraw.js     DESERT DOMINION's map view: prerendered terrain and shroud, buildings, units, shots, effects, marks, the ghost
 js/rtssave.js     DESERT DOMINION's SAVE GAME and CONTINUE

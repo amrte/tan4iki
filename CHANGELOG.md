@@ -3,6 +3,27 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.65
+
+- **New mode: DESERT DOMINION** — a full tribute to Dune II, the first modern real-time strategy game, with its rules
+  and an original world: the desert planet KHARRA, its GLIMMER and SANDWYRMS, three Houses (AQUILA, DRAKON, SERPENS)
+  and THE REGENT. Every building (construction yard, vapor traps, refineries, silos, radar, barracks, trooper hall,
+  light / heavy / high-tech factories, repair pad, research lab, starport, palace, walls, gun and rocket turrets,
+  concrete) and every unit (soldiers, troopers, trikes, raiders, quads, combat / missile / siege tanks, harvesters,
+  MCVs, skylifters, gunwings, the frigate; the House specials SONIC TANK, JUGGERNAUT and CONVERTER; the palace powers
+  NOMAD WARRIORS, the DOOMFIST and the SABOTEUR; PRAETORIANS), factory upgrades, power, storage, concrete and decay,
+  repair, selling, capturing, the starport's market, blooms, sandwyrms, the shroud and fog of war, radar.
+  - A campaign of nine missions per House: the intro, the advisors (COUNSELLOR MIREN, OVERSEER KASK, FACTOR VELL)
+    with their briefings, the region map of KHARRA, the score screen with ranks, an ending for each House; saved.
+  - Skirmish against 1-3 computer Houses (allied or each alone) on generated maps of four styles.
+  - Computer commanders that scout instead of seeing everything, five levels.
+  - Mouse (classic or modern orders, box select, groups and hotkeys), keyboard and gamepad (a cursor), touch.
+  - Saving a battle, online co-commanders, its own title picture.
+  - 17 new tunes in all three music styles (peace and battle tunes that switch with the fighting, a theme for each
+    House, the intro, menu, map, briefing, victory, defeat, score and the Regent's march) and 11 announcement jingles.
+  (rtsdata.js, rts.js, rtsunit.js, rtsai.js, rtsai_army.js, rtsui.js, rtsdraw.js, rtssave.js, rtsart_units.js,
+  rtsart_world.js, rtsmaps.js, rtscampaign.js, rtsmusic.js, rtsmusic2.js, rtsart_title.js)
+
 ## 0.64.1
 
 - **Online play checked in every mode** (two browsers connected by codes, the guest driving player II):

@@ -473,11 +473,11 @@ const RTS_C_MAP_MISSIONS = [
     you: ['ROCKETINF', 'ROCKETINF', 'ROCKETINF', 'tank', 'tank', 'ROCKET', 'siege'], guards: ['tank', 'tank', 'siege', 'siege', 'ROCKET', 'quad', 'quad', 'ROCKETINF', 'ROCKETINF', 'ROCKETINF'],
     raids: [[5, ['tank', 'tank', 'quad', 'quad']], [10, ['siege', 'tank', 'ROCKET', 'ROCKETINF', 'ROCKETINF']], [15, ['AIR', 'AIR'], true], [20, ['siege', 'siege', 'tank', 'tank', 'quad']]],
     help: [[8, ['siege', 'tank'], true], [16, ['ROCKET', 'tank'], true]] },
-  { lv: 8, size: 80, starts: [9, 12, 12], credits: 3000, worms: 3, foeBase: 'palace',
+  { lv: 8, size: 80, starts: [9, 12, 12], credits: 4500, worms: 3, foeBase: 'palace',
     you: ['ROCKETINF', 'ROCKETINF', 'ROCKETINF', 'tank', 'tank', 'tank', 'ROCKET', 'siege'], guards: ['tank', 'tank', 'siege', 'ROCKET', 'quad', 'ROCKETINF', 'ROCKETINF', 'SPECIAL'],
     raids: [[6, ['tank', 'tank', 'quad', 'quad']], [11, ['siege', 'siege', 'tank', 'ROCKETINF', 'ROCKETINF']], [16, ['SPECIAL', 'tank', 'tank']], [22, ['AIR', 'AIR', 'AIR'], true]],
     help: [[9, ['siege', 'tank', 'tank'], true], [18, ['ROCKET', 'siege'], true]] },
-  { lv: 9, size: 96, starts: [10, 14, 12, 12], credits: 3500, worms: 3, foeBase: 'palace',
+  { lv: 9, size: 96, starts: [10, 14, 12, 12], credits: 6000, worms: 3, foeBase: 'palace',
     you: ['ROCKETINF', 'ROCKETINF', 'ROCKETINF', 'ROCKETINF', 'tank', 'tank', 'tank', 'ROCKET', 'ROCKET', 'siege', 'siege'],
     guards: ['tank', 'tank', 'siege', 'siege', 'ROCKET', 'quad', 'quad', 'ROCKETINF', 'ROCKETINF', 'SPECIAL'],
     regentGuards: ['praetorian', 'praetorian', 'praetorian', 'praetorian', 'praetorian', 'praetorian', 'siege', 'siege', 'tank', 'tank', 'tank', 'trike', 'trike', 'gunwing'],
@@ -525,8 +525,10 @@ function rtsMapMission(spec) {
       // guards stand between their base and the player
       const gx = st.x + Math.sign(s0.x - st.x) * Math.min(6, (st.r || 9) - 2), gy = st.y + Math.sign(s0.y - st.y) * Math.min(6, (st.r || 9) - 2);
       out.foes.push({ house: fh, base: fb.list, units: rtsMapUnits(map, g, fh, keys.length ? gx : st.x, keys.length ? gy : st.y, used), noMcv: !keys.length, start: { x: st.x, y: st.y } });
-      const raids = regent ? M.regentRaids : M.raids;
-      for (const [min, list, air] of raids) out.reinforcements.push({ at: Math.round(min * RTS_C_MAP_MIN), house: fh, units: list.map(s => rtsMapUnit(s, fh)), edge: 'any', byAir: !!air });
+      // two or more rival Houses: they share the mission's raids in turn (not each the whole list), from 3 minutes later
+      const rivals = spec.foes.filter(o => o !== 'regent'), ri = rivals.indexOf(fh), many = rivals.length > 1;
+      const raids = regent ? M.regentRaids : M.raids.filter((r, j) => !many || j % rivals.length === ri);
+      for (const [min, list, air] of raids) out.reinforcements.push({ at: Math.round((min + (many && !regent ? 3 : 0)) * RTS_C_MAP_MIN), house: fh, units: list.map(s => rtsMapUnit(s, fh)), edge: 'any', byAir: !!air });
     });
     for (const [min, list, air] of M.help) out.reinforcements.push({ at: Math.round(min * RTS_C_MAP_MIN), house: spec.house, units: list.map(s => rtsMapUnit(s, spec.house)), edge: 'any', byAir: !!air });
     // allies (the NOMADS): a band of warriors that walks in near the player's base

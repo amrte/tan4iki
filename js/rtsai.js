@@ -153,6 +153,8 @@ class RtsAiCommander {
     this.campaign = !!(R.opts.mission && R.opts.mission.campaign) && !H.human;
     if (this.campaign) {
       this.nextWave += 3 * RTS_AI_MIN; this.nextHarass += 3 * RTS_AI_MIN; this.soft *= 0.8;
+      // the last two missions (two or three Houses, standing fortresses): the player needs time to dig in
+      if (((R.opts.mission.level | 0) >= 8)) { this.nextWave += 4 * RTS_AI_MIN; this.soft *= 0.85; }
       // and builds at a gentler pace than in a skirmish (two or more of them: gentler still)
       H.aiBoost = Math.min(H.aiBoost || 1, [0.8, 0.9, 1, 1.1, 1.2][this.lv] * (this.mates >= 2 ? 0.9 : 1));
     }

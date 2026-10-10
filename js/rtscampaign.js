@@ -887,13 +887,17 @@ function rtsCMissionOpts(C) {
   const setup = rtsMapMission({ level: L, house: C.house, foes, allies, seed: rtsMapSeed('kharra', C.house, L, C.region, C.seed), style });
   const map = setup.map;
   delete map.occ;
-  const ai = L <= 2 ? 0 : L <= 4 ? 1 : L <= 6 ? 2 : L <= 8 ? 3 : 4;
-  const foeCredits = L <= 2 ? 0 : 600 + L * 300;
+  // two or three Houses at once from mission 8 (they take turns attacking): each of them a little gentler
+  const ai = L <= 2 ? 0 : L <= 4 ? 1 : L <= 7 ? 2 + (L === 7 ? 1 : 0) : 2;
+  const foeCredits = L <= 2 ? 0 : L >= 8 ? 1500 + (L - 8) * 500 : 600 + L * 300;
+  // the game's SKILL (Settings) sets how hard the foes play: TOO YOUNG two levels gentler ... NIGHTMARE! one harder
+  const sk = Config.get('skill'), off = sk === 0 ? -2 : sk === 1 ? -1 : sk === 3 || sk === 4 ? 1 : 0;
+  const lvOf = a => Math.max(0, Math.min(4, a + off)), cr = n => Math.round(n * [0.6, 0.8, 1, 1.15, 1.3][sk] || n);
   const s0 = map.starts[0];
   return {
     map,
     player: Object.assign({ start: { x: s0.x, y: s0.y } }, setup.player),
-    foes: setup.foes.map(f => ({ house: f.house, credits: f.house === 'regent' ? foeCredits * 2 : foeCredits, ai: f.house === 'regent' ? 4 : ai, base: f.base, units: f.units, noMcv: f.noMcv, start: f.start })),
+    foes: setup.foes.map(f => ({ house: f.house, credits: cr(f.house === 'regent' ? foeCredits * 2 : foeCredits), ai: lvOf(f.house === 'regent' ? 3 : ai), base: f.base, units: f.units, noMcv: f.noMcv, start: f.start })),
     // the NOMADS have no base and no computer player of their own: they roam and hunt (rtsCNomads, at the start)
     allies: setup.allies.map(a => ({ house: a.house, credits: 0, ai: null, base: a.base, units: a.units, noMcv: true, start: a.start })),
     onStart: rtsCNomads,
