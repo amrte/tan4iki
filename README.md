@@ -1015,7 +1015,7 @@ the weapon in hand; its letter and level pips show in the left border, in your c
 | **F** Flamethrower | hold fire: a short cone of fire that burns tanks, trees (sets them alight in summer) and shells; bricks crumble in it, slowly | longer and hotter |
 | **G** Mortar | lobs a shell over walls onto the first tank lined up ahead (or, with none, the first brick wall ahead); a blast that breaks brick | further, bigger blasts; breaks steel at MK IV |
 | **T** Tesla | lightning to the nearest enemy in reach: no aiming, walls don't stop it; with nobody in reach it bursts the wall ahead | longer reach, jumps on to 1 / 2 / 3 more tanks |
-| **H** Missiles | homing missiles that fly over walls, pick their own targets and blow up; fired at a building straight ahead (a BIG MAPS factory, the CPU's HQ) they go for it, not the tanks round it; with no target they blow a hole in the first wall they meet | more damage; 2 at once at MK III, 3 at MK IV |
+| **H** Missiles | homing missiles that fly over walls, pick their own targets and blow up; fired at a building straight ahead (a BIG MAPS factory, the CPU's HQ) or a boss they go for it, not the tanks round it (with no tank near, a boss is their target); with no target they blow a hole in the first wall they meet | more damage; 2 at once at MK III, 3 at MK IV |
 
 Every weapon hurts the enemy's buildings too: the BIG MAPS factories and the CPU's HQ (the mortar lands on one lined up ahead, the tesla zaps one in reach, the flamethrower burns it, missiles home on it when no tank is near).
 
@@ -1027,6 +1027,9 @@ players (lighter weapons add up: two machine-gun bullets make a hit).
 Balance: with a bot that plays whole stages holding fire, each MK I does about as well as the bare cannon (a sidegrade
 with its own trick) and each MK IV about as well as a 3-star cannon, so the difficulty curve and the skill levels
 still mean what they did.
+
+Every weapon hurts bosses and bumps **?** blocks (the flamethrower and the tesla once in a while as they burn or zap
+it, the mortar where it lands, a missile that meets one).
 
 ## Wingman, decoy eagle, smoke and bridges
 

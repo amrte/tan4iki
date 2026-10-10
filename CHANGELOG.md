@@ -3,6 +3,16 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.66.1
+
+- **Fixed: missiles didn't hurt bosses** (classic boss rounds, and bosses in other modes). They only chased tanks and
+  buildings and flew straight over a boss. Now a boss ahead (or the only thing near) is their target, and one that
+  meets a boss bursts on it for its full damage. The **mortar** now aims at a boss lined up ahead (it fell short or
+  long) and its shell hits a boss for its full weight; the **tesla** zaps a boss that's nearer than the tanks round it.
+  Checked every weapon at MK I and MK IV against all eleven bosses.
+- **Fixed: ? blocks couldn't be bumped with the flamethrower, mortar, tesla or missiles** (only the cannon, machine
+  gun and laser). Now every weapon bumps them.
+
 ## 0.66
 
 - **Desert Dominion: zoom.** Four levels (16, 24, 32 and 48 screen pixels a tile; 32 to start, remembered): the mouse
