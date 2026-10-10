@@ -404,8 +404,9 @@ music (no names, characters, text or tunes from the real game or the books).
   pad X jumps the cursor between the map and the sidebar; pad Y goes home, LB/RB change the factory tab, the right
   stick pans.
 - **Touch:** tap clicks (select, order, build), a drag pans the map, two fingers deselect; hold a finger still a
-  moment and then drag to draw a selection box (lift without dragging: every unit of that kind on the screen). MENU
-  in the top-left corner pauses.
+  moment and then drag to draw a selection box (lift without dragging: every unit of that kind on the screen). On
+  the build icons a drag scrolls them and a long press cancels one (as the right button does). MENU in the top-left
+  corner pauses.
 - **The campaign:** an intro, then pick your House (each advisor introduces it). Nine missions, each with a briefing
   from your advisor, a battle, the result, a SCORE screen with your rank (from DUST MITE up to MASTER OF KHARRA) and
   the REGION MAP of KHARRA, where the rival Houses take land too and you choose the next of two or three regions to

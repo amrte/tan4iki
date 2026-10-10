@@ -11,7 +11,7 @@
 //    minimap jumps. Keyboard + gamepad without a mouse: the d-pad moves a cursor (faster as you hold it; at the edge it
 //    scrolls), FIRE clicks, B cancels (B + d-pad pans), TAB / pad X jumps the cursor between map and sidebar, pad Y
 //    home, LB/RB the factory tabs. Touch: tap = click, drag = pan, two fingers = deselect, hold a finger still then
-//    drag = a selection box.
+//    drag = a selection box; on the build icons a drag scrolls them and a long press cancels (the right button).
 //    Hotkeys: H home, G guard, S stop, A attack-move, R repair, DEL sell, CTRL/SHIFT+1..9 make a group, 1..9 pick it
 //    (twice: go there).
 //    Plus Game.rtsSkirmishSetup (the skirmish setup screen), the stand-in Game.rtsMenu / Game.rtsMissionOver (until
@@ -223,7 +223,12 @@ Object.assign(RtsGame.prototype, {
       T.set(e.pointerId, { x0: x, y0: y, x, y, moved: false, t0: performance.now() });
       if (T.size >= 2) { ui.twoFinger = true; if (ui.drag && ui.drag.touch) ui.drag = null; }
       ui.mx = x; ui.my = y;
-      if (T.size === 1 && x >= this.L.sx) { this.sideClick(x, y, 0); T.get(e.pointerId).side = true; }
+      if (T.size === 1 && x >= this.L.sx) {
+        const G = this.L.grid, t = T.get(e.pointerId);
+        t.side = true;
+        // the build icons wait for the lift: a drag scrolls them, a long press cancels (the right button's job)
+        if (y >= G.y && y < G.y + G.rows * G.ch) { t.grid = true; t.sy = y; } else this.sideClick(x, y, 0);
+      }
       return;
     }
     const t = T.get(e.pointerId);
@@ -238,12 +243,25 @@ Object.assign(RtsGame.prototype, {
     }
     if (kind === 'cancel') { if (!T.size) ui.twoFinger = false; return; }
     if (ui.twoFinger) { if (!T.size) { ui.twoFinger = false; this.cancel(); } return; }
+    if (t.grid) {
+      if (kind === 'up' && !t.moved && !ui.twoFinger) {
+        const G = this.L.grid, c = Math.floor((t.x0 - G.x) / G.cw), r = Math.floor((t.y0 - G.y) / G.ch);
+        const key = this.sideItems(ui.tab)[(r + ui.scroll) * G.cols + c];
+        if (performance.now() - t.t0 > 450 && key && c >= 0 && c < G.cols) this.itemClick(ui.tab, key, 2); else this.sideClick(t.x0, t.y0, 0);
+      }
+      return;
+    }
     if (t.side) { ui.mmDrag = false; return; }
     if (!t.moved && this.inMapView(t.x0, t.y0)) { ui.mx = t.x0; ui.my = t.y0; this.mapClick(t.x0, t.y0, 0); }
     else if (!t.moved && t.y0 < this.L.top && t.x0 < 30) this.openMenu();
   },
   touchMove(x, y, e) {
     const t = this.ui.touches.get(e.pointerId);
+    if (t && t.grid) {
+      if (!t.moved && Math.abs(y - t.y0) > 6) t.moved = true;
+      if (t.moved) { const ch = this.L.grid.ch; while (y - t.sy <= -ch / 2) { this.scrollGrid(1); t.sy -= ch / 2; } while (y - t.sy >= ch / 2) { this.scrollGrid(-1); t.sy += ch / 2; } }
+      return;
+    }
     if (!t || t.side || this.ui.touches.size > 1) return;
     if (t.box) { t.x = x; t.y = y; return; }
     if (!t.moved && Math.hypot(x - t.x0, y - t.y0) > 6) t.moved = true;
