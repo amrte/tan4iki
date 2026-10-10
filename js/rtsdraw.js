@@ -289,7 +289,7 @@ function rtsFxPic(kind, f, res) {
   if (typeof rtsFxArt === 'function' && !RTS_ART_BAD.fx) {
     try {
       const c = rtsFxArt(kind, f, res || 1);
-      if (c) { if (res > 1 && c.rtsR === undefined) rtsAtRes(c, rtsFxArt(kind, f, 1)); return c; }
+      if (c) { if (res > 1 && c.rtsR === undefined) rtsAtRes(c, rtsFxArt(kind, Math.floor(f), 1)); return c; }
     } catch (e) { rtsArtFail('fx', e); }
   }
   const n = { hit: 3, boom: 6, bigboom: 8, smoke: 5, fire: 6, sand: 4, muzzle: 2, gasCloud: 8, sonicWave: 4, glimmerBurst: 8 }[kind] || 4;
@@ -600,6 +600,8 @@ Object.assign(RtsGame.prototype, {
     const L = this.L, cam = this.cam;
     this.flushDirty();
     const k = this.rk = this.zk(), res = this.rres = this.viewRes(), t = k >= 2 ? 2 : 1;
+    // the detailed unit art, made a few at a time in spare moments so a zoom in doesn't stall on it
+    if (res > 1 && !this.uWarm && typeof rtsUWarm === 'function') { try { this.uWarm = rtsUWarm(2, this.houseList.map(o => o.id), 2); } catch (e) { this.uWarm = true; } }
     let sx = 0, sy = 0;
     if (this.shake > 0) { sx = (((this.frame * 7) % 5) - 2) * t; sy = (((this.frame * 3) % 5) - 2) * t; }
     const ox = Math.round(cam.x * k) + sx, oy = Math.round(cam.y * k) + sy;
@@ -693,7 +695,7 @@ Object.assign(RtsGame.prototype, {
     for (const e of this.fx) {
       if (e.f < 0 || !inView(e.x, e.y, 30)) continue;
       const n = this.fxFrames(e.k), sp = e.k === 'smoke' ? 6 : e.k === 'fire' ? 5 : 3;
-      const c = rtsFxPic(e.k, Math.min(n - 1, (e.f / sp) | 0), res);
+      const c = rtsFxPic(e.k, Math.min(n - 1, res > 1 ? Math.floor(e.f / sp * 2) / 2 : (e.f / sp) | 0), res);   // res 2 art has half frames
       const rise = e.k === 'smoke' ? e.f * 0.15 : 0;
       this.blit(ctx, c, e.x, e.y - rise);
     }
