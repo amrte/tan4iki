@@ -371,7 +371,7 @@ const SETTINGS_DEF = [
   { action: 'fullscreen', label: 'TOGGLE FULLSCREEN' },
 
   { section: 'GAME' },
-  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'custom', 'survival', 'timeattack', 'bigmaps', 'sides', 'corridor', 'maze', 'world', 'fortress', 'galaxy', 'coop', 'race', 'eagles', 'dm', 'ctf', 'cs', 'rally', 'astro'], def: 'classic',
+  { key: 'gameMode', label: 'GAME MODE', values: ['classic', 'custom', 'survival', 'timeattack', 'bigmaps', 'sides', 'corridor', 'maze', 'world', 'fortress', 'galaxy', 'coop', 'race', 'eagles', 'dm', 'ctf', 'cs', 'rally', 'astro', 'rts'], def: 'classic',
     fmt: v => modeInfo(v).name },
   { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4, 5], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!', 'AUTO'][v] },
   { key: 'raceTarget', label: 'RACE: FIRST TO', values: [1, 2, 3, 5, 7, 10], def: 3, fmt: v => v + ' PTS' },
