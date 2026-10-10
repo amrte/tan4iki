@@ -119,7 +119,7 @@ and *show ranks and perks*, a screen with every rank's tank.
 Pick a mode on the title screen's **MODE** row (left/right), then start on the PLAYERS row (left/right picks 1-4; versus needs 2-4,
 on one keyboard, with pads, or online; VS eagles, deathmatch and kill race can also be played alone, against the computer).
 Survival, time attack, corridor, maze, endless world, VS CPU and Counter-Strike keep their best results; there is no shop outside Classic, Big maps,
-Maze and VS CPU, and no saving outside Classic and Big maps.
+Maze and VS CPU, and no saving outside Classic, Big maps and Desert Dominion.
 
 | Mode | Players | How it works |
 |---|---|---|
@@ -143,6 +143,7 @@ Maze and VS CPU, and no saving outside Classic and Big maps.
 | **Counter-Strike** | 1-4 | two teams of five tanks on DE_DUST2, DE_AZTEC, DE_TRAIN or DE_MIRAGE, bots filling them up: the terrorists plant the bomb on site A or B, the counter-terrorists stop them or defuse it. Rounds with a buy time and money, no respawns, sides switched at half time, first to 8; a fog of war shows only what your team can see (see *Counter-Strike* below) |
 | **Tank Rally** | 1-2 | a tribute to Rock n' Roll Racing with tanks: four-tank races on twenty circuits across five alien worlds, laps, weapons, mines and boost, money for places and kills, a shop between races, divisions to climb and a champion to beat (see *Tank Rally* below) |
 | **Astro Tanks** | 1-2 | a tribute to Asteroids: your tank in open space on a screen that wraps round, turning and thrusting with momentum, blasting rocks that split, saucers that shoot back, the heartbeat that speeds up; crystals buy upgrades in the hangar between waves, and a mini boss every fifth wave (see *Astro Tanks* below) |
+| **Desert Dominion** | 1 | a tribute to Dune II, the first real-time strategy game: build a base on the rock of the desert planet KHARRA, harvest the glowing GLIMMER for credits while the SANDWYRMS hunt on the open sand, build an army through your House's tech tree and destroy the rival Houses; a campaign of nine missions for each of three Houses, and skirmishes against 1-3 computer Houses (see *Desert Dominion* below) |
 
 In versus, power-ups drop every 15 seconds (only ones that make sense between players), there are no enemy tanks, and
 the side panel shows each player's wins, kills or captures. Round and match results show who won.
@@ -355,6 +356,77 @@ the art and the music.
 - **Music** (in all three MUSIC STYLES): COLD ORBIT and METEOR STORM for the waves, TITAN OF THE VOID for the bosses,
   HANGAR BAY 9 in the hangar (the chiptune names; rock and synthwave versions have names of their own). The mode has
   its own title picture.
+
+## Desert Dominion
+
+A tribute to Dune II: The Building of a Dynasty (1992), the first modern real-time strategy game. Its rules are
+faithful; everything else is original: the planet, the Houses, the advisors, the units' names, the pictures and the
+music (no names, characters, text or tunes from the real game or the books).
+
+- **The world:** KHARRA, a desert planet. Its resource is GLIMMER, an orange glowing sand in light and thick fields
+  (and GLIMMER BLOOMS, buried bulbs that burst into a new field when touched or shot); harvesters gather it and
+  refineries turn it into CREDITS. The SANDWYRMS roam the open sand, home in on noise (moving, digging, firing) and
+  swallow whatever is on the sand whole; they can't cross rock. Three Houses fight over it at THE REGENT's bidding:
+  **AQUILA** (blue, the eagle; noble — advisor COUNSELLOR MIREN), **DRAKON** (red, the ram's skull; brutal —
+  OVERSEER KASK) and **SERPENS** (green, the serpent; cunning — FACTOR VELL). THE REGENT (purple) and his PRAETORIANS
+  are the last enemy; the NOMADS of the deep desert (tan) fight beside AQUILA.
+- **The screen:** the map on the left, the sidebar on the right: the radar (needs a RADAR OUTPOST and power), the
+  power bar (green what's made, the white line what's used), a tab for each kind of factory you have (BLD, INF, TRP,
+  LT, HV, AIR, PRT), the build icons (price and power in the top bar under the pointer; progress over the icon, a
+  count for each queued, PLACE when a building is done) and the selection panel (picture, health, what it's doing,
+  and its command buttons). The credits counter rolls; the top bar says what's happening (CONSTRUCTION COMPLETE, UNIT
+  READY, OUR BASE IS UNDER ATTACK, WYRM SIGN ...), each with a little stinger.
+- **Building:** the CONSTRUCTION YARD builds buildings one at a time, paying as it goes; a finished one waits to be
+  placed next to your own buildings or concrete, on rock. On bare rock it starts damaged and slowly decays: lay
+  CONCRETE SLABS first. VAPOR TRAPS make power; short of it, everything builds slower and the radar and rocket turrets
+  go off. Refineries and SILOS store the credits (past that, harvested glimmer is lost). Factories queue units (up
+  to 9), roll them out of their doors to the rally point, and can be UPGRADED for more units; select a building to
+  REPAIR it (it costs as it goes), SELL it (half back) or set its RALLY point. Damaged enemy buildings can be
+  CAPTURED by soldiers and troopers; destroyed ones leave their ruins.
+- **Units:** SOLDIER, TROOPER (rockets), TRIKE (AQUILA) or RAIDER (SERPENS), QUAD, COMBAT TANK, MISSILE TANK (not
+  SERPENS), SIEGE TANK, HARVESTER (700 credits a load; it finds the nearest field and unloads on the refinery's
+  hopper), MCV (deploys into a construction yard), SKYLIFTER (flies harvesters to the fields and back, and damaged
+  vehicles to the REPAIR PAD, by itself), GUNWING (not DRAKON); with a RESEARCH LAB each House's special: the SONIC
+  TANK (AQUILA: a wave that hurts everything in its path, friend and foe), the JUGGERNAUT (DRAKON: twin plasma, can
+  self-destruct) and the CONVERTER (SERPENS: gas that turns enemy vehicles to your side for a while). The STARPORT
+  sells units at prices that change, delivered by FRIGATE. The PALACE charges its House's power: NOMAD WARRIORS who
+  rise from the sand (AQUILA), the DOOMFIST missile that falls anywhere on the map, not very accurately (DRAKON) or a
+  SABOTEUR, invisible when still, who blows up a building (SERPENS). Defences: WALL, GUN TURRET, ROCKET TURRET.
+- **Mouse:** left click selects (a unit or building), drag a box for several, double-click selects all of a kind on
+  the screen; with units selected a left click moves, attacks (the cursor shows which: move, attack, capture,
+  harvest, repair, deploy, can't go), a click on the MCV deploys it; right click deselects or cancels (ORDERS:
+  CLASSIC). ORDERS: MODERN gives the orders with the right button instead. Ctrl+click forces fire. The screen's
+  edge, the arrow keys and WASD scroll; a click on the radar jumps there; the wheel scrolls the build icons.
+- **Hotkeys:** H home (the construction yard, again for the next), G guard, S stop, A attack-move, R repair the
+  selected building, DEL twice sells it, Ctrl+1..9 (or Shift) makes a group, 1..9 picks it (twice: goes there).
+- **Keyboard or gamepad alone:** the arrows / d-pad move a cursor (faster as you hold it; it scrolls at the edge),
+  FIRE (Space, J, K or pad A) clicks, held it drags a box; B (or pad B) cancels, B held with the d-pad pans; TAB or
+  pad X jumps the cursor between the map and the sidebar; pad Y goes home, LB/RB change the factory tab, the right
+  stick pans.
+- **Touch:** tap clicks (select, order, build), a drag pans the map, two fingers deselect; hold a finger still a
+  moment and then drag to draw a selection box (lift without dragging: every unit of that kind on the screen). MENU
+  in the top-left corner pauses.
+- **The campaign:** an intro, then pick your House (each advisor introduces it). Nine missions, each with a briefing
+  from your advisor, a battle, the result, a SCORE screen with your rank (from DUST MITE up to MASTER OF KHARRA) and
+  the REGION MAP of KHARRA, where the rival Houses take land too and you choose the next of two or three regions to
+  attack (the region's owner is who you fight). Missions 1-2 ask for a harvest (1000 and 2700 credits), 3-7 for
+  the enemy base destroyed, 8 sets two Houses on you at once, 9 is the REGENT's palace with his Praetorians and both
+  rivals; each mission opens up more of the tech tree, as in the original. AQUILA fights beside the NOMADS from
+  mission 7. Lose and you try again. Then an epilogue for your House and the credits. Progress is saved after every
+  step (CONTINUE on the mode's menu).
+- **Skirmish:** your House, 1-3 computer opponents (each its House, including THE REGENT, and its skill from EASY to
+  BRUTAL; allied or each for itself), the map's size (48 to 96 tiles square) and style (OPEN, CANYONS, ISLANDS,
+  BASIN), starting credits, tech level, sandwyrms (0-3), fog of war, the orders scheme and the game speed.
+- **Online:** friends join the host's battle as co-commanders of the same House, each with a cursor of their own
+  (see *Online play*).
+- **Saving:** SAVE GAME in the pause menu keeps the battle as it is; CONTINUE on the title (with the mode picked)
+  goes on with it. RESTART ROUND plays the mission again from the start.
+- **Music** (in all three MUSIC STYLES; the chiptune names, rock and synthwave versions have names of their own):
+  DUSK OVER KHARRA, THE GLIMMER FIELDS and CARAVAN OF STARS while you build and harvest, STEEL ON SAND, THE BURNING
+  FRONT and SEVEN DUNES when fighting comes near, and a theme for each House (BANNERS OF AQUILA, THE IRON RAM,
+  SERPENT'S BARGAIN); THE SANDS OF KHARRA for the intro, BANNERS OF THE HOUSES on the menu, WHERE THE WYRMS SLEEP on
+  the region map, THE ADVISOR SPEAKS for briefings, THE REGENT'S THRONE for the last one, THE SANDS ARE OURS and
+  BURIED IN SAND after a battle, COUNTING THE GLIMMER on the score screen. The mode has its own title picture.
 
 ## Big scrolling maps
 
@@ -760,9 +832,11 @@ host's game, with its sounds. Each friend chooses their own items in the shop; t
 If a friend drops out, their tank waits; the host can send a new invite from the pause menu → **ONLINE PLAYERS**.
 A friend leaves with Esc → **Leave game**. Codes work once; if a page is reloaded, make new ones.
 
-Every mode plays online. **Tank Rally** and **Astro Tanks** (which draw their own screens) send the host's screen to
-the friends as pictures, 20 a second (about 120-270 KB/s each), with its sounds and music; the friend's keys drive
-their tank as in the other modes. The host runs the career and hangar menus there.
+Every mode plays online. **Tank Rally**, **Astro Tanks** and **Desert Dominion** (which draw their own screens) send
+the host's screen to the friends as pictures, 20 a second (about 120-270 KB/s each), with its sounds and music; the
+friend's keys drive their tank as in the other modes. The host runs the career and hangar menus there. In Desert
+Dominion the friends are co-commanders of the host's House: each moves a cursor of their own (numbered, in its own
+colour) with the d-pad, FIRE clicks and B cancels, with a selection of their own.
 
 **If it says "couldn't connect":** some networks (offices, schools, some mobile hotspots) block direct connections
 between computers. Try another network (e.g. a home Wi-Fi), or this would need a relay server.
@@ -1278,6 +1352,9 @@ light, tanks driving and firing, smoke, sparks and explosions:
 - **VS CPU** (and co-op): the machine's fortress, a face on its screen; its HQ blinks red at its foot.
 - **Counter-Strike**: noon on Dust 2: the long doors and a red A on the wall; a terrorist plants the bomb, a
   counter-terrorist comes in behind smoke to defuse it, or (every other time) is shot and the bomb goes off.
+- **Desert Dominion**: KHARRA under its twin suns and a ringed giant; a harvester scoops a glowing glimmer field, a
+  tank of each House watches from a ridge, a base stands on the plateau; every few seconds wormsign, and a sandwyrm
+  bursts out of the dunes behind the harvester, takes the tanks' shells and sinks; a skylifter swoops in low.
 
 **The soundtrack** comes in three styles (Settings → MUSIC STYLE). The stage-start fanfare before every round plays in
 the style chosen too: the NES original, a rock version (twin lead guitars, chugging power chords, a tom fill into the
@@ -1575,7 +1652,23 @@ js/astroup.js     ASTRO TANKS's upgrades, the tank's look with them, the hangar 
 js/astroboss.js   ASTRO TANKS's mini bosses: CINDER COLOSSUS, VOID MATRIARCH, COMET WYRM
 js/astromusic.js  ASTRO TANKS's songs in all three music styles and the heartbeat
 js/astroart.js    ASTRO TANKS's title picture
-js/netstream.js   online for the modes that draw themselves (Tank Rally, Astro Tanks): the host's screen as pictures
+js/rtsdata.js     DESERT DOMINION's numbers: units, buildings, weapons and armour, Houses, tech levels, starport, palace powers
+js/rts.js         DESERT DOMINION's simulation: the map, Houses, power and storage, buildings, production, starport, palace,
+                  reinforcements, the end of a battle; Game.rtsStartMission; the stand-in map generator
+js/rtsunit.js     DESERT DOMINION's units: moving and paths, combat and shots, harvesting and docking, aircraft and frigates,
+                  the doomfist, sandwyrms, blooms, captures; the command API
+js/rtsai.js       DESERT DOMINION's computer player
+js/rtsui.js       DESERT DOMINION's screen and controls (mouse, keys, pads, touch), the sidebar, the skirmish set-up, its music
+js/rtsdraw.js     DESERT DOMINION's map view: prerendered terrain and shroud, buildings, units, shots, effects, marks, the ghost
+js/rtssave.js     DESERT DOMINION's SAVE GAME and CONTINUE
+js/rtsart_units.js DESERT DOMINION's units in every House's colours: vehicles, turrets, infantry, wrecks, shots, effects, icons
+js/rtsart_world.js DESERT DOMINION's terrain, buildings in all their states, walls, ruins, the sandwyrm, blooms, cursors, icons
+js/rtsmaps.js     DESERT DOMINION's map generator and the campaign's mission maps
+js/rtscampaign.js DESERT DOMINION's campaign: menu, intro, Houses and advisors, briefings, region map, results, score, ending
+js/rtsmusic.js    DESERT DOMINION's in-game songs (peace, battle, the Houses) in all three music styles
+js/rtsmusic2.js   DESERT DOMINION's front-end songs and announcement stingers in all three music styles
+js/rtsart_title.js DESERT DOMINION's title picture
+js/netstream.js   online for the modes that draw themselves (Tank Rally, Astro Tanks, Desert Dominion): the host's screen as pictures
 js/csart.js       COUNTER-STRIKE's title picture
 js/reach.js       no dead ends: a way opened from every walled-in entry point; stuck enemies come in again
 js/bigmap.js      big scrolling maps: stitched worlds, camera, outposts and factories

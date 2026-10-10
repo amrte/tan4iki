@@ -18,9 +18,9 @@ const CTL_EXTRA = {
   galaxy: () => [['B TWICE', 'BOMB']],
   rally: () => [['FIRE', 'FORWARD WEAPON'], ['FIRE + B', 'BOOST']],
   astro: () => [['< >', 'TURN'], ['UP / DOWN', 'THRUST / BRAKE'], ['HOLD FIRE', 'AUTO-FIRE'], ['HOLD B', 'BOMB IN THE RACK'], ['TOUCH PAD', 'POINT TO STEER']],
-  rts: () => [['MOUSE', 'CLICK SELECT, ORDER'], ['DRAG', 'SELECT A GROUP'], ['RIGHT CLICK', 'DESELECT / CANCEL'], ['ARROWS EDGE', 'SCROLL THE MAP'],
-    ['FIRE', 'CLICK AT THE CURSOR'], ['B + MOVE', 'PAN'], ['TAB / PAD X', 'CURSOR TO SIDEBAR'], ['H', 'HOME'], ['G S A', 'GUARD STOP ATT-MOVE'],
-    ['CTRL+1-9', 'MAKE GROUP, 1-9 PICK'], ['DEL / R', 'SELL / REPAIR']],
+  rts: () => [['MOUSE', 'CLICK, DRAG A BOX'], ['RIGHT BTN', 'DESELECT / CANCEL'], ['ARROWS', 'SCROLL THE MAP'], ['FIRE', 'CLICK AT CURSOR'],
+    ['B + MOVE', 'PAN'], ['TAB/PAD X', 'CURSOR TO SIDEBAR'], ['H', 'HOME'], ['G S A', 'GUARD/STOP/A-MOVE'], ['CTRL+1-9', 'GROUP, 1-9 PICK'],
+    ['DEL / R', 'SELL / REPAIR'], ['HOLD,DRAG', 'TOUCH: BOX SELECT']],
 };
 
 // the keys a player uses with n players at the keyboard (as Input.player reads them)
