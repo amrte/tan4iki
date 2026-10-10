@@ -3,6 +3,12 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.70
+
+- **Galaxy: tougher bosses, phase by phase** (galaxy_tune2.js). Each boss's bar is three phases; now the first takes
+  30% more to get through, the second 50% more and the last 70% more (about 50% more in all, on top of 0.69's x1.8).
+  The bar and the phase changes look as before; the hits on it count for less. Every galaxy boss, in every run type.
+
 ## 0.69.3
 
 - **Fixed: no FSD hangar in a BOSS RUSH started past it.** Its hangar comes every third boss, so a run started at

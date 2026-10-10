@@ -1245,7 +1245,8 @@ up. 1-4 players together, here or online.
   - Also *shields*, *bombs* and *extra lives*.
   - Losing a ship costs two power levels.
   - When a boss goes down, all its loot flies to your ships before the sector ends (a power cell for each ship).
-- **Bosses**, each with three phases (a bar at the top marks them):
+- **Bosses**, each with three phases (a bar at the top marks them; each third takes more to get through than the last:
+  +30%, +50%, +70%):
   - **Mothership**: fans, rings and spirals of shots, drones
   - **War Crab**: claw shots, charges down at you
   - **Rock Titan**: throws asteroids
@@ -1797,7 +1798,7 @@ js/galaxy4c.js    GALAXY sectors MARS HIGHWAY (ELON ON THE CYBERCAB, the FSD sub
 js/galaxy_feel.js galaxy controls and feel: B gestures, focus, two weapons, heat and the charge blast, combo, grazing, shake
 js/galaxy_prog.js galaxy progression and co-op: power cells back after a loss, perks, fair loot, escape pods
 js/galaxy_waves.js galaxy structure: mini-bosses, challenge stages, the captor and the twin fighter, medals
-js/galaxy_tune2.js galaxy, longer and tougher: every wave comes back once, enemies x1.5, mini-bosses x4, bosses x1.8, half the credits
+js/galaxy_tune2.js galaxy, longer and tougher: every wave comes back once, enemies x1.5, mini-bosses x4, bosses x1.8 (and each phase +30%, +50%, +70%), half the credits
 js/galaxy_modes.js galaxy runs: campaign, boss rush, endless, daily
 js/cards.js       first-meet cards for new enemies, bosses and power-ups
 js/cpuvs.js       VS EAGLES against the computer: the enemy HQ and its upgrades round by round

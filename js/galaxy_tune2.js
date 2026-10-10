@@ -4,12 +4,14 @@
 //    waves      each wave comes back once more after you've cleared it (half its size, the same kind): about half
 //               as long again. Not the mini-boss or the challenge stage.
 //    hit points the small fry x1.5, the mini-bosses x4, the bosses (and their parts: orbs, hands, turrets ...) x1.8,
-//               on top of the skill's own scaling (galaxy_tune.js)
+//               on top of the skill's own scaling (galaxy_tune.js); and each third of a boss's bar (its phases) takes
+//               more again to get through: phase 1 +30%, phase 2 +50%, phase 3 +70% (the bar and its phases stay
+//               as they were, the hits on it count for less)
 //    credits    half as many: coins, gems, kills, boss bounties and the sectors' own gifts (gxCash, galaxy_tune.js)
 //  Loaded after every galaxy file, so its wrappers are the outermost.
 // =====================================================================
 
-const GXT2 = { encore: 0.5, enemy: 1.5, mini: 4, boss: 1.8 };
+const GXT2 = { encore: 0.5, enemy: 1.5, mini: 4, boss: 1.8, phase: [1, 1.3, 1.5, 1.7] };
 const GXT2_NO_ENCORE = new Set(['miniboss', 'challenge']);
 
 {
@@ -65,5 +67,11 @@ const GXT2_NO_ENCORE = new Set(['miniboss', 'challenge']);
       }
     }
     return r;
+  };
+  // ... and phase by phase
+  const damage = P.gxBossDamage;
+  P.gxBossDamage = function (dmg, p, bomb) {
+    const b = this.galaxy && this.galaxy.boss;
+    return damage.call(this, b ? dmg / (GXT2.phase[b.ph] || 1) : dmg, p, bomb);
   };
 }
