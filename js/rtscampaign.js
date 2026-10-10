@@ -1041,13 +1041,13 @@ Object.assign(Game, {
       Font.drawCenter(ctx, it.label, SW / 2, y, it.off ? '#606060' : on ? COL.white : COL.lgrey);
     });
     let note = '';
-    if (M.confirm) note = 'A NEW CAMPAIGN ENDS THE SAVED ONE - A AGAIN';
+    if (M.confirm) note = 'THIS ENDS THE SAVED CAMPAIGN';
     else if (M.idx === 2 && M.sv) note = 'HOUSE ' + RTS_C_HOUSES[M.sv.house].name + ' - MISSION ' + M.sv.level + ' OF 9';
     else if (M.idx === 0) { const h = Object.keys(M.hall); note = h.length ? 'KHARRA WON BY ' + h.map(k => RTS_C_HOUSES[k].name).join(', ') : 'NINE MISSIONS FOR EACH HOUSE'; }
     else if (M.idx === 1) note = M.confirm ? '' : 'YOU AGAINST 1-3 COMPUTER HOUSES';
     rtsCBox(ctx, 0, 193, SW, 31, 'rgba(0,0,0,0.7)');
     Font.drawCenter(ctx, note.slice(0, 32), SW / 2, 197, M.confirm ? COL.orange : COL.gold);
-    Font.drawCenter(ctx, 'ARROWS  A SELECT  B BACK', SW / 2, 211, '#A08868');
+    Font.drawCenter(ctx, M.confirm ? 'A AGAIN TO START A NEW ONE' : 'ARROWS  A SELECT  B BACK', SW / 2, 211, M.confirm ? COL.orange : '#A08868');
   },
   rtsCPtrMenu(x, y) {
     const i = Math.floor((y - 127) / 14);
@@ -1353,7 +1353,9 @@ Object.assign(Game, {
     const T = rtsCTalk(rtsCFill(r.win ? D.win : D.lose, { REGION: mi.regionName || (RTS_C_REGIONS[region] || {}).name || 'THE REGION', FOE: foeName }), 30, 4);
     T.voice = RTS_C_VOICE[D.adv];
     this.rtsCR = { r, camp, score, house: H, foes, level, regionName: mi.regionName || '', rankBefore, rankAfter, talk: T, sel: 0, again: so };
-    try { if (typeof rtsSting === 'function') rtsSting(r.win ? 'missionWon' : 'missionLost'); } catch (e) { /* no stinger */ }
+    // the stinger (the engine's own end banner has played it already)
+    const banner = this.stage && this.stage.rts && this.stage.done;
+    if (!banner && !r.quit) { try { if (typeof rtsSting === 'function') rtsSting(r.win ? 'missionWon' : 'missionLost'); } catch (e) { /* no stinger */ } }
     this.setState('rtsCResult');
   },
   rtsCUpdResult() {
@@ -1384,7 +1386,7 @@ Object.assign(Game, {
       ctx.drawImage(rtsCHouseCrest(Q.house, 64), 152, 50 + (win ? Math.round(Math.sin(t / 12) * 2) : 6));
       if (!win) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(152, 56, 64, 64); }
       Font.drawCenter(ctx, 'MISSION ' + Q.level, 184, 124, COL.white);
-      Font.drawCenter(ctx, Q.regionName.slice(0, 16), 184, 136, '#F0BC3C');
+      Font.drawCenter(ctx, Q.regionName.slice(0, 17), 184, 136, '#F0BC3C');
       rtsCBox(ctx, 4, 166, SW - 8, 42, 'rgba(0,0,0,0.85)', pal[2]);
       if (t > 40) rtsCTalkDraw(ctx, Q.talk, 9, 170);
     } else {
