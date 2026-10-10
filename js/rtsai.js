@@ -20,10 +20,10 @@
 const RTS_AI_LEVELS = [
   { think: 4, firstWave: 10, waveGap: 5, wave0: 3, waveGrow: 1, waveMax: 7, cap: 9, keep: 2, refs: 1, hpr: 1, turrets: 1, rturrets: 0, walls: 0,
     harass: 0, prong: 0, retreat: 0, recall: 0, repairAt: 0.45, reserve: 300, smart: 0, concrete: 0, scout: 0, forget: 1200, parallel: 1, upg: 1, lifters: 0, port: 0, react: 2 },
-  { think: 2, firstWave: 7.5, waveGap: 4, wave0: 4, waveGrow: 1, waveMax: 10, cap: 14, keep: 2, refs: 2, hpr: 1, turrets: 2, rturrets: 1, walls: 0,
+  { think: 2, firstWave: 9, waveGap: 4.5, wave0: 4, waveGrow: 1, waveMax: 10, cap: 14, keep: 2, refs: 2, hpr: 1, turrets: 2, rturrets: 1, walls: 0,
     harass: 0, prong: 0, retreat: 0.2, recall: 1, repairAt: 0.55, reserve: 250, smart: 1, concrete: 0, scout: 1, forget: 1800, parallel: 2, upg: 2, lifters: 0, port: 1, react: 1 },
-  { think: 2, firstWave: 6, waveGap: 3.5, wave0: 5, waveGrow: 2, waveMax: 16, cap: 22, keep: 3, refs: 2, hpr: 1.5, turrets: 3, rturrets: 2, walls: 0,
-    harass: 2, prong: 0, retreat: 0.3, recall: 1, repairAt: 0.65, reserve: 200, smart: 2, concrete: 1, scout: 1, forget: 2400, parallel: 2, upg: 2, lifters: 1, port: 1, react: 0 },
+  { think: 2, firstWave: 8, waveGap: 4, wave0: 5, waveGrow: 2, waveMax: 16, cap: 22, keep: 3, refs: 2, hpr: 1.2, turrets: 3, rturrets: 2, walls: 0,
+    harass: 2, prong: 0, retreat: 0.3, recall: 1, repairAt: 0.65, reserve: 200, smart: 2, concrete: 1, scout: 1, forget: 2400, parallel: 2, upg: 2, lifters: 1, port: 1, react: 1 },
   { think: 1, firstWave: 5, waveGap: 3, wave0: 7, waveGrow: 2, waveMax: 24, cap: 30, keep: 3, refs: 3, hpr: 1.7, turrets: 3, rturrets: 2, walls: 2,
     harass: 3, prong: 0.4, retreat: 0.3, recall: 1, repairAt: 0.7, reserve: 150, smart: 3, concrete: 1, scout: 1, forget: 3000, parallel: 5, upg: 2, lifters: 1, port: 1, react: 0 },
   { think: 1, firstWave: 4, waveGap: 2.5, wave0: 8, waveGrow: 3, waveMax: 32, cap: 40, keep: 4, refs: 3, hpr: 2.2, turrets: 4, rturrets: 2, walls: 2,
@@ -57,7 +57,7 @@ const RTS_AI_TEAMS = new WeakMap();
 function rtsAiTeam(R, team) {
   let g = RTS_AI_TEAMS.get(R);
   if (!g) { g = {}; RTS_AI_TEAMS.set(R, g); }
-  return g[team] || (g[team] = { target: null, t: -1e9, by: null, help: null, helpT: -1e9 });
+  return g[team] || (g[team] = { target: null, t: -1e9, by: null, help: null, helpT: -1e9, waveT: -1e9, waveBy: null });
 }
 
 const RTS_AI = {
@@ -132,6 +132,17 @@ class RtsAiCommander {
     this.census = new Map();              // enemy army units seen in the last minutes: id -> { o, str, t, h }
     this.incomeLog = [[f, H.stats.harvested]]; this.income = 0;
     this.nomadsOnly = !H.buildings.length && !H.units.some(u => u.d.deploys);
+    // several computer Houses on one side against the player: they take turns to attack, and hit a little softer
+    // (a campaign's two-House missions would otherwise swamp a lone commander)
+    const mates = R.houseList.filter(o => o.team === H.team && !o.human && !o.nomads && o.ai !== null && o.ai !== undefined).length;
+    const vsHuman = R.houseList.some(o => o.human && o.team !== H.team);
+    this.mates = vsHuman ? mates : 1;
+    this.soft = this.mates >= 2 ? (this.lv >= 4 ? 0.85 : 0.75) : 1;
+    if (this.mates >= 2) this.nextWave += (this.mates - 1) * RTS_AI_MIN * (0.5 + this.rnd());
+    // a campaign mission: the player starts with next to nothing against a standing base, so the first attack
+    // waits longer and the waves hit softer (the mission's own raids keep the pressure on)
+    this.campaign = !!(R.opts.mission && R.opts.mission.campaign) && !H.human;
+    if (this.campaign) { this.nextWave += 3 * RTS_AI_MIN; this.nextHarass += 3 * RTS_AI_MIN; this.soft *= 0.8; }
     // what it starts with: units already round a base stay home to guard it
     for (const u of H.units) if (u.d.wpn && !u.d.harvester) this.role.set(u.id, H.buildings.length ? 'def' : 'pool');
   }

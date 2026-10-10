@@ -82,7 +82,7 @@ const RTS_WEAPONS = {
   gasgun: { cls: 'gas', dmg: 18, range: 6, rate: 100, shot: 'gas', speed: 2.6, splash: 0.4, convert: 1500, sound: 'gas' },
   turretgun: { cls: 'shell', dmg: 24, range: 5.5, rate: 46, shot: 'shell', speed: 5, splash: 0.25, sound: 'shot' },
   turretrocket: { cls: 'rocket', dmg: 30, range: 8.5, rate: 72, shot: 'missile', speed: 3.4, spread: 0.3, splash: 0.3, air: true, minRange: 1.5, needsPower: true, sound: 'missile' },
-  wingrocket: { cls: 'rocket', dmg: 14, range: 3.5, rate: 40, shot: 'rocket', speed: 4, spread: 0.2, splash: 0.25, sound: 'missile' },
+  wingrocket: { cls: 'rocket', dmg: 16, range: 3.5, rate: 40, shot: 'rocket', speed: 4, spread: 0.2, splash: 0.25, sound: 'missile' },
   doomfist: { cls: 'blast', dmg: 520, range: 999, rate: 0, shot: 'doomfist', speed: 2.4, splash: 3, spread: 3 },
   selfdestruct: { cls: 'blast', dmg: 320, splash: 2.6 },
   sabotage: { cls: 'blast', dmg: 700, splash: 1.2 },
@@ -93,7 +93,7 @@ const RTS_UNITS = {
   // ------- infantry (one soldier a unit; up to three share a tile)
   soldier: { name: 'SOLDIER', cls: 'inf', move: 'foot', armor: 'inf', hp: 20, speed: 0.28, turn: 1, wpn: 'rifle', sight: 3, cost: 60, time: 240,
     fac: 'barracks', tech: 1, capture: true, desc: 'RIFLEMAN. CAN CAPTURE DAMAGED BUILDINGS' },
-  trooper: { name: 'TROOPER', cls: 'inf', move: 'foot', armor: 'inf', hp: 26, speed: 0.24, turn: 1, wpn: 'bazooka', sight: 3, cost: 100, costBy: { drakon: 85 }, time: 360,
+  trooper: { name: 'TROOPER', cls: 'inf', move: 'foot', armor: 'inf', hp: 26, speed: 0.24, turn: 1, wpn: 'bazooka', sight: 3, cost: 100, costBy: { drakon: 90 }, time: 360,
     fac: 'hall', tech: 2, capture: true, desc: 'ROCKET TROOPER, GOOD AGAINST VEHICLES' },
   nomad: { name: 'NOMAD WARRIOR', cls: 'inf', move: 'foot', armor: 'inf', hp: 34, speed: 0.34, turn: 1, wpn: 'nomadgun', sight: 4, cost: 0, time: 0,
     fac: null, houses: ['aquila', 'nomad'], tech: 9, stealth: true, desc: 'DESERT FIGHTER, HARD TO SPOT' },
@@ -102,33 +102,33 @@ const RTS_UNITS = {
   praetorian: { name: 'PRAETORIAN', cls: 'inf', move: 'foot', armor: 'inf', hp: 50, speed: 0.26, turn: 1, wpn: 'praetorgun', sight: 4, cost: 170, time: 420,
     fac: 'barracks', houses: ['regent'], tech: 3, capture: true, desc: 'THE REGENT\'S ELITE HEAVY TROOPER' },
   // ------- light vehicles
-  trike: { name: 'TRIKE', cls: 'veh', move: 'wheel', armor: 'light', hp: 100, speed: 1.0, turn: 3, wpn: 'mg', sight: 5, cost: 150, time: 360,
+  trike: { name: 'TRIKE', cls: 'veh', move: 'wheel', armor: 'light', hp: 100, speed: 1.0, turn: 3, wpn: 'mg', sight: 5, cost: 130, time: 360,
     fac: 'light', houses: ['aquila', 'regent'], tech: 1, crush: true, desc: 'FAST THREE-WHEELED SCOUT' },
-  raider: { name: 'RAIDER', cls: 'veh', move: 'wheel', armor: 'light', hp: 90, speed: 1.2, turn: 2, wpn: 'mg', sight: 5, cost: 150, time: 330,
+  raider: { name: 'RAIDER', cls: 'veh', move: 'wheel', armor: 'light', hp: 90, speed: 1.2, turn: 2, wpn: 'mg', sight: 5, cost: 130, time: 330,
     fac: 'light', houses: ['serpens'], tech: 1, crush: true, desc: 'THE FASTEST THING ON KHARRA' },
-  quad: { name: 'QUAD', cls: 'veh', move: 'wheel', armor: 'light', hp: 130, speed: 0.82, turn: 4, wpn: 'twinmg', sight: 4, cost: 200, time: 480,
+  quad: { name: 'QUAD', cls: 'veh', move: 'wheel', armor: 'light', hp: 130, speed: 0.82, turn: 4, wpn: 'twinmg', sight: 4, cost: 200, costBy: { serpens: 180 }, time: 480,
     fac: 'light', tech: 2, upg: 1, upgBy: { drakon: 0 }, crush: true, desc: 'FOUR WHEELS AND TWIN GUNS' },
   // ------- heavy vehicles
-  tank: { name: 'COMBAT TANK', cls: 'veh', move: 'track', armor: 'heavy', hp: 200, speed: 0.55, turn: 5, wpn: 'cannon', sight: 4, cost: 300, time: 660,
+  tank: { name: 'COMBAT TANK', cls: 'veh', move: 'track', armor: 'heavy', hp: 200, speed: 0.55, turn: 5, wpn: 'cannon', sight: 4, cost: 300, costBy: { serpens: 270 }, time: 660,
     fac: 'heavy', tech: 3, turret: true, crush: true, desc: 'TURRETED CANNON, THE LINE TANK' },
-  missile: { name: 'MISSILE TANK', cls: 'veh', move: 'track', armor: 'heavy', hp: 150, speed: 0.5, turn: 5, wpn: 'launcher', sight: 5, cost: 450, time: 780,
+  missile: { name: 'MISSILE TANK', cls: 'veh', move: 'track', armor: 'heavy', hp: 150, speed: 0.5, turn: 5, wpn: 'launcher', sight: 5, cost: 450, costBy: { drakon: 490, aquila: 420 }, time: 780,
     fac: 'heavy', houses: ['aquila', 'drakon', 'regent'], tech: 4, upg: 1, turret: true, crush: true, desc: 'LONG RANGE ROCKETS, HITS AIRCRAFT' },
-  siege: { name: 'SIEGE TANK', cls: 'veh', move: 'track', armor: 'heavy', hp: 380, speed: 0.4, turn: 7, wpn: 'siegegun', sight: 4, cost: 600, time: 900,
+  siege: { name: 'SIEGE TANK', cls: 'veh', move: 'track', armor: 'heavy', hp: 380, speed: 0.4, turn: 7, wpn: 'siegegun', sight: 4, cost: 600, costBy: { serpens: 540 }, time: 900,
     fac: 'heavy', tech: 5, upg: 2, turret: true, crush: true, desc: 'HEAVY TWIN CANNON, SLOW' },
   harvester: { name: 'HARVESTER', cls: 'veh', move: 'track', armor: 'heavy', hp: 160, speed: 0.42, turn: 6, wpn: null, sight: 2, cost: 300, time: 720,
     fac: 'heavy', tech: 1, crush: true, harvester: true, cap: 700, digEvery: 6, big: true, desc: 'GATHERS 700 CREDITS OF GLIMMER' },
   mcv: { name: 'MCV', cls: 'veh', move: 'track', armor: 'heavy', hp: 150, speed: 0.38, turn: 7, wpn: null, sight: 3, cost: 900, time: 960,
     fac: 'heavy', tech: 4, upg: 1, crush: true, deploys: 'yard', big: true, desc: 'DEPLOYS INTO A CONSTRUCTION YARD' },
-  sonic: { name: 'SONIC TANK', cls: 'veh', move: 'track', armor: 'heavy', hp: 220, speed: 0.45, turn: 6, wpn: 'sonicwave', sight: 4, cost: 600, time: 900,
+  sonic: { name: 'SONIC TANK', cls: 'veh', move: 'track', armor: 'heavy', hp: 220, speed: 0.45, turn: 6, wpn: 'sonicwave', sight: 4, cost: 600, costBy: { aquila: 550 }, time: 900,
     fac: 'heavy', houses: ['aquila'], tech: 7, upg: 2, needs: ['lab'], turret: true, crush: true, desc: 'A SOUND WAVE HURTS ALL IN ITS PATH' },
   juggernaut: { name: 'JUGGERNAUT', cls: 'veh', move: 'track', armor: 'heavy', hp: 520, speed: 0.3, turn: 9, wpn: 'plasma', sight: 4, cost: 800, time: 1080,
     fac: 'heavy', houses: ['drakon'], tech: 7, upg: 2, needs: ['lab'], turret: true, crush: true, big: true, selfDestruct: true, desc: 'HUGE TWIN PLASMA. CAN SELF-DESTRUCT' },
-  converter: { name: 'CONVERTER', cls: 'veh', move: 'track', armor: 'heavy', hp: 170, speed: 0.46, turn: 6, wpn: 'gasgun', sight: 4, cost: 750, time: 900,
+  converter: { name: 'CONVERTER', cls: 'veh', move: 'track', armor: 'heavy', hp: 170, speed: 0.46, turn: 6, wpn: 'gasgun', sight: 4, cost: 600, time: 900,
     fac: 'heavy', houses: ['serpens'], tech: 7, upg: 2, needs: ['lab'], turret: true, crush: true, desc: 'GAS TURNS ENEMY VEHICLES FOR A WHILE' },
   // ------- aircraft
   skylifter: { name: 'SKYLIFTER', cls: 'air', move: 'air', armor: 'air', hp: 100, speed: 1.5, turn: 3, wpn: null, sight: 2, cost: 800, time: 720,
     fac: 'hightech', tech: 4, lifter: true, desc: 'AIRLIFTS HARVESTERS AND DAMAGED UNITS' },
-  gunwing: { name: 'GUNWING', cls: 'air', move: 'air', armor: 'air', hp: 70, speed: 1.7, turn: 2, wpn: 'wingrocket', sight: 5, cost: 600, time: 720,
+  gunwing: { name: 'GUNWING', cls: 'air', move: 'air', armor: 'air', hp: 90, speed: 1.7, turn: 2, wpn: 'wingrocket', sight: 5, cost: 500, time: 720,
     fac: 'hightech', houses: ['aquila', 'serpens', 'regent'], tech: 6, upg: 1, desc: 'ATTACK AIRCRAFT' },
   frigate: { name: 'FRIGATE', cls: 'air', move: 'air', armor: 'air', hp: 999, speed: 1.3, turn: 2, wpn: null, sight: 2, cost: 0, time: 0,
     fac: null, tech: 9, untargetable: true, desc: 'DELIVERS STARPORT ORDERS' },
@@ -176,7 +176,7 @@ const RTS_UPGRADE_TIME = 600;
 
 // the sandwyrms: the first one's arrival (frames), meals before it dives deep [min, max], frames away down there
 // [min, max], how far it hears (tiles), and how much a harvester draws it (a factor on its distance: under 1 more)
-const RTS_WORM = { first: 7200, meals: [1, 3], away: [6000, 9600], hear: 11, harvester: 1 };
+const RTS_WORM = { first: 18000, meals: [1, 3], away: [6000, 9600], hear: 11, harvester: 1 };
 
 // the palace powers: charge time (frames), what they do
 const RTS_PALACE = {

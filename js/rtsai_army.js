@@ -18,13 +18,13 @@
 
 // unit choice weights (before the counters)
 const RTS_AI_MIX = {
-  soldier: 0.6, trooper: 2, praetorian: 6, trike: 1, raider: 1.2, quad: 1.6, tank: 5, missile: 4, siege: 4, sonic: 4, juggernaut: 3, converter: 2, gunwing: 0.6,
+  soldier: 0.6, trooper: 2, praetorian: 6, trike: 1, raider: 1.2, quad: 1.6, tank: 5, missile: 4, siege: 4, sonic: 4, juggernaut: 3, converter: 2, gunwing: 0.3,
 };
 // House flavour
 const RTS_AI_FLAVOUR = {
   aquila: { sonic: 1.3, quad: 1.2, missile: 1.1 },
   drakon: { trooper: 1.3, juggernaut: 1.3, siege: 1.1 },
-  serpens: { raider: 1.4, converter: 1.2, gunwing: 1.2, siege: 1.2 },
+  serpens: { converter: 1.2, siege: 1.3, tank: 1.1 },
   regent: { praetorian: 2, siege: 1.3, gunwing: 1.2 },
 };
 // what each class of our army should be, as a share (with and without the heavy factory)
@@ -49,10 +49,11 @@ Object.assign(RtsAiCommander.prototype, {
     this.mending(R, H);
     this.scouting(R, H);
     this.waveCtl(R, H);
-    if (L.harass || this.nomadsOnly) this.harassCtl(R, H);
-    this.airCtl(R, H);
+    const passive = this.opts.passive;
+    if ((L.harass || this.nomadsOnly) && !passive) this.harassCtl(R, H);
+    if (!passive) this.airCtl(R, H);
     this.specials(R, H);
-    if (this.n % 4 === 0) { this.palaceCtl(R, H); this.saboteurs(R, H); }
+    if (this.n % 4 === 0 && !passive) { this.palaceCtl(R, H); this.saboteurs(R, H); }
     if (this.n % 16 === 8) this.blooms(R, H);
     this.poolCtl(R, H);
   },
@@ -114,7 +115,7 @@ Object.assign(RtsAiCommander.prototype, {
     this.upgrades(R, H);
     this.buildLifters(R, H);
     if (this.n % 8 === 0) this.shopping(R, H);
-    if (pts >= L.cap * Math.min(2, 1 + f / (25 * RTS_AI_MIN))) return;
+    if (pts >= L.cap * Math.min(2, 1 + f / (25 * RTS_AI_MIN)) * (this.campaign ? (this.mates >= 2 ? 0.55 : 0.7) : 1)) return;
     const threatened = f - this.lastThreat < 900;
     const reserve = (this.econNeed ? L.reserve + 350 : L.reserve) + (H.prod.yard.queue.length && !H.prod.yard.ready ? 120 : 0) + (this.insurance || 0);
     // the classes we're short of first
@@ -208,8 +209,12 @@ Object.assign(RtsAiCommander.prototype, {
       // the money for it as it goes, and the factory free: hold its production till then
       const pf = R.powerFactor(H) * (H.aiBoost || 1);
       const ok = this.drain(R, H) + up.cost / RTS_UPGRADE_TIME * pf <= this.income * 1.15 + Math.max(0, H.credits - L.reserve) / 1500 + 0.02 || H.credits > up.cost + L.reserve;
-      if (!ok) { if (H.credits > up.cost * 0.5) this.hold = kind; return; }
-      if (H.prod[kind].queue.length) { this.hold = kind; return; }
+      // (the factory is held for it only once there's an army of its kind, and not while under attack)
+      let mine = 0;
+      for (const u of this.armyU) if (u.d.fac === kind) mine++;
+      const mayHold = (mine >= 3 || R.frame > 9 * RTS_AI_MIN) && R.frame - this.lastThreat > 900;
+      if (!ok) { if (H.credits > up.cost * 0.5 && mayHold) this.hold = kind; return; }
+      if (H.prod[kind].queue.length) { if (mayHold) this.hold = kind; return; }
       if (R.upgrade(h, b)) { this.note('upgrade ' + kind + ' to ' + lv); return; }
     }
   },
@@ -245,7 +250,20 @@ Object.assign(RtsAiCommander.prototype, {
       if (!this.nearBase(R, H, r.x, r.y, 7)) continue;
       thr.push(r); str += rtsAiStr(r.d, r.hp) + (r.d.saboteur ? 300 : 0);
     }
-    if (!thr.length) { this.threatStr = 0; this.threatSince = 0; return; }
+    if (!thr.length) {
+      this.threatStr = 0; this.threatSince = 0;
+      // a building under fire from something out of our sight: everyone at home goes to look
+      if (f - H.lastHit < 60 && this.n % 2 === 0) {
+        let hit = null;
+        for (const b of H.buildings) if (f - b.hitT < 60 && (!hit || b.hitT > hit.hitT)) hit = b;
+        if (hit && f - (this.lookT || -1e9) > 240) {
+          this.lookT = f; this.lastThreat = f; this.attackedT = f;
+          const go = this.armyU.filter(u => (this.is(u, 'pool') || this.is(u, 'def')) && !this.busyOn(R, u));
+          if (go.length) R.cmdMoveGroup(go, hit.x + (hit.w >> 1), hit.y + hit.hh, 'amove');
+        }
+      }
+      return;
+    }
     if (!this.threatSince) this.threatSince = f;
     this.lastThreat = f; this.threatStr = str;
     if (f - H.lastHit < 120) this.attackedT = f;
@@ -400,7 +418,10 @@ Object.assign(RtsAiCommander.prototype, {
     for (const u of this.air) if (this.is(u, 'air')) pool.push(u);
     let pts = 0;
     for (const u of pool) pts += this.pts(u);
-    const size = Math.min(L.waveMax, L.wave0 + this.waveN * L.waveGrow);
+    const size = Math.min(L.waveMax, L.wave0 + this.waveN * L.waveGrow) * (this.soft || 1);
+    // friends attacking the same player take turns
+    const TT = rtsAiTeam(R, H.team);
+    if (this.mates >= 2 && TT.waveBy && TT.waveBy !== this.h && f - TT.waveT < 1.5 * RTS_AI_MIN && !counter) return;
     const late = f > this.nextWave + 3 * RTS_AI_MIN;
     if (pts < size && !(late && pts >= size * 0.6) && !(counter && pts >= size * 0.5)) return;
     let myStr = 0;
@@ -421,6 +442,15 @@ Object.assign(RtsAiCommander.prototype, {
     pool.sort((a, b) => a.d.speed - b.d.speed);
     const keep = Math.max(0, L.keep - this.count2('def'));
     for (let k = 0; k < keep && pool.length > 2; k++) { const u = pool.shift(); if (u.d.cls !== 'air') this.role.set(u.id, 'def'); else pool.push(u); }
+    // no bigger than the level's largest wave (the rest wait at home for the next)
+    {
+      let take = 0;
+      const cap = L.waveMax * (this.soft || 1) * 1.15;
+      pool.sort((a, b) => b.d.speed - a.d.speed);
+      const go = [];
+      for (const u of pool) { if (take >= cap) break; go.push(u); take += this.pts(u); }
+      pool.length = 0; pool.push(...go);
+    }
     // two prongs: a second group for the weak side (economy, power)
     if (pool.length >= 8 && tgt.rec && this.rnd() < L.prong) {
       const t2 = this.pickTarget(R, H, myStr * 0.4, tgt);
@@ -443,6 +473,7 @@ Object.assign(RtsAiCommander.prototype, {
     this.nextWave = f + L.waveGap * RTS_AI_MIN * (0.85 + this.rnd() * 0.3);
     const T = rtsAiTeam(R, H.team);
     if (tgt.h) { T.target = { h: tgt.h, x: tgt.x, y: tgt.y }; T.t = f; T.by = this.h; }
+    T.waveT = f; T.waveBy = this.h;
   },
   launch(R, H, units, tgt, kind, swing) {
     const f = R.frame;
@@ -690,6 +721,8 @@ Object.assign(RtsAiCommander.prototype, {
   airCtl(R, H) {
     const f = R.frame;
     if (!this.air.length || this.n % 2) return;
+    // no air raids before the raiding parties would go (defending is always allowed)
+    if (f < this.nextHarass && f - this.lastThreat > 300) { for (const u of this.air) if (this.is(u, 'air') && u.order.k !== 'idle' && !this.busyOn(R, u)) R.cmdStop(u); return; }
     for (const u of this.air) {
       if (!this.is(u, 'air')) continue;
       if (this.busyOn(R, u)) continue;
@@ -749,6 +782,8 @@ Object.assign(RtsAiCommander.prototype, {
   palaceCtl(R, H) {
     const h = this.h;
     if (!R.palaceReady(h)) return;
+    // not in the first minutes (the gentler, the later; a campaign foe later still)
+    if (R.frame < ([15, 12, 9, 7, 5][this.lv] + (this.campaign ? 4 : 0)) * RTS_AI_MIN) return;
     const k = R.palaceKind(h), lv = this.lv, f = this.f;
     if (k === 'doomfist') {
       // where the enemy's buildings are thickest (worth most within the blast)
