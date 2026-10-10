@@ -736,6 +736,8 @@ Object.assign(RtsGame.prototype, {
       s.x += s.vx; s.y += s.vy; s.n--;
       if (s.sonic) this.sonicTick(s);
       if (s.k === 'rocket' || s.k === 'missile') { if (s.f % 4 === 0) this.addFx('smoke', s.x, s.y, 0, 0, true); }
+      // the doomfist's trail, up where it flies (rtsdraw.js draws it on the same arc)
+      if (s.k === 'doomfist' && s.f % 3 === 0) this.addFx('smoke', s.x, s.y - Math.sin((1 - s.n / s.n0) * Math.PI) * s.arc + 4);
       if (s.n <= 0) this.impact(s); else out.push(s);
     }
     this.shots = out;

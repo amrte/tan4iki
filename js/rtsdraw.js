@@ -536,7 +536,13 @@ Object.assign(RtsGame.prototype, {
     for (const s of this.shots) {
       if (!inView(s.x, s.y, 140)) continue;
       let y = s.y;
-      if (s.k === 'doomfist') { const p = 1 - s.n / s.n0; y -= Math.sin(p * Math.PI) * s.arc; }
+      if (s.k === 'doomfist') {
+        // its shadow on the ground, closing in as it comes down
+        const p = 1 - s.n / s.n0, hgt = Math.sin(p * Math.PI);
+        y -= hgt * s.arc;
+        ctx.fillStyle = 'rgba(0,0,0,' + (0.18 + 0.2 * (1 - hgt)).toFixed(2) + ')';
+        ctx.beginPath(); ctx.ellipse(s.x + hgt * 10, s.y + hgt * 6, 3 + 3 * (1 - hgt), 2 + 1.5 * (1 - hgt), 0, 0, 7); ctx.fill();
+      }
       const tx = (s.x / 16) | 0, ty = (y / 16) | 0;
       if (this.inMap(tx, ty) && !this.playerSees(tx, ty) && s.k !== 'doomfist') continue;
       let dir = s.dir;
