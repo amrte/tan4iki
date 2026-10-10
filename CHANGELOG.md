@@ -3,6 +3,19 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.66
+
+- **Desert Dominion: zoom.** Four levels (16, 24, 32 and 48 screen pixels a tile; 32 to start, remembered): the mouse
+  wheel over the map (around the pointer), + / - keys, the - / + buttons on the top bar, the gamepad's triggers (or
+  LB/RB with the right stick), a pinch on touch. Clicks, box select, placing buildings, the minimap and panning work
+  at every zoom.
+- **Desert Dominion: twice the detail.** Every unit, building, turret, wall, the terrain, the sandwyrm, wrecks, shots
+  and explosions are drawn at double resolution with real extra detail (tread links, hatches, cupolas, rivets, muzzle
+  brakes, drivers and riders, soldiers with helmets, packs and faces; cranes, catwalks, conveyors, ladders, skylights,
+  domes, finer House emblems; damage with soot, cracks, torn plating, girders and flames; sand ripples and pebbles,
+  rock strata and cracks, crags, glimmer crystals, concrete joints and stains), used from zoom 24 up; richer sidebar
+  icons; explosions in half frames; burnt hulks that keep the unit's shape.
+
 ## 0.65.1
 
 - **Desert Dominion: harvesting is clearer and quicker.** Harvesters scoop faster (a full load in about half a minute
