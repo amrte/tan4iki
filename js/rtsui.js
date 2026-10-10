@@ -1201,7 +1201,8 @@ Object.assign(Game, {
     }
     // a peace tune plays about three minutes before the next one
     if (st.frame - m.peaceT > 10800) { m.peace++; m.peaceT = st.frame; }
-    const th = (RTS_HOUSES[st.player] || {}).theme;
+    // the opening theme: the House's own, or in the campaign's last mission the REGENT's
+    const mi = st.opts.mission, th = mi && mi.campaign && mi.level === 9 && has('rtsRegent') ? 'rtsRegent' : (RTS_HOUSES[st.player] || {}).theme;
     const list = [th].concat(['rtsPeace1', 'rtsPeace2', 'rtsPeace3']).filter(k => k && has(k));
     return list.length ? list[m.peace % list.length] : has('fortress') ? 'fortress' : null;
   },

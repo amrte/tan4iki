@@ -426,8 +426,9 @@ music (no names, characters, text or tunes from the real game or the books).
   DUSK OVER KHARRA, THE GLIMMER FIELDS and CARAVAN OF STARS while you build and harvest, STEEL ON SAND, THE BURNING
   FRONT and SEVEN DUNES when fighting comes near, and a theme for each House (BANNERS OF AQUILA, THE IRON RAM,
   SERPENT'S BARGAIN); THE SANDS OF KHARRA for the intro, BANNERS OF THE HOUSES on the menu, WHERE THE WYRMS SLEEP on
-  the region map, THE ADVISOR SPEAKS for briefings, THE REGENT'S THRONE for the last one, THE SANDS ARE OURS and
-  BURIED IN SAND after a battle, COUNTING THE GLIMMER on the score screen. The mode has its own title picture.
+  the region map, THE ADVISOR SPEAKS for briefings, THE REGENT'S THRONE for the last mission (its briefing and its
+  opening), THE SANDS ARE OURS and BURIED IN SAND after a battle, COUNTING THE GLIMMER on the score screen. The mode
+  has its own title picture.
 
 ## Big scrolling maps
 
