@@ -1585,7 +1585,15 @@ function rtsWTank(P, cx, top, r, h, pal, band) {
       const u = (x + 0.5 - cx) / r, v = (y + 0.5 - top) / ry, d = u * u + v * v;
       return d <= 1 && d > 0.78 ? (u + v < 0 ? pal[0] : pal[3]) : null;
     });
-    if (r >= 3) { P.ell(cx + r * 0.2, top + 0.2, r * 0.32, ry * 0.36, pal[3]); P.ell(cx + r * 0.2 - q, top + 0.2 - q, r * 0.32 - q, ry * 0.36 - q, pal[2]); P.fp(cx + r * 0.2 - r * 0.2, top - ry * 0.25, pal[0]); }
+    if (r >= 3) {
+      // a round hatch: its rim, its lid lit, the hinge and the handle
+      const hx = cx + r * 0.22, hr = Math.max(1, r * 0.3), hry = Math.max(0.8, ry * 0.36);
+      P.each(hx - hr - 1, top - hry - 1, hx + hr + 1, top + hry + 1, (x, y) => {
+        const u = (x + 0.5 - hx) / hr, v = (y + 0.5 - top) / hry, d = u * u + v * v;
+        return d > 1.45 ? null : d > 1 ? pal[3] : u + v < -0.6 ? pal[0] : pal[1];
+      });
+      P.fp(hx - hr - q, top, pal[4]); P.fline(hx - hr * 0.4, top + hry * 0.2, hx + hr * 0.4, top + hry * 0.2, pal[3]);
+    }
   }
 }
 // a dome, shaded from the top left (at res 2 in finer steps)
@@ -1948,10 +1956,16 @@ const RTS_W_DRAW = {
     P.rect(1, 22, 26, 2, H[1]); P.rect(1, 22, 26, 1, H[0]);
     if (hi) { P.rect(1, 23.5, 26, q, H[2]); for (let x = 2; x < 27; x += 3) P.fp(x, 22.75, H[2]); }
     rtsWVent(P, 3, 24, 6, 3); rtsWWindows(P, 12, 24, 3, 3, 2, 1, true);
-    if (hi) { rtsWFanBox(P, 22, 16, 3, g + (unl ? 1 : 0)); rtsWRail(P, 2, 25, 6.5); rtsWPipe(P, [[11, 14], [14, 14]]); }
+    if (hi) { rtsWFanBox(P, 23.5, 10.5, 3, g + (unl ? 1 : 0)); rtsWPipe(P, [[11, 14], [14, 14]]); }
     // the vats: a gauge glowing in each
     rtsWTank(P, 7, 3, 5, 12, M, rtsWHRoof(H));
     rtsWTank(P, 18, 3, 5, 12, M, rtsWHRoof(H));
+    if (hi) {
+      // a catwalk across between the vats' tops, its rails
+      P.rect(11, 1.5, 3, 1.5, M[3]); P.rect(11, 1.5, 3, q, M[1]); P.rect(11, 3 - q, 3, q, M[5]);
+      for (let x = 11.5; x < 14; x += 1) P.fp(x, 2.25, M[4]);
+      P.rect(11, 1, 3, q, M[1]); P.rect(11, 3.5, 3, q, M[4]);
+    }
     for (const x of [6, 17]) {
       P.rect(x, 9, 2, 6, M[6]); const lv = 2 + ((g + (x > 10 ? 2 : 0)) % 4); P.rect(x, 15 - lv, 2, lv, unl ? G[1] : G[2]); P.px(x, 15 - lv, G[0]);
       if (hi) { P.fframe(x - q, 9 - q, 2 + 2 * q, 6 + 2 * q, M[4]); for (let y = 10; y < 15; y += 1) P.fp(x + 2 - q, y, M[2]); P.rect(x, 15 - lv, q, lv, G[0]); }
@@ -2167,7 +2181,15 @@ const RTS_W_DRAW = {
     rtsWBox(P, 1, 7, 44, 21, 9, rtsWRoof(), rtsWSide());
     rtsWSeams(P, 1, 7, 44, 12, 4, M[3], true);
     rtsWVent(P, 25, 9, 6, 4);
-    if (hi) { rtsWFanBox(P, 38, 14, 3, g); rtsWFanBox(P, 41.5, 14, 2.5, g + 1); for (let x = 34; x < 44; x += 2) P.fp(x, 13.5, M[4]); }
+    if (hi) {
+      // skylights down the bay under the gantry, glowing when the works are busy
+      const G = RTS_W_C.glass;
+      for (const x0 of [4, 15]) {
+        P.rect(x0, 11, 9, 3, M[5]);
+        P.each(x0 + q, 11 + q, x0 + 9 - q, 14 - q, (x, y, X, Y) => (X % 6 === 0 ? M[4] : act ? (Y & 1 ? '#F8D070' : '#F0B848') : y < 12.5 ? G[1] : G[2]));
+        P.rect(x0, 11, 9, q, M[2]); P.fline(x0 + 1, 13.5, x0 + 2.5, 11.5, act ? '#FCF0C0' : G[0]);
+      }
+    }
     // the gantry: rails, and the bridge running along them
     P.rect(3, 9, 29, 1, M[5]); P.rect(3, 16, 29, 1, M[5]);
     const bx = 18 + [0, 3, 6, 3][act ? g : 0];
@@ -2858,7 +2880,7 @@ function rtsWDamage2(P, key, dmg, f) {
   const ember = ['#F86800', '#F8B800', '#C83000', '#F89000'], flame = ['#FCF0A0', '#F8C800', '#F88000', '#D83000'];
   for (let k = 0; k < holes; k++) {
     const p = pick(6); if (!p) continue;
-    const r = (1.5 + R() * (dmg === 1 ? 1 : 2.2)) * s;
+    const r = (1.5 + R() * (dmg === 1 ? 1 : 2.2)) * s * Math.max(0.6, Math.min(1, Math.sqrt(ar) * 1.2));
     // soot streaked up the wall above it
     for (let y = Math.floor(p[1] - r * 3.5); y < p[1]; y++) for (let x = Math.floor(p[0] - r); x <= p[0] + r; x++) {
       const t = (p[1] - y) / (r * 3.5), wdt = r * (1 - t * 0.4);
