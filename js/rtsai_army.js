@@ -532,10 +532,11 @@ Object.assign(RtsAiCommander.prototype, {
       const t = w.tgt;
       let gone = false;
       if (t.rec) gone = !this.mb.has(t.rec.id) && !this.mu.has(t.rec.id);
-      else if (t.guess || t.help) gone = this.seen(t.x, t.y) && f - w.t > 240;
+      else if (t.help) { const c = this.centroid(w); gone = Math.hypot(c.x - t.x, c.y - t.y) < 8 && f - w.t > 240 || f - w.t0 > 2 * RTS_AI_MIN; }
+      else if (t.guess) gone = this.seen(t.x, t.y) && f - w.t > 240;
       if (gone || f - w.t > 3 * RTS_AI_MIN) {
         const c = this.centroid(w);
-        const nt = t.help ? this.nearestFoe(R, c, 10, true) : this.nearestFoe(R, c, 30, false) || this.pickTarget(R, H, str, null);
+        const nt = t.help ? this.nearestFoe(R, { x: t.x, y: t.y }, 12, true) : this.nearestFoe(R, c, 30, false) || this.pickTarget(R, H, str, null);
         if (!nt || t.help && f - w.t0 > 90 * 60) { this.waveHome(R, w, true); return; }
         w.tgt = nt; w.t = f;
         this.waveAttack(R, w);
