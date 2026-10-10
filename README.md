@@ -1186,7 +1186,8 @@ up. 1-4 players together, here or online.
 - **The bosses** are bigger and more detailed, show their damage phase by phase (cracks, sparks, holes, broken
   parts), and have about a third more hit points and one more attack in their last phase.
 
-- **Sectors:** twenty, each with six waves and a boss: Moon Orbit, Red Planet, Asteroid Belt, Ice Giant, Nebula,
+- **Sectors:** twenty, each with six waves and a boss (every wave comes back once more, half its size, after you've
+  cleared it — not the mini-boss or the challenge stage): Moon Orbit, Red Planet, Asteroid Belt, Ice Giant, Nebula,
   The Core, Earth Orbit, Time Vortex (a swirling tunnel), Saturn Rings, Cyberspace (a green grid and falling code),
   Dark Star, The Well (a Tetris well: a faint grid, brick walls, tetrominoes falling in the dark, lines flashing as
   they clear), The Slop Feed (an uncanny pastel haze, melting stars, garbled watermarks drifting by, sparkles and
@@ -1239,7 +1240,7 @@ up. 1-4 players together, here or online.
 - **Pickups:**
   - A *gift box* gives its weapon (its letter is on it); the same weapon again adds a power level.
   - A green *power cell* adds a power level.
-  - *Coins* and *gems* are points and the hangar's money: credits (a coin 10, a gem 40; the enemy you shoot down pays
+  - *Coins* and *gems* are points and the hangar's money: credits (a coin 5, a gem 20; the enemy you shoot down pays
     a little, every boss pays everyone a bounty).
   - Also *shields*, *bombs* and *extra lives*.
   - Losing a ship costs two power levels.
@@ -1306,7 +1307,7 @@ up. 1-4 players together, here or online.
       SCREEN walls with a gap, SOLITAIRE VICTORY; in phase 3 it's NOT RESPONDING (frozen, then everything at once).
       Beaten: a blue screen of death (any key), then "IT IS NOW SAFE TO TURN OFF YOUR COMPUTER."
 - **The hangar** between sectors (the shop), per player, paid in credits (CR), not points — combos, medals and
-  grazing raise your score but don't buy anything. A full set of upgrades costs about 18500 credits, around sector 10:
+  grazing raise your score but don't buy anything. A full set of upgrades costs about 18500 credits, most of a campaign's earnings:
   - firepower (+15% damage a level, 7 levels), rapid fire (7), engine (3)
   - shield (a shield at every start, 3), magnet (pulls pickups in, 3)
   - wingman drones (little guns at your sides, 2), armour (plates that soak a hit, 2)
@@ -1796,6 +1797,7 @@ js/galaxy4c.js    GALAXY sectors MARS HIGHWAY (ELON ON THE CYBERCAB, the FSD sub
 js/galaxy_feel.js galaxy controls and feel: B gestures, focus, two weapons, heat and the charge blast, combo, grazing, shake
 js/galaxy_prog.js galaxy progression and co-op: power cells back after a loss, perks, fair loot, escape pods
 js/galaxy_waves.js galaxy structure: mini-bosses, challenge stages, the captor and the twin fighter, medals
+js/galaxy_tune2.js galaxy, longer and tougher: every wave comes back once, enemies x1.5, mini-bosses x4, bosses x1.8, half the credits
 js/galaxy_modes.js galaxy runs: campaign, boss rush, endless, daily
 js/cards.js       first-meet cards for new enemies, bosses and power-ups
 js/cpuvs.js       VS EAGLES against the computer: the enemy HQ and its upgrades round by round

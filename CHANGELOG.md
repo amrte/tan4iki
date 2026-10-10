@@ -3,6 +3,15 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.69
+
+- **Galaxy: longer, tougher, leaner** (galaxy_tune2.js):
+  - every wave comes back once more after you've cleared it, half its size (about 50% longer; not the mini-boss or the
+    challenge stage; the banner says II);
+  - enemies have 50% more hit points, mini-bosses four times as many (300% more), bosses (and their orbs, hands and
+    other parts) 80% more — on top of the skill level's own scaling;
+  - half the credits: coins 5, gems 20, half for what you shoot down, half the boss bounties and the sectors' gifts.
+
 ## 0.68
 
 - **Galaxy: six more sectors and bosses** (galaxy4a.js, galaxy4b.js, galaxy4c.js), before THE LAST BASE (CATS stays

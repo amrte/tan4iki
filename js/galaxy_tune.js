@@ -64,7 +64,9 @@ for (const k of ['drone', 'bug', 'wasp', 'splitter']) if (!GX_FIRE[k]) GX_FIRE[k
 }
 
 // ------------------------------------------------------------------ credits
-const gxCash = (p, n) => { if (p && !p.out) { const gp = gxPlayer(p); gp.cash = (gp.cash || 0) + n; } };
+// (half of what it was: the hangar's upgrades take longer to earn; galaxy_tune2.js)
+const GX_CASH_MUL = 0.5;
+const gxCash = (p, n) => { if (p && !p.out) { const gp = gxPlayer(p); gp.cash = (gp.cash || 0) + n * GX_CASH_MUL; } };
 {
   const _wallet = wallet;
   // in the hangar (and for a revive) galaxy players pay in credits
