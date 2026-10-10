@@ -1055,7 +1055,7 @@ class Stage {
       if (!overlap(b.x, b.y, 4, 4, t.x, t.y, 16, 16)) continue;
       if (b.pierce) {
         // piercing shells damage each tank once and keep flying
-        if (b.isPlayer === t.isPlayer && (!b.isPlayer || (Config.get('friendlyFire') === 'OFF' && !this.vs))) continue;
+        if (b.isPlayer === t.isPlayer && (!b.isPlayer || ((Config.get('friendlyFire') === 'OFF' || this.race) && !this.vs))) continue;
         b.hits = b.hits || new Set();
         if (b.hits.has(t)) continue;
         b.hits.add(t);
@@ -1075,7 +1075,7 @@ class Stage {
         if (t.isPlayer && this.vs) { if (b.dmg !== undefined) this.weaponHit(b.owner, t, b.dmg); else this.hitPlayer(t, b.owner); this.killBullet(b, true, t); return; }   // versus: for real
         if (t.isPlayer) {
           // friendly fire freezes the other player for a few seconds
-          if (Config.get('friendlyFire') === 'OFF') continue;
+          if (Config.get('friendlyFire') === 'OFF' || this.race) continue;   // never in KILL RACE
           this.killBullet(b, false);
           if (t.shield <= 0) t.frozen = 180;
           return;

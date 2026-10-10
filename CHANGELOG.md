@@ -3,6 +3,22 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.71
+
+- **Kill Race** (race2.js):
+  - no friendly fire: your shells pass through the other racers (whatever FRIENDLY FIRE is set to);
+  - sharper, faster bots: they aim in a few frames, lead a moving target, shoot down or sidestep shells coming at them,
+    pick the enemy nearest along the roads (and gladly a golden one), go for power-ups twice as far off, shoot through
+    bricks more readily and drive 25% faster. In tests they're destroyed half as often and finish an enemy in about
+    half the time;
+  - GOLDEN TANK: twice a round a gold enemy rolls in, announced: 3 hits, quicker, worth 3 kills;
+  - KILL STREAK: 3 kills in a row, each within 5 seconds of the last, without being destroyed: a power-up drops right
+    where you are (again at 6, 9 ...);
+  - FINAL RUSH: the last 4 enemies of a round count double;
+  - THE CROWN: the round's leader wears one, and the enemy tanks go for the crown first;
+  - the round ends as soon as nobody can catch the leader any more (counting the golden tanks and the rush): the
+    enemies left blow up and "... TAKES IT!".
+
 ## 0.70.1
 
 - **Fixed: galaxy bosses jumping about.** A swaying boss's place on its path ran on while it held still (an attack,

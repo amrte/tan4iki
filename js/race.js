@@ -11,7 +11,7 @@ const RACE_TARGETS = [1, 2, 3, 5, 7, 10], RACE_RESPAWN = 90, RACE_SPAWN_GAP = 64
 
 // one player's round: kills, and the points they were worth (the tie-break)
 function raceTally(p) {
-  const kills = p.kills.reduce((a, n) => a + n, 0);
+  const kills = p.kills.reduce((a, n) => a + n, 0) + (p.raceBonus || 0);   // + golden tanks and the final rush (race2.js)
   const pts = p.kills.reduce((a, n, k) => a + n * (ENEMY[k] ? ENEMY[k].pts : 0), 0);
   return { kills, pts };
 }
