@@ -3,6 +3,12 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.69.3
+
+- **Fixed: no FSD hangar in a BOSS RUSH started past it.** Its hangar comes every third boss, so a run started at
+  SANTA (or anywhere after boss 15) reached ELON without one. Now a run that hasn't been offered the FSD SUBSCRIPTION
+  gets a hangar right before ELON anyway (not if every player already has it).
+
 ## 0.69.2
 
 - **Galaxy: WINDOWS 95 is the final boss.** THE DESKTOP is now sector 20, the last, and CATS's sector moves to 19 and is

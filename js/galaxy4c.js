@@ -1885,6 +1885,12 @@ function gx4cFsdNext() {
   if (run === 'rush') { const e = GX_BOSSES.findIndex(b => b.key === 'gx4cElon') + 1, k = typeof GXD_RUSH_SHOP !== 'undefined' ? GXD_RUSH_SHOP : 3; return e > 0 && e >= n && e < n + k; }
   return (n - 1) % GX_SECTORS.length === mars;
 }
+// BOSS RUSH has the hangar every 3rd boss only: a run that hasn't been offered FSD (one started past that hangar) gets
+// one right before ELON anyway (galaxy_modes.js asks)
+function gx4cRushFsdShop(G) {
+  return G.gxRun === 'rush' && !G.gx4cFsdSeen && G.stageNum === GX_BOSSES.findIndex(b => b.key === 'gx4cElon') + 1
+    && G.players.some(p => !p.out && !gxPlayer(p).fsd);
+}
 function gx4cFsdShopSync() {
   const i = GX_SHOP.indexOf(GX4C_FSD_ITEM);
   if (i >= 0) GX_SHOP.splice(i, 1);
@@ -2024,7 +2030,15 @@ function gx4cInstall() {
   gxShopStatus = function (item, p) { if (!item || item.gxShop !== 'fsd') return status0.apply(this, arguments); if (p.out) return { text: '', max: true }; return gxPlayer(p).fsd ? { text: 'ACTIVE', max: true } : { text: '' }; };
   gxShopApply = function (item, p) { if (item && item.gxShop === 'fsd') { gxPlayer(p).fsd = 1; return; } return apply0.apply(this, arguments); };
   const G = Game, toShop0 = G.toShop, renderShop0 = G.renderShop, updatePlay0 = G.updatePlay, musicFrame0 = G.musicFrame, render0 = G.render;
-  G.toShop = function () { if (this.mode === 'galaxy') gx4cFsdShopSync(); return toShop0.apply(this, arguments); };
+  G.toShop = function () {
+    if (this.mode !== 'galaxy') return toShop0.apply(this, arguments);
+    gx4cFsdShopSync();
+    const r = toShop0.apply(this, arguments);
+    if (this.state === 'shop' && GX_SHOP.includes(GX4C_FSD_ITEM)) this.gx4cFsdSeen = true;   // this run has been offered FSD
+    return r;
+  };
+  const newGame0 = G.newGame;
+  G.newGame = function () { this.gx4cFsdSeen = false; return newGame0.apply(this, arguments); };
   // its price shows as $99
   G.renderShop = function (ctx) {
     const r = renderShop0.apply(this, arguments), sh = this.shop;

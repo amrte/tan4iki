@@ -196,7 +196,8 @@ Object.assign(Game, {
   gxdRushOver() { return this.mode === 'galaxy' && this.state === 'play' && this.gxRun === 'rush' && this.stageNum > GX_BOSSES.length; },
   toShop() {
     if (this.gxdRushOver()) { this.toModeResult(true); return; }
-    if (this.mode === 'galaxy' && this.state === 'play' && this.gxRun === 'rush' && (this.stageNum - 1) % GXD_RUSH_SHOP) { this.toCurtain(false); return; }
+    if (this.mode === 'galaxy' && this.state === 'play' && this.gxRun === 'rush' && (this.stageNum - 1) % GXD_RUSH_SHOP
+        && !(typeof gx4cRushFsdShop === 'function' && gx4cRushFsdShop(this))) { this.toCurtain(false); return; }
     return gxdToShop.call(this);
   },
   toCurtain(selectable) {

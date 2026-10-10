@@ -1299,7 +1299,7 @@ up. 1-4 players together, here or online.
       boosters landing on the road, a tunnel): he drives his robotaxi himself (it can't): honks, posts that burst into
       letters, IT'S NOT A FLAMETHROWER, FULL SELF-DRIVING (BETA) (he lets go of the wheel and careens about), mini
       rockets, PLAID MODE; beaten, the cab breaks down and he phones a tow. Before this sector (in BOSS RUSH: the last hangar
-      before him) the hangar sells an **FSD SUBSCRIPTION** for $99 ("FULL SELF-DRIVING (SUPERVISED)"): in the fight your ship flies and fires by
+      before him, or one right before him if the run started past it) the hangar sells an **FSD SUBSCRIPTION** for $99 ("FULL SELF-DRIVING (SUPERVISED)"): in the fight your ship flies and fires by
       itself, dodging his shots (FSD ENGAGED); press a direction to take over, it engages again a second after you let go.
     - **Windows 95** (20, the last: THE DESKTOP: error dialogs you can only hit on OK, diving cursors, hourglasses that freeze
       you, a pestering paperclip helper, pipes screensaver walls, DEFRAG, a MINESWEEPER field, DIAL-UP at half speed,
