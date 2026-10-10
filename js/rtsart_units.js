@@ -18,7 +18,8 @@
 //  API (contract; res is always last and optional, 1 or 2, default 1): rtsUnitArt, rtsTurretArt,
 //  rtsInfantryDeathArt, rtsWreckArt, rtsShotArt, rtsFxArt + RTS_FX_FRAMES, rtsUnitIcon. Every sprite is meant to
 //  be drawn centred on the unit's position (use the canvas's own width/height: most are 16x16 at res 1, the big
-//  ones bigger, see RTS_U_SIZE, which is the res 1 size).
+//  ones bigger, see RTS_U_SIZE, which is the res 1 size). At res 2 rtsFxArt also takes half frames (2.5) for a
+//  smoother play. Optional: rtsUWarm(res, houses, ms) pre-builds sprites a few at a time in idle frames.
 // =====================================================================
 
 // the fallback House palettes [light, mid, dark] until rtsdata.js's RTS_HOUSE_PAL exists
@@ -1173,7 +1174,10 @@ function rtsUInfFigure2(b, key, pal, dir, f, ox, oy) {
   const dx = fc.dx, dy = fc.dy;
   // the weapon, from the hand along the facing; aiming it's raised to the shoulder
   const weapon = () => {
-    let hx = mx(g2.hx), hy = g2.hy + bob - (aim ? 2 : 0);
+    // walking towards the viewer a rifle is carried at the right side, muzzle down, and a rocket tube on the
+    // shoulder, slanting up behind
+    const port = walk && fc.g === 's', dx = port && st.tube ? 1 : fc.dx, dy = port && st.tube ? -1 : fc.dy;
+    let hx = port ? (st.tube ? 9 : 12) : mx(g2.hx), hy = port ? (st.tube ? 9 : 9) + bob : g2.hy + bob - (aim ? 2 : 0);
     if (f === 5) { hx -= dx; hy -= dy; }   // the kick
     const along = (t, w = 0) => [hx + dx * t + (dy ? w : 0) * (dx && dy ? 0 : 1), hy + dy * t + (dx ? w : 0)];
     const line = (t0, t1, c, c2) => {
@@ -1660,7 +1664,9 @@ function rtsUFireball(b, cx, cy, R, t, seed, sc = 1) {
   const hd = sc > 1, F = RTS_U_C.fire, SM = RTS_U_C.smoke, Wb = hd ? rtsUWobF : rtsUWob;
   const grow = Math.min(1, 0.3 + t * 3.2), Rc = R * grow, heat0 = Math.max(0, 1.25 - t * 1.5);
   const smokeT = Math.max(0, (t - 0.25) / 0.75);
-  for (let j = Math.floor(cy - R * 1.4); j <= cy + R * 1.4; j++) for (let i = Math.floor(cx - R * 1.4); i <= cx + R * 1.4; i++) {
+  const Rb = R * 1.4, j0 = Math.max(0, Math.floor(cy - Rb)), j1 = Math.min(b.h - 1, cy + Rb), i0 = Math.max(0, Math.floor(cx - Rb)), i1 = Math.min(b.w - 1, cx + Rb);
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    if (hd && (i + 0.5 - cx) * (i + 0.5 - cx) + (j + 0.5 - cy - smokeT * R * 0.25) * (j + 0.5 - cy - smokeT * R * 0.25) > Rc * Rc * 2.1) continue;
     const x = i + 0.5 - cx, y = j + 0.5 - cy - smokeT * R * 0.25, d = Math.hypot(x, y), th = Math.atan2(y, x);
     const rr = Rc * (1 + 0.22 * Wb(th, seed, t) + (hd ? 0.07 * Wb(th * 2 + 1, seed + 11, t) : 0));
     if (d > rr) continue;
@@ -2011,11 +2017,9 @@ function rtsUWarm(res = 2, houses = ['aquila', 'drakon', 'serpens'], ms = 3) {
     for (const k in RTS_FX_FRAMES) for (let f = 0; f < RTS_FX_FRAMES[k]; f += res > 1 ? 1 / RTS_U_FX_SUB : 1) jobs.push(() => rtsFxArt(k, f, res));
     for (const k in RTS_U_SHOT) for (let d = 0; d < 8; d++) jobs.push(() => { for (let f = 0; f < 4; f++) rtsShotArt(k, d, f, res); });
     for (const h of houses) for (const u of [...RTS_U_INF, ...Object.keys(RTS_U_MODEL)]) for (let d = 0; d < 8; d++) {
-      jobs.push(() => {
-        const n = RTS_U_INF.includes(u) ? 6 : u === 'harvester' || u === 'skylifter' ? 8 : 4;
-        for (let f = 0; f < n; f++) rtsUnitArt(u, h, d, f, res);
-        rtsTurretArt(u, h, d, false, res); rtsTurretArt(u, h, d, true, res);
-      });
+      const n = RTS_U_INF.includes(u) ? 6 : u === 'harvester' || u === 'skylifter' ? 8 : 4;
+      for (let f = 0; f < n; f++) jobs.push(() => rtsUnitArt(u, h, d, f, res));
+      if (RTS_U_MODEL[u] && RTS_U_MODEL[u].turret) jobs.push(() => { rtsTurretArt(u, h, d, false, res); rtsTurretArt(u, h, d, true, res); });
     }
     w = { jobs, i: 0 };
     RTS_U_WARM.set(key, w);
