@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.71</title>
+  <title>tanb4iki_v0.72</title>
   <style>
 :root {
   --bg: #000;
@@ -211,7 +211,7 @@ body.csmode .btns button.radio { display: inline-block; }
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.71';
+const APP_VERSION = '0.72';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -2692,6 +2692,8 @@ const SETTINGS_DEF = [
     fmt: v => modeInfo(v).name },
   { key: 'skill', label: 'SKILL', values: [0, 1, 2, 3, 4, 5], def: 2, fmt: v => ['TOO YOUNG', 'NOT TOO ROUGH', 'HURT ME', 'ULTRA-VIOL.', 'NIGHTMARE!', 'AUTO'][v] },
   { key: 'raceTarget', label: 'RACE: FIRST TO', values: [1, 2, 3, 5, 7, 10], def: 3, fmt: v => v + ' PTS' },
+  // race2.js: how good KILL RACE's bots are (also picked on the first round's curtain)
+  { key: 'raceBots', label: 'RACE: BOTS', values: [1, 2, 3, 4, 5], def: 3, fmt: v => 'LEVEL ' + v },
   // galaxy_modes.js: the kind of GALAXY run (also picked on its title screen and first curtain)
   { key: 'galaxyRun', label: 'GALAXY RUN', values: ['CAMPAIGN', 'BOSS RUSH', 'ENDLESS', 'DAILY'], def: 'CAMPAIGN' },
   // terrain.js, biomes.js: mud, belts, pads, and crates, barrels, deflectors
@@ -19148,8 +19150,9 @@ Object.assign(Stage.prototype, {
   },
 });
 
-// "II-PLAYER" or "BOT II"
-function playerName(p) { return p && p.bot ? 'BOT ' + ROMAN[p.i] : ROMAN[p ? p.i : 0] + '-PLAYER'; }
+// "II-PLAYER", or a bot's name
+const BOT_NAMES = [null, 'TANKIE', 'MONKEY', 'JUNKIE'];
+function playerName(p) { return p && p.bot ? BOT_NAMES[p.i] || 'BOT ' + ROMAN[p.i] : ROMAN[p ? p.i : 0] + '-PLAYER'; }
 
 </script>
   <script>
@@ -19239,9 +19242,10 @@ Object.assign(Stage.prototype, {
 // =====================================================================
 //  KILL RACE, part II (race.js runs the round, bots.js the deathmatch bots):
 //    no friendly fire  your shells pass through the other racers (stage.js asks this.race)
-//    sharper bots      they react and aim quicker, lead a moving target, shoot down or sidestep shells coming at
-//                      them, go for the enemy nearest along the roads (and gladly for a golden one), pick up
-//                      power-ups from further off, and drive a quarter faster than before
+//    racing bots       five levels, picked on the first round's curtain (or Settings -> GAME -> RACE: BOTS): from
+//                      ROOKIE (slow to aim, wanders) to TERMINATOR (aims at once, leads a moving target, shoots down
+//                      or sidesteps every shell coming at it, takes the shortest road to the nearest enemy, gladly a
+//                      golden one, and goes out of its way for power-ups). Same tanks and speed as yours
 //    GOLDEN TANK       twice a round a gold enemy rolls in (announced): tougher and quicker, worth 3 kills
 //    KILL STREAK       3 kills in a row, each within 5 seconds of the last, without being destroyed: a power-up
 //                      drops right where you are (again at 6, 9 ...)
@@ -19251,8 +19255,22 @@ Object.assign(Stage.prototype, {
 //  Bonus kills (gold, rush) go to p.raceBonus, which raceTally (race.js) adds to the kills.
 // =====================================================================
 
-const RACE_BOT_SPEED = 1.25, RACE_GOLD = 3, RACE_GOLD_HP = 3, RACE_RUSH = 4, RACE_STREAK_N = 3, RACE_STREAK_T = 300;
-const RACE_BOT_RANGE = 320, RACE_BOT_PU = 160, RACE_CROWN_PULL = 96;
+const RACE_GOLD = 3, RACE_GOLD_HP = 3, RACE_RUSH = 4, RACE_STREAK_N = 3, RACE_STREAK_T = 300;
+const RACE_CROWN_PULL = 96;
+
+// the bots' levels. aim: frames lined up before it fires; lead: it aims where a moving target will be; dodge: the
+// chance it reacts to a shell coming at it (down: by shooting it down when it's facing it); road: it picks the enemy
+// nearest along the roads (else as the crow flies); range: how far off it shoots; pu: how far off a power-up tempts it;
+// brick: the chance a frame it shoots a brick in its way; slack: the chance at each tile that it dawdles a moment
+const RACE_BOT_NAMES = ['ROOKIE', 'GUNNER', 'VETERAN', 'ACE', 'TERMINATOR'];
+const RACE_BOT_LV = [
+  { aim: 30, lead: false, dodge: 0, down: false, road: false, range: 176, pu: 64, brick: 0.08, slack: 0.03 },
+  { aim: 18, lead: false, dodge: 0.25, down: false, road: false, range: 208, pu: 96, brick: 0.12, slack: 0.015 },
+  { aim: 10, lead: true, dodge: 0.5, down: true, road: true, range: 256, pu: 128, brick: 0.2, slack: 0.005 },
+  { aim: 5, lead: true, dodge: 0.8, down: true, road: true, range: 320, pu: 160, brick: 0.3, slack: 0 },
+  { aim: 2, lead: true, dodge: 1, down: true, road: true, range: 400, pu: 200, brick: 0.4, slack: 0 },
+];
+const raceBotLevel = () => Math.max(1, Math.min(5, Game.raceBotLv || Config.get('raceBots') || 3));
 
 // what an enemy (a queue item, a sparkle, a tank) is worth, before the rush doubles it
 const raceValue = o => (o && (o.raceGold || (o.extra && o.extra.raceGold)) ? RACE_GOLD : 1);
@@ -19303,11 +19321,11 @@ Object.assign(Stage.prototype, {
     this.popups.push({ x: FW / 2, y: FH / 2 - 8, text, label: true, color, t: 0, delay: 0, life: 150 });
   },
 
-  // a racing bot: KILL RACE's own, sharper than the deathmatch one
+  // a racing bot: KILL RACE's own, as good as its level
   raceBotInput(t) {
-    const b = t.botAi || (t.botAi = { dir: rnd(4), stuck: 0, lx: t.x, ly: t.y, wander: 0, aim: 0, pick: 0, tgt: null });
+    const b = t.botAi || (t.botAi = { dir: rnd(4), stuck: 0, lx: t.x, ly: t.y, wander: 0, aim: 0, pick: 0, tgt: null, saw: new WeakMap() });
     const idle = { dir: -1, fire: false, firePressed: false, alt: false, altPressed: false };
-    const aggr = Math.max(0.5, Config.skill().aggr || 1);
+    const L = RACE_BOT_LV[raceBotLevel() - 1];
     if (t.x === b.lx && t.y === b.ly) b.stuck++; else { b.stuck = 0; b.lx = t.x; b.ly = t.y; }
     if (b.stuck > 14) { b.wander = 10 + rnd(14); b.dir = (b.dir + (rnd(2) ? 1 : 3)) % 4; b.stuck = 0; }
     const cx = t.x + 8, cy = t.y + 8;
@@ -19316,8 +19334,10 @@ Object.assign(Stage.prototype, {
       if (!s.alive || s.isPlayer) continue;
       const sx = s.x + 2, sy = s.y + 2, [ux, uy] = DXY[s.dir], ax = cx - sx, ay = cy - sy, along = ax * ux + ay * uy, off = Math.abs(ax * uy - ay * ux);
       if (along <= 0 || along > 72 || off > 10) continue;
+      if (!b.saw.has(s)) b.saw.set(s, Math.random() < L.dodge);   // does it notice this one?
+      if (!b.saw.get(s)) continue;
       const back = (s.dir + 2) % 4;
-      if (t.dir === back && t.cool === 0) return Object.assign(idle, { dir: back, fire: true, firePressed: true });
+      if (L.down && t.dir === back && t.cool === 0) return Object.assign(idle, { dir: back, fire: true, firePressed: true });
       const side = [(s.dir + 1) % 4, (s.dir + 3) % 4], pick = side.find(d => !this.blockedDir || !this.blockedDir(t, d)) ?? side[rnd(2)];
       b.wander = 8; b.dir = side.includes(b.dir) ? b.dir : pick;
       return Object.assign(idle, { dir: b.dir });
@@ -19328,10 +19348,10 @@ Object.assign(Stage.prototype, {
       const foes = this.tanks.filter(o => o.alive && !o.isPlayer && !(o.boost && o.boost.smoke));
       if (foes.length) {
         const NX = COLS * 2 - 1, node = (x, y) => Math.max(0, Math.min(ROWS * 2 - 2, Math.round(y / 8))) * NX + Math.max(0, Math.min(NX - 1, Math.round(x / 8)));
-        const dist = this.navField([node(t.x, t.y)]);
+        const dist = L.road ? this.navField([node(t.x, t.y)]) : null;
         let bd = Infinity;
         for (const o of foes) {
-          const d = (dist[node(o.x, o.y)] ?? Infinity) - (o.raceGold ? 30 : 0);
+          const d = (dist ? dist[node(o.x, o.y)] ?? Infinity : (Math.abs(o.x - t.x) + Math.abs(o.y - t.y)) / 8) - (o.raceGold && L.road ? 30 : 0);
           const dd = d === Infinity ? 999 + Math.abs(o.x - t.x) + Math.abs(o.y - t.y) : d;
           if (dd < bd) { bd = dd; b.tgt = o; }
         }
@@ -19341,22 +19361,23 @@ Object.assign(Stage.prototype, {
     // 3. lined up with where it will be when the shell gets there: face it and fire (quickly)
     let fire = false, aimDir = -1;
     if (tgt) {
-      const d0 = Math.abs(tgt.x - t.x) + Math.abs(tgt.y - t.y), k = tgt.moving !== false ? d0 / Math.max(2, t.bulletSpeed) : 0;
+      const d0 = Math.abs(tgt.x - t.x) + Math.abs(tgt.y - t.y), k = L.lead && tgt.moving !== false ? d0 / Math.max(2, t.bulletSpeed) : 0;
       const [mx, my] = DXY[tgt.dir] || [0, 0];
       for (const [px, py] of [[tgt.x + mx * tgt.speed * k, tgt.y + my * tgt.speed * k], [tgt.x, tgt.y]]) {
         const dx = px - t.x, dy = py - t.y;
-        if ((Math.abs(dx) < 5 || Math.abs(dy) < 5) && Math.abs(dx) + Math.abs(dy) < RACE_BOT_RANGE && this.clearLine(cx, cy, px + 8, py + 8)) {
+        if ((Math.abs(dx) < 5 || Math.abs(dy) < 5) && Math.abs(dx) + Math.abs(dy) < L.range && this.clearLine(cx, cy, px + 8, py + 8)) {
           aimDir = Math.abs(dx) < 5 ? (dy > 0 ? 2 : 0) : (dx > 0 ? 1 : 3);
           break;
         }
       }
-      if (aimDir >= 0) { if (++b.aim > Math.round(5 / aggr)) fire = t.dir === aimDir; } else b.aim = 0;
+      if (aimDir >= 0) { if (++b.aim > L.aim) fire = t.dir === aimDir; } else b.aim = 0;
     }
     if (aimDir >= 0) { b.dir = aimDir; return Object.assign(idle, { dir: aimDir, fire, firePressed: fire }); }
     // 4. where to: a power-up within reach, else the target
     const pu = this.powerup;
-    const goal = pu && Math.abs(pu.x - t.x) + Math.abs(pu.y - t.y) < RACE_BOT_PU ? { x: pu.x, y: pu.y, pu: true } : tgt;
+    const goal = pu && Math.abs(pu.x - t.x) + Math.abs(pu.y - t.y) < L.pu ? { x: pu.x, y: pu.y, pu: true } : tgt;
     if (b.wander > 0) b.wander--;
+    else if ((t.x & 7) === 0 && (t.y & 7) === 0 && Math.random() < L.slack) { b.wander = 20 + rnd(30); b.dir = rnd(4); }
     else if (goal && (t.x & 7) === 0 && (t.y & 7) === 0) {
       const NX = COLS * 2 - 1, node = (x, y) => Math.max(0, Math.min(ROWS * 2 - 2, Math.round(y / 8))) * NX + Math.max(0, Math.min(NX - 1, Math.round(x / 8)));
       const dist = goal.pu ? this.navField([node(goal.x, goal.y)]) : this.navPlayer(goal);
@@ -19372,7 +19393,7 @@ Object.assign(Stage.prototype, {
       else if (Math.random() < 0.1) b.dir = rnd(4);
     }
     // bricks in the way: shoot through
-    if (t.dir === b.dir && this.brickAhead(t) && Math.random() < 0.35) fire = true;
+    if (t.dir === b.dir && this.brickAhead(t) && Math.random() < L.brick) fire = true;
     return Object.assign(idle, { dir: b.dir, fire, firePressed: fire });
   },
 });
@@ -19459,6 +19480,12 @@ Object.assign(Stage.prototype, {
   P.renderTdOver = function (ctx) {
     const r = over.apply(this, arguments), L = this.raceLead(), t = L && L.tank;
     if (t && t.alive) raceDrawCrown(ctx, t.x + 4, t.y - 7, this.frame);
+    // a bot's name over it while it has its spawn shield (KILL RACE and DEATHMATCH), so you know who's who
+    for (const b of this.tanks) {
+      if (!b.alive || !b.isPlayer || !b.player || !b.player.bot || !(b.shield > 0)) continue;
+      const name = playerName(b.player), half = name.length * 4;   // (kept inside the field)
+      Font.drawCenter(ctx, name, Math.max(half, Math.min(FW - half, b.x + 8)), Math.max(0, b.y - (b === t ? 16 : 9)), COL.white);
+    }
     return r;
   };
 }
@@ -19469,16 +19496,6 @@ function raceDrawCrown(ctx, x, y, f) {
   ctx.fillStyle = COL.gold;
   ctx.fillRect(x, y + 2, 8, 3); ctx.fillRect(x, y, 1, 2); ctx.fillRect(x + 3, y, 2, 2); ctx.fillRect(x + 7, y, 1, 2);
   ctx.fillStyle = (f >> 3) & 1 ? '#F83800' : '#F8F8F8'; ctx.fillRect(x + 2, y + 3, 1, 1); ctx.fillRect(x + 5, y + 3, 1, 1);
-}
-
-// the racing bots drive a quarter faster
-{
-  const applyLevel = Tank.prototype.applyLevel;
-  Tank.prototype.applyLevel = function () {
-    const r = applyLevel.apply(this, arguments);
-    if (this.player && this.player.bot && Game.mode === 'race') this.speed *= RACE_BOT_SPEED;
-    return r;
-  };
 }
 
 </script>
@@ -22353,7 +22370,7 @@ const SW = 256, SH = 224;
 const SAVE_KEY = 'tank1990_save';   // CLASSIC's slot; every other mode adds '_' + its slot (see Game.saveSlotOf)
 // modes saved as a checkpoint (CLASSIC and BIG MAPS save the stage exactly), and the game's state they keep
 const CK_MODES = ['custom', 'survival', 'timeattack', 'sides', 'corridor', 'maze', 'fortress', 'galaxy', 'cpu', 'race', 'world'];
-const CK_GAME_KEYS = ['taFrames', 'taCleared', 'round', 'raceTarget', 'tdMap', 'nextSide', 'shopDiscount', 'gxRun', 'gxDate', 'gxClock', 'gxEndless'];
+const CK_GAME_KEYS = ['taFrames', 'taCleared', 'round', 'raceTarget', 'raceBotLv', 'tdMap', 'nextSide', 'shopDiscount', 'gxRun', 'gxDate', 'gxClock', 'gxEndless'];
 const menuOX = () => (SCREEN_W - SW) >> 1;
 const menuOY = () => (SCREEN_H - SH) >> 1;
 // saves the browser wouldn't store (storage full, or blocked for this page): kept here until the page is closed
@@ -22724,7 +22741,7 @@ const Game = {
         : mi.key === 'coop' ? '1-4 PLAYERS TOGETHER' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '')
         : mi.key === 'eagles' ? '1P: VS CPU' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '') + '  2-4P: VS'
         : mi.key === 'dm' ? '1P: VS ' + DM_BOTS + ' BOTS  2-4P: VS EACH OTHER'
-        : mi.key === 'race' ? 'FIRST TO ' + Config.get('raceTarget') + '  1P: VS ' + DM_BOTS + ' BOTS'
+        : mi.key === 'race' ? 'FIRST TO ' + Config.get('raceTarget') + '  1P: VS ' + DM_BOTS + ' BOTS LV ' + Config.get('raceBots')
         : mi.key === 'cs' ? csTitleLine(rec)
         : mi.key === 'custom' ? (Customs.used().length ? Customs.used().length + ' OF ' + CUSTOM_SLOTS + ' SLOTS FILLED' : 'MAKE SOME IN CONSTRUCTION') : '< > CHANGE MODE';
       Font.drawCenter(ctx, best, SW / 2, 213, COL.lgrey);
@@ -23051,7 +23068,7 @@ const Game = {
     if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides', 'maze', 'fortress', 'galaxy', 'world'].includes(this.mode)) this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
     // KILL RACE: the first curtain picks how many points win the game (race.js)
-    if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
+    if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.raceBotLv = Config.get('raceBots'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
     // FORTRESS: the first curtain picks the map (fortress.js)
     if (this.mode === 'fortress') { this.tdMap = Math.max(0, Math.min(TD_MAPS.length - 1, STORE.get('tank1990_tdmap', 0) | 0)); if (!tdUnlocked(this.tdMap)) this.tdMap = 0; this.curtain.tdSel = true; }
     // the mode's title screen first (intro.js)
@@ -23082,8 +23099,14 @@ const Game = {
     } else if (c.raceSel) {
       const dir = m.up || m.right ? 1 : m.down || m.left ? -1 : 0;
       if (dir) { Config.step('raceTarget', dir); this.raceTarget = Config.get('raceTarget'); Sound.play('select'); }
-      if (m.ok) { c.raceSel = false; this.beginStage(); }
+      // then, racing bots: how good they are (race2.js)
+      if (m.ok) { c.raceSel = false; if (this.players.some(p => p.bot)) { c.raceBotSel = true; this.t = 0; } else this.beginStage(); }
       if (m.back) this.toTitle();
+    } else if (c.raceBotSel) {
+      const dir = m.up || m.right ? 1 : m.down || m.left ? -1 : 0;
+      if (dir) { Config.step('raceBots', dir); this.raceBotLv = Config.get('raceBots'); Sound.play('select'); }
+      if (m.ok && this.t > 10) { c.raceBotSel = false; this.beginStage(); }
+      if (m.back) { c.raceBotSel = false; c.raceSel = true; }
     } else if (c.selectable) {
       const n = this.stageLimit();
       if (m.up || m.right) { this.stageNum = this.stageNum % n + 1; Sound.play('select'); }
@@ -23111,7 +23134,9 @@ const Game = {
       if (race) {
         Font.drawCenter(ctx, 'MOST KILLS WINS THE ROUND', cx, cy + 14, '#A00000');
         Font.drawCenter(ctx, 'FIRST TO ' + this.raceTarget + (this.raceTarget > 1 ? ' POINTS' : ' POINT'), cx, cy + 28, c.raceSel ? COL.black : '#3C3C3C');
-        if (c.raceSel && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + 42, '#3C3C3C');
+        const bots = this.players.some(p => p.bot), lv = this.raceBotLv || Config.get('raceBots');
+        if (bots) Font.drawCenter(ctx, 'BOTS: LEVEL ' + lv + ' ' + RACE_BOT_NAMES[lv - 1], cx, cy + 42, c.raceBotSel ? COL.black : '#3C3C3C');
+        if ((c.raceSel || c.raceBotSel) && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + (bots ? 56 : 42), '#3C3C3C');
       }
       // against the computer: what their HQ got for this round
       if (this.mode === 'maze') {
@@ -23147,7 +23172,7 @@ const Game = {
       else if (this.mode === 'maze') lvTheme = mzThemeKey(this.stageNum);   // the maze's look goes by its depth (maze2.js)
       if (lvTheme === 'auto') lvTheme = undefined;
       const ss = Config.get('seasons'), th = lvTheme ? THEMES[lvTheme] : ss === 'RANDOM' || ss === 'OFF' ? null : THEMES[stageTheme(this.stageNum)];
-      if (th && th.name && !(this.mode === 'race' && c.raceSel)) {
+      if (th && th.name && !(this.mode === 'race' && (c.raceSel || c.raceBotSel))) {
         const fx = Config.on('seasonFx') && SEASON_FX_NAME[lvTheme || stageTheme(this.stageNum)];   // its twist (seasonal.js)
         Font.drawCenter(ctx, th.name + (fx ? ': ' + fx : ''), cx, cy - 36, '#3C3C3C');
       }
@@ -75610,7 +75635,7 @@ function cheatHooks() {
     const c = this.curtain;
     if (c && c.phase === 'show' && c.cheat && CHEAT_PICKS[c.cheat.mode] && cheatLocal()) { cheatPickUpdate(this, c); return; }
     // the classic stage picker goes a long way now: holding a direction runs through the stages
-    if (c && c.phase === 'show' && c.selectable && !c.tdSel && !c.raceSel && !c.gxSel && cheatLocal() && !this.daily) {
+    if (c && c.phase === 'show' && c.selectable && !c.tdSel && !c.raceSel && !c.raceBotSel && !c.gxSel && cheatLocal() && !this.daily) {
       const m = Input.menu(), h = Input.heldDir();
       if (m.up || m.down || m.left || m.right) c.cheatRep = 18;
       else if (h >= 0 && --c.cheatRep <= 0) {

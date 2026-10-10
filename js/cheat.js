@@ -383,7 +383,7 @@ function cheatHooks() {
     const c = this.curtain;
     if (c && c.phase === 'show' && c.cheat && CHEAT_PICKS[c.cheat.mode] && cheatLocal()) { cheatPickUpdate(this, c); return; }
     // the classic stage picker goes a long way now: holding a direction runs through the stages
-    if (c && c.phase === 'show' && c.selectable && !c.tdSel && !c.raceSel && !c.gxSel && cheatLocal() && !this.daily) {
+    if (c && c.phase === 'show' && c.selectable && !c.tdSel && !c.raceSel && !c.raceBotSel && !c.gxSel && cheatLocal() && !this.daily) {
       const m = Input.menu(), h = Input.heldDir();
       if (m.up || m.down || m.left || m.right) c.cheatRep = 18;
       else if (h >= 0 && --c.cheatRep <= 0) {

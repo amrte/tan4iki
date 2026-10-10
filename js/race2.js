@@ -2,9 +2,10 @@
 // =====================================================================
 //  KILL RACE, part II (race.js runs the round, bots.js the deathmatch bots):
 //    no friendly fire  your shells pass through the other racers (stage.js asks this.race)
-//    sharper bots      they react and aim quicker, lead a moving target, shoot down or sidestep shells coming at
-//                      them, go for the enemy nearest along the roads (and gladly for a golden one), pick up
-//                      power-ups from further off, and drive a quarter faster than before
+//    racing bots       five levels, picked on the first round's curtain (or Settings -> GAME -> RACE: BOTS): from
+//                      ROOKIE (slow to aim, wanders) to TERMINATOR (aims at once, leads a moving target, shoots down
+//                      or sidesteps every shell coming at it, takes the shortest road to the nearest enemy, gladly a
+//                      golden one, and goes out of its way for power-ups). Same tanks and speed as yours
 //    GOLDEN TANK       twice a round a gold enemy rolls in (announced): tougher and quicker, worth 3 kills
 //    KILL STREAK       3 kills in a row, each within 5 seconds of the last, without being destroyed: a power-up
 //                      drops right where you are (again at 6, 9 ...)
@@ -14,8 +15,22 @@
 //  Bonus kills (gold, rush) go to p.raceBonus, which raceTally (race.js) adds to the kills.
 // =====================================================================
 
-const RACE_BOT_SPEED = 1.25, RACE_GOLD = 3, RACE_GOLD_HP = 3, RACE_RUSH = 4, RACE_STREAK_N = 3, RACE_STREAK_T = 300;
-const RACE_BOT_RANGE = 320, RACE_BOT_PU = 160, RACE_CROWN_PULL = 96;
+const RACE_GOLD = 3, RACE_GOLD_HP = 3, RACE_RUSH = 4, RACE_STREAK_N = 3, RACE_STREAK_T = 300;
+const RACE_CROWN_PULL = 96;
+
+// the bots' levels. aim: frames lined up before it fires; lead: it aims where a moving target will be; dodge: the
+// chance it reacts to a shell coming at it (down: by shooting it down when it's facing it); road: it picks the enemy
+// nearest along the roads (else as the crow flies); range: how far off it shoots; pu: how far off a power-up tempts it;
+// brick: the chance a frame it shoots a brick in its way; slack: the chance at each tile that it dawdles a moment
+const RACE_BOT_NAMES = ['ROOKIE', 'GUNNER', 'VETERAN', 'ACE', 'TERMINATOR'];
+const RACE_BOT_LV = [
+  { aim: 30, lead: false, dodge: 0, down: false, road: false, range: 176, pu: 64, brick: 0.08, slack: 0.03 },
+  { aim: 18, lead: false, dodge: 0.25, down: false, road: false, range: 208, pu: 96, brick: 0.12, slack: 0.015 },
+  { aim: 10, lead: true, dodge: 0.5, down: true, road: true, range: 256, pu: 128, brick: 0.2, slack: 0.005 },
+  { aim: 5, lead: true, dodge: 0.8, down: true, road: true, range: 320, pu: 160, brick: 0.3, slack: 0 },
+  { aim: 2, lead: true, dodge: 1, down: true, road: true, range: 400, pu: 200, brick: 0.4, slack: 0 },
+];
+const raceBotLevel = () => Math.max(1, Math.min(5, Game.raceBotLv || Config.get('raceBots') || 3));
 
 // what an enemy (a queue item, a sparkle, a tank) is worth, before the rush doubles it
 const raceValue = o => (o && (o.raceGold || (o.extra && o.extra.raceGold)) ? RACE_GOLD : 1);
@@ -66,11 +81,11 @@ Object.assign(Stage.prototype, {
     this.popups.push({ x: FW / 2, y: FH / 2 - 8, text, label: true, color, t: 0, delay: 0, life: 150 });
   },
 
-  // a racing bot: KILL RACE's own, sharper than the deathmatch one
+  // a racing bot: KILL RACE's own, as good as its level
   raceBotInput(t) {
-    const b = t.botAi || (t.botAi = { dir: rnd(4), stuck: 0, lx: t.x, ly: t.y, wander: 0, aim: 0, pick: 0, tgt: null });
+    const b = t.botAi || (t.botAi = { dir: rnd(4), stuck: 0, lx: t.x, ly: t.y, wander: 0, aim: 0, pick: 0, tgt: null, saw: new WeakMap() });
     const idle = { dir: -1, fire: false, firePressed: false, alt: false, altPressed: false };
-    const aggr = Math.max(0.5, Config.skill().aggr || 1);
+    const L = RACE_BOT_LV[raceBotLevel() - 1];
     if (t.x === b.lx && t.y === b.ly) b.stuck++; else { b.stuck = 0; b.lx = t.x; b.ly = t.y; }
     if (b.stuck > 14) { b.wander = 10 + rnd(14); b.dir = (b.dir + (rnd(2) ? 1 : 3)) % 4; b.stuck = 0; }
     const cx = t.x + 8, cy = t.y + 8;
@@ -79,8 +94,10 @@ Object.assign(Stage.prototype, {
       if (!s.alive || s.isPlayer) continue;
       const sx = s.x + 2, sy = s.y + 2, [ux, uy] = DXY[s.dir], ax = cx - sx, ay = cy - sy, along = ax * ux + ay * uy, off = Math.abs(ax * uy - ay * ux);
       if (along <= 0 || along > 72 || off > 10) continue;
+      if (!b.saw.has(s)) b.saw.set(s, Math.random() < L.dodge);   // does it notice this one?
+      if (!b.saw.get(s)) continue;
       const back = (s.dir + 2) % 4;
-      if (t.dir === back && t.cool === 0) return Object.assign(idle, { dir: back, fire: true, firePressed: true });
+      if (L.down && t.dir === back && t.cool === 0) return Object.assign(idle, { dir: back, fire: true, firePressed: true });
       const side = [(s.dir + 1) % 4, (s.dir + 3) % 4], pick = side.find(d => !this.blockedDir || !this.blockedDir(t, d)) ?? side[rnd(2)];
       b.wander = 8; b.dir = side.includes(b.dir) ? b.dir : pick;
       return Object.assign(idle, { dir: b.dir });
@@ -91,10 +108,10 @@ Object.assign(Stage.prototype, {
       const foes = this.tanks.filter(o => o.alive && !o.isPlayer && !(o.boost && o.boost.smoke));
       if (foes.length) {
         const NX = COLS * 2 - 1, node = (x, y) => Math.max(0, Math.min(ROWS * 2 - 2, Math.round(y / 8))) * NX + Math.max(0, Math.min(NX - 1, Math.round(x / 8)));
-        const dist = this.navField([node(t.x, t.y)]);
+        const dist = L.road ? this.navField([node(t.x, t.y)]) : null;
         let bd = Infinity;
         for (const o of foes) {
-          const d = (dist[node(o.x, o.y)] ?? Infinity) - (o.raceGold ? 30 : 0);
+          const d = (dist ? dist[node(o.x, o.y)] ?? Infinity : (Math.abs(o.x - t.x) + Math.abs(o.y - t.y)) / 8) - (o.raceGold && L.road ? 30 : 0);
           const dd = d === Infinity ? 999 + Math.abs(o.x - t.x) + Math.abs(o.y - t.y) : d;
           if (dd < bd) { bd = dd; b.tgt = o; }
         }
@@ -104,22 +121,23 @@ Object.assign(Stage.prototype, {
     // 3. lined up with where it will be when the shell gets there: face it and fire (quickly)
     let fire = false, aimDir = -1;
     if (tgt) {
-      const d0 = Math.abs(tgt.x - t.x) + Math.abs(tgt.y - t.y), k = tgt.moving !== false ? d0 / Math.max(2, t.bulletSpeed) : 0;
+      const d0 = Math.abs(tgt.x - t.x) + Math.abs(tgt.y - t.y), k = L.lead && tgt.moving !== false ? d0 / Math.max(2, t.bulletSpeed) : 0;
       const [mx, my] = DXY[tgt.dir] || [0, 0];
       for (const [px, py] of [[tgt.x + mx * tgt.speed * k, tgt.y + my * tgt.speed * k], [tgt.x, tgt.y]]) {
         const dx = px - t.x, dy = py - t.y;
-        if ((Math.abs(dx) < 5 || Math.abs(dy) < 5) && Math.abs(dx) + Math.abs(dy) < RACE_BOT_RANGE && this.clearLine(cx, cy, px + 8, py + 8)) {
+        if ((Math.abs(dx) < 5 || Math.abs(dy) < 5) && Math.abs(dx) + Math.abs(dy) < L.range && this.clearLine(cx, cy, px + 8, py + 8)) {
           aimDir = Math.abs(dx) < 5 ? (dy > 0 ? 2 : 0) : (dx > 0 ? 1 : 3);
           break;
         }
       }
-      if (aimDir >= 0) { if (++b.aim > Math.round(5 / aggr)) fire = t.dir === aimDir; } else b.aim = 0;
+      if (aimDir >= 0) { if (++b.aim > L.aim) fire = t.dir === aimDir; } else b.aim = 0;
     }
     if (aimDir >= 0) { b.dir = aimDir; return Object.assign(idle, { dir: aimDir, fire, firePressed: fire }); }
     // 4. where to: a power-up within reach, else the target
     const pu = this.powerup;
-    const goal = pu && Math.abs(pu.x - t.x) + Math.abs(pu.y - t.y) < RACE_BOT_PU ? { x: pu.x, y: pu.y, pu: true } : tgt;
+    const goal = pu && Math.abs(pu.x - t.x) + Math.abs(pu.y - t.y) < L.pu ? { x: pu.x, y: pu.y, pu: true } : tgt;
     if (b.wander > 0) b.wander--;
+    else if ((t.x & 7) === 0 && (t.y & 7) === 0 && Math.random() < L.slack) { b.wander = 20 + rnd(30); b.dir = rnd(4); }
     else if (goal && (t.x & 7) === 0 && (t.y & 7) === 0) {
       const NX = COLS * 2 - 1, node = (x, y) => Math.max(0, Math.min(ROWS * 2 - 2, Math.round(y / 8))) * NX + Math.max(0, Math.min(NX - 1, Math.round(x / 8)));
       const dist = goal.pu ? this.navField([node(goal.x, goal.y)]) : this.navPlayer(goal);
@@ -135,7 +153,7 @@ Object.assign(Stage.prototype, {
       else if (Math.random() < 0.1) b.dir = rnd(4);
     }
     // bricks in the way: shoot through
-    if (t.dir === b.dir && this.brickAhead(t) && Math.random() < 0.35) fire = true;
+    if (t.dir === b.dir && this.brickAhead(t) && Math.random() < L.brick) fire = true;
     return Object.assign(idle, { dir: b.dir, fire, firePressed: fire });
   },
 });
@@ -222,6 +240,12 @@ Object.assign(Stage.prototype, {
   P.renderTdOver = function (ctx) {
     const r = over.apply(this, arguments), L = this.raceLead(), t = L && L.tank;
     if (t && t.alive) raceDrawCrown(ctx, t.x + 4, t.y - 7, this.frame);
+    // a bot's name over it while it has its spawn shield (KILL RACE and DEATHMATCH), so you know who's who
+    for (const b of this.tanks) {
+      if (!b.alive || !b.isPlayer || !b.player || !b.player.bot || !(b.shield > 0)) continue;
+      const name = playerName(b.player), half = name.length * 4;   // (kept inside the field)
+      Font.drawCenter(ctx, name, Math.max(half, Math.min(FW - half, b.x + 8)), Math.max(0, b.y - (b === t ? 16 : 9)), COL.white);
+    }
     return r;
   };
 }
@@ -232,14 +256,4 @@ function raceDrawCrown(ctx, x, y, f) {
   ctx.fillStyle = COL.gold;
   ctx.fillRect(x, y + 2, 8, 3); ctx.fillRect(x, y, 1, 2); ctx.fillRect(x + 3, y, 2, 2); ctx.fillRect(x + 7, y, 1, 2);
   ctx.fillStyle = (f >> 3) & 1 ? '#F83800' : '#F8F8F8'; ctx.fillRect(x + 2, y + 3, 1, 1); ctx.fillRect(x + 5, y + 3, 1, 1);
-}
-
-// the racing bots drive a quarter faster
-{
-  const applyLevel = Tank.prototype.applyLevel;
-  Tank.prototype.applyLevel = function () {
-    const r = applyLevel.apply(this, arguments);
-    if (this.player && this.player.bot && Game.mode === 'race') this.speed *= RACE_BOT_SPEED;
-    return r;
-  };
 }

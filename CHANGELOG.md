@@ -3,6 +3,16 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.72
+
+- **Kill Race bots: five levels, same speed.** The racing bots drive at the same speed as you again (0.71 made them
+  25% faster). How good they are is now yours to pick, on the first round's curtain after the points (left/right, OK;
+  BACK returns to the points) or in Settings → GAME → RACE: BOTS: 1 ROOKIE (slow to aim, dawdles, no dodging),
+  2 GUNNER, 3 VETERAN (the default: leads a moving target, shoots down shells, takes the roads), 4 ACE, 5 TERMINATOR
+  (fires at once, notices every shell). The title's mode line shows the level; a saved race keeps it.
+- **The bots have names: TANKIE, MONKEY and JUNKIE** (Kill Race and Deathmatch), on the results, the banners, and over
+  each bot as it spawns.
+
 ## 0.71
 
 - **Kill Race** (race2.js):

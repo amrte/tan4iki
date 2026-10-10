@@ -68,5 +68,6 @@ Object.assign(Stage.prototype, {
   },
 });
 
-// "II-PLAYER" or "BOT II"
-function playerName(p) { return p && p.bot ? 'BOT ' + ROMAN[p.i] : ROMAN[p ? p.i : 0] + '-PLAYER'; }
+// "II-PLAYER", or a bot's name
+const BOT_NAMES = [null, 'TANKIE', 'MONKEY', 'JUNKIE'];
+function playerName(p) { return p && p.bot ? BOT_NAMES[p.i] || 'BOT ' + ROMAN[p.i] : ROMAN[p ? p.i : 0] + '-PLAYER'; }

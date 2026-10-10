@@ -9,7 +9,7 @@ const SW = 256, SH = 224;
 const SAVE_KEY = 'tank1990_save';   // CLASSIC's slot; every other mode adds '_' + its slot (see Game.saveSlotOf)
 // modes saved as a checkpoint (CLASSIC and BIG MAPS save the stage exactly), and the game's state they keep
 const CK_MODES = ['custom', 'survival', 'timeattack', 'sides', 'corridor', 'maze', 'fortress', 'galaxy', 'cpu', 'race', 'world'];
-const CK_GAME_KEYS = ['taFrames', 'taCleared', 'round', 'raceTarget', 'tdMap', 'nextSide', 'shopDiscount', 'gxRun', 'gxDate', 'gxClock', 'gxEndless'];
+const CK_GAME_KEYS = ['taFrames', 'taCleared', 'round', 'raceTarget', 'raceBotLv', 'tdMap', 'nextSide', 'shopDiscount', 'gxRun', 'gxDate', 'gxClock', 'gxEndless'];
 const menuOX = () => (SCREEN_W - SW) >> 1;
 const menuOY = () => (SCREEN_H - SH) >> 1;
 // saves the browser wouldn't store (storage full, or blocked for this page): kept here until the page is closed
@@ -380,7 +380,7 @@ const Game = {
         : mi.key === 'coop' ? '1-4 PLAYERS TOGETHER' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '')
         : mi.key === 'eagles' ? '1P: VS CPU' + (rec.cpu ? ', BEST ' + rec.cpu.rounds + ' ROUNDS' : '') + '  2-4P: VS'
         : mi.key === 'dm' ? '1P: VS ' + DM_BOTS + ' BOTS  2-4P: VS EACH OTHER'
-        : mi.key === 'race' ? 'FIRST TO ' + Config.get('raceTarget') + '  1P: VS ' + DM_BOTS + ' BOTS'
+        : mi.key === 'race' ? 'FIRST TO ' + Config.get('raceTarget') + '  1P: VS ' + DM_BOTS + ' BOTS LV ' + Config.get('raceBots')
         : mi.key === 'cs' ? csTitleLine(rec)
         : mi.key === 'custom' ? (Customs.used().length ? Customs.used().length + ' OF ' + CUSTOM_SLOTS + ' SLOTS FILLED' : 'MAKE SOME IN CONSTRUCTION') : '< > CHANGE MODE';
       Font.drawCenter(ctx, best, SW / 2, 213, COL.lgrey);
@@ -707,7 +707,7 @@ const Game = {
     if (['timeattack', 'corridor', 'cpu', 'race', 'custom', 'sides', 'maze', 'fortress', 'galaxy', 'world'].includes(this.mode)) this.stageNum = 1;
     else if (this.mode !== 'classic') this.stageNum = 1 + Math.floor(Math.random() * LEVELS.length);
     // KILL RACE: the first curtain picks how many points win the game (race.js)
-    if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
+    if (this.mode === 'race') { this.raceTarget = Config.get('raceTarget'); this.raceBotLv = Config.get('raceBots'); this.curtain.raceSel = true; for (const p of this.players) p.racePts = 0; }
     // FORTRESS: the first curtain picks the map (fortress.js)
     if (this.mode === 'fortress') { this.tdMap = Math.max(0, Math.min(TD_MAPS.length - 1, STORE.get('tank1990_tdmap', 0) | 0)); if (!tdUnlocked(this.tdMap)) this.tdMap = 0; this.curtain.tdSel = true; }
     // the mode's title screen first (intro.js)
@@ -738,8 +738,14 @@ const Game = {
     } else if (c.raceSel) {
       const dir = m.up || m.right ? 1 : m.down || m.left ? -1 : 0;
       if (dir) { Config.step('raceTarget', dir); this.raceTarget = Config.get('raceTarget'); Sound.play('select'); }
-      if (m.ok) { c.raceSel = false; this.beginStage(); }
+      // then, racing bots: how good they are (race2.js)
+      if (m.ok) { c.raceSel = false; if (this.players.some(p => p.bot)) { c.raceBotSel = true; this.t = 0; } else this.beginStage(); }
       if (m.back) this.toTitle();
+    } else if (c.raceBotSel) {
+      const dir = m.up || m.right ? 1 : m.down || m.left ? -1 : 0;
+      if (dir) { Config.step('raceBots', dir); this.raceBotLv = Config.get('raceBots'); Sound.play('select'); }
+      if (m.ok && this.t > 10) { c.raceBotSel = false; this.beginStage(); }
+      if (m.back) { c.raceBotSel = false; c.raceSel = true; }
     } else if (c.selectable) {
       const n = this.stageLimit();
       if (m.up || m.right) { this.stageNum = this.stageNum % n + 1; Sound.play('select'); }
@@ -767,7 +773,9 @@ const Game = {
       if (race) {
         Font.drawCenter(ctx, 'MOST KILLS WINS THE ROUND', cx, cy + 14, '#A00000');
         Font.drawCenter(ctx, 'FIRST TO ' + this.raceTarget + (this.raceTarget > 1 ? ' POINTS' : ' POINT'), cx, cy + 28, c.raceSel ? COL.black : '#3C3C3C');
-        if (c.raceSel && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + 42, '#3C3C3C');
+        const bots = this.players.some(p => p.bot), lv = this.raceBotLv || Config.get('raceBots');
+        if (bots) Font.drawCenter(ctx, 'BOTS: LEVEL ' + lv + ' ' + RACE_BOT_NAMES[lv - 1], cx, cy + 42, c.raceBotSel ? COL.black : '#3C3C3C');
+        if ((c.raceSel || c.raceBotSel) && (this.t >> 4) & 1) Font.drawCenter(ctx, '< SELECT >', cx, cy + (bots ? 56 : 42), '#3C3C3C');
       }
       // against the computer: what their HQ got for this round
       if (this.mode === 'maze') {
@@ -803,7 +811,7 @@ const Game = {
       else if (this.mode === 'maze') lvTheme = mzThemeKey(this.stageNum);   // the maze's look goes by its depth (maze2.js)
       if (lvTheme === 'auto') lvTheme = undefined;
       const ss = Config.get('seasons'), th = lvTheme ? THEMES[lvTheme] : ss === 'RANDOM' || ss === 'OFF' ? null : THEMES[stageTheme(this.stageNum)];
-      if (th && th.name && !(this.mode === 'race' && c.raceSel)) {
+      if (th && th.name && !(this.mode === 'race' && (c.raceSel || c.raceBotSel))) {
         const fx = Config.on('seasonFx') && SEASON_FX_NAME[lvTheme || stageTheme(this.stageNum)];   // its twist (seasonal.js)
         Font.drawCenter(ctx, th.name + (fx ? ': ' + fx : ''), cx, cy - 36, '#3C3C3C');
       }
