@@ -562,15 +562,20 @@ Object.assign(RtsGame.prototype, {
       const c = rtsPicUnit(u.key, u.h, u.dir, this.unitFrame(u));
       ctx.drawImage(c, Math.round(u.x - c.width / 2), Math.round(u.y - h - c.height / 2));
     }
-    // fog: what was seen but isn't now goes dim
+    // fog: what was seen but isn't now goes dim (a pixel a tile, drawn smoothed: soft edges)
     if (this.fog) {
-      const P = this.P;
-      ctx.fillStyle = 'rgba(0,0,0,0.38)';
-      for (let ty = Math.max(0, (y0 / 16) | 0); ty <= Math.min(this.H - 1, (y1 / 16) | 0); ty++)
-        for (let tx = Math.max(0, (x0 / 16) | 0); tx <= Math.min(this.W - 1, (x1 / 16) | 0); tx++) {
-          const i = ty * this.W + tx;
-          if (P.exp[i] && !P.see[i]) ctx.fillRect(tx * 16, ty * 16, 16, 16);
-        }
+      const P = this.P, key = this.frame - this.frame % 10;
+      if (!this.fogC) { this.fogC = makeCanvas(this.W, this.H); this.fogImg = this.fogC.getContext('2d').createImageData(this.W, this.H); this.fogKey = -1; }
+      if (this.fogKey !== key) {
+        this.fogKey = key;
+        const d = this.fogImg.data;
+        for (let i = 0; i < this.N; i++) d[i * 4 + 3] = P.exp[i] && !P.see[i] ? 97 : 0;
+        this.fogC.getContext('2d').putImageData(this.fogImg, 0, 0);
+      }
+      const sm = ctx.imageSmoothingEnabled;
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(this.fogC, 0, 0, this.W * 16, this.H * 16);
+      ctx.imageSmoothingEnabled = sm;
     }
     // the shroud
     for (let ky = Math.max(0, (y0 / 256) | 0); ky <= Math.min(this.chH - 1, (y1 / 256) | 0); ky++)
