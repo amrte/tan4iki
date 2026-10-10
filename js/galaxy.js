@@ -929,8 +929,8 @@ Object.assign(Stage.prototype, {
       const tx = near ? near.x + 8 : FW / 2;
       b.x += Math.max(-0.7, Math.min(0.7, tx - b.x)); b.y = 14 + Math.sin(b.t / 40) * 3;
     } else {
-      const per = def.move === 'swayFast' ? 55 : 90;
-      b.x = FW / 2 + Math.sin(b.t / per) * (FW / 2 - b.w / 2 - 6); b.y = 14 + Math.sin(b.t / 50) * 3;
+      const per = def.move === 'swayFast' ? 55 : 90, amp = FW / 2 - b.w / 2 - 6;
+      gxGlide(b, FW / 2 + Math.sin(b.t / per) * amp, 14 + Math.sin(b.t / 50) * 3, amp / per);
     }
     b.x = Math.max(b.w / 2 + 2, Math.min(FW - b.w / 2 - 2, b.x));
     // the eye opens and shuts
@@ -1364,3 +1364,11 @@ SONGS.galaxyBoss = { name: 'ALIEN OVERLORD', root: 57, bpm: 140, groove: 'stomp'
 GROOVES.starfield = { drums: 'k.h.s.hhk.hks.h.', bass: 'r.o.r.o.f.o.f.o.' };
 
 // its title picture: introart.js
+
+// a boss swaying along a path of its time (b.t): it heads for where the path has got to, a little faster than the path
+// ever goes (vmax: the path's top speed), so it follows it exactly, and after it held still (an attack, the stagger of
+// a new phase, a charge) it glides back onto it instead of jumping there
+function gxGlide(b, tx, ty, vmax, vy = 0.8) {
+  const v = vmax * 1.6 + 0.3;
+  b.x += Math.max(-v, Math.min(v, tx - b.x)); b.y += Math.max(-vy, Math.min(vy, ty - b.y));
+}

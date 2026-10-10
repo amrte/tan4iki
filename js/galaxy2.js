@@ -559,7 +559,7 @@ GX_BOSSES.push(
         this.gxDrop(16 + rnd(FW - 32), b.y + b.h, 'box'); g.pickups[g.pickups.length - 1].w = free[rnd(free.length)];
         b.boxT = 600;
       }
-      if (!b.hold) { b.x = FW / 2 + Math.sin(b.t / 160) * (FW / 2 - b.w / 2 - 6); b.y = 14 + Math.sin(b.t / 60) * 2; }
+      if (!b.hold) { const amp = FW / 2 - b.w / 2 - 6; gxGlide(b, FW / 2 + Math.sin(b.t / 160) * amp, 14 + Math.sin(b.t / 60) * 2, amp / 160); }
       return true;
     },
     damage(b, dmg, p, bomb) {

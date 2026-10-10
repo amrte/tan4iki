@@ -531,7 +531,7 @@ GX_BOSSES.splice(11, 0,
       }
       b.rows = b.rows.filter(r => r.t < r.warn + r.dur);
       // it sways (never above y 14, where the core would take it for still flying in, and stop its clock)
-      if (!b.hold) { b.x = FW / 2 + Math.sin(b.t / 90) * (FW / 2 - b.w / 2 - 6); b.y = 17 + Math.sin(b.t / 50) * 3; }
+      if (!b.hold) { const amp = FW / 2 - b.w / 2 - 6; gxGlide(b, FW / 2 + Math.sin(b.t / 90) * amp, 17 + Math.sin(b.t / 50) * 3, amp / 90); }
       return true;
     },
     onPhase(b, g, ph) {
@@ -585,9 +585,12 @@ GX_BOSSES.splice(11, 0,
       }
       // it sways; collapsing, it jitters about too
       if (!b.hold) {
-        b.x = FW / 2 + Math.sin(b.t / 110) * (FW / 2 - b.w / 2 - 6); b.y = 18 + Math.sin(b.t / 50) * 3;   // (y 14 at least: see the stack)
+        // (the jitter on top of where it is on its path, kept apart in b.at; y 14 at least: see the stack)
+        const amp = FW / 2 - b.w / 2 - 6, at = b.at || (b.at = { x: b.x - (b.jx || 0), y: b.y - (b.jy || 0) });
+        gxGlide(at, FW / 2 + Math.sin(b.t / 110) * amp, 18 + Math.sin(b.t / 50) * 3, amp / 110);
         if (b.ph >= 3 && (b.t % 5 === 0)) { b.jx = rnd(7) - 3; b.jy = rnd(3) - 1; }
-        if (b.ph >= 3) { b.x += b.jx || 0; b.y += b.jy || 0; }
+        const jx = b.ph >= 3 ? b.jx || 0 : 0, jy = b.ph >= 3 ? b.jy || 0 : 0;
+        b.x = at.x + jx; b.y = at.y + jy;
       }
       return true;
     },

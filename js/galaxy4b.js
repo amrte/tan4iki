@@ -1159,7 +1159,7 @@ function gx4bTitanicUpdate(b, g, near, pl) {
     return;
   }
   // broken: the stern rolls on the left, the bow drifts on the right... and plunges at you
-  if (!b.hold) { b.x = 44 + Math.sin(b.t / 80) * 12; b.y = 15 + Math.sin(b.t / 37) * 3; }
+  if (!b.hold) gxGlide(b, 44 + Math.sin(b.t / 80) * 12, 15 + Math.sin(b.t / 37) * 3, 12 / 80);
   const w = b.bow;
   if (!w) return;
   w.t++; if (w.flash > 0) w.flash--;

@@ -3,6 +3,15 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.70.1
+
+- **Fixed: galaxy bosses jumping about.** A swaying boss's place on its path ran on while it held still (an attack,
+  the stagger of a new phase, a charge, flying in), and when it moved again it jumped straight there: up to 100 px in
+  one frame (WAR CRAB, CITY KILLER, MARTIAN SAUCER, CATS, THE CUBE, THE STACK, THE SLOP MACHINE, the broken TITANIC
+  and the rest after a phase change). Now it glides back onto its path (gxGlide, galaxy.js). Jumps the bosses make on
+  purpose stay: the UNICORN's rainbow dash and the TITANIC's fade into the fog (both unseen while they move), the TIME
+  CAR and ELON's PLAID MODE leaving at the bottom and coming back at the top, WINDOWS 95 NOT RESPONDING.
+
 ## 0.70
 
 - **Galaxy: tougher bosses, phase by phase** (galaxy_tune2.js). Each boss's bar is three phases; now the first takes
