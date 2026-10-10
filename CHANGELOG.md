@@ -3,6 +3,11 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.69.1
+
+- **Fixed: the FSD SUBSCRIPTION wasn't sold in BOSS RUSH.** Its hangar comes only every third boss, and FSD was offered
+  only right before ELON; now the last hangar before him sells it (the one before boss 16).
+
 ## 0.69
 
 - **Galaxy: longer, tougher, leaner** (galaxy_tune2.js):

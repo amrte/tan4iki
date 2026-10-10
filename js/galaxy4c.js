@@ -1872,11 +1872,13 @@ GX_PICKUPS.gx4cFsd = {   // its icon (a steering wheel); never dropped
   draw(ctx, x, y, t, R) { ctx.fillStyle = '#100808'; ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#A8B0BC'; ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#100808'; ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill(); R(-5, -1, 11, 2, '#A8B0BC'); R(-1, 0, 2, 6, '#A8B0BC'); R(-1, -1, 2, 2, '#58F8F8'); },
   collect() {},
 };
-// is MARS HIGHWAY the next (or the current) stage's sector?
+// is MARS HIGHWAY the next (or the current) stage's sector? (BOSS RUSH: is ELON coming before the next hangar?)
 function gx4cFsdNext() {
   if (Game.mode !== 'galaxy') return false;
   const n = Game.stageNum, mars = GX_SECTORS.indexOf(GX4C_MARS), run = Game.gxRun || 'campaign';
   if (run === 'endless') return typeof gxdEndlessSec === 'function' && [gxdEndlessSec(2 * (n - 1)), gxdEndlessSec(2 * (n - 1) + 1)].includes(mars);
+  // BOSS RUSH: the hangar comes every few bosses only; it sells FSD if ELON is one of the bosses before the next one
+  if (run === 'rush') { const e = GX_BOSSES.findIndex(b => b.key === 'gx4cElon') + 1, k = typeof GXD_RUSH_SHOP !== 'undefined' ? GXD_RUSH_SHOP : 3; return e > 0 && e >= n && e < n + k; }
   return (n - 1) % GX_SECTORS.length === mars;
 }
 function gx4cFsdShopSync() {
