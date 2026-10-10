@@ -847,16 +847,21 @@ class RtsGame {
   finish(win) {
     if (this.done) return;
     this.done = true; this.endT = 0; this.over = true;
-    const P = this.P, foes = this.enemiesOf(this.player);
-    const s = P.stats, time = this.frame;
-    const score = Math.max(0, Math.round(s.harvested / 10 + s.unitsKilled * 40 + s.buildingsKilled * 100 - s.unitsLost * 10 - s.buildingsLost * 30 + (win ? 1000 + Math.max(0, 36000 - time) / 36 : 0)));
-    this.resultData = { win, mission: this.opts.mission || null, time, harvested: Math.round(s.harvested), unitsKilled: s.unitsKilled, unitsLost: s.unitsLost,
-      buildingsKilled: s.buildingsKilled, buildingsLost: s.buildingsLost, score,
-      foes: foes.map(h => ({ house: h.id, harvested: Math.round(h.stats.harvested), unitsKilled: h.stats.unitsKilled, buildingsKilled: h.stats.buildingsKilled })) };
+    this.resultData = this.resultOf(win, false);
     this.say(null, win ? 'missionWon' : 'missionLost');
     if (typeof this.opts.onEnd === 'function') { try { this.opts.onEnd(this.resultData, this); } catch (e) { console.error(e); } }
   }
   near(x, y) { return this.uiNear ? this.uiNear(x, y) : true; }
+  // what Game.rtsMissionOver hears: { win, quit, mission, time, harvested, unitsKilled, unitsLost, buildingsKilled, buildingsLost,
+  // score, enemyHarvested, foes: [{ house, harvested, unitsKilled, buildingsKilled }] }
+  resultOf(win, quit) {
+    const P = this.P, foes = this.enemiesOf(this.player).filter(h => !h.nomads);
+    const s = P.stats, time = this.frame;
+    const score = quit ? 0 : Math.max(0, Math.round(s.harvested / 10 + s.unitsKilled * 40 + s.buildingsKilled * 100 - s.unitsLost * 10 - s.buildingsLost * 30 + (win ? 1000 + Math.max(0, 36000 - time) / 36 : 0)));
+    const fs = foes.map(h => ({ house: h.id, harvested: Math.round(h.stats.harvested), unitsKilled: h.stats.unitsKilled, buildingsKilled: h.stats.buildingsKilled }));
+    return { win: !!win && !quit, quit: !!quit, mission: this.opts.mission || null, time, harvested: Math.round(s.harvested), unitsKilled: s.unitsKilled, unitsLost: s.unitsLost,
+      buildingsKilled: s.buildingsKilled, buildingsLost: s.buildingsLost, score, enemyHarvested: fs.reduce((a, f) => a + f.harvested, 0), foes: fs };
+  }
 }
 
 // ------------------------------------------------------------------ the map generator (stand-in)
@@ -954,6 +959,8 @@ Object.assign(Game, {
   rtsLayout() {
     const wrap = document.getElementById('wrap');
     const aspect = wrap && wrap.clientHeight ? wrap.clientWidth / wrap.clientHeight : 16 / 10;
+    // a tall window (a phone held upright): the narrowest screen, as tall as the window's shape (more map, a longer sidebar)
+    if (aspect < 320 / 240) return [17, Math.max(14, Math.min(40, Math.round((320 / aspect - 16) / 16)))];
     const vr = 14, vc = Math.max(17, Math.min(34, Math.round((aspect * (vr * 16 + 16) - 48) / 16)));
     return [vc, vr];
   },

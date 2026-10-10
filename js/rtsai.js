@@ -106,6 +106,12 @@ class RtsBasicAi {
           else if (!RTS_PASS.track[R.map.t[yy * R.W + xx]]) crowd += 0.5;
         }
         let sc = r * 2 + Math.max(0, crowd - 3) * 3 + this.rnd() * 2;
+        // keep the refineries' sides and the factories' doors clear (harvesters dock, units come out)
+        if (!d.slab) for (const o of H.buildings) {
+          if (o.key !== 'refinery' && !(o.d.fac && o.key !== 'yard')) continue;
+          const gx0 = o.x - 1, gy0 = o.y - 1, gx1 = o.x + o.w, gy1 = o.y + o.hh + (o.key === 'refinery' ? 0 : 1);
+          if (x <= gx1 && x + d.w - 1 >= gx0 && y <= gy1 && y + d.h - 1 >= gy0) sc += o.key === 'refinery' ? 14 : 6;
+        }
         if (d.defense || d.wall) {
           const a = Math.atan2(y - c.y, x - c.x);
           let da = Math.abs(a - ang); if (da > Math.PI) da = Math.PI * 2 - da;

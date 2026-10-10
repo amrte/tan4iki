@@ -82,6 +82,8 @@ Object.assign(RtsGame.prototype, {
       let H = this.houses[s.id];
       if (!H && s.nomads) H = this.nomadHouse(this.P);
       if (!H) H = this.addHouse({ house: s.id, credits: 0, ai: s.ai }, s.team, false, s.start);
+      // the roaming nomads (the palace's, or a mission's ally marked so at its start) stay a band without a brain
+      if (s.nomads) { H.nomads = true; H.brain = null; }
       Object.assign(H, { team: s.team, credits: s.credits, techLevel: s.techLevel, prod: s.prod, palaceT: s.palaceT, stats: s.stats, defeated: s.defeated, start: s.start,
         aiBoost: s.aiBoost || H.aiBoost });
       for (const k of RTS_FACTORIES) if (!H.prod[k]) H.prod[k] = { queue: [], prog: 0, paid: 0, ready: null, broke: false, retry: 0 };

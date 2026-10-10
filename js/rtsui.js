@@ -1207,9 +1207,7 @@ const rtsKernelStart = Game.rtsStartMission, rtsKernelSetup = Game.rtsSkirmishSe
     const st = this.stage;
     if (a === 'QUIT' && this.mode === 'rts' && st && st.rts && st.opts.mission && typeof this.rtsMissionOver === 'function' && !this.rtsMissionOver.core) {
       this.paused = false;
-      const s = st.P.stats;
-      const res = { win: false, quit: true, mission: st.opts.mission, time: st.frame, harvested: Math.round(s.harvested), unitsKilled: s.unitsKilled, unitsLost: s.unitsLost,
-        buildingsKilled: s.buildingsKilled, buildingsLost: s.buildingsLost, score: 0 };
+      const res = st.resultOf(false, true);
       st.reported = true;
       this.rtsMissionOver(res);
       return;

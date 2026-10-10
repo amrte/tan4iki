@@ -564,7 +564,7 @@ Object.assign(RtsGame.prototype, {
     else {
       const Hs = this.houses[b.h], q = b.d.fac && Hs && Hs.prod[b.d.fac];
       const active = !!b.working || !!(q && q.queue.length && !q.ready && this.factoryOf(Hs, b.d.fac) === b);
-      st = { dmg, frame: b.anim >> 3, door: b.door ? Math.min(3, (40 - b.doorT) >> 2) : 0, build: b.rise, flash: b.flash > 0, working: active, active,
+      st = { dmg, frame: b.anim >> 3, door: b.door ? Math.min(3, (40 - b.doorT) >> 2, b.doorT >> 2) : 0, build: b.rise, flash: b.flash > 0, working: active, active,
         fill: b.key === 'silo' || b.key === 'refinery' ? Math.max(0, Math.min(1, Hs ? Hs.credits / Math.max(1, Hs.storage) : 0)) : 0, mask: b.d.wall ? this.wallMask(b) : 0 };
     }
     const c = rtsBuildingPic(b.key, b.h, st);

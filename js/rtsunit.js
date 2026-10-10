@@ -1228,6 +1228,7 @@ Object.assign(RtsGame.prototype, {
       const L = this.flyTo(u, v.x, v.y, 3);
       if (L < 6 && !v.mv) {
         // pick it up
+        this.sfx('rotor', u.x, u.y, 30);
         this.unoccupy(v);
         v.carried = u; v.path = null; v.wantPath = null; v.mv = null;
         if (v.docked) { v.docked.busy = null; v.docked = null; }
@@ -1283,6 +1284,7 @@ Object.assign(RtsGame.prototype, {
       const L = this.flyTo(u, j.to.x * 16 + 8, j.to.y * 16 + 8, 2);
       if (L < 4) { j.phase = 'land'; j.t = 0; }
     } else if (j.phase === 'land') {
+      if (!j.t) this.sfx('plane', u.x, u.y, 60);
       j.t++;
       u.alt = Math.max(0.2, 1 - j.t / 40);
       if (j.t === 50) {
