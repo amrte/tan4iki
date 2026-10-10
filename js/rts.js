@@ -336,6 +336,12 @@ class RtsGame {
     if (b.dead) return;
     b.dead = true;
     const Hs = this.houses[b.h];
+    // the ruin it leaves (drawn over its rubble tiles: rtsdraw.js), the newest last
+    if (how === 'destroyed' && !b.d.wall) {
+      this.ruins = (this.ruins || []).filter(r => r.x >= b.x + b.w || r.x + r.w <= b.x || r.y >= b.y + b.hh || r.y + r.h <= b.y);
+      this.ruins.push({ x: b.x, y: b.y, w: b.w, h: b.hh, seed: b.id });
+      if (this.ruins.length > 300) this.ruins.shift();
+    }
     for (let yy = b.y; yy < b.y + b.hh; yy++) for (let xx = b.x; xx < b.x + b.w; xx++) {
       const i = yy * this.W + xx;
       if (this.bAt[i] === b) this.bAt[i] = null;

@@ -172,6 +172,8 @@ function rtsDefTurret(key, h, dir, firing) {
     if (firing) { g.fillStyle = '#F8E060'; g.fillRect(-1, -len - 2, 2, 2); }
   });
 }
+// a unit's picture size (the art's own, else the stand-in's)
+function rtsUnitSize(key) { return (typeof RTS_U_SIZE !== 'undefined' && RTS_U_SIZE[key]) || RTS_DEF_SIZE[key] || 16; }
 function rtsPicUnit(key, h, dir, frame) {
   if (typeof rtsUnitArt === 'function' && !RTS_ART_BAD.unit) { try { const c = rtsUnitArt(key, h, dir, frame); if (c) return c; } catch (e) { rtsArtFail('unit', e); } }
   return rtsDefUnit(key, h, dir, frame);
@@ -363,6 +365,15 @@ Object.assign(RtsGame.prototype, {
     const k = this.map.t[i];
     const pic = rtsTile(k, this.tileMask(x, y), rtsHash(x, y) & 3);
     g.drawImage(pic, (x & 15) * 16, (y & 15) * 16, 16, 16);
+    // rubble: its piece of the ruin of the building that stood there
+    if (k === RTS_T.RUBBLE && this.ruins && typeof rtsRubbleArt === 'function' && !RTS_ART_BAD.rubble) {
+      for (let n = this.ruins.length - 1; n >= 0; n--) {
+        const r = this.ruins[n];
+        if (x < r.x || y < r.y || x >= r.x + r.w || y >= r.y + r.h) continue;
+        try { g.drawImage(rtsRubbleArt(r.w, r.h, r.seed), (x - r.x) * 16, (y - r.y) * 16, 16, 16, (x & 15) * 16, (y & 15) * 16, 16, 16); } catch (e) { rtsArtFail('rubble', e); }
+        break;
+      }
+    }
     this.mmPixel(i);
   },
   drawShroudAt(i) {
@@ -591,12 +602,18 @@ Object.assign(RtsGame.prototype, {
       rtsTiny(ctx, 'R', px + W / 2 - 1, py + H / 2 - 2, '#F8E048');
     }
   },
+  // where a unit is drawn: where it is, or (docked) on its building's bay, sliding there and back
+  unitXY(u) {
+    const b = u.dockB;
+    if (!(u.dockK > 0) || !b || b.dead || !RTS_DOCK_AT[b.key]) return { x: u.x, y: u.y };
+    const a = RTS_DOCK_AT[b.key], k = u.dockK * u.dockK * (3 - 2 * u.dockK), px = b.x * 16 + a[0], py = b.y * 16 + a[1];
+    return { x: u.x + (px - u.x) * k, y: u.y + (py - u.y) * k, dir: k > 0.6 ? a[2] : u.dir };
+  },
   drawUnit(ctx, u) {
     const fr = this.unitFrame(u);
-    const c = rtsPicUnit(u.key, u.h, u.dir, fr);
-    const x = Math.round(u.x), y = Math.round(u.y);
+    const at = this.unitXY(u), x = Math.round(at.x), y = Math.round(at.y);
+    const c = rtsPicUnit(u.key, u.h, at.dir === undefined ? u.dir : at.dir, fr);
     if (u.d.stealth && u.still > 60) ctx.globalAlpha = u.h === this.player || this.team(u.h) === this.P.team ? 0.55 : 0.35;
-    if (u.docked && u.d.harvester) ctx.globalAlpha = Math.min(ctx.globalAlpha, 0.85);
     ctx.drawImage(c, x - c.width / 2, y - c.height / 2);
     const t = u.d.turret ? rtsTurretPic(u.key, u.h, u.tdir, u.firing > 4) : null;
     if (t) ctx.drawImage(t, x - t.width / 2, y - t.height / 2);
@@ -615,8 +632,8 @@ Object.assign(RtsGame.prototype, {
     for (const u of units) {
       const isSel = sel.has(u), hov = ui.hover === u;
       if (!isSel && !hov) continue;
-      const r = u.d.cls === 'inf' ? 4 : u.key === 'frigate' ? 16 : (RTS_DEF_SIZE[u.key] || 16) / 2 - 1;
-      const x = Math.round(u.x), y = Math.round(u.y - (u.d.cls === 'air' ? (u.alt || 1) * 10 : 0));
+      const r = u.d.cls === 'inf' ? 4 : u.key === 'frigate' ? 16 : rtsUnitSize(u.key) / 2 - 1;
+      const at = this.unitXY(u), x = Math.round(at.x), y = Math.round(at.y - (u.d.cls === 'air' ? (u.alt || 1) * 10 : 0));
       if (isSel) {
         ctx.fillStyle = '#FFF';
         const k = 2;
@@ -637,8 +654,8 @@ Object.assign(RtsGame.prototype, {
       ctx.fillStyle = RTS_CO_COL[co.who % 4];
       for (const u of co.sel) {
         if (u.dead || u.carried || !units.includes(u)) continue;
-        const r = u.d.cls === 'inf' ? 5 : (RTS_DEF_SIZE[u.key] || 16) / 2;
-        const x = Math.round(u.x), y = Math.round(u.y - (u.d.cls === 'air' ? (u.alt || 1) * 10 : 0));
+        const r = u.d.cls === 'inf' ? 5 : rtsUnitSize(u.key) / 2;
+        const at = this.unitXY(u), x = Math.round(at.x), y = Math.round(at.y - (u.d.cls === 'air' ? (u.alt || 1) * 10 : 0));
         ctx.fillRect(x - r, y + r, 3, 1); ctx.fillRect(x + r - 2, y + r, 3, 1); ctx.fillRect(x - r, y - r, 1, 2); ctx.fillRect(x + r, y - r, 1, 2);
       }
       const b = co.selB;

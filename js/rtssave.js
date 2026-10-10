@@ -4,8 +4,8 @@
 //  CONTINUE with the mode picked). The game's own save slot for the mode (Game.saveKey('rts'), through
 //  Game.writeSave); what's saved: the map as it is now (glimmer dug, craters, concrete), every House (credits,
 //  queues, upgrades, palace charge, starport, stats, what it has explored), buildings, units and their orders,
-//  the sandwyrms, the reinforcements still to come, the camera and the groups. Shots and effects in flight aren't;
-//  a frigate on its way drops its cargo at once on loading, a skylifter's load is set down.
+//  the sandwyrms, the ruins, the reinforcements still to come, the camera and the groups. Shots and effects in
+//  flight aren't; a frigate on its way drops its cargo at once on loading, a skylifter's load is set down.
 // =====================================================================
 
 const RTS_SAVE_FMT = 1;
@@ -58,7 +58,7 @@ Object.assign(RtsGame.prototype, {
     return {
       fmt: RTS_SAVE_FMT, player: this.player, frame: this.frame, seed: this.seed, opts,
       map: { w: this.W, h: this.H, t: rtsPackBytes(this.map.t), g: rtsPackBytes(g8), starts: this.map.starts, blooms: this.map.blooms, name: this.map.name },
-      slab,
+      slab, ruins: this.ruins || [],
       houses: this.houseList.map(H => ({ id: H.id, team: H.team, human: H.human, ai: H.ai, credits: H.credits, techLevel: H.techLevel, prod: JSON.parse(JSON.stringify(H.prod)),
         palaceT: H.palaceT, port: H.port ? { stock: H.port.stock, price: H.port.price, order: H.port.order, eta: H.port.eta ? Math.max(1, H.port.eta - this.frame) : 0, t: H.port.t } : null,
         stats: H.stats, defeated: H.defeated, start: H.start, nomads: !!H.nomads, aiBoost: H.aiBoost, exp: rtsPackBits(H.exp) })),
@@ -77,6 +77,7 @@ Object.assign(RtsGame.prototype, {
     this.frame = d.frame | 0;
     this.rnd = rtsRng((this.seed ^ this.frame ^ 0x9e3779b9) >>> 0);
     for (const [i, h] of d.slab || []) this.slab[i] = h;
+    this.ruins = Array.isArray(d.ruins) ? d.ruins.filter(r => r && r.w > 0 && r.h > 0) : [];
     // the Houses
     for (const s of d.houses) {
       let H = this.houses[s.id];

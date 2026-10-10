@@ -19,6 +19,10 @@
 // =====================================================================
 
 const RTS_SLOT = [[-4, -3], [4, -2], [0, 4]];   // infantry spots in a tile
+// where a docked vehicle sits on a building (px from its top-left, and the way it faces there): the refinery's
+// hopper, the repair pad's bay. It holds its tile beside the building and is drawn sliding over onto the bay and back
+// off (u.dockK 0..1)
+const RTS_DOCK_AT = { refinery: [37, 18, 4], repair: [30, 16, 0] };
 const RTS_SQRT2 = Math.SQRT2;
 
 function rtsTurnToward(from, to) {
@@ -469,6 +473,8 @@ Object.assign(RtsGame.prototype, {
       u.salvo--; u.salvoT = 8;
       if (this.validTarget(u, u.salvoTgt, true)) this.spawnShot(u, u.salvoTgt, RTS_WEAPONS[u.d.wpn]);
     }
+    if (u.docked && RTS_DOCK_AT[u.docked.key]) { u.dockB = u.docked; if (!(u.dockK >= 1)) u.dockK = Math.min(1, (u.dockK || 0) + 1 / 16); }
+    else if (u.dockK > 0) u.dockK = Math.max(0, u.dockK - 1 / 12);
     if (u.docked) { this.dockTick(u); return; }
     this.orderTick(u);
     this.moveTick(u);
