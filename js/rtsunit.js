@@ -853,8 +853,9 @@ Object.assign(RtsGame.prototype, {
       this.corpses.push({ key: u.key, h: u.h, x: u.x, y: u.y, f: 0, t: 0, crushed: how === 'crushed' });
       if (how !== 'crushed') this.sfx('playerDie', u.x, u.y, 10);
     } else {
-      this.addFx(u.d.big ? 'bigboom' : 'boom', u.x, u.y - (u.alt ? 8 : 0));
-      if (u.d.cls !== 'air' || u.key !== 'frigate') this.wrecks.push({ key: u.key, h: u.h, x: u.x, y: u.y, t: 0, life: 420 + ((this.rnd() * 200) | 0), dir: u.dir });
+      const at = this.unitXY ? this.unitXY(u) : u;   // where it's seen (a docked one: on the bay)
+      this.addFx(u.d.big ? 'bigboom' : 'boom', at.x, at.y - (u.alt ? 8 : 0));
+      if (u.d.cls !== 'air' || u.key !== 'frigate') this.wrecks.push({ key: u.key, h: u.h, x: at.x, y: at.y, t: 0, life: 420 + ((this.rnd() * 200) | 0), dir: u.dir });
       this.sfx('explode', u.x, u.y);
       if (u.d.selfDestruct && how !== 'boom') this.selfDestructBlast(u, true);
       if (u.d.harvester && u.cargo > 50) this.spill(u.tx, u.ty, u.cargo);
