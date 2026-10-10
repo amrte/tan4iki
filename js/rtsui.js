@@ -10,7 +10,8 @@
 //    fire; double-click selects all of a kind on screen; the screen's edge, the arrow keys and WASD scroll; the
 //    minimap jumps. Keyboard + gamepad without a mouse: the d-pad moves a cursor (faster as you hold it; at the edge it
 //    scrolls), FIRE clicks, B cancels (B + d-pad pans), TAB / pad X jumps the cursor between map and sidebar, pad Y
-//    home, LB/RB the factory tabs. Touch: tap = click, drag = pan, two fingers = deselect.
+//    home, LB/RB the factory tabs. Touch: tap = click, drag = pan, two fingers = deselect, hold a finger still then
+//    drag = a selection box.
 //    Hotkeys: H home, G guard, S stop, A attack-move, R repair, DEL sell, CTRL/SHIFT+1..9 make a group, 1..9 pick it
 //    (twice: go there).
 //    Plus Game.rtsSkirmishSetup (the skirmish setup screen), the stand-in Game.rtsMenu / Game.rtsMissionOver (until
@@ -103,9 +104,9 @@ Object.assign(RtsGame.prototype, {
     let best = null, bd = 1e9;
     for (const u of this.units) {
       if (u.dead || u.carried || u.key === 'frigate' || u.key === 'doomfist') continue;
-      const uy = u.y - (u.d.cls === 'air' ? (u.alt || 1) * 10 : 0);
-      const r = u.d.cls === 'inf' ? 5 : (RTS_DEF_SIZE[u.key] || 16) / 2;
-      const d = Math.max(Math.abs(u.x - wx), Math.abs(uy - wy));
+      const at = this.unitXY(u), uy = at.y - (u.d.cls === 'air' ? (u.alt || 1) * 10 : 0);
+      const r = u.d.cls === 'inf' ? 5 : rtsUnitSize(u.key) / 2;
+      const d = Math.max(Math.abs(at.x - wx), Math.abs(uy - wy));
       if (d > r) continue;
       if (this.hiddenFromPlayer(u)) continue;
       const sc = d - (ownFirst && u.h === this.player ? 4 : 0) - (u.d.cls === 'air' ? 2 : 0);
@@ -214,12 +215,13 @@ Object.assign(RtsGame.prototype, {
     this.ui.sel = this.P.units.filter(u => !u.dead && !u.carried && u.key === t.key && u.x >= c.x && u.x < c.x + L.mw && u.y >= c.y && u.y < c.y + L.mh);
     this.ui.selB = null;
   },
-  // touch: tap clicks, a drag pans, two fingers deselect
+  // touch: tap clicks, a drag pans, two fingers deselect; a finger held still a moment on the map starts a selection
+  // box (drag it out and lift: what's in it is selected; lifted without dragging: all of that kind on the screen)
   touchEvent(kind, x, y, e) {
     const ui = this.ui, T = ui.touches;
     if (kind === 'down') {
-      T.set(e.pointerId, { x0: x, y0: y, x, y, moved: false });
-      if (T.size >= 2) ui.twoFinger = true;
+      T.set(e.pointerId, { x0: x, y0: y, x, y, moved: false, t0: performance.now() });
+      if (T.size >= 2) { ui.twoFinger = true; if (ui.drag && ui.drag.touch) ui.drag = null; }
       ui.mx = x; ui.my = y;
       if (T.size === 1 && x >= this.L.sx) { this.sideClick(x, y, 0); T.get(e.pointerId).side = true; }
       return;
@@ -227,6 +229,13 @@ Object.assign(RtsGame.prototype, {
     const t = T.get(e.pointerId);
     if (!t) return;
     T.delete(e.pointerId);
+    if (t.box) {
+      const d = ui.drag;
+      ui.drag = null;
+      if (kind === 'cancel' || ui.twoFinger || !d) { if (!T.size) ui.twoFinger = false; return; }
+      if (Math.hypot(x - t.x0, y - t.y0) > 6) this.boxSelect(d.wx0, d.wy0, this.toWorld(x, y)); else this.dblAt(t.x0, t.y0);
+      return;
+    }
     if (kind === 'cancel') { if (!T.size) ui.twoFinger = false; return; }
     if (ui.twoFinger) { if (!T.size) { ui.twoFinger = false; this.cancel(); } return; }
     if (t.side) { ui.mmDrag = false; return; }
@@ -236,6 +245,7 @@ Object.assign(RtsGame.prototype, {
   touchMove(x, y, e) {
     const t = this.ui.touches.get(e.pointerId);
     if (!t || t.side || this.ui.touches.size > 1) return;
+    if (t.box) { t.x = x; t.y = y; return; }
     if (!t.moved && Math.hypot(x - t.x0, y - t.y0) > 6) t.moved = true;
     if (t.moved) {
       if (this.ui.mode === 'place') return;
@@ -579,6 +589,17 @@ Object.assign(RtsGame.prototype, {
       ui.lastGroup = { n, t: this.frame };
     }
     this.clampCam();
+    // touch: a finger held still on the map starts a selection box
+    if (ui.touches.size === 1 && !ui.twoFinger && !ui.mode) {
+      const t = ui.touches.values().next().value;
+      if (!t.side && !t.moved && !t.box && this.inMapView(t.x0, t.y0) && performance.now() - t.t0 > 400) {
+        const w = this.toWorld(t.x0, t.y0);
+        t.box = true; ui.drag = { x0: t.x0, y0: t.y0, wx0: w.x, wy0: w.y, active: true, touch: true };
+        ui.mx = t.x; ui.my = t.y;
+        if (typeof Sound !== 'undefined') Sound.play('tick');
+        try { if (navigator.vibrate) navigator.vibrate(12); } catch (er) { /* no buzz */ }
+      }
+    }
     // the box drag
     if (ui.drag && !ui.drag.active && Math.hypot(ui.mx - ui.drag.x0, ui.my - ui.drag.y0) > 4 && !ui.mode) ui.drag.active = true;
     // the selection keeps only what's still yours and alive
@@ -677,6 +698,7 @@ Object.assign(RtsGame.prototype, {
       ctx.strokeStyle = '#FFF';
       const x = Math.min(ui.drag.x0, ui.mx), y = Math.min(ui.drag.y0, ui.my);
       ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(Math.abs(ui.mx - ui.drag.x0)), Math.round(Math.abs(ui.my - ui.drag.y0)));
+      if (ui.drag.touch) { const c = rtsPicCursor('select', 0), hot = rtsHotOfCursor('select', c); ctx.drawImage(c, Math.round(ui.drag.x0) - hot[0], Math.round(ui.drag.y0) - hot[1]); }
     }
     this.renderTop(ctx);
     this.renderSide(ctx);
@@ -717,6 +739,7 @@ Object.assign(RtsGame.prototype, {
     else {
       const m = this.msgs[this.msgs.length - 1];
       if (m && this.frame - m.t < 300) text = m.text;
+      else if (ui.tab === 'starport' && this.portEta()) { text = this.portEta(); col = '#C8F8C8'; }
     }
     const maxc = Math.floor((L.sx - 34) / 4);
     if (text) rtsTiny(ctx, text.slice(0, maxc), 32, 2, col);
@@ -768,7 +791,8 @@ Object.assign(RtsGame.prototype, {
     ctx.fillStyle = low ? ((this.frame >> 4) & 1 ? '#F83818' : '#A02010') : '#38B838';
     ctx.fillRect(pw.x + 1, pw.y + 1, Math.round((pw.w - 2) * P.powerOut / top), pw.h - 2);
     ctx.fillStyle = '#F8F8F8'; ctx.fillRect(pw.x + 1 + Math.round((pw.w - 2) * P.powerUse / top), pw.y, 1, pw.h);
-    rtsTiny(ctx, 'PWR', pw.x + 2, pw.y + 1, '#000');
+    // the label: dark on the bar, light where the bar doesn't reach it
+    rtsTiny(ctx, 'PWR', pw.x + 2, pw.y + 1, (pw.w - 2) * P.powerOut / top > 13 ? '#000' : '#C8B898');
     // the tabs
     const tabs = this.sideTabs(), T = L.tabs;
     if (tabs.length && !tabs.includes(ui.tab)) ui.tab = tabs[0];
@@ -857,10 +881,12 @@ Object.assign(RtsGame.prototype, {
       rtsTiny(ctx, '^', ax + 1, G.y + 3, ui.scroll > 0 ? '#F8E8C0' : '#5C4C3C');
       rtsTiny(ctx, 'V', ax + 1, G.y + G.rows * G.ch - 8, ui.scroll < rows - G.rows ? '#F8E8C0' : '#5C4C3C');
     }
-    if (kind === 'starport' && (P.port.order.length || P.port.frigate)) {
-      const eta = P.port.frigate ? 'FRIGATE INBOUND' : 'FRIGATE IN ' + Math.max(0, Math.ceil((P.port.eta - this.frame) / 60)) + 'S';
-      rtsTinyCenter(ctx, eta, L.sx + L.side / 2, G.y + G.rows * G.ch - 6, '#C8F8C8');
-    }
+  },
+  // the starport's frigate: on its way, or coming once ordered ('' when nothing is ordered)
+  portEta() {
+    const P = this.P.port;
+    if (!P || (!P.order.length && !P.frigate)) return '';
+    return P.frigate ? 'FRIGATE INBOUND' : 'FRIGATE IN ' + Math.max(0, Math.ceil((P.eta - this.frame) / 60)) + 'S';
   },
   renderPanel(ctx) {
     const L = this.L, P = L.panel, ui = this.ui, Hs = this.P;
@@ -902,14 +928,16 @@ Object.assign(RtsGame.prototype, {
       else if (b.d.storage) info = 'STORES ' + b.d.storage;
       else if (b.d.fac && b.d.fac !== 'starport') {
         const q = Hs.prod[b.d.fac], first = q.queue.length ? rtsNameOf(q.queue[0]).split(' ')[0] : '';
-        info = !q.queue.length ? 'LEVEL ' + (this.upgLevel(Hs, b.d.fac) + 1) : q.ready ? (b.d.fac === 'yard' ? 'PLACE ' : 'WAIT ') + first : first.slice(0, 8) + ' ' + Math.floor(this.progress(this.player, b.d.fac) * 100) + '%';
+        info = !q.queue.length ? 'LEVEL ' + (this.upgLevel(Hs, b.d.fac) + 1) : q.ready ? first : first.slice(0, 8) + ' ' + Math.floor(this.progress(this.player, b.d.fac) * 100) + '%';
+        if (q.ready) info2 = b.d.fac === 'yard' ? 'READY: PLACE' : 'NO ROOM: WAIT';
       }
-      else if (b.d.palace) info = RTS_PALACE[this.palaceKind(this.player)] ? RTS_PALACE[this.palaceKind(this.player)].name.split(' ')[0] : '';
-      if (b.h === this.player && b.d.power < 0) info2 = 'USES ' + (-b.d.power) + ' PWR';
-      if (b.bare && b.h === this.player && !b.d.wall) info2 = 'ON BARE ROCK';
+      else if (b.d.palace) { const k = this.palaceKind(this.player), n = RTS_PALACE[k] ? RTS_PALACE[k].name : ''; info = n.length <= 13 ? n : k.toUpperCase(); }
+      else if (b.key === 'starport' && b.h === this.player) info = this.portEta().replace('FRIGATE ', '') || 'NO ORDERS';
+      if (b.h === this.player && b.d.power < 0 && !info2) info2 = 'USES ' + (-b.d.power) + ' PWR';
+      if (b.bare && b.h === this.player && !b.d.wall && !info2.startsWith('READY') && !info2.startsWith('NO ROOM')) info2 = 'ON BARE ROCK';
     }
-    if (info) rtsTiny(ctx, info.slice(0, 12), P.x + 36, P.y + 15, '#C8B898');
-    if (info2) rtsTiny(ctx, info2.slice(0, 12), P.x + 36, P.y + 21, '#A89878');
+    if (info) rtsTiny(ctx, info.slice(0, 13), P.x + 36, P.y + 15, '#C8B898');
+    if (info2) rtsTiny(ctx, info2.slice(0, 13), P.x + 36, P.y + 21, info2.startsWith('READY') && (this.frame >> 4) & 1 ? '#78F878' : '#A89878');
     for (const b of this.panelButtons()) {
       const r = b.r;
       ctx.fillStyle = b.dis ? '#2A2218' : b.on ? '#7C6430' : b.warn ? '#7C2818' : '#5A4830';
@@ -922,8 +950,9 @@ Object.assign(RtsGame.prototype, {
   renderIntro(ctx) {
     const L = this.L, a = Math.min(1, (330 - this.frame) / 40);
     const lines = [];
-    if (this.opts.title) lines.push([String(this.opts.title).toUpperCase(), '#F8C838']);
-    if (this.opts.objectiveText) for (const ln of this.wrapText(String(this.opts.objectiveText).toUpperCase(), Math.floor((L.mw - 24) / 8))) lines.push([ln, '#F0E0B0']);
+    const cols = Math.floor((L.mw - 24) / 8);
+    if (this.opts.title) for (const ln of this.wrapText(String(this.opts.title).toUpperCase(), cols)) lines.push([ln, '#F8C838']);
+    if (this.opts.objectiveText) for (const ln of this.wrapText(String(this.opts.objectiveText).toUpperCase(), cols)) lines.push([ln, '#F0E0B0']);
     const h = lines.length * 10 + 10, y = L.my + 18;
     ctx.globalAlpha = a;
     ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(L.mx + 8, y - 5, L.mw - 16, h);
