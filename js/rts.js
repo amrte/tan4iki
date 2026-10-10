@@ -100,7 +100,7 @@ class RtsGame {
     for (const Hs of this.houseList) this.setupHouse(Hs);
     // ---- sandwyrms
     this.wormCount = opts.worms === undefined ? 1 : opts.worms | 0;
-    for (let i = 0; i < this.wormCount; i++) this.spawnWorm(4800 + i * 2400);
+    for (let i = 0; i < this.wormCount; i++) this.spawnWorm((typeof RTS_WORM !== 'undefined' ? RTS_WORM.first : 4800) + i * 2400);
     this.bloomT = 1800;
     this.reinf = (opts.reinforcements || []).map(r => Object.assign({ done: false }, r));
     this.objectives = opts.objectives || { destroy: true };

@@ -969,7 +969,7 @@ Object.assign(RtsGame.prototype, {
           u.hs = 'seek';
           return;
         }
-        if (u.anim % 2 === 0) {
+        if (u.anim % (u.d.digEvery || 2) === 0) {   // digEvery (rtsdata.js): frames a scoop of 2
           const take = Math.min(g[i], 2, cap - u.cargo);
           g[i] -= take; u.cargo += take;
           const k = this.map.t[i];
@@ -1373,7 +1373,7 @@ Object.assign(RtsGame.prototype, {
 
   // ================================================================ sandwyrms
   spawnWorm(delay) {
-    this.worms.push({ id: this.nextId++, x: 0, y: 0, phase: 'away', t: delay, hp: 700, eaten: 0, dir: 0, prey: null, wx: 0, wy: 0, f: 0, said: -99999, full: 2 + ((this.rnd() * 3) | 0) });
+    this.worms.push({ id: this.nextId++, x: 0, y: 0, phase: 'away', t: delay, hp: 700, eaten: 0, dir: 0, prey: null, wx: 0, wy: 0, f: 0, said: -99999, full: this.wormMeals() });
   },
   onSand(x, y) {
     const tx = (x / 16) | 0, ty = (y / 16) | 0;
@@ -1399,7 +1399,7 @@ Object.assign(RtsGame.prototype, {
       w.f++;
       switch (w.phase) {
         case 'away':
-          if (--w.t <= 0) { if (this.placeWorm(w)) { w.phase = 'roam'; w.hp = 700; w.eaten = 0; w.full = 2 + ((this.rnd() * 3) | 0); } else w.t = 300; }
+          if (--w.t <= 0) { if (this.placeWorm(w)) { w.phase = 'roam'; w.hp = 700; w.eaten = 0; w.full = this.wormMeals(); } else w.t = 300; }
           break;
         case 'roam': case 'hunt': {
           // it hunts for a while, then loses interest and wanders for a while
@@ -1448,21 +1448,23 @@ Object.assign(RtsGame.prototype, {
           w.t++;
           if (w.t >= 30) {
             w.prey = null;
-            if (w.eaten >= w.full || w.hp <= 0) { w.phase = 'away'; w.t = 3600 + ((this.rnd() * 3600) | 0); }
+            if (w.eaten >= w.full || w.hp <= 0) { const A = typeof RTS_WORM !== 'undefined' ? RTS_WORM.away : [3600, 7200]; w.phase = 'away'; w.t = A[0] + ((this.rnd() * (A[1] - A[0])) | 0); }
             else w.phase = 'roam';
           }
           break;
       }
     }
   },
+  // how many meals before a worm dives deep for a while (RTS_WORM in rtsdata.js)
+  wormMeals() { const M = typeof RTS_WORM !== 'undefined' ? RTS_WORM.meals : [2, 4]; return M[0] + ((this.rnd() * (M[1] - M[0] + 1)) | 0); },
   // the worm hunts the noisiest thing on the sand near it
   wormPrey(w) {
     let best = null, bs = 1e9;
-    this.unitsNear(w.x, w.y, 16 * 14, (u, d2) => {
+    this.unitsNear(w.x, w.y, 16 * (typeof RTS_WORM !== 'undefined' ? RTS_WORM.hear : 14), (u, d2) => {
       if (u.d.cls === 'air' || u.docked || !this.onSand(u.x, u.y)) return;
       const noisy = this.frame - u.noiseT < 120;
       if (!noisy) return;
-      const sc = Math.sqrt(d2) * (u.d.cls === 'inf' ? 1.6 : 1) * (u.d.harvester ? 0.7 : 1);
+      const sc = Math.sqrt(d2) * (u.d.cls === 'inf' ? 1.6 : 1) * (u.d.harvester ? (typeof RTS_WORM !== 'undefined' ? RTS_WORM.harvester : 0.7) : 1);
       if (sc < bs) { bs = sc; best = u; }
     });
     return best;
