@@ -400,9 +400,9 @@ music (no names, characters, text or tunes from the real game or the books).
 - **Hotkeys:** H home (the construction yard, again for the next), G guard, S stop, A attack-move, R repair the
   selected building, DEL twice sells it, Ctrl+1..9 (or Shift) makes a group, 1..9 picks it (twice: goes there).
 - **Keyboard or gamepad alone:** the arrows / d-pad move a cursor (faster as you hold it; it scrolls at the edge),
-  FIRE (Space, J, K or pad A) clicks, held it drags a box; B (or pad B) cancels, B held with the d-pad pans; TAB or
-  pad X jumps the cursor between the map and the sidebar; pad Y goes home, LB/RB change the factory tab, the right
-  stick pans.
+  FIRE (Space, J, K or pad A) clicks, held it drags a box; B (or pad B) cancels (on a build icon: takes one off its
+  queue), B held with the d-pad pans; TAB or pad X jumps the cursor between the map and the sidebar; pad Y goes
+  home, LB/RB change the factory tab, the right stick pans.
 - **Touch:** tap clicks (select, order, build), a drag pans the map, two fingers deselect; hold a finger still a
   moment and then drag to draw a selection box (lift without dragging: every unit of that kind on the screen). On
   the build icons a drag scrolls them and a long press cancels one (as the right button does). MENU in the top-left

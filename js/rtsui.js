@@ -655,7 +655,12 @@ Object.assign(RtsGame.prototype, {
     if (inp.fireJ) this.pressAt(ui.cx, ui.cy, 0);
     if (!inp.fireD && (ui.fireWas || inp.fireJ)) this.releaseAt(ui.cx, ui.cy, 0, false);
     if (inp.cancelJ) ui.panned = false;
-    if (!inp.cancelD && (ui.cancelWas || inp.cancelJ) && !ui.panned) this.cancel();
+    if (!inp.cancelD && (ui.cancelWas || inp.cancelJ) && !ui.panned) {
+      // B on a build icon takes one off its queue (the right button's job), anywhere else cancels / deselects
+      const G = L.grid;
+      if (ui.cx >= G.x && ui.cx < G.x + G.cols * G.cw && ui.cy >= G.y && ui.cy < G.y + G.rows * G.ch) this.sideClick(ui.cx, ui.cy, 2);
+      else this.cancel();
+    }
   },
   // online: each guest moves a cursor of their own over the host's screen (the d-pad, FIRE clicks, B cancels) and
   // commands the same House with its own selection
