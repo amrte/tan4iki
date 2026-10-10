@@ -1068,7 +1068,10 @@ Object.assign(RtsGame.prototype, {
       const a = Math.min(u.cargo, 7);
       u.cargo -= a;
       this.addCredits(Hs, a);
+      u.unloaded = (u.unloaded || 0) + a;
       if (u.cargo <= 0) {
+        if (Hs.human && u.unloaded >= 50) this.say('HARVESTER UNLOADED: +' + Math.round(u.unloaded) + ' CREDITS');
+        u.unloaded = 0;
         u.cargo = 0; b.busy = null; u.docked = null; u.hs = 'seek';
         if (u.order.k !== 'harvest') u.order = { k: 'harvest' };
       }

@@ -327,7 +327,10 @@ class RtsGame {
     this.reveal(Hs, x + (d.w >> 1), y + (d.h >> 1), (d.sight || 2) + 1);
     if (d.freeUnit && !o.noFree) {
       const u = this.spawnBeside(Hs, d.freeUnit, b);
-      if (u && RTS_UNITS[d.freeUnit].harvester) this.cmdHarvest(u);
+      if (u && RTS_UNITS[d.freeUnit].harvester) {
+        this.cmdHarvest(u);
+        if (Hs.human && !o.instant) this.say('HARVESTER OUT: IT GATHERS BY ITSELF');
+      }
     }
     if (d.palace) Hs.palaceT = Math.max(Hs.palaceT, 0);
     return b;

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>tanb4iki_v0.65</title>
+  <title>tanb4iki_v0.65.1</title>
   <style>
 :root {
   --bg: #000;
@@ -211,7 +211,7 @@ body.csmode .btns button.radio { display: inline-block; }
 // Shown on the title screen and in the browser tab; tools/build.js names the download after it.
 // Bump APP_VERSION (and add a CHANGELOG.md entry) for every release.
 const APP_NAME = 'tanb4iki';
-const APP_VERSION = '0.65';
+const APP_VERSION = '0.65.1';
 const APP_TITLE = APP_NAME + '_v' + APP_VERSION;
 // the game's name in brick letters on the title screen
 const GAME_NAME = 'TANЬ4IKI';
@@ -50679,7 +50679,7 @@ const RTS_UNITS = {
   siege: { name: 'SIEGE TANK', cls: 'veh', move: 'track', armor: 'heavy', hp: 380, speed: 0.4, turn: 7, wpn: 'siegegun', sight: 4, cost: 600, costBy: { serpens: 540 }, time: 900,
     fac: 'heavy', tech: 5, upg: 2, turret: true, crush: true, desc: 'HEAVY TWIN CANNON, SLOW' },
   harvester: { name: 'HARVESTER', cls: 'veh', move: 'track', armor: 'heavy', hp: 160, speed: 0.42, turn: 6, wpn: null, sight: 2, cost: 300, time: 720,
-    fac: 'heavy', tech: 1, crush: true, harvester: true, cap: 700, digEvery: 6, big: true, desc: 'GATHERS 700 CREDITS OF GLIMMER' },
+    fac: 'heavy', tech: 1, crush: true, harvester: true, cap: 700, digEvery: 4, big: true, desc: 'GATHERS 700 CREDITS OF GLIMMER' },
   mcv: { name: 'MCV', cls: 'veh', move: 'track', armor: 'heavy', hp: 150, speed: 0.38, turn: 7, wpn: null, sight: 3, cost: 900, time: 960,
     fac: 'heavy', tech: 4, upg: 1, crush: true, deploys: 'yard', big: true, desc: 'DEPLOYS INTO A CONSTRUCTION YARD' },
   sonic: { name: 'SONIC TANK', cls: 'veh', move: 'track', armor: 'heavy', hp: 220, speed: 0.45, turn: 6, wpn: 'sonicwave', sight: 4, cost: 600, costBy: { aquila: 550 }, time: 900,
@@ -51116,7 +51116,10 @@ class RtsGame {
     this.reveal(Hs, x + (d.w >> 1), y + (d.h >> 1), (d.sight || 2) + 1);
     if (d.freeUnit && !o.noFree) {
       const u = this.spawnBeside(Hs, d.freeUnit, b);
-      if (u && RTS_UNITS[d.freeUnit].harvester) this.cmdHarvest(u);
+      if (u && RTS_UNITS[d.freeUnit].harvester) {
+        this.cmdHarvest(u);
+        if (Hs.human && !o.instant) this.say('HARVESTER OUT: IT GATHERS BY ITSELF');
+      }
     }
     if (d.palace) Hs.palaceT = Math.max(Hs.palaceT, 0);
     return b;
@@ -52851,7 +52854,10 @@ Object.assign(RtsGame.prototype, {
       const a = Math.min(u.cargo, 7);
       u.cargo -= a;
       this.addCredits(Hs, a);
+      u.unloaded = (u.unloaded || 0) + a;
       if (u.cargo <= 0) {
+        if (Hs.human && u.unloaded >= 50) this.say('HARVESTER UNLOADED: +' + Math.round(u.unloaded) + ' CREDITS');
+        u.unloaded = 0;
         u.cargo = 0; b.busy = null; u.docked = null; u.hs = 'seek';
         if (u.order.k !== 'harvest') u.order = { k: 'harvest' };
       }
@@ -55508,6 +55514,8 @@ Object.assign(RtsGame.prototype, {
     if (u && u.d.deploys) { this.ui.sel = [u]; this.say('DEPLOY THE MCV ON ROCK TO BUILD YOUR BASE'); }
     if (this.opts.objectiveText) this.say(String(this.opts.objectiveText).toUpperCase());
     else if (this.objectives.harvest) this.say('HARVEST ' + this.objectives.harvest + ' CREDITS OF GLIMMER');
+    // the first missions: how to start earning
+    if (this.objectives.harvest && !P.buildings.some(b => b.key === 'refinery')) this.say('BUILD A VAPOR TRAP, THEN A REFINERY');
     this.onDeployed = (yard) => { this.ui.sel = []; this.ui.selB = yard; this.ui.tab = 'yard'; };
   },
   uiLayout() {
@@ -57429,7 +57437,9 @@ Object.assign(RtsGame.prototype, {
     };
     for (const u of units) {
       const isSel = sel.has(u), hov = ui.hover === u;
-      if (!isSel && !hov) continue;
+      // your harvesters always show their load (it's what's paid when they get home)
+      const load = u.d.harvester && u.h === this.player && u.cargo > 0;
+      if (!isSel && !hov && !load) continue;
       const r = u.d.cls === 'inf' ? 4 : u.key === 'frigate' ? 16 : rtsUnitSize(u.key) / 2 - 1;
       const at = this.unitXY(u), x = Math.round(at.x), y = Math.round(at.y - (u.d.cls === 'air' ? (u.alt || 1) * 10 : 0));
       if (isSel) {
@@ -57438,8 +57448,8 @@ Object.assign(RtsGame.prototype, {
         ctx.fillRect(x - r, y - r, k, 1); ctx.fillRect(x - r, y - r, 1, k); ctx.fillRect(x + r - k + 1, y - r, k, 1); ctx.fillRect(x + r, y - r, 1, k);
         ctx.fillRect(x - r, y + r, k, 1); ctx.fillRect(x - r, y + r - k + 1, 1, k); ctx.fillRect(x + r - k + 1, y + r, k, 1); ctx.fillRect(x + r, y + r - k + 1, 1, k);
       }
-      bar(x - r, y - r - 3, r * 2, u.hp / u.max);
-      if (isSel && u.d.harvester) { ctx.fillStyle = '#000'; ctx.fillRect(x - r - 1, y + r + 2, r * 2 + 2, 3); ctx.fillStyle = '#F89030'; ctx.fillRect(x - r, y + r + 3, Math.round(r * 2 * u.cargo / (u.d.cap || 700)), 1); }
+      if (isSel || hov) bar(x - r, y - r - 3, r * 2, u.hp / u.max);
+      if ((isSel || load) && u.d.harvester) { ctx.fillStyle = '#000'; ctx.fillRect(x - r - 1, y + r + 2, r * 2 + 2, 3); ctx.fillStyle = '#F89030'; ctx.fillRect(x - r, y + r + 3, Math.round(r * 2 * u.cargo / (u.d.cap || 700)), 1); }
     }
     for (const b of blds) {
       if (b !== ui.selB && ui.hover !== b) continue;

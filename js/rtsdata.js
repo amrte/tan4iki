@@ -121,7 +121,7 @@ const RTS_UNITS = {
   siege: { name: 'SIEGE TANK', cls: 'veh', move: 'track', armor: 'heavy', hp: 380, speed: 0.4, turn: 7, wpn: 'siegegun', sight: 4, cost: 600, costBy: { serpens: 540 }, time: 900,
     fac: 'heavy', tech: 5, upg: 2, turret: true, crush: true, desc: 'HEAVY TWIN CANNON, SLOW' },
   harvester: { name: 'HARVESTER', cls: 'veh', move: 'track', armor: 'heavy', hp: 160, speed: 0.42, turn: 6, wpn: null, sight: 2, cost: 300, time: 720,
-    fac: 'heavy', tech: 1, crush: true, harvester: true, cap: 700, digEvery: 6, big: true, desc: 'GATHERS 700 CREDITS OF GLIMMER' },
+    fac: 'heavy', tech: 1, crush: true, harvester: true, cap: 700, digEvery: 4, big: true, desc: 'GATHERS 700 CREDITS OF GLIMMER' },
   mcv: { name: 'MCV', cls: 'veh', move: 'track', armor: 'heavy', hp: 150, speed: 0.38, turn: 7, wpn: null, sight: 3, cost: 900, time: 960,
     fac: 'heavy', tech: 4, upg: 1, crush: true, deploys: 'yard', big: true, desc: 'DEPLOYS INTO A CONSTRUCTION YARD' },
   sonic: { name: 'SONIC TANK', cls: 'veh', move: 'track', armor: 'heavy', hp: 220, speed: 0.45, turn: 6, wpn: 'sonicwave', sight: 4, cost: 600, costBy: { aquila: 550 }, time: 900,

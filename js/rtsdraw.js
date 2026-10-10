@@ -655,7 +655,9 @@ Object.assign(RtsGame.prototype, {
     };
     for (const u of units) {
       const isSel = sel.has(u), hov = ui.hover === u;
-      if (!isSel && !hov) continue;
+      // your harvesters always show their load (it's what's paid when they get home)
+      const load = u.d.harvester && u.h === this.player && u.cargo > 0;
+      if (!isSel && !hov && !load) continue;
       const r = u.d.cls === 'inf' ? 4 : u.key === 'frigate' ? 16 : rtsUnitSize(u.key) / 2 - 1;
       const at = this.unitXY(u), x = Math.round(at.x), y = Math.round(at.y - (u.d.cls === 'air' ? (u.alt || 1) * 10 : 0));
       if (isSel) {
@@ -664,8 +666,8 @@ Object.assign(RtsGame.prototype, {
         ctx.fillRect(x - r, y - r, k, 1); ctx.fillRect(x - r, y - r, 1, k); ctx.fillRect(x + r - k + 1, y - r, k, 1); ctx.fillRect(x + r, y - r, 1, k);
         ctx.fillRect(x - r, y + r, k, 1); ctx.fillRect(x - r, y + r - k + 1, 1, k); ctx.fillRect(x + r - k + 1, y + r, k, 1); ctx.fillRect(x + r, y + r - k + 1, 1, k);
       }
-      bar(x - r, y - r - 3, r * 2, u.hp / u.max);
-      if (isSel && u.d.harvester) { ctx.fillStyle = '#000'; ctx.fillRect(x - r - 1, y + r + 2, r * 2 + 2, 3); ctx.fillStyle = '#F89030'; ctx.fillRect(x - r, y + r + 3, Math.round(r * 2 * u.cargo / (u.d.cap || 700)), 1); }
+      if (isSel || hov) bar(x - r, y - r - 3, r * 2, u.hp / u.max);
+      if ((isSel || load) && u.d.harvester) { ctx.fillStyle = '#000'; ctx.fillRect(x - r - 1, y + r + 2, r * 2 + 2, 3); ctx.fillStyle = '#F89030'; ctx.fillRect(x - r, y + r + 3, Math.round(r * 2 * u.cargo / (u.d.cap || 700)), 1); }
     }
     for (const b of blds) {
       if (b !== ui.selB && ui.hover !== b) continue;

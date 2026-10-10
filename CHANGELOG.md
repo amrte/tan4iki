@@ -3,6 +3,13 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.65.1
+
+- **Desert Dominion: harvesting is clearer and quicker.** Harvesters scoop faster (a full load in about half a minute
+  instead of 45 s), your harvesters always show their load (the orange bar), and the status line tells you when the
+  refinery's harvester sets off ("HARVESTER OUT: IT GATHERS BY ITSELF") and what each load paid ("HARVESTER UNLOADED:
+  +700 CREDITS"). The harvest missions open with "BUILD A VAPOR TRAP, THEN A REFINERY". README: first steps.
+
 ## 0.65
 
 - **New mode: DESERT DOMINION** — a full tribute to Dune II, the first modern real-time strategy game, with its rules

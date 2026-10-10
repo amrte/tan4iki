@@ -363,6 +363,10 @@ A tribute to Dune II: The Building of a Dynasty (1992), the first modern real-ti
 faithful; everything else is original: the planet, the Houses, the advisors, the units' names, the pictures and the
 music (no names, characters, text or tunes from the real game or the books).
 
+- **First steps (earning money):** build a VAPOR TRAP (power), then a REFINERY next to your base (BD tab: click the
+  icon, wait for READY, click it again and click a spot on rock next to your buildings). The refinery comes with a
+  HARVESTER that drives to the nearest orange glimmer by itself, fills up (the orange bar under it) and brings it
+  home: the credits come in as it unloads (about 700 a trip). To send it somewhere, select it and click the glimmer.
 - **The world:** KHARRA, a desert planet. Its resource is GLIMMER, an orange glowing sand in light and thick fields
   (and GLIMMER BLOOMS, buried bulbs that burst into a new field when touched or shot); harvesters gather it and
   refineries turn it into CREDITS. The SANDWYRMS roam the open sand, home in on noise (moving, digging, firing) and

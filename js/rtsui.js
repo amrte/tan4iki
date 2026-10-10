@@ -66,6 +66,8 @@ Object.assign(RtsGame.prototype, {
     if (u && u.d.deploys) { this.ui.sel = [u]; this.say('DEPLOY THE MCV ON ROCK TO BUILD YOUR BASE'); }
     if (this.opts.objectiveText) this.say(String(this.opts.objectiveText).toUpperCase());
     else if (this.objectives.harvest) this.say('HARVEST ' + this.objectives.harvest + ' CREDITS OF GLIMMER');
+    // the first missions: how to start earning
+    if (this.objectives.harvest && !P.buildings.some(b => b.key === 'refinery')) this.say('BUILD A VAPOR TRAP, THEN A REFINERY');
     this.onDeployed = (yard) => { this.ui.sel = []; this.ui.selB = yard; this.ui.tab = 'yard'; };
   },
   uiLayout() {
