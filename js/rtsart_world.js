@@ -1680,7 +1680,7 @@ function rtsWDoor(P, x, y, w, h, open, H) {
   // the frame: lit lintel, hazard posts either side in finer stripes
   P.rect(x - 1, y - 1, w + 2, q, RTS_W_M[2]);
   for (let j = 0; j < h; j += q) { const c = ((Math.floor(j * 2) >> 1) & 1) ? RTS_W_C.hazard[0] : RTS_W_C.hazard[1]; P.rect(x - 1, y + j, 1, q, c); P.rect(x + w, y + j, 1, q, c); }
-  P.rect(x - 1 + q, y, q, h, '#00000033');
+  P.rect(x - 1 + q, y, q, h, '#000000', 0.3);
   if (H) { P.rect(x, y - 2, w, 1, H[1]); P.rect(x, y - 2, w, q, H[0]); }
 }
 // smoke puffs drifting up from a chimney top at x, y
