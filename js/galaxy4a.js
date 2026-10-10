@@ -1,6 +1,6 @@
 'use strict';
 // =====================================================================
-//  GALAXY, two more sectors before THE LAST BASE (CATS stays the last), each with its own sky, enemies, waves, boss
+//  GALAXY, two more sectors before THE FLAGSHIP (CATS's sector), each with its own sky, enemies, waves, boss
 //  and music (the way galaxy3.js added THE WELL and THE SLOP FEED).
 //    RAINBOW RIFT  a candy-coloured nebula: pastel clouds, rainbow streams, candy planets, glitter falling
 //       enemies sparkle sprites (the drones here), cotton-candy clouds that split in two puffs, glitter mines that
@@ -29,14 +29,14 @@
 //  The boss pictures (WARNING / VICTORY) go into GX_BOSS_ART and GX_BOSS_TALES once gxbossart.js has loaded.
 // =====================================================================
 
-// ------------------------------------------------------------------ two more sectors, before THE LAST BASE
+// ------------------------------------------------------------------ two more sectors, before THE FLAGSHIP
 const GX4A_NONE = ['#000000', '#000000', '#000000'];
 const GX4A_RAINBOW = { name: 'RAINBOW RIFT', sky: '#120826', dust: '#7C5CA8', planet: GX4A_NONE, noPlanet: true, bg: (c, f, g) => gx4aBgRainbow(c, f, g),
   swap: { drone: 'gx4aSparkle' }, song: 'gx4aRainbow', bossSong: 'gx4aBossRainbow' };
 const GX4A_DISCO = { name: 'DISCO MOON', sky: '#07040C', dust: '#4C3C64', planet: GX4A_NONE, noPlanet: true, bg: (c, f, g) => gx4aBgDisco(c, f, g),
   swap: { drone: 'gx4aDancer' }, song: 'gx4aDisco', bossSong: 'gx4aBossDisco' };
 {
-  const at = GX_SECTORS.findIndex(s => s.name === 'THE LAST BASE');
+  const at = GX_SECTORS.findIndex(s => s.name === 'THE FLAGSHIP');
   const i = at < 0 ? GX_SECTORS.length : at;
   GX_SECTORS.splice(i, 0, GX4A_RAINBOW, GX4A_DISCO);
   GX_PLAN.splice(i, 0,

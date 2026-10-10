@@ -1,6 +1,6 @@
 'use strict';
 // =====================================================================
-//  GALAXY, two more sectors before THE LAST BASE (CATS stays the last), each with its own enemies, waves, gimmick,
+//  GALAXY, two more sectors before THE FLAGSHIP (CATS's sector), each with its own enemies, waves, gimmick,
 //  boss, sky and music.
 //    THE GHOST SEA  a cold, dark sea of space: a ghostly moon, phosphorescent waves rolling by, icebergs adrift,
 //                   fog banks, wreckage and bubbles. Its CURRENT now and then sweeps your ship sideways (warned)
@@ -32,14 +32,14 @@
 //  Their songs (chiptune, rock, synthwave) are at the end, the WARNING/VICTORY pictures too.
 // =====================================================================
 
-// ------------------------------------------------------------------ two more sectors, before THE LAST BASE
+// ------------------------------------------------------------------ two more sectors, before THE FLAGSHIP
 const GX4B_NONE = ['#000000', '#000000', '#000000'];
 const GX4B_SEA = { name: 'THE GHOST SEA', sky: '#03070F', dust: '#1C3C48', planet: GX4B_NONE, noPlanet: true, bg: (c, f, g) => gx4bBgSea(c, f, g),
   swap: { drone: 'gx4bWisp' }, song: 'gx4bSea', bossSong: 'gx4bBossSea' };
 const GX4B_POLE = { name: 'NORTH POLE', sky: '#050A1E', dust: '#2C3C6C', planet: GX4B_NONE, noPlanet: true, bg: (c, f, g) => gx4bBgPole(c, f, g),
   swap: { drone: 'gx4bElf' }, song: 'gx4bPole', bossSong: 'gx4bBossPole' };
 {
-  const at = GX_SECTORS.findIndex(s => s.name === 'THE LAST BASE');
+  const at = GX_SECTORS.findIndex(s => s.name === 'THE FLAGSHIP');
   GX_SECTORS.splice(at, 0, GX4B_SEA, GX4B_POLE);
   GX_PLAN.splice(at, 0,
     ['gx4bFlotilla', 'gx4bBergs', 'gx4bChairs', 'gx4bFog', 'gx4bFlares', 'kamikaze'],

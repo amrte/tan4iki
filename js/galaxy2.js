@@ -12,7 +12,7 @@
 //                             so switch guns; tractor beam, cutting beam, little cubes that hunt you
 //           11 DARK STAR      boss GIANT HEAD: a huge floating face with two hands that slam down at you; it
 //                             breathes you in and spits tiles; under the face, a brain
-//           12 THE LAST BASE  boss CATS: ALL YOUR BASE ARE BELONG TO US. Time bombs (shoot them), the main
+//           12 THE FLAGSHIP   boss CATS: ALL YOUR BASE ARE BELONG TO US. Time bombs (shoot them), the main
 //                             screen's beam, fighters
 //    enemies flying toasters (from the old screensaver), the bouncing DVD logo (hit a corner!), flying taxis and
 //            police cars in traffic lanes, squid-like sentinels that hunt you, cows flung up from below (holy
@@ -26,7 +26,7 @@ GX_SECTORS.push(
   { name: 'SATURN RINGS', sky: '#0C0804', dust: '#4C3C1C', planet: ['#000000', '#000000', '#000000'], noPlanet: true, bg: (c, f) => gxBgSaturn(c, f), swap: { drone: 'msaucer' } },
   { name: 'CYBERSPACE', sky: '#000800', dust: '#0C4C0C', planet: ['#000000', '#000000', '#000000'], noPlanet: true, bg: (c, f) => gxBgGrid(c, f), swap: { bug: 'sentinel' } },
   { name: 'DARK STAR', sky: '#080000', dust: '#3C0C0C', planet: ['#000000', '#000000', '#000000'], noPlanet: true, bg: (c, f) => gxBgDarkStar(c, f) },
-  { name: 'THE LAST BASE', sky: '#06060A', dust: '#2C2C3C', planet: ['#000000', '#000000', '#000000'], noPlanet: true, bg: (c, f) => gxBgBase(c, f) },
+  { name: 'THE FLAGSHIP', sky: '#06060A', dust: '#2C2C3C', planet: ['#000000', '#000000', '#000000'], noPlanet: true, bg: (c, f) => gxBgBase(c, f) },
 );
 // the first six get some of the new waves too
 GX_PLAN[0] = ['formation', 'swarm', 'invaders', 'rocks', 'swarm', 'formation'];

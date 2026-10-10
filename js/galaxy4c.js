@@ -1,6 +1,7 @@
 'use strict';
 // =====================================================================
-//  GALAXY: two more sectors before THE LAST BASE (CATS stays the finale), each with its own enemies, waves, gimmick,
+//  GALAXY: two more sectors, MARS HIGHWAY before THE FLAGSHIP and THE DESKTOP after it (WINDOWS 95 is the finale),
+//  each with its own enemies, waves, gimmick,
 //  boss, sky and music (chiptune, rock and synthwave).
 //    MARS HIGHWAY  a neon highway to Mars floating in red dust: lane markings racing by, billboards, Mars ahead with
 //                  rockets taking off from and landing on its pads
@@ -39,19 +40,19 @@
 //  Parody only: no logos copied, no real sounds or tunes: every melody here is new.
 // =====================================================================
 
-// ------------------------------------------------------------------ two more sectors, before THE LAST BASE
+// ------------------------------------------------------------------ two more sectors, round THE FLAGSHIP
 const GX4C_NONE = ['#000000', '#000000', '#000000'];
 const GX4C_MARS = { name: 'MARS HIGHWAY', sky: '#0C0408', dust: '#7C3C24', planet: GX4C_NONE, noPlanet: true, bg: (c, f, g) => gx4cBgMars(c, f, g),
   swap: { drone: 'gx4cDel' }, song: 'gx4cMars', bossSong: 'gx4cBossMars' };
 const GX4C_DESK = { name: 'THE DESKTOP', sky: '#007474', dust: '#3CA8A8', planet: GX4C_NONE, noPlanet: true, bg: (c, f, g) => gx4cBgDesk(c, f, g),
   swap: { drone: 'gx4cCur' }, song: 'gx4cDesk', bossSong: 'gx4cBossDesk' };
-// where they go: just before THE LAST BASE, wherever that is by now (the other new sectors load first)
-const GX4C_AT = (() => { const i = GX_SECTORS.findIndex(s => s.name === 'THE LAST BASE'); return i < 0 ? GX_SECTORS.length : i; })();
-GX_SECTORS.splice(GX4C_AT, 0, GX4C_MARS, GX4C_DESK);
-GX_PLAN.splice(GX4C_AT, 0,
-  ['gx4cCones', 'gx4cRush', 'formation', 'gx4cLanding', 'gx4cRecall', 'gx4cTunnel'],
-  ['gx4cPopups', 'formation', 'gx4cPipes', 'gx4cMines', 'gx4cDefrag', 'gx4cDialup'],
-);
+// where they go: MARS HIGHWAY just before THE FLAGSHIP, wherever that is by now (the other new sectors load first),
+// and THE DESKTOP just after it: WINDOWS 95 is the finale
+const GX4C_AT = (() => { const i = GX_SECTORS.findIndex(s => s.name === 'THE FLAGSHIP'); return i < 0 ? GX_SECTORS.length : i; })();
+GX_SECTORS.splice(GX4C_AT, 0, GX4C_MARS);
+GX_SECTORS.splice(GX4C_AT + 2, 0, GX4C_DESK);
+GX_PLAN.splice(GX4C_AT, 0, ['gx4cCones', 'gx4cRush', 'formation', 'gx4cLanding', 'gx4cRecall', 'gx4cTunnel']);
+GX_PLAN.splice(GX4C_AT + 2, 0, ['gx4cPopups', 'formation', 'gx4cPipes', 'gx4cMines', 'gx4cDefrag', 'gx4cDialup']);
 Object.assign(GX_WAVE_NAMES, { gx4cRush: 'MARS RUSH HOUR', gx4cCones: 'CONE ZONE', gx4cLanding: 'BOOSTER LANDING', gx4cRecall: 'RECALL NOTICE', gx4cTunnel: 'TUNNEL',
   gx4cPopups: 'POP-UP STORM', gx4cPipes: 'SCREENSAVER: PIPES', gx4cDefrag: 'DEFRAG', gx4cMines: 'MINESWEEPER', gx4cDialup: 'DIAL-UP' });
 GX_ALL_WAVES.push('gx4cRush', 'gx4cCones', 'gx4cLanding', 'gx4cRecall', 'gx4cTunnel', 'gx4cPopups', 'gx4cPipes', 'gx4cDefrag', 'gx4cMines', 'gx4cDialup');
@@ -175,7 +176,7 @@ function gx4cFlag(ctx, x, y, w, h, t, trail = true) {
 
 // ------------------------------------------------------------------ the new enemies
 {
-  const A = GX4C_AT, B = GX4C_AT + 1;
+  const A = GX4C_AT, B = GX4C_AT + 2;
   Object.assign(GX_TYPES, {
     // MARS HIGHWAY
     gx4cDel: { w: 12, h: 10, hp: 1, pts: 60, from: A, special: true },                 // a delivery drone (the sector's drones)
@@ -1472,6 +1473,9 @@ const GX4C_MENU = ['PROGRAMS', 'DOCUMENTS', 'SETTINGS', 'FIND', 'HELP', 'RUN...'
       drawOver(ctx, b) { gx4cWinOver.call(this, ctx, b); },
     },
   );
+  // WINDOWS 95 after CATS, as its sector comes after THE FLAGSHIP
+  const w = GX_BOSSES.findIndex(d => d.key === 'gx4cWin'), c = GX_BOSSES.findIndex(d => d.key === 'cats');
+  if (w >= 0 && c === w + 1) [GX_BOSSES[w], GX_BOSSES[c]] = [GX_BOSSES[c], GX_BOSSES[w]];
 }
 
 Object.assign(GX_BOSS_ACTS, {

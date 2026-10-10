@@ -1,6 +1,6 @@
 'use strict';
 // =====================================================================
-//  GALAXY, sectors 12-13: two more sectors before THE LAST BASE (CATS stays the last), each with its own enemies,
+//  GALAXY, sectors 12-13: two more sectors before THE FLAGSHIP (CATS's sector), each with its own enemies,
 //  waves, boss, sky and music.
 //    12 THE WELL       a Tetris well: a faint grid, brick walls, tetrominoes falling in the dark, lines flashing
 //       waves  GARBAGE (grey rows rise from below through your zone, a gap in each: fly through it), LINE CLEAR
@@ -21,7 +21,7 @@
 //              talk, letters everywhere)
 // =====================================================================
 
-// ------------------------------------------------------------------ two more sectors, before THE LAST BASE
+// ------------------------------------------------------------------ two more sectors, before THE FLAGSHIP
 const GX3_NONE = ['#000000', '#000000', '#000000'];
 const GX3_WELL = { name: 'THE WELL', sky: '#05050C', dust: '#1C2448', planet: GX3_NONE, noPlanet: true, bg: (c, f) => gxBgWell(c, f),
   swap: { drone: 'mino' }, song: 'galaxyWell', bossSong: 'galaxyBossWell' };

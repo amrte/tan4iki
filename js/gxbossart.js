@@ -614,7 +614,7 @@ const GX_BOSS_ART = {
     bubble(t, outro) { return !outro && t % 140 < 80 && t > 10 ? gxaSay('COME CLOSER, LITTLE TANKS!', 2, 2) : outro && t % 180 > 100 ? gxaSay('MY BRAIN...', 72, 4) : null; },
   },
 
-  // THE LAST BASE: CATS on its main screen, a bomb set up on the deck
+  // THE FLAGSHIP: CATS on its main screen, a bomb set up on the deck
   cats: {
     intro(c, t) {
       gxaBase(c, t);
@@ -831,7 +831,7 @@ const GX_BOSS_TALES = {
   cats: { intro: ['ALL YOUR BASE ARE BELONG TO US', 'SOMEBODY SET UP US THE BOMB'], outro: 'FOR GREAT JUSTICE.' },
 };
 
-// the galaxy's final boss: the last sector's (CATS)
+// the galaxy's final boss: the last sector's (WINDOWS 95)
 const gxaFinal = key => { const d = GX_BOSSES[GX_SECTORS.length - 1]; return !!d && d.key === key; };
 
 // a whole galaxy boss screen, framed like the tank bosses' (bossart.js): b = Game.bossScreen ({ gx: key, outro, pts })

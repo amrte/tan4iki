@@ -1265,7 +1265,7 @@ up. 1-4 players together, here or online.
       it hasn't adapted to. Tractor beam then a cutting beam, a cage of shots, little cubes that hunt you.
     - **Giant Head** (sector 11): two hands slam down where you are (a red mark shows where) and shield the head
       while they're alive. It breathes you in and spits tiles. In its last phase, its brain shows.
-    - **CATS** (sector 20, the last): "HOW ARE YOU GENTLEMEN !!" "ALL YOUR BASE ARE BELONG TO US." Time bombs counting down
+    - **CATS** (sector 19, THE FLAGSHIP): "HOW ARE YOU GENTLEMEN !!" "ALL YOUR BASE ARE BELONG TO US." Time bombs counting down
       from 3 (shoot them to defuse), "MAIN SCREEN TURN ON." and its beam, fighters. FOR GREAT JUSTICE.
   - Sectors 12 and 13 have bosses of their own:
     - **The Stack** (sector 12): a living Tetris playfield, a scowling face in its blocks, a NEXT box showing the piece
@@ -1280,7 +1280,7 @@ up. 1-4 players together, here or online.
       it; shoot the bar (or bomb it) within 4 s or it heals some of its health back. In its last phase, MODEL
       COLLAPSE: it jitters, glitches into the wrong colours, scrambles its words and sprays letters every way.
       "CERTAINLY! HERE IS YOUR BOSS FIGHT." "YOU'RE ABSOLUTELY RIGHT!"
-  - Sectors 14-19 (each with its own sky, enemies, waves, a gimmick and two tunes in all three styles):
+  - Sectors 14-18 and 20 (each with its own sky, enemies, waves, a gimmick and two tunes in all three styles):
     - **Cosmic Unicorn** (14, RAINBOW RIFT: candy nebula, pony stampedes, a rainbow road with gaps, glitter mines,
       wishing stars that grant power, bombs or shields): gallops across leaving a solid rainbow you can't cross, sweeps
       its horn beam, charges along a sparkle line; in phase 3 it turns NIGHTMARE (a mane of fire, rainbow fans).
@@ -1301,11 +1301,11 @@ up. 1-4 players together, here or online.
       rockets, PLAID MODE; beaten, the cab breaks down and he phones a tow. Before this sector (in BOSS RUSH: the last hangar
       before him) the hangar sells an **FSD SUBSCRIPTION** for $99 ("FULL SELF-DRIVING (SUPERVISED)"): in the fight your ship flies and fires by
       itself, dodging his shots (FSD ENGAGED); press a direction to take over, it engages again a second after you let go.
-    - **Windows 95** (19, THE DESKTOP: error dialogs you can only hit on OK, diving cursors, hourglasses that freeze
+    - **Windows 95** (20, the last: THE DESKTOP: error dialogs you can only hit on OK, diving cursors, hourglasses that freeze
       you, a pestering paperclip helper, pipes screensaver walls, DEFRAG, a MINESWEEPER field, DIAL-UP at half speed,
       select-and-delete): a window dragged about by a cursor; its START MENU fires each item, CASCADE WINDOWS, BLUE
       SCREEN walls with a gap, SOLITAIRE VICTORY; in phase 3 it's NOT RESPONDING (frozen, then everything at once).
-      Beaten: a blue screen of death (any key), then "IT IS NOW SAFE TO TURN OFF YOUR COMPUTER."
+      Beaten: a blue screen of death (any key), then "IT IS NOW SAFE TO TURN OFF YOUR COMPUTER." and THE GALAXY IS SAVED.
 - **The hangar** between sectors (the shop), per player, paid in credits (CR), not points — combos, medals and
   grazing raise your score but don't buy anything. A full set of upgrades costs about 18500 credits, most of a campaign's earnings:
   - firepower (+15% damage a level, 7 levels), rapid fire (7), engine (3)

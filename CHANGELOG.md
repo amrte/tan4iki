@@ -3,6 +3,12 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.69.2
+
+- **Galaxy: WINDOWS 95 is the final boss.** THE DESKTOP is now sector 20, the last, and CATS's sector moves to 19 and is
+  renamed THE FLAGSHIP (it was THE LAST BASE). Beating WINDOWS 95 gives the blue screen, then THE GALAXY IS SAVED and
+  the ending music; CATS is a normal boss now. BOSS RUSH and the gallery follow the new order.
+
 ## 0.69.1
 
 - **Fixed: the FSD SUBSCRIPTION wasn't sold in BOSS RUSH.** Its hangar comes only every third boss, and FSD was offered
