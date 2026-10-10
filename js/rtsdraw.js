@@ -172,6 +172,18 @@ function rtsDefTurret(key, h, dir, firing) {
     if (firing) { g.fillStyle = '#F8E060'; g.fillRect(-1, -len - 2, 2, 2); }
   });
 }
+// a picture's white silhouette (a unit hit), made once per picture
+const RTS_WHITE = new WeakMap();
+function rtsWhiteOf(c) {
+  let w = RTS_WHITE.get(c);
+  if (!w) {
+    w = makeCanvas(c.width, c.height);
+    const g = w.getContext('2d');
+    g.drawImage(c, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, c.width, c.height);
+    RTS_WHITE.set(c, w);
+  }
+  return w;
+}
 // a unit's picture size (the art's own, else the stand-in's)
 function rtsUnitSize(key) { return (typeof RTS_U_SIZE !== 'undefined' && RTS_U_SIZE[key]) || RTS_DEF_SIZE[key] || 16; }
 function rtsPicUnit(key, h, dir, frame) {
@@ -571,11 +583,11 @@ Object.assign(RtsGame.prototype, {
   drawBuilding(ctx, b) {
     const dmg = b.hp < b.max * 0.25 ? 2 : b.hp < b.max * 0.5 ? 1 : 0;
     let st;
-    if (b.d.wpn) st = { dir8: b.tdir, firing: b.firing > 4, dmg, build: b.rise, flash: b.flash > 0 };
+    if (b.d.wpn) st = { dir8: b.tdir, firing: b.firing > 4, dmg, build: b.rise, flash: b.flash > 3 };
     else {
       const Hs = this.houses[b.h], q = b.d.fac && Hs && Hs.prod[b.d.fac];
       const active = !!b.working || !!(q && q.queue.length && !q.ready && this.factoryOf(Hs, b.d.fac) === b);
-      st = { dmg, frame: b.anim >> 3, door: b.door ? Math.min(3, (40 - b.doorT) >> 2, b.doorT >> 2) : 0, build: b.rise, flash: b.flash > 0, working: active, active,
+      st = { dmg, frame: b.anim >> 3, door: b.door ? Math.min(3, (40 - b.doorT) >> 2, b.doorT >> 2) : 0, build: b.rise, flash: b.flash > 3, working: active, active,
         fill: b.key === 'silo' || b.key === 'refinery' ? Math.max(0, Math.min(1, Hs ? Hs.credits / Math.max(1, Hs.storage) : 0)) : 0, mask: b.d.wall ? this.wallMask(b) : 0 };
     }
     const c = rtsBuildingPic(b.key, b.h, st);
@@ -586,7 +598,8 @@ Object.assign(RtsGame.prototype, {
       ctx.drawImage(c, 0, H - h, W, h, px, py + H - h, W, h);
       ctx.strokeStyle = '#C8A048'; ctx.strokeRect(px + 0.5, py + 0.5, W - 1, H - 1);
     } else ctx.drawImage(c, px + (W - c.width) / 2, py + (H - c.height) / 2);
-    if (b.flash > 0 && (b.flash & 2)) { ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(px, py, W, H); }
+    // a hit: the art flashes white itself; the stand-in gets a pale wash
+    if (b.flash > 3 && (typeof rtsBuildingArt !== 'function' || RTS_ART_BAD.bld)) { ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(px, py, W, H); }
     // burning when badly hurt
     if (dmg && !b.d.wall) {
       const n = dmg === 2 ? 2 : 1;
@@ -618,7 +631,7 @@ Object.assign(RtsGame.prototype, {
     const t = u.d.turret ? rtsTurretPic(u.key, u.h, u.tdir, u.firing > 4) : null;
     if (t) ctx.drawImage(t, x - t.width / 2, y - t.height / 2);
     ctx.globalAlpha = 1;
-    if (u.flash > 0 && u.d.cls !== 'inf') { ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(x - 5, y - 5, 10, 10); }
+    if (u.flash > 1 && u.d.cls !== 'inf') { const wc = rtsWhiteOf(c); ctx.globalAlpha = 0.55; ctx.drawImage(wc, x - wc.width / 2, y - wc.height / 2); if (t) ctx.drawImage(rtsWhiteOf(t), x - t.width / 2, y - t.height / 2); ctx.globalAlpha = 1; }
     if (u.conv && (this.frame >> 3) & 1) { ctx.fillStyle = 'rgba(120,224,88,0.5)'; ctx.fillRect(x - 2, y - 9, 4, 2); }
     if (u.order.k === 'boom') { ctx.fillStyle = (this.frame >> 2) & 1 ? '#F83818' : '#F8E048'; ctx.fillRect(x - 1, y - 12, 3, 3); }
   },
