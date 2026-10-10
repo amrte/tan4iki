@@ -411,7 +411,7 @@ Object.assign(RtsAiCommander.prototype, {
     // the sharp levels strike back right after beating off an attack (their army is spent)
     let lost = 0;
     for (const e of this.foeLost || []) lost += e.v;
-    const counter = this.lv >= 3 && lost >= 900 && f - this.lastThreat > 120 && f - this.lastThreat < 1200 && f > this.counterT + 2 * RTS_AI_MIN;
+    const counter = this.lv >= 3 && !this.campaign && lost >= 900 && f - this.lastThreat > 120 && f - this.lastThreat < 1200 && f > this.counterT + 2 * RTS_AI_MIN;
     if (f < this.nextWave && !counter) return;
     if (f - this.lastThreat < 300 && !counter) return;
     const pool = this.armyU.filter(u => this.is(u, 'pool') && u.hp > u.max * 0.55);
@@ -470,7 +470,7 @@ Object.assign(RtsAiCommander.prototype, {
   afterWave(R, H, tgt) {
     const f = R.frame, L = this.L;
     this.waveN++;
-    this.nextWave = f + L.waveGap * RTS_AI_MIN * (0.85 + this.rnd() * 0.3);
+    this.nextWave = f + L.waveGap * RTS_AI_MIN * (0.85 + this.rnd() * 0.3) * (this.campaign ? 1.3 : 1);
     const T = rtsAiTeam(R, H.team);
     if (tgt.h) { T.target = { h: tgt.h, x: tgt.x, y: tgt.y }; T.t = f; T.by = this.h; }
     T.waveT = f; T.waveBy = this.h;
@@ -677,7 +677,7 @@ Object.assign(RtsAiCommander.prototype, {
       return;
     }
     if (f < this.nextHarass || f - this.lastThreat < 900) return;
-    const want = this.nomadsOnly ? 2 : L.harass;
+    const want = this.nomadsOnly ? 2 : this.campaign ? Math.min(2, L.harass) : L.harass;
     // fast ones from the pool (the raiders' own: light vehicles; with no base: whatever there is, a couple kept)
     let cand = this.armyU.filter(u => (this.is(u, 'pool') || this.nomadsOnly && this.is(u, 'def')) && u.hp > u.max * 0.7);
     if (!this.nomadsOnly) cand = cand.filter(u => u.d.cls === 'veh' && u.d.speed >= 0.8);
@@ -701,6 +701,8 @@ Object.assign(RtsAiCommander.prototype, {
     }
     if (best) return best;
     // no harvester seen lately: a refinery out of the guns' way, or (no base of our own) whatever we've seen
+    // (a campaign foe's raiders only go for harvesters)
+    if (this.campaign && !this.nomadsOnly) return null;
     for (const r of this.mb.values()) {
       if (r.key !== 'refinery' && !(this.nomadsOnly && !r.d.wall)) continue;
       const th = this.threatAt(r.x + 1, r.y + 1, 7);
@@ -784,7 +786,7 @@ Object.assign(RtsAiCommander.prototype, {
     const h = this.h;
     if (!R.palaceReady(h)) return;
     // not in the first minutes (the gentler, the later; a campaign foe later still)
-    if (R.frame < ([15, 12, 9, 7, 5][this.lv] + (this.campaign ? 4 : 0)) * RTS_AI_MIN) return;
+    if (R.frame < ([15, 12, 9, 7, 5][this.lv] + (this.campaign ? 8 : 0)) * RTS_AI_MIN) return;
     const k = R.palaceKind(h), lv = this.lv, f = this.f;
     if (k === 'doomfist') {
       // where the enemy's buildings are thickest (worth most within the blast)
@@ -810,8 +812,9 @@ Object.assign(RtsAiCommander.prototype, {
         const s = (f - r.t) / 60 + this.threatAt(r.x, r.y, 5, 900) / 100;
         if (s < bs) { bs = s; best = { x: r.x, y: r.y }; }
       }
-      if (!best) for (const r of this.mb.values()) if (r.key === 'refinery') { best = { x: r.x + 1, y: r.y + r.hh + 1 }; break; }
-      if (!best && this.main && !this.main.guess) best = { x: this.main.x, y: this.main.y };
+      // (a campaign foe sends them only at harvesters: a whole band loose in a young base is too much)
+      if (!best && !this.campaign) for (const r of this.mb.values()) if (r.key === 'refinery') { best = { x: r.x + 1, y: r.y + r.hh + 1 }; break; }
+      if (!best && !this.campaign && this.main && !this.main.guess) best = { x: this.main.x, y: this.main.y };
       if (best) R.palacePower(h, best);
     }
   },

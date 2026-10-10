@@ -8,6 +8,11 @@
 //    power, refineries and harvesters, silos, concrete, repairs, rebuilding, selling when stalled, MCVs) and the
 //    base layout (compact, doors and docks kept clear and reachable, defences on the approaches facing the enemy).
 //    rtsai_army.js: the army (what to build, rally, defence, attack waves, harassment, retreats, specials, palace).
+//    Levels: 0 gentle (slow to react, one factory at a time, small late waves, never retreats, no raids), 1 easy,
+//    2 medium, 3 hard (counter-attacks, focus on guns, pulls hurt waves back early), 4 brutal (bigger economy,
+//    early raids, two-pronged attacks). The only help any level gets is the engine's production speed (aiBoost,
+//    "fast build") and, in a true dead end (no harvester, no money, nothing worth selling), one harvester by frigate.
+//    Computer Houses on one side take turns to attack a lone player and hit softer; campaign foes wait longer.
 // =====================================================================
 
 // the difficulty levels (times in minutes of game time)
@@ -70,6 +75,10 @@ class RtsAiCommander {
   constructor(R, h, level, opts) {
     this.h = h;
     this.lv = Math.max(0, Math.min(4, level | 0));
+    // the campaign's late missions stack standing bases, raids and several Houses against the player: there the
+    // Houses play a level gentler (the Regent keeps his)
+    const M = R.opts && R.opts.mission, Hs = R.houses && R.houses[h];
+    if (M && M.campaign && (M.level | 0) >= 7 && h !== 'regent' && Hs && !Hs.human) this.lv = Math.max(0, this.lv - 1);
     this.L = RTS_AI_LEVELS[this.lv];
     this.opts = opts || {};
     this.rnd = rtsRng(((R.seed >>> 0) ^ rtsAiHashStr(h) ^ Math.imul(this.lv + 1, 0x9E3779B1)) >>> 0);
@@ -142,7 +151,11 @@ class RtsAiCommander {
     // a campaign mission: the player starts with next to nothing against a standing base, so the first attack
     // waits longer and the waves hit softer (the mission's own raids keep the pressure on)
     this.campaign = !!(R.opts.mission && R.opts.mission.campaign) && !H.human;
-    if (this.campaign) { this.nextWave += 3 * RTS_AI_MIN; this.nextHarass += 3 * RTS_AI_MIN; this.soft *= 0.8; }
+    if (this.campaign) {
+      this.nextWave += 3 * RTS_AI_MIN; this.nextHarass += 3 * RTS_AI_MIN; this.soft *= 0.8;
+      // and builds at a gentler pace than in a skirmish (two or more of them: gentler still)
+      H.aiBoost = Math.min(H.aiBoost || 1, [0.8, 0.9, 1, 1.1, 1.2][this.lv] * (this.mates >= 2 ? 0.9 : 1));
+    }
     // what it starts with: units already round a base stay home to guard it
     for (const u of H.units) if (u.d.wpn && !u.d.harvester) this.role.set(u.id, H.buildings.length ? 'def' : 'pool');
   }

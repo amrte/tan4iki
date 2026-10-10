@@ -6,11 +6,16 @@
 //    Units: hp, armour class, speed (px a frame on open ground), turn (frames per 45 degrees), weapon, sight (tiles),
 //      cost, time (frames at full power), fac (the factory kind that makes it), houses (null: every House), tech (the
 //      mission level it comes in at), upg (the factory upgrade it needs; upgBy: per-House exceptions), needs (other
-//      buildings it needs), move class (foot, wheel, track, air).
+//      buildings it needs), move class (foot, wheel, track, air); costBy: per-House prices (the Houses' trade terms);
+//      a harvester's digEvery: frames per scoop of 2 credits of glimmer (the pace of the whole economy).
 //    Buildings: size in tiles, hp, cost, time, power (+ makes, - uses), sight, tech, upg (construction yard upgrade),
 //      needs, storage (glimmer), fac (what it builds), upgrades (the paid factory upgrades: cost and tech level).
 //    Weapons: class (for the armour table), damage, range (tiles), rate (frames between shots), shot (the projectile
 //      art and speed), splash (tiles), air (can hit aircraft), spread (inaccuracy in tiles at full range).
+//    Balance (the AI helper's pass, checked with equal-cost fights and hundreds of computer games): soldiers beat
+//    troopers, light vehicles beat infantry and missile tanks, tanks beat light vehicles, troopers and missile tanks
+//    hold tanks; rockets do little to fast light vehicles, buildings shrug off a little more of everything; the
+//    sandwyrm (RTS_WORM) comes later and leaves sooner; the economy runs at about half its old pace.
 // =====================================================================
 
 const RTS_TILE = 16;
