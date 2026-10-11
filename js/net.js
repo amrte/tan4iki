@@ -186,11 +186,11 @@ const Net = {
 
   buildView(full) {
     const G = Game, v = { t: 'v', s: G.state, gt: G.t, c: COLS, r: ROWS, vc: VIEW_W / 16, vr: VIEW_H / 16, bs: BASE_SIDE, stn: G.stageNum, hi: G.hi, eng: Sound.engineState };
-    if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover', 'vsResult', 'modeResult', 'modeIntro', 'bossIntro', 'bossOutro'].includes(G.state)) v.s = 'wait';
+    if (!this.inGame || !['play', 'curtain', 'score', 'shop', 'bigover', 'vsResult', 'raceChamp', 'modeResult', 'modeIntro', 'bossIntro', 'bossOutro'].includes(G.state)) v.s = 'wait';
     if (G.state === 'bossIntro' || G.state === 'bossOutro') v.bsc = G.bossScreen;
     v.as = AutoSkill.rating;
     v.mode = G.mode; v.tdm = G.tdMap; v.ta = G.taFrames; v.tac = G.taCleared; v.vw = G.vsWins; v.rt = G.raceTarget; v.rd = G.round;
-    if (v.s === 'vsResult') v.vsr = G.vsRes;
+    if (v.s === 'vsResult' || v.s === 'raceChamp') v.vsr = G.vsRes;
     if (v.s === 'modeResult') v.mr = G.modeRes;
     v.pl = G.players.map(p => ({
       i: p.i, score: p.score, lives: p.lives, level: p.level, mines: p.mines, kills: p.kills, out: p.out,

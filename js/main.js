@@ -343,10 +343,12 @@ const Game = {
     ctx.translate(0, this.titleY);
     Font.draw(ctx, 'I-', 16, 16, COL.white);
     Font.drawRight(ctx, this.lastScores[0] ? this.lastScores[0] : '00', 88, 16, COL.white);
+    // a long hi-score pushes right (never into HI-), and the version with it
+    const hiS = String(this.hi), hiX = Math.max(176, 136 + hiS.length * 8);
     Font.draw(ctx, 'HI-', 112, 16, COL.white);
-    Font.drawRight(ctx, this.hi, 176, 16, COL.white);
+    Font.drawRight(ctx, hiS, hiX, 16, COL.white);
     // version beside the hi-score; a II-player score drops to the row below
-    Font.draw(ctx, 'V' + APP_VERSION, 192, 16, COL.lgrey);
+    Font.draw(ctx, 'V' + APP_VERSION, hiX + 16, 16, COL.lgrey);
     if (this.lastScores[1]) {
       Font.draw(ctx, 'II-', 184, 28, COL.white);
       Font.drawRight(ctx, this.lastScores[1], 248, 28, COL.white);

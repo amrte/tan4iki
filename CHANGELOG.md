@@ -3,6 +3,18 @@
 The version lives in `js/version.js` and is shown on the title screen as `tanb4iki_v<version>`.
 `node tools/build.js` writes the single-file game to `dist/tanb4iki_v<version>.html`.
 
+## 0.73
+
+- **Kill Race: the champion's page.** After the match's last result, the winner gets a page of their own
+  (racechamp.js): fireworks and confetti, KILL RACE CHAMPION! in big gold letters, the winner's tank three times the
+  size on the top step of a podium with the crown on it, the next two beside it with their points, the victory tune
+  ("CONGRATULATIONS!", or "BETTER LUCK NEXT TIME!" when a bot beat you). Enter goes back to the title. Online guests
+  see it too.
+- **Kill Race bots a little weaker at every level**: slower to aim, they notice fewer shells, shoot from less far
+  and go out of their way for power-ups less (TANKIE, MONKEY and JUNKIE alike).
+- **Fixed: a long hi-score on the title ran into its HI- label.** The number now starts after the label (and the
+  version moves along with it).
+
 ## 0.72
 
 - **Kill Race bots: five levels, same speed.** The racing bots drive at the same speed as you again (0.71 made them

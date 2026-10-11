@@ -24,11 +24,11 @@ const RACE_CROWN_PULL = 96;
 // brick: the chance a frame it shoots a brick in its way; slack: the chance at each tile that it dawdles a moment
 const RACE_BOT_NAMES = ['ROOKIE', 'GUNNER', 'VETERAN', 'ACE', 'TERMINATOR'];
 const RACE_BOT_LV = [
-  { aim: 30, lead: false, dodge: 0, down: false, road: false, range: 176, pu: 64, brick: 0.08, slack: 0.03 },
-  { aim: 18, lead: false, dodge: 0.25, down: false, road: false, range: 208, pu: 96, brick: 0.12, slack: 0.015 },
-  { aim: 10, lead: true, dodge: 0.5, down: true, road: true, range: 256, pu: 128, brick: 0.2, slack: 0.005 },
-  { aim: 5, lead: true, dodge: 0.8, down: true, road: true, range: 320, pu: 160, brick: 0.3, slack: 0 },
-  { aim: 2, lead: true, dodge: 1, down: true, road: true, range: 400, pu: 200, brick: 0.4, slack: 0 },
+  { aim: 40, lead: false, dodge: 0, down: false, road: false, range: 160, pu: 56, brick: 0.06, slack: 0.04 },
+  { aim: 26, lead: false, dodge: 0.15, down: false, road: false, range: 192, pu: 80, brick: 0.1, slack: 0.02 },
+  { aim: 16, lead: true, dodge: 0.35, down: true, road: true, range: 224, pu: 112, brick: 0.16, slack: 0.01 },
+  { aim: 9, lead: true, dodge: 0.6, down: true, road: true, range: 280, pu: 140, brick: 0.25, slack: 0.004 },
+  { aim: 5, lead: true, dodge: 0.85, down: true, road: true, range: 340, pu: 176, brick: 0.32, slack: 0 },
 ];
 const raceBotLevel = () => Math.max(1, Math.min(5, Game.raceBotLv || Config.get('raceBots') || 3));
 
